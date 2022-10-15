@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -301,7 +302,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     // part of a self-join.  Restrict each factor to at most one
     // self-join.
     final List<RelOptTable> repeatedTables = new ArrayList<>();
-    final TreeSet<Integer> sortedFactors = new TreeSet<>();
+    final NavigableSet<Integer> sortedFactors = new TreeSet<>();
     sortedFactors.addAll(simpleFactors.keySet());
     final Map<Integer, Integer> selfJoinPairs = new HashMap<>();
     Integer [] factors =

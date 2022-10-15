@@ -148,7 +148,8 @@ export class JobTable extends PureComponent {
   handleJobClick = (item) => this.props.setActiveJob(item);
 
   handleResize() {
-    const { current: { offsetWidth = 0, offsetHeight } = {} } = this.tableRef;
+    const { offsetWidth = 0, offsetHeight } =
+      (this.tableRef && this.tableRef.current) || {};
     this.setState({
       width: offsetWidth,
       height: offsetHeight - OFFSETHEIGHT_HEIGHT_DIFF,

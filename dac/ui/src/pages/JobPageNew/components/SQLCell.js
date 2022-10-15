@@ -16,9 +16,10 @@
 import { useState, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip as DremioTooltip } from "dremio-ui-lib";
 import "./JobsContent.less";
 
-const SQLCell = ({ sql }) => {
+const SQLCell = ({ sql, isFromExplorePage }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const sqlRef = useRef(null);
 
@@ -44,7 +45,20 @@ const SQLCell = ({ sql }) => {
     setTooltipOpen(false);
   };
 
-  return (
+  return isFromExplorePage ? (
+    <div data-qa="SQLCell">
+      <div className="jobsContent__sqlWrapper">
+        <DremioTooltip
+          title={<div className="sql-tooltip-content-container">{sql}</div>}
+          placement="bottom-start"
+          type="richTooltip"
+          interactive
+        >
+          <div style={{ width: "fit-content" }}>{sql}</div>
+        </DremioTooltip>
+      </div>
+    </div>
+  ) : (
     <div
       data-qa="SQLCell"
       ref={sqlRef}
@@ -69,10 +83,12 @@ const SQLCell = ({ sql }) => {
 
 SQLCell.propTypes = {
   sql: PropTypes.string,
+  isFromExplorePage: PropTypes.bool,
 };
 
 SQLCell.defaultProps = {
   sql: "",
+  isFromExplorePage: false,
 };
 
 export default SQLCell;

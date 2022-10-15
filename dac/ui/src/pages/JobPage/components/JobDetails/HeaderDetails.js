@@ -21,8 +21,8 @@ import { Link } from "react-router";
 import { injectIntl } from "react-intl";
 
 import * as ButtonTypes from "components/Buttons/ButtonTypes";
-import Button from "components/Buttons/Button";
-import Art from "components/Art";
+import { Button, Tooltip } from "dremio-ui-lib";
+import { getIconPath } from "@app/utils/getIconPath";
 import datasetPathUtils from "utils/resourcePathUtils/dataset";
 import {
   constructFullPathAndEncode,
@@ -67,10 +67,11 @@ class HeaderDetails extends PureComponent {
     ) {
       return (
         <Button
-          type={ButtonTypes.CUSTOM}
+          color={ButtonTypes.UI_LIB_SECONDARY}
           text={intl.formatMessage({ id: "Common.Cancel" })}
           onClick={this.cancelJob}
-          styles={[styles.button]}
+          styles={styles.button}
+          disableMargin
         />
       );
     }
@@ -124,8 +125,8 @@ class HeaderDetails extends PureComponent {
 
     return (
       <span style={styles.openResults}>
-        <Art
-          src={"VirtualDataset.svg"}
+        <dremio-icon
+          name="entities/dataset-view"
           alt={intl.formatMessage({ id: "Dataset.VirtualDataset" })}
           style={styles.virtualDatasetIcon}
         />
@@ -150,8 +151,8 @@ class HeaderDetails extends PureComponent {
     }
 
     const flame = jobDetails.get("snowflakeAccelerated")
-      ? "FlameSnowflake.svg"
-      : "Flame.svg";
+      ? "interface/flame-snowflake"
+      : "interface/flame";
     const flameAlt = jobDetails.get("snowflakeAccelerated")
       ? "Job.AcceleratedHoverSnowFlake"
       : "Job.AcceleratedHover";
@@ -171,20 +172,21 @@ class HeaderDetails extends PureComponent {
             </span>
           </div>
           {jobDetails.get("accelerated") && (
-            <Art
-              src={flame}
-              alt={intl.formatMessage({ id: flameAlt })}
-              style={styles.flameIcon}
-              title
-            />
+            <Tooltip title={flameAlt}>
+              <img
+                src={getIconPath(flame)}
+                alt={intl.formatMessage({ id: flameAlt })}
+                style={styles.flameIcon}
+              />
+            </Tooltip>
           )}
           {jobDetails.get("spilled") && (
-            <Art
-              src="DiskSpill.svg"
-              alt={intl.formatMessage({ id: "Job.SpilledHover" })}
-              style={styles.flameIcon}
-              title
-            />
+            <Tooltip title={intl.formatMessage({ id: "Job.SpilledHover" })}>
+              <dremio-icon
+                name="interface/disk-spill"
+                style={styles.flameIcon}
+              />
+            </Tooltip>
           )}
         </div>
         <div style={styles.rightPart}>{this.getButton()}</div>
@@ -231,7 +233,7 @@ const styles = {
   virtualDatasetIcon: {
     width: 24,
     height: 24,
-    marginTop: -4,
+    marginRight: "var(--dremio--spacing--05)",
   },
   flameIcon: {
     width: 20,

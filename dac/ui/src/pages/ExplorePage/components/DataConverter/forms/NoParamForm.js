@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 
@@ -34,7 +33,6 @@ export class NoParamForm extends Component {
     );
   }
 }
-NoParamForm = Radium(NoParamForm);
 
 function mapStateToProps(state, props) {
   const { dropSourceField } = props.initialValues;

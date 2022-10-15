@@ -67,7 +67,7 @@ public class MaestroProxy implements AutoCloseable {
     Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
     Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
     ClusterCoordinator clusterCoordinator,
-    NodeEndpoint selfEndpoint,
+    Provider<NodeEndpoint> selfEndpoint,
     OptionManager options) {
 
     this.maestroServiceClientFactoryProvider = maestroServiceClientFactoryProvider;

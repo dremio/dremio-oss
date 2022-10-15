@@ -62,7 +62,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     final String sqlQuery = "select stars, count(5) as a, count(1) as b, count(*) as c from elasticsearch." + schema + "." + table + " where review_count < 10 group by stars";
     testPlanMatchingPatterns(sqlQuery, new String[0], new String[]{"Aggregate"});
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("stars", "a", "b", "c")
-      .baselineValues(1.0f,1l,1l,1l)
+      .baselineValues(1.0f, 1L, 1L, 1L)
       .go();
   }
 
@@ -72,7 +72,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     final String sqlQuery = "select count(5) as a, count(1) as b, count(*) as c from elasticsearch." + schema + "." + table + " where review_count < 10";
     testPlanMatchingPatterns(sqlQuery, new String[0], new String[]{"Aggregate"});
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("a", "b", "c")
-      .baselineValues(1l,1l,1l)
+      .baselineValues(1L, 1L, 1L)
       .go();
   }
 

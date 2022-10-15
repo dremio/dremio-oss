@@ -48,7 +48,7 @@ import {
   fetchFilteredJobsList,
   JOB_PAGE_NEW_VIEW_ID,
 } from "@app/actions/joblist/jobList";
-import { SqlStringUtils } from "@app/utils/SqlStringUtils/SqlStringUtils";
+import { extractSelections } from "@app/utils/statements/statementParser";
 import CalculatedFieldContent from "./DetailsWizard/CalculatedFieldContent";
 import TransformContent from "./DetailsWizard/TransformContent";
 import ConvertTrimContent from "./DetailsWizard/ConvertTrimContent";
@@ -112,21 +112,17 @@ export class DetailsWizard extends PureComponent {
 
   goToExplorePage() {
     const { location, activeScript } = this.props;
-    const { version } = location.query;
     const sliceIndex = location.pathname.indexOf("/details");
     const newPath = location.pathname.slice(0, sliceIndex);
-    const query = {
-      version: version || undefined,
-      tipVersion: location.query.tipVersion || undefined,
-      mode: location.query.mode || undefined,
-    };
+    const { type, ...queryParams } = location.query || {}; // eslint-disable-line
+
     this.context.router.push({
       state: {
         previewVersion: "",
         renderScriptTab: !!activeScript.id,
       },
       pathname: newPath,
-      query,
+      query: queryParams,
     });
   }
 
@@ -179,7 +175,7 @@ export class DetailsWizard extends PureComponent {
     }
 
     newPreviousAndCurrentSql({ sql: modifiedQuery });
-    const [, newSelections] = SqlStringUtils(modifiedQuery);
+    const newSelections = extractSelections(modifiedQuery);
     newQuerySelections({ selections: newSelections });
   };
 
@@ -199,6 +195,7 @@ export class DetailsWizard extends PureComponent {
           // this navigation will trigger data load. see explorePageDataChecker saga
           return this.props.navigateToNextDataset(response, {
             renderScriptTab: !!activeScript.id,
+            isTransform: true,
           });
         }
         return response;

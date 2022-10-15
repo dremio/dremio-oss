@@ -51,12 +51,7 @@ public abstract class BaseJsonProcessor implements JsonProcessor {
 
   @Override
   public UserException.Builder getExceptionWithContext(UserException.Builder exceptionBuilder,
-                                                       String field,
-                                                       String msg,
-                                                       Object... args) {
-    if (msg != null) {
-      exceptionBuilder.message(msg, args);
-    }
+                                                       String field) {
     if(field != null) {
       exceptionBuilder.pushContext("Field ", field);
     }
@@ -66,12 +61,9 @@ public abstract class BaseJsonProcessor implements JsonProcessor {
   }
 
   @Override
-  public UserException.Builder getExceptionWithContext(Throwable e,
-                                                       String field,
-                                                       String msg,
-                                                       Object... args) {
+  public UserException.Builder getExceptionWithContext(Throwable e, String field) {
     UserException.Builder exceptionBuilder = UserException.dataReadError(e);
-    return getExceptionWithContext(exceptionBuilder, field, msg, args);
+    return getExceptionWithContext(exceptionBuilder, field);
   }
 
   @Override

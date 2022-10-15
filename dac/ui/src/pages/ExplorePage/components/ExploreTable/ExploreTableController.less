@@ -104,13 +104,19 @@
       }
 
       &__buttons {
-        width: 24px;
-        height: 24px;
+        width: 32px;
+        height: 32px;
+        color: var(--dremio--color--neutral--600) !important;
 
         &:hover {
-          filter: invert(95%) sepia(32%) saturate(3044%) hue-rotate(156deg)
-            brightness(88%) contrast(91%);
+          color: var(--dremio--color--link) !important;
         }
+      }
+
+      &__tab-button {
+        width: 24px;
+        height: 24px;
+        color: var(--dremio--color--neutral--600);
       }
 
       &__actionButtonContainer {

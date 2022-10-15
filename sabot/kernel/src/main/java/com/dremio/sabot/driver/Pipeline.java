@@ -21,6 +21,7 @@ import java.util.Map;
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.exec.context.SharedResourcesContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.op.spi.Operator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.dremio.sabot.task.Task.State;
 import com.google.common.base.Preconditions;
@@ -31,9 +32,9 @@ import com.google.common.collect.ImmutableMap;
  * pipes picking the right ones to pump to output all data.
  */
 public class Pipeline implements AutoCloseable {
-
   private Pipe currentPipe;
   private final List<Wrapped<?>> operators;
+  private final List<Operator.ShrinkableOperator> shrinkableOperators;
   private final Map<Integer, Wrapped<?>> operatorMap;
   private final TerminalOperator terminal;
   private final Pipe terminalPipe;
@@ -48,12 +49,13 @@ public class Pipeline implements AutoCloseable {
    * @param sharedResourcesContext shared resources context
    */
   public Pipeline(Pipe terminalPipe, TerminalOperator terminal, List<Wrapped<?>> operators,
-                  SharedResourcesContext sharedResourcesContext) {
+                  List<Operator.ShrinkableOperator> shrinkableOperators, SharedResourcesContext sharedResourcesContext) {
     this.terminalPipe = terminalPipe;
     while (terminalPipe.getRequiredUpstream() != null) {
       terminalPipe = terminalPipe.getRequiredUpstream();
     }
     this.operators = operators;
+    this.shrinkableOperators = shrinkableOperators;
 
     ImmutableMap.Builder<Integer, Wrapped<?>> builder = ImmutableMap.builder();
     for(Wrapped<?> w : operators) {
@@ -71,6 +73,17 @@ public class Pipeline implements AutoCloseable {
 
   public TerminalOperator getTerminalOperator(){
     return terminal;
+  }
+
+  public List<Operator.ShrinkableOperator> getShrinkableOperators() {
+    return shrinkableOperators;
+  }
+
+  public boolean shrinkMemory(int operatorId, long memoryUsed) throws Exception {
+    Wrapped<?> wrapped = operatorMap.get(operatorId);
+    Preconditions.checkNotNull(wrapped, "invalid operatorId " + operatorId + " in shrink memory usage msg");
+
+    return wrapped.shrinkMemory(memoryUsed);
   }
 
   public void workOnOOB(OutOfBandMessage message) {
@@ -187,7 +200,4 @@ public class Pipeline implements AutoCloseable {
       AutoCloseables.close(operators);
     }
   }
-
-
-
 }

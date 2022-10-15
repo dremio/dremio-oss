@@ -66,30 +66,36 @@ public class ReflectionValidator {
   /**
    * @return false if reflection goal is invalid
    */
-  public boolean isValid(ReflectionGoal goal) {
+  public boolean isValid(ReflectionGoal goal, DremioTable table) {
     try {
-      validate(goal);
+      validate(goal, table);
     } catch (Exception e) {
       return false;
     }
     return true;
   }
 
+  public void validate(ReflectionGoal goal) {
+    validate(goal, null);
+  }
+
   /**
    * @throws UserException if reflection goal is invalid
    */
-  public void validate(ReflectionGoal goal) {
+  public void validate(ReflectionGoal goal, DremioTable table) {
     ReflectionUtils.validateReflectionGoalWithoutSchema(goal);
 
-    // The dataset that the reflection refers to must exist.
-    final EntityExplorer entityExplorer = catalogService.get()
+    if (table == null) {
+      // The dataset that the reflection refers to must exist.
+      final EntityExplorer entityExplorer = catalogService.get()
         .getCatalog(MetadataRequestOptions.newBuilder()
-            .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
-            .setCheckValidity(false)
-            .build());
+          .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+          .setCheckValidity(false)
+          .build());
+      table = entityExplorer.getTable(goal.getDatasetId());
+      Preconditions.checkNotNull(table, "datasetId must reference an existing dataset");
+    }
 
-    final DremioTable table = entityExplorer.getTable(goal.getDatasetId());
-    Preconditions.checkNotNull(table, "datasetId must reference an existing dataset");
     final List<ViewFieldType> schemaFields = ViewFieldsHelper.getBatchSchemaFields(table.getSchema());
 
     Map<String, ViewFieldType> schemaMap = Maps.newHashMap();
@@ -124,7 +130,9 @@ public class ReflectionValidator {
       try {
         family = SqlTypeFamily.valueOf(fieldType.getTypeFamily());
       } catch (RuntimeException ex) {
-        throw UserException.validationError().message("Field %s cannot be configured as measure due to unexpected type of %s." ).build(logger);
+        throw UserException.validationError()
+          .message("Field %s cannot be configured as measure due to unexpected type of %s.", measureField.getName(), fieldType.getTypeFamily())
+          .build(logger);
       }
       final List<MeasureType> measures = AccelerationUtils.selfOrEmpty(measureField.getMeasureTypeList())
         .stream()

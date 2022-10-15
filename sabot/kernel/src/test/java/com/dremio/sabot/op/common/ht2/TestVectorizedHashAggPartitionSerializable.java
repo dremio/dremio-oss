@@ -64,6 +64,7 @@ import com.dremio.sabot.op.aggregate.vectorized.PartitionToLoadSpilledData;
 import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartition;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSerializable;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler.SpilledPartitionIterator;
 import com.dremio.service.spill.SpillDirectory;
@@ -361,7 +362,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
      */
 
     /* expected ordinals after insertion into hash table */
-    final int expectedOrdinals[] = {0, 1, 0, 1, 2, 3, 4, 5, 6, 5, 7, 2};
+    final int[] expectedOrdinals = {0, 1, 0, 1, 2, 3, 4, 5, 6, 5, 7, 2};
 
     final String[] aggVarLenMin1 = {"zzzzzzzzzz" /*0*/, "yyyyyyyyyyyyyyy" /*1*/, null /*0*/, "aaaaa" /*1*/, "twozzzzzzzzz" /*2*/,
       "threezzzzzzzzzz" /*3*/, "fourzzzzzzzzzz" /*4*/, null /*5*/, "sixzzzzzzzzzz" /*6*/, "five" /*5*/, "sevenzzzzzzzzz" /*7*/, "twoaaaaa" /*2*/};
@@ -548,7 +549,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
 
         /* compute hash on the pivoted data */
         hashValues.allocateNew(records);
-        final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+        final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
           pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
         HashComputation.computeHash(blockChunk);
 
@@ -557,7 +558,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
         final int hashPartitionIndex = 0;
         for (int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH) {
           final int keyHash = (int)hashValues.get(keyIndex);
-          actualOrdinals[keyIndex] = sourceHashTable.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+          actualOrdinals[keyIndex] = sourceHashTable.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           hashAggPartition.appendRecord(actualOrdinals[keyIndex], keyIndex);
           //PlatformDependent.putByte(offsetAddr, (byte)hashPartitionIndex);
           //PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.HTORDINAL_OFFSET, actualOrdinals[keyIndex]);

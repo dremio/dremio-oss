@@ -13,14 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Art from "@app/components/Art";
+
 import * as classes from "./NodeTableCellStatus.module.less";
 
 const NodeTableCellStatus = (props: { icon: string }) => {
   const { icon } = props;
+
+  // use the icon name to determine which 'color' to use (running / stopped / disabled)
   return (
     <div className={classes["nodeTableCellStatus"]}>
-      <Art src={icon} style={{ height: 24, width: 24 }} alt={icon} />
+      <dremio-icon
+        name={icon}
+        alt={icon}
+        class={`${classes["nodeTableCellIcon"]} ${classes[icon.split("/")[1]]}`}
+      />
     </div>
   );
 };

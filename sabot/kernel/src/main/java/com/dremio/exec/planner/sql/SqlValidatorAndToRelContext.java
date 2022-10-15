@@ -46,6 +46,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -247,6 +248,17 @@ public class SqlValidatorAndToRelContext {
       return new Builder(
         sqlConverter,
         catalog.resolveCatalog(user),
+        contextualSqlOperatorTable,
+        isSubQuery);
+    }
+
+    public Builder withVersionContext(String source, VersionContext versionContext) {
+      sqlConverter.setViewExpansionVersionContext(versionContext);
+      final Map<String, VersionContext> sourceVersionMapping = new HashMap<>();
+      sourceVersionMapping.put(source, versionContext);
+      return new Builder(
+        sqlConverter,
+        catalog.resolveCatalog(sourceVersionMapping),
         contextualSqlOperatorTable,
         isSubQuery);
     }

@@ -135,6 +135,7 @@ export function createSampleSource(meta) {
       accelerationGracePeriod:
         DataFreshnessSection.defaultFormValueGracePeriod(),
       accelerationNeverRefresh: true,
+      accelerationNeverExpire: true,
       type: "S3",
     };
     return dispatch(postCreateSource(sourceModel, meta, true));

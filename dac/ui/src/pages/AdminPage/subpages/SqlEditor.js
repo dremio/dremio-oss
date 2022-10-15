@@ -42,18 +42,14 @@ const SqlEditor = (props) => {
     supportFlags,
   } = props;
   const viewStateWithoutError = viewState.set("isFailed", false);
-  const [isEnabled, setIsEnabled] = useState(false);
+  const isAutoCompleteEnabled =
+    (supportFlags && supportFlags["ui.autocomplete.allow"]) ||
+    config.autoComplete;
+  const [isEnabled, setIsEnabled] = useState(isAutoCompleteEnabled);
 
   useEffect(() => {
-    const isEnterpriseFlag = isEnterprise && isEnterprise();
-    const isCommunityFlag = isCommunity && isCommunity();
-
-    if (!(isEnterpriseFlag || isCommunityFlag)) {
-      dispatchFetchSupportFlags("ui.autocomplete.allow");
-    } else {
-      setIsEnabled(config.allowAutoComplete);
-    }
-  }, []);
+    dispatchFetchSupportFlags("ui.autocomplete.allow");
+  }, [dispatchFetchSupportFlags]);
 
   useEffect(() => {
     const isEnterpriseFlag = isEnterprise && isEnterprise();
@@ -82,33 +78,35 @@ const SqlEditor = (props) => {
       <SettingHeader icon="common/SQLRunner">
         <FormattedMessage id="Admin.SqlEditor.title" />
       </SettingHeader>
-      <ViewStateWrapper
-        viewState={viewStateWithoutError}
-        hideChildrenWhenFailed={false}
-        style={{ overflow: "auto", height: "100%", flex: "1 1 auto" }}
-      >
-        <div className="enable-autcomplete-div">
-          <span>
-            <FormattedMessage id="Admin.SqlEditor.subtitle" />
-          </span>
-        </div>
-        <div className="enable-autocomplete-subtext">
-          <span>
-            <FormattedMessage id="Admin.SqlEditor.subtext" />
-          </span>
-        </div>
-        <div className="autocomplete-button-section">
-          <div>
+      <div className="gutter-left--double">
+        <ViewStateWrapper
+          viewState={viewStateWithoutError}
+          hideChildrenWhenFailed={false}
+          style={{ overflow: "auto", height: "100%", flex: "1 1 auto" }}
+        >
+          <div className="enable-autcomplete-div">
             <span>
-              <FormattedMessage id="Admin.SqlEditor.actionName" />
+              <FormattedMessage id="Admin.SqlEditor.subtitle" />
             </span>
           </div>
-          <div className="autocomplete-toggle-div">
-            <Toggle value={isEnabled} onChange={handleChange} />
+          <div className="enable-autocomplete-subtext">
+            <span>
+              <FormattedMessage id="Admin.SqlEditor.subtext" />
+            </span>
           </div>
-        </div>
-        <hr className="setting-body-sql-hr" />
-      </ViewStateWrapper>
+          <div className="autocomplete-button-section">
+            <div>
+              <span>
+                <FormattedMessage id="Admin.SqlEditor.actionName" />
+              </span>
+            </div>
+            <div className="autocomplete-toggle-div">
+              <Toggle value={isEnabled} onChange={handleChange} />
+            </div>
+          </div>
+          <hr className="setting-body-sql-hr" />
+        </ViewStateWrapper>
+      </div>
     </div>
   );
 };

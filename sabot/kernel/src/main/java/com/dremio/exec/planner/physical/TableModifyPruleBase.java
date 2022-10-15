@@ -56,6 +56,7 @@ public abstract class TableModifyPruleBase extends Prule {
       tableModify.getOperation() == TableModify.Operation.MERGE
         ? tableModify.getMergeUpdateColumnList()
         : tableModify.getUpdateColumnList(),
+      tableModify.hasSource(),
       context);
 
     call.transformTo(planGenerator.getPlan());

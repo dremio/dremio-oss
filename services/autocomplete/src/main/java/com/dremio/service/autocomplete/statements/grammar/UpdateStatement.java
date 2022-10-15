@@ -19,12 +19,9 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SET;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.UPDATE;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.WHERE;
 
-import org.apache.arrow.util.Preconditions;
-
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -34,42 +31,32 @@ import com.google.common.collect.ImmutableList;
  *       [ WHERE booleanExpression ]
  */
 public final class UpdateStatement extends Statement {
-  private final CatalogPath tablePrimary;
-  private final ImmutableList<DremioToken> assignTokens;
-  private final ImmutableList<DremioToken> condition;
+  private final TableReference tablePrimary;
+  private final Column assignment;
+  private final Column condition;
 
   protected UpdateStatement(
     ImmutableList<DremioToken> tokens,
-    CatalogPath tablePrimary,
-    ImmutableList<DremioToken> assignTokens,
-    ImmutableList<DremioToken> condition) {
-    super(tokens, ImmutableList.of());
+    TableReference tablePrimary,
+    Column assignment,
+    Column condition) {
+    super(tokens, asListIgnoringNulls(tablePrimary, assignment, condition));
 
     this.tablePrimary = tablePrimary;
-    this.assignTokens = assignTokens;
+    this.assignment = assignment;
     this.condition = condition;
   }
 
-  public CatalogPath getTablePrimary() {
+  public TableReference getTablePrimary() {
     return tablePrimary;
   }
 
-  public ImmutableList<DremioToken> getAssignTokens() {
-    return assignTokens;
+  public Column getAssignment() {
+    return assignment;
   }
 
-  public ImmutableList<DremioToken> getCondition() {
+  public Column getCondition() {
     return condition;
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
   }
 
   public static UpdateStatement parse(TokenBuffer tokenBuffer) {
@@ -77,12 +64,12 @@ public final class UpdateStatement extends Statement {
 
     return new Builder(tokenBuffer.toList())
       .addTablePrimary(parseTablePrimary(tokenBuffer))
-      .addAssignTokens(parseAssignTokens(tokenBuffer))
-      .addCondition(parseCondition(tokenBuffer))
+      .addAssignTokens(tokenBuffer)
+      .addCondition(tokenBuffer)
       .build();
   }
 
-  private static CatalogPath parseTablePrimary(TokenBuffer tokenBuffer) {
+  private static TableReference parseTablePrimary(TokenBuffer tokenBuffer) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -95,10 +82,10 @@ public final class UpdateStatement extends Statement {
     ImmutableList<DremioToken> setTokens = tokenBuffer.readUntilKind(SET);
     tokenBuffer.read();
 
-    return CatalogPath.parse(setTokens);
+    return TableReference.parse(new TokenBuffer(setTokens));
   }
 
-  private static ImmutableList<DremioToken> parseAssignTokens(TokenBuffer tokenBuffer) {
+  private static Column parseAssignTokens(TokenBuffer tokenBuffer, TableReference tableReference) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -106,39 +93,40 @@ public final class UpdateStatement extends Statement {
     ImmutableList<DremioToken> assignTokens = tokenBuffer.readUntilKind(WHERE);
     tokenBuffer.read();
 
-    return assignTokens;
+    return Column.parse(assignTokens, tableReference);
   }
 
-  private static ImmutableList<DremioToken> parseCondition(TokenBuffer tokenBuffer) {
+  private static Column parseCondition(TokenBuffer tokenBuffer, TableReference tableReference) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
 
-    return tokenBuffer.drainRemainingTokens();
+    ImmutableList<DremioToken> tokens = tokenBuffer.drainRemainingTokens();
+    return Column.parse(tokens, tableReference);
   }
 
   private static final class Builder {
     private final ImmutableList<DremioToken> tokens;
-    private CatalogPath tablePrimary;
-    private ImmutableList<DremioToken> assignTokens;
-    private ImmutableList<DremioToken> condition;
+    private TableReference tablePrimary;
+    private Column assignTokens;
+    private Column condition;
 
     private Builder(ImmutableList<DremioToken> tokens) {
       this.tokens = tokens;
     }
 
-    public Builder addTablePrimary(CatalogPath tablePrimary) {
+    public Builder addTablePrimary(TableReference tablePrimary) {
       this.tablePrimary = tablePrimary;
       return this;
     }
 
-    public Builder addAssignTokens(ImmutableList<DremioToken> assignTokens) {
-      this.assignTokens = assignTokens;
+    public Builder addAssignTokens(TokenBuffer tokenBuffer) {
+      this.assignTokens = parseAssignTokens(tokenBuffer, tablePrimary);
       return this;
     }
 
-    public Builder addCondition(ImmutableList<DremioToken> condition) {
-      this.condition = condition;
+    public Builder addCondition(TokenBuffer tokenBuffer) {
+      this.condition = parseCondition(tokenBuffer, tablePrimary);
       return this;
     }
 

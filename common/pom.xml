@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-common</artifactId>
@@ -58,13 +58,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <configuration>
-          <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
-        </configuration>
-      </plugin>
-      <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <configuration>
@@ -72,7 +65,7 @@
             <validHeader>src/main/licenses/io.protostuff.JsonIOUtils.license.txt</validHeader>
           </validHeaders>
           <excludes combine.children="append">
-            <exclude>src/test/resources/maprtest/testconfig/login.conf</exclude> <!-- it needs Java style, was handedited -->
+            <exclude>src/test/resources/maprtest/conf/login.conf</exclude> <!-- it needs Java style, was handedited -->
           </excludes>
         </configuration>
       </plugin>
@@ -259,15 +252,14 @@
       <artifactId>logback-classic</artifactId>
     </dependency>
     <dependency>
-      <!-- add as provided scope so that we can compile TestTools. Should only be ever used in a test scenario where someone else is bringing AssertJ in. -->
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>provided</scope>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-guava</artifactId>
+        <scope>test</scope>
     </dependency>
-      <dependency>
-          <groupId>com.fasterxml.jackson.datatype</groupId>
-          <artifactId>jackson-datatype-guava</artifactId>
-          <scope>test</scope>
-      </dependency>
+    <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jdk8</artifactId>
+        <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

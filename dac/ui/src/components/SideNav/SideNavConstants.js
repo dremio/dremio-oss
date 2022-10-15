@@ -15,7 +15,7 @@
  */
 
 export const dropdownMenuStyle = {
-  boxShadow: "0px 0px 16px rgba(0, 0, 0, 0.1)",
+  boxShadow: "var(--dremio--shadow--layer-1)",
   overflow: "visible",
   width: "254px",
 };

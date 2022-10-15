@@ -42,13 +42,13 @@ public class TestByteBufferUtil {
   public class LimitedByteArrayInputStream extends ByteArrayInputStream {
     private final int limit;
 
-    public LimitedByteArrayInputStream(byte buf[], int limit) {
+    public LimitedByteArrayInputStream(byte[] buf, int limit) {
       super(buf);
       this.limit = limit;
     }
 
     @Override
-    public int read(byte b[], int off, int len) {
+    public int read(byte[] b, int off, int len) {
       return super.read(b, off, Math.min(len, limit));
     }
   }

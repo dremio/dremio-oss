@@ -48,7 +48,7 @@ describe("HeaderButtons-spec", () => {
 
     it("should render IconButton as Link", () => {
       const result = instance.renderButton({});
-      expect(result.props.as.displayName).to.eql("Link");
+      expect(result.props.as.displayName).to.eql("LinkWithRef");
       expect(result.props.className).to.eql("button-white");
       expect(result.props.tooltip).to.eql("Type");
     });

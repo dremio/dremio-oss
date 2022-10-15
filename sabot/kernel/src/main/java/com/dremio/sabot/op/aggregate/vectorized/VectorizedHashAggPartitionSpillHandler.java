@@ -512,7 +512,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
       } catch (Exception e) {
         final UserException.Builder builder = UserException.resourceError(e)
           .addContext("Failed to create output stream for spill file")
-          .addContext("Spill file path:", partitionSpillFile.getPath());
+          .addContext("Spill file path: %s", partitionSpillFile.getPath());
         throw builder.build(logger);
       }
     } else {

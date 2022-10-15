@@ -24,7 +24,6 @@ import com.dremio.options.OptionValue.OptionType;
  * {@link OptionManager} that holds options within {@link com.dremio.exec.ops.QueryContext}.
  */
 public class QueryOptionManager extends InMemoryOptionManager {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryOptionManager.class);
 
   public QueryOptionManager(final OptionValidatorListing optionValidatorListing) {
     super(optionValidatorListing, CaseInsensitiveMap.newHashMap());

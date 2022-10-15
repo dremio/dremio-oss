@@ -23,7 +23,6 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 
 public class FragmentData {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentData.class);
 
   private volatile FragmentStatus status;
   private volatile long lastStatusUpdate = System.currentTimeMillis();

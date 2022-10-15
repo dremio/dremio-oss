@@ -23,8 +23,10 @@ import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.InputReference;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
@@ -155,6 +157,16 @@ public abstract class AbstractExprVisitor<T, VAL, EXCEP extends Exception> imple
 
   @Override
   public T visitNullExpression(NullExpression e, VAL value) throws EXCEP {
+    return visitUnknown(e, value);
+  }
+
+  @Override
+  public T visitListAggExpression(ListAggExpression e, VAL value) throws EXCEP {
+    return visitUnknown(e, value);
+  }
+
+  @Override
+  public T visitOrdering(Ordering e, VAL value) throws EXCEP {
     return visitUnknown(e, value);
   }
 

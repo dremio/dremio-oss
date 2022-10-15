@@ -77,8 +77,7 @@ class SingleEngineHeader extends PureComponent {
       <StartStopButton
         engine={engine}
         handleStartStop={this.onStartStop}
-        style={styles.startStop}
-        textStyle={{ width: 65 }}
+        isHeaderButton
       />
     );
 
@@ -114,7 +113,10 @@ const styles = {
   },
   statusIcon: {
     marginRight: 5,
+    width: 24,
+    height: 24,
   },
+
   startStop: {
     marginRight: 10,
     marginTop: 5,

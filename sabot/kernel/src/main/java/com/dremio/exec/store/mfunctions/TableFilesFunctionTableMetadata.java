@@ -31,7 +31,7 @@ public class TableFilesFunctionTableMetadata extends TableMetadataImpl {
 
   public TableFilesFunctionTableMetadata(StoragePluginId pluginId, DatasetConfig config, String user, BatchSchema schema,
                                          SplitsPointer splitsPointer) {
-    super(pluginId, config, user, splitsPointer);
+    super(pluginId, config, user, splitsPointer, null);
     this.schema = schema;
   }
 

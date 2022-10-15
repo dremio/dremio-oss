@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.getInternalIcebergTableMetadata;
+import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.supportsConvertedIcebergDataset;
+import static com.dremio.service.namespace.DatasetHelper.isConvertedIcebergDataset;
 import static com.dremio.service.namespace.DatasetHelper.supportsPruneFilter;
 
 import java.util.ArrayList;
@@ -31,6 +34,7 @@ import org.apache.calcite.rel.RelWriter;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
@@ -39,6 +43,7 @@ import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.google.common.base.Preconditions;
 
 /**
@@ -200,6 +205,16 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   @Override
+  public StoragePluginId getIcebergStatisticsPluginId(OptimizerRulesContext context) {
+    if (FileSystemRulesFactory.isIcebergDataset(getTableMetadata())) {
+      return getPluginId();
+    } else if (supportsConvertedIcebergDataset(context, getTableMetadata())) { // internal
+      return getInternalIcebergTableMetadata(getTableMetadata(), context).getIcebergTableStoragePlugin();
+    }
+    return null;
+  }
+
+  @Override
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
     return pw
@@ -210,5 +225,10 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   public boolean isArrowCachingEnabled() {
     return arrowCachingEnabled;
+  }
+
+  @Override
+  public boolean canUsePartitionStats(){
+    return isConvertedIcebergDataset(getTableMetadata().getDatasetConfig()) || pluginId.getCapabilities().getCapability(SourceCapabilities.getCanUsePartitionStats());
   }
 }

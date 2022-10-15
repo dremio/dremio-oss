@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -48,4 +47,4 @@ const styles = {
   },
 };
 
-export default Radium(ModalFooter);
+export default ModalFooter;

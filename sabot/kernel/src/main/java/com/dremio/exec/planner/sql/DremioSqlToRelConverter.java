@@ -29,9 +29,12 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableModify;
+import org.apache.calcite.rel.logical.LogicalUnion;
+import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.ExtensibleTable;
 import org.apache.calcite.sql.SqlCall;
@@ -41,6 +44,7 @@ import org.apache.calcite.sql.SqlMerge;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
@@ -51,13 +55,17 @@ import org.apache.calcite.util.Util;
 
 import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.catalog.CatalogIdentity;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.ViewExpansionContext.ViewExpansionToken;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
+import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.UserNotFoundException;
@@ -68,7 +76,6 @@ import com.google.common.collect.ImmutableList;
  * An overridden implementation of SqlToRelConverter that redefines view expansion behavior.
  */
 public class DremioSqlToRelConverter extends SqlToRelConverter {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioSqlToRelConverter.class);
 
   private final SqlConverter sqlConverter;
 
@@ -92,6 +99,67 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     return DremioToRelContext.createQueryContext(sqlConverter);
   }
 
+  /**
+   * Further compacting LiteralValues into a single LogicalValues
+   * When converting values, Calcite would:
+   *     // NOTE jvs 30-Apr-2006: We combine all rows consisting entirely of
+   *     // literals into a single LogicalValues; this gives the optimizer a smaller
+   *     // input tree.  For everything else (computed expressions, row
+   *     // sub-queries), we union each row in as a projection on top of a
+   *     // LogicalOneRow.
+   *  Calcite decides it is a literal value iif SqlLiteral. However, there are some SqlNodes which could be resolved to literals.
+   *  For example, CAST('71543.41' AS DOUBLE) in DX-34244
+   *  During Calcite's convertValues(), some of those nodes would be resolved into RexLiteral.
+   *  This override function will check the result of Calcite's convertValues(), and do further compaction based on resolved RexLiteral.
+   */
+  @Override
+  public RelNode convertValues(
+    SqlCall values,
+    RelDataType targetRowType) {
+
+    RelNode ret = super.convertValues(values, targetRowType);
+    if (ret instanceof LogicalValues) {
+      return ret;
+    }
+
+    // ret could be LogicalProject if there is only one row
+    if (ret instanceof LogicalUnion) {
+      LogicalUnion union = (LogicalUnion) ret;
+      ImmutableList.Builder<ImmutableList<RexLiteral>> literalRows = ImmutableList.builder();
+      for (RelNode input : union.getInputs()) {
+        if(!(input instanceof LogicalProject)) {
+          return ret;
+        }
+        LogicalProject project = (LogicalProject) input;
+        ImmutableList.Builder<RexLiteral> literalRow = ImmutableList.builder();
+        for (RexNode rexValue : project.getProjects()) {
+          if (!(rexValue instanceof RexLiteral)) {
+            // Return Calcite's results once saw a non-RexLiteral.
+            // Consider to do further optimization of return a new Union combining rows with non-RelLiteral and LogicalValues for consecutive block of RelLiteral rows
+            return ret;
+          } else {
+            literalRow.add((RexLiteral) rexValue);
+          }
+        }
+        literalRows.add(literalRow.build());
+      }
+
+      final RelDataType rowType;
+      if (targetRowType!=null) {
+        rowType = targetRowType;
+      } else {
+        rowType =
+          SqlTypeUtil.promoteToRowType(
+            typeFactory,
+            validator.getValidatedNodeType(values),
+            null);
+      }
+
+      return LogicalValues.create(cluster, rowType, literalRows.build());
+    }
+    return ret;
+  }
+
   @Override
   public RelNode flattenTypes(
       RelNode rootRel,
@@ -103,19 +171,21 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
 
   @Override
   protected RelRoot convertQueryRecursive(SqlNode query, boolean top, RelDataType targetRowType) {
+    boolean hasSource = query instanceof SqlDmlOperator && ((SqlDmlOperator)query).getSourceTableRef() != null;
     switch (query.getKind()) {
       case DELETE:
         LogicalTableModify logicalTableModify = (LogicalTableModify)(super.convertQueryRecursive(query, top, targetRowType).rel);
         Preconditions.checkNotNull(logicalTableModify);
         return RelRoot.of(TableModifyCrel.create(getTargetTable(query),  catalogReader, logicalTableModify.getInput(),
-          LogicalTableModify.Operation.DELETE, null, null, false, null), query.getKind());
+          LogicalTableModify.Operation.DELETE, null,
+          null, false, null, hasSource), query.getKind());
       case MERGE:
         return RelRoot.of(convertMerge((SqlMerge)query, getTargetTable(query)), query.getKind());
       case UPDATE:
         logicalTableModify = (LogicalTableModify)(super.convertQueryRecursive(query, top, targetRowType).rel);
         return RelRoot.of(TableModifyCrel.create(getTargetTable(query),  catalogReader, logicalTableModify.getInput(),
           LogicalTableModify.Operation.UPDATE, logicalTableModify.getUpdateColumnList(),
-          logicalTableModify.getSourceExpressionList(), false, null), query.getKind());
+          logicalTableModify.getSourceExpressionList(), false, null, hasSource), query.getKind());
       default:
         return super.convertQueryRecursive(query, top, targetRowType);
     }
@@ -226,7 +296,8 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       .project(projects);
 
     return TableModifyCrel.create(targetTable, catalogReader, relBuilder.build(),
-      LogicalTableModify.Operation.MERGE, null, null, false, targetColumnNameList);
+      LogicalTableModify.Operation.MERGE, null,
+      null, false, targetColumnNameList, true);
   }
 
   @Override
@@ -258,12 +329,18 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
                                             final String queryString,
                                             final List<String> context,
                                             final SqlConverter sqlConverter,
-                                            final BatchSchema batchSchema) {
+                                            final BatchSchema batchSchema,
+                                            final VersionContext versionContext) {
     SqlValidatorAndToRelContext.Builder builder = SqlValidatorAndToRelContext.builder(sqlConverter)
       .withSchemaPath(context)
       .withSystemDefaultParserConfig();
     if(viewOwner != null) {
       builder = builder.withUser(viewOwner);
+    }
+    if (sqlConverter.viewExpansionVersionContext != null && sqlConverter.viewExpansionVersionContext.isSpecified()) {
+      builder = builder.withVersionContext(path.getRoot(), sqlConverter.viewExpansionVersionContext);
+    } else if (versionContext != null && versionContext.isSpecified()) {
+      builder = builder.withVersionContext(path.getRoot(), versionContext);
     }
     SqlValidatorAndToRelContext newConverter = builder.build();
     final SqlNode parsedNode = newConverter.getSqlConverter().parse(queryString);
@@ -289,27 +366,45 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       return root;
     }
 
+    boolean versionedView = false;
+    String sourceName = path.getRoot();
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(sourceName, sqlConverter.getCatalog())) {
+      versionedView = true;
+    }
     // we need to make sure that if a inner expansion is context sensitive, we consider the current
     // expansion context sensitive even if it isn't locally.
     final boolean contextSensitive = root.isContextSensitive() || ExpansionNode.isContextSensitive(root.rel);
-
-    return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive, false),
-      root.validatedRowType, root.kind, root.fields, root.collation, ImmutableList.of());
+    if (versionedView) {
+      RelDataType adjustedRowType = ((JavaTypeFactoryImpl) sqlConverter.getTypeFactory()).createTypeWithMaxVarcharPrecision(root.validatedRowType);
+      // Need to cast the rowtype to be nullable to prevent null check conflicts. (DX-49215)
+      RelDataType nullableRowType = sqlConverter.getTypeFactory().createTypeWithNullability(adjustedRowType, true);
+      return new RelRoot(ExpansionNode.wrap(path, root.rel, nullableRowType, contextSensitive, false),
+        nullableRowType, root.kind, root.fields, root.collation, ImmutableList.of());
+    } else {
+      return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive, false),
+        root.validatedRowType, root.kind, root.fields, root.collation, ImmutableList.of());
+    }
   }
 
-  public static RelRoot expandView(NamespaceKey path, final CatalogIdentity viewOwner, final String queryString, final List<String> context, final SqlConverter sqlConverter, final BatchSchema batchSchema) {
+  public static RelRoot expandView(NamespaceKey path,
+                                   final CatalogIdentity viewOwner,
+                                   final String queryString,
+                                   final List<String> context,
+                                   final SqlConverter sqlConverter,
+                                   final BatchSchema batchSchema,
+                                   VersionContext versionContext) {
     ViewExpansionToken token = null;
 
     try {
       token = sqlConverter.getViewExpansionContext().reserveViewExpansionToken(viewOwner);
-      return getExpandedRelNode(path, viewOwner, queryString, context, sqlConverter, batchSchema);
+      return getExpandedRelNode(path, viewOwner, queryString, context, sqlConverter, batchSchema, versionContext);
     } catch (RuntimeException e) {
       if (!(e.getCause() instanceof UserNotFoundException)) {
         throw e;
       }
 
       final CatalogIdentity delegatedUser = sqlConverter.getViewExpansionContext().getQueryUser();
-      return getExpandedRelNode(path, delegatedUser, queryString, context, sqlConverter, batchSchema);
+      return getExpandedRelNode(path, delegatedUser, queryString, context, sqlConverter, batchSchema, versionContext);
     } finally {
       if (token != null) {
         token.release();

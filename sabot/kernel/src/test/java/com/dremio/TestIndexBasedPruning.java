@@ -299,8 +299,8 @@ public class TestIndexBasedPruning extends DremioTest {
     );
   }
 
-  public void setUp(RexNode rexNode, SearchTypes.SearchQuery expected) {
-    MockitoAnnotations.initMocks(this);
+  public AutoCloseable setUp(RexNode rexNode, SearchTypes.SearchQuery expected) {
+    AutoCloseable mockCloseable = MockitoAnnotations.openMocks(this);
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(
         new OptionResolverSpec()
           .addOption(ExecConstants.ENABLE_ICEBERG, true));
@@ -316,7 +316,7 @@ public class TestIndexBasedPruning extends DremioTest {
     RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), REX_BUILDER);
     SplitsPointer splitsPointer = new TestSplitsPointer(0, Arrays.asList(TEST_PARTITION_CHUNK_METADATA_1, TEST_PARTITION_CHUNK_METADATA_2), 2);
 
-    TableMetadata indexPrunableMetadata = new TableMetadataImpl(pluginId, DATASET_CONFIG, "testuser", splitsPointer);
+    TableMetadata indexPrunableMetadata = new TableMetadataImpl(pluginId, DATASET_CONFIG, "testuser", splitsPointer, null);
     SourceType newType = mock(SourceType.class);
     when(newType.value()).thenReturn("TestSource");
     when(pluginId.getType()).thenReturn(newType);
@@ -330,34 +330,39 @@ public class TestIndexBasedPruning extends DremioTest {
     sampleRel = new SampleRel(cluster, TRAITS, indexPrunableScan);
     filterAboveSample = new FilterRel(cluster, TRAITS, sampleRel, rexNode);
     sampleScanRule = new PruneScanRuleBase.PruneScanRuleFilterOnSampleScan<>(pluginId.getType(), TestScanRel.class, optimizerRulesContext);
+
+    return mockCloseable;
   }
 
 
   @ParameterizedTest(name = "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
   @MethodSource("getTestCases")
-  public void testIndexPruning(RexNode rexNode, SearchTypes.SearchQuery expected) {
-    setUp(rexNode, expected);
-    indexPruned = false;
-    RelOptRuleCall pruneCall = newCall(scanRule, filterAboveScan, indexPrunableScan);
-    when(planner.getContext()).thenReturn(plannerSettings);
-    scanRule.onMatch(pruneCall);
-    if (expected == null) {
-      assertTrue(!indexPruned, "Index pruned for a wrong condition");
+  public void testIndexPruning(RexNode rexNode, SearchTypes.SearchQuery expected) throws Exception {
+    try (AutoCloseable ignored = setUp(rexNode, expected)) {
+      indexPruned = false;
+      RelOptRuleCall pruneCall = newCall(scanRule, filterAboveScan, indexPrunableScan);
+      when(planner.getContext()).thenReturn(plannerSettings);
+      scanRule.onMatch(pruneCall);
+      if (expected == null) {
+        assertTrue(!indexPruned, "Index pruned for a wrong condition");
+      }
     }
   }
 
   @ParameterizedTest(name = "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
   @MethodSource("getTestCases")
-  public void testIndexPruningSampleScan(RexNode rexNode, SearchTypes.SearchQuery expected) {
-    setUp(rexNode, expected);
-    indexPruned = false;
-    RelOptRuleCall pruneCall = newCall(sampleScanRule, filterAboveScan, sampleRel, indexPrunableScan);
-    when(planner.getContext()).thenReturn(plannerSettings);
-    sampleScanRule.onMatch(pruneCall);
-    if (expected == null) {
-      assertTrue(!indexPruned, "Index pruned for a wrong condition");
-    } else {
-      assertTrue(indexPruned, "Index not pruned");
+  public void testIndexPruningSampleScan(RexNode rexNode, SearchTypes.SearchQuery expected) throws Exception {
+    try (AutoCloseable ignored = setUp(rexNode, expected)) {
+      indexPruned = false;
+      RelOptRuleCall pruneCall = newCall(sampleScanRule, filterAboveScan, sampleRel,
+        indexPrunableScan);
+      when(planner.getContext()).thenReturn(plannerSettings);
+      sampleScanRule.onMatch(pruneCall);
+      if (expected == null) {
+        assertTrue(!indexPruned, "Index pruned for a wrong condition");
+      } else {
+        assertTrue(indexPruned, "Index not pruned");
+      }
     }
   }
 

@@ -24,7 +24,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-azure-storage-plugin</artifactId>
@@ -104,35 +104,5 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-
-
-    <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-junit4</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito2</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
-
-  <build>
-    <plugins>
-    </plugins>
-  </build>
-
 </project>

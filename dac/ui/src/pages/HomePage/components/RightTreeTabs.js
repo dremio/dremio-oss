@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from "react";
+import { Children, Component } from "react";
 import classNames from "classnames/bind";
 
 import PropTypes from "prop-types";
@@ -64,7 +64,7 @@ export default class RightTreeTabs extends Component {
   }
 
   getHeaderItems() {
-    return React.Children.map(this.props.children, (child) => {
+    return Children.map(this.props.children, (child) => {
       return (
         <RightTreeTabHeader
           tabId={child.props.tabId}
@@ -83,7 +83,7 @@ export default class RightTreeTabs extends Component {
   }
 
   render() {
-    const activeTab = React.Children.map(this.props.children, (child) => {
+    const activeTab = Children.map(this.props.children, (child) => {
       return child.props.tabId === this.state.activeTab ? child : undefined;
     }).find((child) => child);
     return (

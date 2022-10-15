@@ -38,7 +38,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 public class MockRecordReader extends AbstractRecordReader {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MockRecordReader.class);
 
   private final MockScanEntry config;
   private final OperatorContext context;

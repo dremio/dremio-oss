@@ -161,7 +161,7 @@ public class TestDatasetAutoFix extends BaseTestQuery {
    * @throws Exception
    */
   private void setupAndRun(InbetweenOp op) throws Exception {
-    final String testName = TEST_NAME.getMethodName();
+    final String testName = this.testName.getMethodName();
     // write a table.
     File f = new File(getDfsTestTmpSchemaLocation());
 

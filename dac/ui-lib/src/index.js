@@ -19,7 +19,7 @@ import "./styles/overrides.scss";
 
 // Components
 export * from "./components/ErrorDisplay";
-export * from "./components/IconButton";
+export * from "./components/IconButton/IconButton.tsx";
 
 export { default as Tooltip } from "./components/Tooltip";
 export { default as Spinner } from "./components/Spinner";
@@ -27,6 +27,8 @@ export { default as Spinner } from "./components/Spinner";
 export { default as TabsNavigationItem } from "./components/TabsNavigationItem";
 
 export { default as Button } from "./components/Button";
+
+export { default as Breadcrumbs } from "./components/MuiBreadcrumbs";
 
 export { default as ExpandableText } from "./components/ExpandableText";
 
@@ -54,6 +56,8 @@ export { default as MultiSelect } from "./components/MultiSelect";
 
 export { default as TextArea } from "./components/TextArea";
 
+export { default as JsonSyntaxHighlighter } from "./components/JsonSyntaxHighlighter";
+
 export { default as FormikTextArea } from "./components/FormikTextArea";
 
 export { default as ModalForm } from "./components/ModalForm";
@@ -75,6 +79,8 @@ export { default as SearchableMultiSelect } from "./components/SearchableMultiSe
 export { default as ProgressBar } from "./components/ProgressBar";
 
 export { default as PageSummary } from "./components/PageSummary";
+
+export { default as TagList } from "./components/TagList";
 
 // Utils
 

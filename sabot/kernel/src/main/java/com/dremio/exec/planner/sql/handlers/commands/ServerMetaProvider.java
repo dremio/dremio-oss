@@ -100,6 +100,32 @@ public class ServerMetaProvider {
       .addAllConvertSupport(getDrill10SupportedConvertOps())
       .build();
 
+  private static final ServerMeta DEFAULT_WITHOUT_MAP = ServerMeta.newBuilder(DEFAULT)
+    .clearConvertSupport()
+    .addAllConvertSupport(getSupportedConvertOpsWithoutMap())
+    .build();
+
+  private static Iterable<ConvertSupport> getSupportedConvertOpsWithoutMap() {
+    // A set would be more appropriate but it's not possible to produce
+    // duplicates, and an iterable is all we need.
+    ImmutableList.Builder<ConvertSupport> supportedConvertedOps = ImmutableList.builder();
+
+    for(MinorType from: MinorType.values()) {
+      if (from == MinorType.MAP) {
+        continue;
+      }
+      for(MinorType to: MinorType.values()) {
+        if (to == MinorType.MAP) {
+          continue;
+        }
+        if (TypeCastRules.isCastable(from, to)) {
+          supportedConvertedOps.add(ConvertSupport.newBuilder().setFrom(from).setTo(to).build());
+        }
+      }
+    }
+    return supportedConvertedOps.build();
+  }
+
 
   private static final Iterable<ConvertSupport> getSupportedConvertOps() {
     // A set would be more appropriate but it's not possible to produce
@@ -123,7 +149,13 @@ public class ServerMetaProvider {
     ImmutableList.Builder<ConvertSupport> supportedConvertedOps = ImmutableList.builder();
 
     for(MinorType from: MinorType.values()) {
+      if (from == MinorType.MAP) {
+        continue;
+      }
       for(MinorType to: MinorType.values()) {
+        if (to == MinorType.MAP) {
+          continue;
+        }
         if (TypeCastRules.isCastable(from, to)) {
           if (from == MinorType.DECIMAL || to == MinorType.DECIMAL) {
             addDrill10DecimalConvertOps(supportedConvertedOps, from, to);
@@ -211,9 +243,7 @@ public class ServerMetaProvider {
     @Override
     public GetServerMetaResp execute() throws Exception {
       final GetServerMetaResp.Builder respBuilder = GetServerMetaResp.newBuilder();
-      final ServerMeta.Builder metaBuilder = session.getRecordBatchFormat() != RecordBatchFormat.DRILL_1_0
-          ? ServerMeta.newBuilder(DEFAULT)
-          : ServerMeta.newBuilder(DRILL_1_0_DEFAULT);
+      final ServerMeta.Builder metaBuilder = getMetaDataBuilder(session.getRecordBatchFormat());
       PlannerSettings plannerSettings = new PlannerSettings(dContext.getConfig(),
         session.getOptions(), () -> dContext.getClusterResourceInformation());
 
@@ -236,6 +266,20 @@ public class ServerMetaProvider {
       respBuilder.setStatus(RequestStatus.OK);
       respBuilder.setQueryId(queryId);
       return respBuilder.build();
+    }
+
+    private ServerMeta.Builder getMetaDataBuilder(RecordBatchFormat recordBatchFormat) {
+      switch (recordBatchFormat){
+        case UNKNOWN:
+        case DREMIO_0_9:
+        case DREMIO_1_4:
+          return ServerMeta.newBuilder(DEFAULT_WITHOUT_MAP);
+        case DRILL_1_0:
+          return ServerMeta.newBuilder(DRILL_1_0_DEFAULT);
+        case DREMIO_23_0:
+        default:
+          return ServerMeta.newBuilder(DEFAULT);
+      }
     }
 
     public static IdentifierCasing getIdentifierCasing(Casing casing, boolean caseSensitive) {

@@ -63,8 +63,8 @@ public class TestDecimal extends PopUnitTestBase{
             QueryDataBatch batch = results.get(0);
             assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
-            String decimal9Output[] = {"99.0000", "11.1235", "0.1000", "-0.1200", "-123.1234", "-1.0001"};
-            String decimal18Output[] = {"123456789.000000000", "11.123456789", "0.100000000", "-0.100400000", "-987654321.123456789", "-2.030100000"};
+            String[] decimal9Output = {"99.0000", "11.1235", "0.1000", "-0.1200", "-123.1234", "-1.0001"};
+            String[] decimal18Output = {"123456789.000000000", "11.123456789", "0.100000000", "-0.100400000", "-987654321.123456789", "-2.030100000"};
 
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
@@ -108,8 +108,8 @@ public class TestDecimal extends PopUnitTestBase{
             QueryDataBatch batch = results.get(0);
             assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
-            String decimal9Output[] = {"99.0000", "11.1235", "0.1000", "-0.1200", "-123.1234", "-1.0001"};
-            String decimal38Output[] = {"123456789.0000", "11.1235", "0.1000", "-0.1004", "-987654321.1235", "-2.0301"};
+            String[] decimal9Output = {"99.0000", "11.1235", "0.1000", "-0.1200", "-123.1234", "-1.0001"};
+            String[] decimal38Output = {"123456789.0000", "11.1235", "0.1000", "-0.1004", "-987654321.1235", "-2.0301"};
 
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
@@ -154,9 +154,9 @@ public class TestDecimal extends PopUnitTestBase{
             QueryDataBatch batch = results.get(0);
             assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
-            String addOutput[] = {"123456888.0", "22.2", "0.2", "-0.2", "-987654444.2","-3.0"};
-            String subtractOutput[] = {"123456690.0", "0.0", "0.0", "0.0", "-987654198.0", "-1.0"};
-            String multiplyOutput[] = {"12222222111.00" , "123.21" , "0.01", "0.01",  "121580246927.41", "2.00"};
+            String[] addOutput = {"123456888.0", "22.2", "0.2", "-0.2", "-987654444.2","-3.0"};
+            String[] subtractOutput = {"123456690.0", "0.0", "0.0", "0.0", "-987654198.0", "-1.0"};
+            String[] multiplyOutput = {"12222222111.00" , "123.21" , "0.01", "0.01",  "121580246927.41", "2.00"};
 
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
@@ -206,8 +206,8 @@ public class TestDecimal extends PopUnitTestBase{
             QueryDataBatch batch = results.get(0);
             assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
-            String addOutput[] = {"-99999998877.700000000", "11.423456789", "123456789.100000000", "-0.119998000", "100000000112.423456789" , "-99999999879.907000000", "123456789123456801.300000000"};
-            String subtractOutput[] = {"-100000001124.300000000", "10.823456789", "-123456788.900000000", "-0.120002000", "99999999889.823456789", "-100000000122.093000000", "123456789123456776.700000000"};
+            String[] addOutput = {"-99999998877.700000000", "11.423456789", "123456789.100000000", "-0.119998000", "100000000112.423456789" , "-99999999879.907000000", "123456789123456801.300000000"};
+            String[] subtractOutput = {"-100000001124.300000000", "10.823456789", "-123456788.900000000", "-0.120002000", "99999999889.823456789", "-100000000122.093000000", "123456789123456776.700000000"};
 
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
@@ -249,7 +249,7 @@ public class TestDecimal extends PopUnitTestBase{
             QueryDataBatch batch = results.get(1);
             assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
-            String sortOutput[] = {"-100000000001.000000000000",
+            String[] sortOutput = {"-100000000001.000000000000",
                                    "-100000000001.000000000000",
                                    "-145456789.120123000000",
                                    "-0.120000000000",

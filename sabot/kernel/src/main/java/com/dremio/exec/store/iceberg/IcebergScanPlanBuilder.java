@@ -70,7 +70,8 @@ public class IcebergScanPlanBuilder {
         context,
         false,
         null,
-        null);
+        null,
+        false);
   }
 
   private IcebergScanPlanBuilder(
@@ -79,12 +80,12 @@ public class IcebergScanPlanBuilder {
   }
 
   public static IcebergScanPlanBuilder fromDrel(ScanRelBase drel, OptimizerRulesContext context,
-      boolean isArrowCachingEnabled) {
-    return fromDrel(drel, context, drel.getTableMetadata(), isArrowCachingEnabled, false);
+      boolean isArrowCachingEnabled, boolean canUsePartitionStats) {
+    return fromDrel(drel, context, drel.getTableMetadata(), isArrowCachingEnabled, false, canUsePartitionStats);
   }
 
   public static IcebergScanPlanBuilder fromDrel(ScanRelBase drel, OptimizerRulesContext context,
-      TableMetadata tableMetadata, boolean isArrowCachingEnabled, boolean isConvertedIcebergDataset) {
+      TableMetadata tableMetadata, boolean isArrowCachingEnabled, boolean isConvertedIcebergDataset, boolean canUsePartitionStats) {
     FilterableScan filterableScan = (FilterableScan) drel;
     IcebergScanPrel prel = new IcebergScanPrel(
         drel.getCluster(),
@@ -100,7 +101,8 @@ public class IcebergScanPlanBuilder {
         context,
         isConvertedIcebergDataset,
         filterableScan.getSurvivingRowCount(),
-        filterableScan.getSurvivingFileCount());
+        filterableScan.getSurvivingFileCount(),
+        canUsePartitionStats);
     return new IcebergScanPlanBuilder(prel);
   }
 
@@ -176,7 +178,7 @@ public class IcebergScanPlanBuilder {
 
   private RelNode buildSplitGen(RelNode input) {
     BatchSchema splitGenOutputSchema =
-        input.getRowType().getField(SystemSchemas.AGG_DELETEFILE_PATHS, false, false) == null ?
+        input.getRowType().getField(SystemSchemas.DELETE_FILES, false, false) == null ?
             SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA :
             SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA;
 
@@ -228,20 +230,20 @@ public class IcebergScanPlanBuilder {
     //   data.fileSize
     //   data.partitionInfo
     //   data.colIds
-    //   deletes.deleteFilePath
+    //   deletes.deleteFile
     List<RexNode> exprs = ImmutableList.of(
         rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.DATAFILE_PATH)),
         rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.FILE_SIZE)),
         rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.PARTITION_INFO)),
         rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.COL_IDS)),
         rexBuilder.makeInputRef(output, data.getRowType().getFieldCount() +
-            getFieldIndex(deletes, SystemSchemas.DELETEFILE_PATH)));
+            getFieldIndex(deletes, SystemSchemas.DELETE_FILE)));
     List<String> names = ImmutableList.of(
         SystemSchemas.DATAFILE_PATH,
         SystemSchemas.FILE_SIZE,
         SystemSchemas.PARTITION_INFO,
         SystemSchemas.COL_IDS,
-        SystemSchemas.DELETEFILE_PATH);
+        SystemSchemas.DELETE_FILE);
     RelDataType projectType = RexUtil.createStructType(cluster.getTypeFactory(), exprs, names, null);
     output = ProjectPrel.create(cluster, output.getTraitSet(), output, exprs, projectType);
 

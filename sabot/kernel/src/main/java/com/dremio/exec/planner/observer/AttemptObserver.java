@@ -100,7 +100,7 @@ public interface AttemptObserver {
   /**
    * Sets the cachedPlan key for this query
    */
-  default void setCacheKey(long cacheKey) {};
+  default void setCacheKey(String cacheKey) {};
 
   /**
    * Plan that is serializable, just before convertible scans are converted

@@ -13,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from "react";
+import { Component, forwardRef } from "react";
 import PropTypes from "prop-types";
 import "./EllipsedText.css";
 
-export default class EllipsedText extends Component {
+class EllipsedTextComponent extends Component {
   static propTypes = {
     text: PropTypes.string,
     className: PropTypes.string,
     children: PropTypes.node,
     title: PropTypes.any,
+    innerRef: PropTypes.any,
   };
 
   render() {
-    const { text, children, className, title, ...props } = this.props;
+    const { text, children, className, title, innerRef, ...props } = this.props;
     return (
       <div
+        ref={innerRef}
         className={"EllipsedText " + (className || "")}
         title={title}
         {...props}
@@ -38,3 +40,10 @@ export default class EllipsedText extends Component {
     );
   }
 }
+
+const EllipsedText = forwardRef((props, ref) => (
+  <EllipsedTextComponent {...props} innerRef={ref} />
+));
+EllipsedText.displayName = "EllipsedText"; //For enzyme tests
+
+export default EllipsedText;

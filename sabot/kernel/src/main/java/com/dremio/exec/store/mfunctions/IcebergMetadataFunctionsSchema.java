@@ -33,7 +33,7 @@ final class IcebergMetadataFunctionsSchema {
   private static final BatchSchema SNAPSHOTS;
   private static final BatchSchema MANIFESTS;
   private static final BatchSchema TABLE_FILES;
-  private static final SchemaConverter schemaConverter = new SchemaConverter();
+  private static final SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
 
   static {
     HISTORY = schemaConverter.fromIceberg(MetadataTableUtils.createMetadataTableInstance(null,

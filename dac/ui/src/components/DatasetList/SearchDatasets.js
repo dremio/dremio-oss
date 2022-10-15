@@ -34,6 +34,7 @@ class SearchDatasets extends PureComponent {
     loadSearchData: PropTypes.func.isRequired,
     changeSelectedNode: PropTypes.func.isRequired,
     dragType: PropTypes.string,
+    isExpandable: PropTypes.bool,
     showAddIcon: PropTypes.bool,
     addFullPathToSqlEditor: PropTypes.func,
     style: PropTypes.object,
@@ -71,7 +72,8 @@ class SearchDatasets extends PureComponent {
 
   render() {
     const value = this.state.filter;
-    const { dragType, searchData, changeSelectedNode } = this.props;
+    const { dragType, searchData, changeSelectedNode, isExpandable } =
+      this.props;
     return (
       <div
         className="resource-tree"
@@ -87,6 +89,7 @@ class SearchDatasets extends PureComponent {
           style={styles.datasetList}
           isInProgress={false}
           showParents
+          isExpandable={isExpandable}
           showAddIcon={this.props.showAddIcon}
         />
       </div>

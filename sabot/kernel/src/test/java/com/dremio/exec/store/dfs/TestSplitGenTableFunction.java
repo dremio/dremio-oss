@@ -17,8 +17,8 @@ package com.dremio.exec.store.dfs;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -34,7 +34,6 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.logging.log4j.util.TriConsumer;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
@@ -62,6 +61,10 @@ import com.google.protobuf.InvalidProtocolBufferException;
  */
 public class TestSplitGenTableFunction extends BaseTestQuery {
 
+    private interface RowHandler {
+        void accept(String path, long size, long mtime);
+    }
+
     @Test
     public void testNoPartitionSplits() {
         try (VarCharVector pathVector = new VarCharVector(DeltaConstants.SCHEMA_ADD_PATH, allocator);
@@ -73,7 +76,7 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             incoming.addCollection(incomingVectors);
             incomingVectors.stream().forEach(ValueVector::allocateNew);
             AtomicInteger counter = new AtomicInteger(0);
-            TriConsumer<String, Long, Long> incomingRow = (path, size, mtime) -> {
+          RowHandler incomingRow = (path, size, mtime) -> {
                 int idx = counter.getAndIncrement();
                 pathVector.set(idx, path.getBytes(StandardCharsets.UTF_8));
                 sizeVector.set(idx, size);
@@ -128,7 +131,7 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             incoming.addCollection(incomingVectors);
             incomingVectors.stream().forEach(ValueVector::allocateNew);
             AtomicInteger counter = new AtomicInteger(0);
-            TriConsumer<String, Long, Long> incomingRow = (path, size, mtime) -> {
+            RowHandler incomingRow = (path, size, mtime) -> {
                 int idx = counter.getAndIncrement();
                 pathVector.set(idx, path.getBytes(StandardCharsets.UTF_8));
                 sizeVector.set(idx, size);

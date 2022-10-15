@@ -19,11 +19,27 @@
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
-
+  .main-content {
+    // Effects all the setting pages
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    margin: 0 10px;
+  }
   #admin-page {
     // DX-23750. Instead of having the scroll bar on the page-level, move it down to the left-nav and main-content level.
     .page-content {
       overflow: hidden;
+      .page-content-inner {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        .user-nav-container {
+          display: flex;
+          height: 100%;
+        }
+      }
     }
     .left-menu {
       overflow: auto;

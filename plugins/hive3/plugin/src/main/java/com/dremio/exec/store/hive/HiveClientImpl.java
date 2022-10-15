@@ -22,6 +22,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -46,7 +47,6 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivObjectActionType;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.slf4j.helpers.NOPLogger;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -213,6 +213,18 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
   }
 
   @Override
+  public String getDatabaseLocationUri(final String dbName) {
+    try {
+      return doCommand(client -> Optional.of(client.getDatabase(dbName)).map(db -> db.getLocationUri()).orElse(null));
+    } catch (NoSuchObjectException e) {
+      return null;
+    } catch (TException e) {
+      logger.info("Failure while trying to read database location uri '{}'", dbName, e);
+      return null;
+    }
+  }
+
+  @Override
   public List<String> getTableNames(final String dbName, boolean ignoreAuthzErrors) throws TException{
     return doCommand((RetryableClientCommand<List<String>>) client -> {
       List<String> tableNames = client.getAllTables(dbName);
@@ -255,7 +267,7 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
         return table;
 
       case VIRTUAL_VIEW:
-        throw UserException.unsupportedError().message("Hive views are not supported").build(NOPLogger.NOP_LOGGER);
+        throw UserException.unsupportedError().message("Hive views are not supported").buildSilently();
       default:
         return null;
     }
@@ -286,7 +298,7 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
         if (null == partitions) {
           throw UserException
             .connectionError()
-            .message("Database '{}', table '{}', No partitions for table.", dbName, tableName)
+            .message("Database '%s', table '%s', No partitions for table.", dbName, tableName)
             .build(logger);
         }
 

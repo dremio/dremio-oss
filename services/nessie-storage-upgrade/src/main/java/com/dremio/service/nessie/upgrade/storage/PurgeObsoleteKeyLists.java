@@ -18,6 +18,7 @@ package com.dremio.service.nessie.upgrade.storage;
 import java.util.Map;
 
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
+import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.GlobalLogCompactionParams;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 
@@ -25,7 +26,7 @@ import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.upgrade.UpgradeContext;
 import com.dremio.dac.cmd.upgrade.UpgradeTask;
 import com.dremio.datastore.api.KVStoreProvider;
-import com.dremio.service.nessie.DatastoreDatabaseAdapter;
+import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.EmbeddedRepoMaintenanceParams;
 import com.dremio.service.nessie.EmbeddedRepoPurgeParams;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
@@ -79,10 +80,10 @@ public class PurgeObsoleteKeyLists extends UpgradeTask {
       store.initialize();
 
       TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-      DatastoreDatabaseAdapter adapter = new DatastoreDatabaseAdapter(
-        ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build(),
-        store,
-        worker);
+      DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+        .withConnector(store)
+        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build())
+        .build(worker);
 
       Map<String, Map<String, String>> result = adapter.repoMaintenance(params);
 

@@ -35,7 +35,7 @@ public final class GoldenFileMetaTests  {
 
   @Test
   public void testExpectedExceptionScenario() {
-    new GoldenFileTestBuilder<>(GoldenFileMetaTests::AddWithException)
+    new GoldenFileTestBuilder<>(GoldenFileMetaTests::addWithException)
       .allowExceptions()
       .add("3 plus 5", new Input(3, 5))
       .add("5 plus 8", new Input(5, 8))
@@ -45,7 +45,7 @@ public final class GoldenFileMetaTests  {
   @Test
   public void testUnexpectedExceptionScenario() {
     try {
-      new GoldenFileTestBuilder<>(GoldenFileMetaTests::AddWithException)
+      new GoldenFileTestBuilder<>(GoldenFileMetaTests::addWithException)
           .add("3 plus 5", new Input(3, 5))
           .runTests();
       Assert.fail();
@@ -54,6 +54,7 @@ public final class GoldenFileMetaTests  {
     }
   }
 
+  @SuppressWarnings("AssertionFailureIgnored")
   @Test
   public void testFirstRun() {
     try {
@@ -91,7 +92,7 @@ public final class GoldenFileMetaTests  {
     }
   }
 
-  private static Integer AddWithException(Input input) throws Exception {
+  private static Integer addWithException(Input input) throws Exception {
     throw new Exception("Throwing an exception for testing purposes");
   }
 

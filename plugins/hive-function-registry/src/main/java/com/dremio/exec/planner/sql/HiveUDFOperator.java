@@ -17,32 +17,30 @@
 package com.dremio.exec.planner.sql;
 
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
-public class HiveUDFOperator extends SqlFunction {
+public class HiveUDFOperator extends SqlFunctionImpl{
   public HiveUDFOperator(String name, SqlReturnTypeInference sqlReturnTypeInference) {
-    super(new SqlIdentifier(name, SqlParserPos.ZERO), sqlReturnTypeInference, null, ArgChecker.INSTANCE, null,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION);
-  }
-
-  // Consider Hive functions to be non-deterministic so they are not folded at
-  // planning time. The expression interpreter used to evaluate constant expressions
-  // currently does not support anything but simple functions.
-  @Override
-  public boolean isDeterministic() {
-    return false;
+    super(
+      name,
+      sqlReturnTypeInference,
+      ArgChecker.INSTANCE,
+      Source.HIVE,
+      // Consider Hive functions to be non-deterministic so they are not folded at
+      // planning time. The expression interpreter used to evaluate constant expressions
+      // currently does not support anything but simple functions.
+      false,
+      false,
+      SqlSyntax.FUNCTION);
   }
 
   /** Argument Checker for variable number of arguments */
-  public static class ArgChecker implements SqlOperandTypeChecker {
+  private static class ArgChecker implements SqlOperandTypeChecker {
 
     public static ArgChecker INSTANCE = new ArgChecker();
 

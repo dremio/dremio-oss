@@ -16,7 +16,8 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import invariant from "invariant";
-import Grid from "@material-ui/core/Grid";
+import clsx from "clsx";
+import Grid from "@mui/material/Grid";
 import Modal from "components/Modals/Modal";
 import ConfirmCancelFooter from "components/Modals/ConfirmCancelFooter";
 import { Checkbox, TextField } from "components/Fields";
@@ -26,6 +27,7 @@ import uuid from "uuid";
 import { confirmBodyText, modalContent } from "uiTheme/radium/modal";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import Keys from "@app/constants/Keys.json";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export default class ConfirmModal extends Component {
   static propTypes = {
@@ -163,7 +165,7 @@ export default class ConfirmModal extends Component {
         container
         direction="column"
         alignItems="stretch"
-        justify="space-evenly"
+        justifyContent="space-evenly"
         classes={{ root: "full-height margin-bottom--double margin-top" }}
       >
         <Grid item>{textRenderer}</Grid>
@@ -237,6 +239,7 @@ export default class ConfirmModal extends Component {
           confirm={this.onConfirm}
           confirmText={confirmText || la("OK")}
           confirmButtonStyle={confirmButtonStyle}
+          className={clsx(classes[`${confirmButtonStyle}ButtonPsuedoClasses`])}
           cancelText={cancelText || la("Cancel")}
           cancel={onCancel}
           canSubmit={canSubmit}

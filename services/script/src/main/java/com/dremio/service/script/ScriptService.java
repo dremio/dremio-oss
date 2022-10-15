@@ -18,13 +18,14 @@ package com.dremio.service.script;
 
 import java.util.List;
 
+import com.dremio.service.Service;
 import com.dremio.service.script.proto.ScriptProto.Script;
 import com.dremio.service.script.proto.ScriptProto.ScriptRequest;
 
 /**
  * Service to interact with Script
  */
-public interface ScriptService {
+public interface ScriptService extends Service {
   /**
    * get list of scripts based on various parameters provided
    *

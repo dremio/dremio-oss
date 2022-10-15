@@ -18,7 +18,7 @@ package com.dremio.service.autocomplete.columns;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  * Type for a column and it's parent table alias.

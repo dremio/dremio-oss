@@ -328,7 +328,7 @@ public class HybridJobsService implements JobsService {
     case NOT_FOUND:
       throw new JobNotFoundException(jobId, sre);
     case FAILED_PRECONDITION:
-      throw new JobCancelException(String.format("Job %s may have completed and cannot be canceled.",jobId));
+      throw new JobNotFoundException(jobId, JobNotFoundException.causeOfFailure.CANCEL_FAILED);
     case PERMISSION_DENIED:
       throw new AccessControlException(
           String.format("Permission denied on user [%s] to access job [%s]", username, jobId));
@@ -349,7 +349,7 @@ public class HybridJobsService implements JobsService {
       case NOT_FOUND:
         throw new JobNotFoundException(jobId, sre);
       case FAILED_PRECONDITION:
-        throw new JobCancelException(sre.getMessage());
+        throw new JobNotFoundException(jobId, JobNotFoundException.causeOfFailure.CANCEL_FAILED);
       case PERMISSION_DENIED:
         throw new AccessControlException(
           String.format("Permission denied on user [%s] to access job for reflection [%s]", username, reflectionId));

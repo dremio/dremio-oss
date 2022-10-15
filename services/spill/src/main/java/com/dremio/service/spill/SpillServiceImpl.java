@@ -198,7 +198,8 @@ public class SpillServiceImpl implements SpillService {
         if (!fileSystem.mkdirs(spillDirPath, PERMISSIONS)) {
           //TODO: withContextParameters()
           throw UserException.dataWriteError()
-            .message("Failed to create directory for spilling. Please check that the spill location is accessible and confirm read, write & execute permissions.")
+            .message("Failed to create directory for spilling. Please check that the spill location is accessible and confirm read, write & execute permissions. " +
+              "If the query was ran on a reflection please ensure that arrow caching on the reflection is disabled when iceberg and unlimited splits are enabled.")
             .addContext("Spill directory path", directory)
             .build(logger);
         }

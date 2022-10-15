@@ -20,7 +20,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -87,13 +89,13 @@ public final class InClauseCommonSubexpressionEliminationRule extends RelOptRule
     final FilterRel filterRel = relOptRuleCall.rel(0);
     final RexCall condition = (RexCall) filterRel.getCondition();
 
-    HashSet<RexNodeWithDeepEqualsAndHash> complexCommonSubexpressions = getCommonComplexSubexpressions(condition);
+    Set<RexNodeWithDeepEqualsAndHash> complexCommonSubexpressions = getCommonComplexSubexpressions(condition);
     if(complexCommonSubexpressions.isEmpty()) {
       return;
     }
 
     final List<RexNode> projectNodes = MoreRelOptUtil.identityProjects(filterRel.getInput().getRowType());
-    final HashMap<RexNodeWithDeepEqualsAndHash, Integer> commonSubExpressionToProjectionIndex = new HashMap<>();
+    final Map<RexNodeWithDeepEqualsAndHash, Integer> commonSubExpressionToProjectionIndex = new HashMap<>();
     for (RexNodeWithDeepEqualsAndHash commonSubexpression : complexCommonSubexpressions) {
       int index = projectNodes.size();
       projectNodes.add(commonSubexpression.getRexNode());
@@ -146,15 +148,15 @@ public final class InClauseCommonSubexpressionEliminationRule extends RelOptRule
     return Optional.empty();
   }
 
-  private static HashSet<RexNodeWithDeepEqualsAndHash> getCommonComplexSubexpressions(RexCall condition) {
+  private static Set<RexNodeWithDeepEqualsAndHash> getCommonComplexSubexpressions(RexCall condition) {
     // Find all the duplicate complex common sub-expressions.
     // Only check for the following type of pattern:
     // (x = a) OR (x = b) OR (x = c) ... (x = n)
     // where x is non trivial expression.
     // We don't attempt to look for nested sub expressions
     final ImmutableList<RexNode> operands = condition.operands;
-    HashSet<RexNodeWithDeepEqualsAndHash> seenRexNodes = new HashSet<RexNodeWithDeepEqualsAndHash>();
-    HashSet<RexNodeWithDeepEqualsAndHash> duplicateRexNodes = new HashSet<RexNodeWithDeepEqualsAndHash>();
+    Set<RexNodeWithDeepEqualsAndHash> seenRexNodes = new HashSet<>();
+    Set<RexNodeWithDeepEqualsAndHash> duplicateRexNodes = new HashSet<>();
     for (RexNode operand : operands) {
       Optional<RexNode> optionalComplexChildExpression = tryGetComplexChildExpression(operand);
       if(!optionalComplexChildExpression.isPresent()) {
@@ -174,7 +176,7 @@ public final class InClauseCommonSubexpressionEliminationRule extends RelOptRule
 
   private static RexNode getRewrittenFilter(
     FilterRel filterRel,
-    HashMap<RexNodeWithDeepEqualsAndHash, Integer> commonSubexpressionToProjectionIndex) {
+    Map<RexNodeWithDeepEqualsAndHash, Integer> commonSubexpressionToProjectionIndex) {
     // At this point all the common subexpressions are pushed to the projection
     // We need to rewrite the filter to reference these common subexpression from the projection.
     final RexCall condition = (RexCall) filterRel.getCondition();

@@ -17,6 +17,8 @@ package com.dremio.io;
 
 import java.io.IOException;
 
+import com.google.common.base.Objects;
+
 public class FilterFSOutputStream extends FSOutputStream {
   private final FSOutputStream out;
 
@@ -41,6 +43,18 @@ public class FilterFSOutputStream extends FSOutputStream {
   @Override
   public int hashCode() {
     return out.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof FilterFSOutputStream)) {
+      return false;
+    }
+    FilterFSOutputStream other = (FilterFSOutputStream) o;
+    return Objects.equal(out, other.out);
   }
 
   /**

@@ -40,7 +40,6 @@ import com.google.common.collect.ImmutableList;
  * Tests for the autocomplete engine.
  */
 public abstract class AutocompleteEngineTests {
-
   protected CompletionsForBaselines executeTestWithRootContext(MultiLineString query) {
     return executeTest(query, ImmutableList.of());
   }
@@ -51,25 +50,28 @@ public abstract class AutocompleteEngineTests {
 
   protected CompletionsForBaselines executeTest(MultiLineString query, ImmutableList<String> context) {
     StringAndPos stringAndPos = SqlParserUtil.findPos(query.toString());
-    AutocompleteEngine autocompleteEngine = create(context);
-    Completions completions = autocompleteEngine.generateCompletions(
+    Completions completions = generateCompletions(
+      context,
       stringAndPos.sql,
       stringAndPos.cursor);
     return CompletionsForBaselines.create(completions);
   }
 
-  protected AutocompleteEngine create(List<String> context) {
+  protected Completions generateCompletions(List<String> context, String sql, int cursorPosition) {
     MockMetadataCatalog.CatalogData data = createCatalog(context);
     AutocompleteSchemaProvider schemaProvider = new MockAutocompleteSchemaProvider(
       data.getContext(),
       data.getHead());
     SqlOperatorTable operatorTable = OperatorTableFactory.createWithProductionFunctions(ParameterResolverTests.FUNCTIONS);
     MockMetadataCatalog catalog = new MockMetadataCatalog(data);
-    AutocompleteEngine autocompleteEngine = new AutocompleteEngine(schemaProvider,
-      Suppliers.ofInstance(MockNessieElementReader.INSTANCE),
-      operatorTable,
-      catalog);
-    return autocompleteEngine;
+    return AutocompleteEngine.generateCompletions(
+      new AutocompleteEngineContext(
+        schemaProvider,
+        Suppliers.ofInstance(MockNessieElementReader.INSTANCE),
+        operatorTable,
+        catalog),
+      sql,
+      cursorPosition);
   }
 
   /**

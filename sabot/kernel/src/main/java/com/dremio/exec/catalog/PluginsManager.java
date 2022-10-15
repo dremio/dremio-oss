@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.inject.Provider;
 
@@ -68,7 +69,7 @@ import com.google.common.collect.Iterables;
  * Manages the creation, deletion and retrieval of storage plugins.
  *
  */
-class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
+public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
   private static final Logger logger = LoggerFactory.getLogger(PluginsManager.class);
 
@@ -130,6 +131,13 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     return plugins.values().stream()
       .map(input -> input.getName().getRoot())
       .collect(Collectors.toSet());
+  }
+
+  public Stream<VersionedPlugin> getAllVersionedPlugins(){
+    return plugins.values().stream()
+      .filter(input -> input.getPlugin() instanceof VersionedPlugin)
+      .map(entry -> entry.getPlugin())
+      .map(storagePlugin -> (VersionedPlugin) storagePlugin);
   }
 
 
@@ -344,6 +352,10 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
   public boolean hasPlugin(String name) {
     return plugins.containsKey(c(name));
+  }
+
+  public ConcurrentHashMap<String, ManagedStoragePlugin> getPlugins() {
+    return plugins;
   }
 
   public ManagedStoragePlugin getSynchronized(SourceConfig pluginConfig, java.util.function.Predicate<String> influxSourcePred) throws Exception {

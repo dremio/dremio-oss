@@ -41,21 +41,38 @@ export class AddFolderForm extends Component {
     fields: PropTypes.object,
     handleSubmit: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired,
+    parentType: PropTypes.string,
   };
 
+  getParentTypeForDisplay(parentType) {
+    if (!["source", "space"].includes(parentType)) {
+      return "space";
+    } else {
+      return parentType;
+    }
+  }
+
   render() {
-    const { fields, handleSubmit, onFormSubmit, intl } = this.props;
-    const sectionDescription = intl.formatMessage({
-      id: "Folder.AddFileModalDescription",
-    });
-    const secTitle = intl.formatMessage({ id: "Folder.AddFolderToSpace" });
+    const { fields, handleSubmit, onFormSubmit, intl, parentType } = this.props;
+    const type = this.getParentTypeForDisplay(parentType);
+    const sectionDescription = intl.formatMessage(
+      {
+        id: "Folder.AddFileModalDescription",
+      },
+      {
+        type,
+      }
+    );
+    const secTitle = intl.formatMessage({ id: "Folder.AddFolderTo" }, { type });
     return (
       <ModalForm
         {...modalFormProps(this.props)}
         onSubmit={handleSubmit(onFormSubmit)}
       >
         <FormBody>
-          <h2 style={sectionTitle}>{secTitle}</h2>
+          <h2 style={sectionTitle} className="margin-top--double">
+            {secTitle}
+          </h2>
           <div style={description}>{sectionDescription}</div>
           <div style={formRow}>
             <FieldWithError

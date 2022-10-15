@@ -115,7 +115,7 @@ public class FileSystemFullRefreshPlanBuilder extends AbstractRefreshPlanBuilder
 
     SplitsPointer splitsPointer = MaterializedSplitsPointer.of(0, convertToPartitionChunkMetadata(partitionChunkListing, datasetConfig), 1);
 
-    refreshExecTableMetadata = new RefreshExecTableMetadata(storagePluginId, datasetConfig, userName, splitsPointer, tableSchema);
+    refreshExecTableMetadata = new RefreshExecTableMetadata(storagePluginId, datasetConfig, userName, splitsPointer, tableSchema, null);
     final NamespaceTable nsTable = new NamespaceTable(refreshExecTableMetadata, true);
     SqlValidatorAndToRelContext sqlValidatorAndToRelContext = SqlValidatorAndToRelContext.builder(config.getConverter()).build();
     final DremioCatalogReader catalogReader = sqlValidatorAndToRelContext.getDremioCatalogReader();

@@ -132,6 +132,11 @@ public class ComplexToJsonPrel extends SingleRel implements Prel, CustomPrel {
     }
 
     @Override
+    public Field visit(ArrowType.Map type) {
+      return asVarchar();
+    }
+
+    @Override
     public Field visit(Union type) {
       return asVarchar();
     }

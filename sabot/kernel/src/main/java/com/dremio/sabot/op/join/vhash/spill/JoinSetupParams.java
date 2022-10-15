@@ -35,6 +35,8 @@ import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.join.vhash.spill.io.SpillSerializable;
+import com.dremio.sabot.op.join.vhash.spill.io.SpillSerializableImpl;
+import com.dremio.sabot.op.join.vhash.spill.io.SpillSerializableWithStats;
 import com.dremio.sabot.op.join.vhash.spill.list.ProbeBuffers;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.dremio.sabot.op.join.vhash.spill.replay.JoinReplayEntry;
@@ -93,10 +95,12 @@ public final class JoinSetupParams implements AutoCloseable {
   private final ProbeBuffers probeBuffers;
 
   private final SpillManager spillManager;
+  private final SpillStats spillStats = new SpillStats();
 
   // used for spilling (shared across all partitions)
   private final PagePool spillPagePool;
-  private final SpillSerializable spillSerializable;
+  private final SpillSerializable buildSpillSerializable;
+  private final SpillSerializable probeSpillSerializable;
 
   // generation number (bumped on each recycle of the partitions)
   private int generation = 1;
@@ -106,6 +110,7 @@ public final class JoinSetupParams implements AutoCloseable {
 
   // list of replay entries for the operator. Each close of a DiskPartition appends an entry to the list.
   private final LinkedList<JoinReplayEntry> replayEntries = new LinkedList<>();
+  private final boolean runtimeFilterEnabled;
 
   JoinSetupParams(OptionManager options,
                   SabotConfig sabotConfig,
@@ -128,8 +133,8 @@ public final class JoinSetupParams implements AutoCloseable {
                   List<FieldVector> probeOutputs,
                   ProbeBuffers probeBuffers,
                   SpillManager spillManager,
-                  PagePool spillPagePool) {
-
+                  PagePool spillPagePool,
+                  boolean runtimeFilterEnabled) {
     this.options = options;
     this.sabotConfig = sabotConfig;
     this.opAllocator = opAllocator;
@@ -152,7 +157,11 @@ public final class JoinSetupParams implements AutoCloseable {
     this.probeBuffers = probeBuffers;
     this.spillManager = spillManager;
     this.spillPagePool = spillPagePool;
-    this.spillSerializable = new SpillSerializable();
+    this.runtimeFilterEnabled = runtimeFilterEnabled;
+
+    SpillSerializable serializable = new SpillSerializableImpl();
+    this.buildSpillSerializable = new SpillSerializableWithStats(serializable,  spillStats, true);
+    this.probeSpillSerializable = new SpillSerializableWithStats(serializable,  spillStats, false);
   }
 
   public OptionManager getOptions() {
@@ -247,8 +256,8 @@ public final class JoinSetupParams implements AutoCloseable {
     return spillPagePool;
   }
 
-  public SpillSerializable getSpillSerializable() {
-    return spillSerializable;
+  public SpillSerializable getSpillSerializable(boolean isBuild) {
+    return isBuild ? buildSpillSerializable : probeSpillSerializable;
   }
 
   public void bumpGeneration() {
@@ -265,6 +274,14 @@ public final class JoinSetupParams implements AutoCloseable {
 
   public LinkedList<JoinReplayEntry> getReplayEntries() {
     return replayEntries;
+  }
+
+  public SpillStats getSpillStats() {
+    return spillStats;
+  }
+
+  public boolean isRuntimeFilterEnabled() {
+    return runtimeFilterEnabled;
   }
 
   @Override

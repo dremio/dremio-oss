@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -62,6 +63,7 @@ public class QueryTicket extends TicketWithChildren {
   private final long enqueuedTime;
   private final SchedulingGroup<AsyncTaskWrapper> queryGroup;
   private volatile NodeQueryStatus finalQueryStatus;
+  private static int NUMBER_OF_CORES = VM.availableProcessors();
 
   public QueryTicket(WorkloadTicket workloadTicket, QueryId queryId, BufferAllocator allocator, NodeEndpoint foreman,
                      NodeEndpoint assignment, long enqueuedTime, boolean useWeightBasedScheduling, int expectedNumTickets) {
@@ -156,7 +158,8 @@ public class QueryTicket extends TicketWithChildren {
       .setId(queryId)
       .setEndpoint(assignment)
       .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
-      .setTimeEnqueuedBeforeSubmitMs(getEnqueuedTime());
+      .setTimeEnqueuedBeforeSubmitMs(getEnqueuedTime())
+      .setNumberOfCores(NUMBER_OF_CORES);
 
     Set<Integer> addedPhases = new HashSet<>();
     for (NodePhaseStatus nodePhaseStatus : completed) {

@@ -16,8 +16,9 @@
 import { PureComponent } from "react";
 import moment from "@app/utils/dayjs";
 import PropTypes from "prop-types";
-import Radium from "radium";
 import { injectIntl } from "react-intl";
+import clsx from "clsx";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 import EntityLink from "@app/pages/HomePage/components/EntityLink";
 import EllipsedText from "components/EllipsedText";
@@ -28,7 +29,7 @@ import AllSourcesMenu from "components/Menus/HomePage/AllSourcesMenu";
 import FontIcon from "components/Icon/FontIcon";
 
 import SettingsBtn from "components/Buttons/SettingsBtn";
-import { SortDirection } from "components/VirtualizedTableViewer";
+import { SortDirection } from "@app/components/Table/TableUtils";
 import { getIconStatusDatabase } from "utils/iconUtils";
 
 import * as allSpacesAndAllSources from "uiTheme/radium/allSpacesAndAllSources";
@@ -42,6 +43,7 @@ class AllSourcesView extends PureComponent {
     title: PropTypes.string.isRequired,
     isExternalSource: PropTypes.bool,
     isDataPlaneSource: PropTypes.bool,
+    isObjectStorageSource: PropTypes.bool,
   };
 
   static contextTypes = {
@@ -134,19 +136,23 @@ class AllSourcesView extends PureComponent {
   }
 
   renderAddButton() {
-    const { isExternalSource, isDataPlaneSource } = this.props;
+    const { isExternalSource, isDataPlaneSource, isObjectStorageSource } =
+      this.props;
 
     /*eslint no-nested-ternary: "off"*/
     const headerId = isExternalSource
-      ? "Source.AddExternalSource"
+      ? "Source.AddDatabaseSource"
       : isDataPlaneSource
       ? "Source.AddDataPlane"
-      : "Source.AddDataLake";
+      : isObjectStorageSource
+      ? "Source.Add.Object.Storage"
+      : "Source.Add.Metastore";
 
     return (
       this.context.loggedInUser.admin && (
         <LinkButton
           buttonStyle="primary"
+          className={clsx(classes["primaryButtonPsuedoClasses"])}
           to={{
             ...this.context.location,
             state: {
@@ -176,4 +182,4 @@ class AllSourcesView extends PureComponent {
     );
   }
 }
-export default injectIntl(Radium(AllSourcesView));
+export default injectIntl(AllSourcesView);

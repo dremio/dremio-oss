@@ -15,6 +15,8 @@
  */
 package com.dremio.service.autocomplete.tokens;
 
+import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.sql.parser.StringAndPos;
 import org.junit.Test;
 
 import com.dremio.test.GoldenFileTestBuilder;
@@ -36,6 +38,24 @@ public final class TokenResolverTests {
       .add("SELECT STAR FROM IDENTIFIER WHERE IDENTIFIER", "SELECT * FROM emp WHERE age ")
       .add("FUNCTION", "SELECT ABS(")
       .add("JOIN ON ", "SELECT * FROM EMP JOIN DEPT ON ")
+      .runTests();
+  }
+
+  @Test
+  public void multiSql() {
+    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+      .add(
+        "MULTI SQL",
+        "SELECT * FROM EMP; ^")
+      .add(
+        "MULTI SQL 2",
+        "SELECT * FROM EMP; SELECT ^")
+      .add(
+        "MULTI SQL 3",
+        "SELECT * FROM ^;SELECT * FROM EMP")
+      .add(
+        "MULTI SQL 4",
+        "SELECT * FROM ^;")
       .runTests();
   }
 
@@ -203,11 +223,330 @@ public final class TokenResolverTests {
       .runTests();
   }
 
+  @Test
+  public void specialSyntaxFunctions() {
+    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+      .add("CAST", "SELECT CAST(")
+      .add("CAST", "SELECT CAST(myValue ")
+      .add("CAST", "SELECT CAST(myValue AS")
+      .add("CAST", "SELECT CAST(myValue AS INTEGER")
+      .add("CAST", "SELECT CAST(myValue AS INTEGER)")
+
+      .add("EXTRACT", "SELECT EXTRACT(")
+      .add("EXTRACT", "SELECT EXTRACT(CENTURY")
+      .add("EXTRACT", "SELECT EXTRACT(CENTURY FROM")
+      .add("EXTRACT", "SELECT EXTRACT(CENTURY FROM datetimeColumn")
+      .add("EXTRACT", "SELECT EXTRACT(CENTURY FROM datetimeColumn)")
+
+      .add("POSITION", "SELECT POSITION(")
+      .add("POSITION", "SELECT POSITION(string1")
+      .add("POSITION", "SELECT POSITION(string1 IN")
+      .add("POSITION", "SELECT POSITION(string1 IN string2")
+      .add("POSITION", "SELECT POSITION(string1 IN string2)")
+      .add("POSITION", "SELECT POSITION(string1 IN string2 FROM")
+      .add("POSITION", "SELECT POSITION(string1 IN string2 FROM integer1")
+      .add("POSITION", "SELECT POSITION(string1 IN string2 FROM integer1)")
+
+      .add("CONVERT", "SELECT CONVERT(")
+      .add("CONVERT", "SELECT CONVERT(myValue")
+      .add("CONVERT", "SELECT CONVERT(myValue USING")
+      .add("CONVERT", "SELECT CONVERT(myValue USING myValue2")
+      .add("CONVERT", "SELECT CONVERT(myValue USING myValue2)")
+
+      .add("TRANSLATE", "SELECT TRANSLATE(")
+      .add("TRANSLATE", "SELECT TRANSLATE(char_value")
+      .add("TRANSLATE", "SELECT TRANSLATE(char_value USING ")
+      .add("TRANSLATE", "SELECT TRANSLATE(char_value USING translation_name")
+      .add("TRANSLATE", "SELECT TRANSLATE(char_value USING translation_name)")
+      .add("TRANSLATE", "SELECT TRANSLATE(inputString, characters")
+      .add("TRANSLATE", "SELECT TRANSLATE(inputString, characters, translations")
+      .add("TRANSLATE", "SELECT TRANSLATE(inputString, characters, translations)")
+
+      .add("OVERLAY", "SELECT OVERLAY(")
+      .add("OVERLAY", "SELECT OVERLAY(string1")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING string2")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING string2 FROM")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING string2 FROM integer1")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING string2 FROM integer1)")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR ")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR integer2")
+      .add("OVERLAY", "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR integer2)")
+
+      .add("FLOOR", "SELECT FLOOR(")
+      .add("FLOOR", "SELECT FLOOR(datetimeColumn")
+      .add("FLOOR", "SELECT FLOOR(datetimeColumn TO")
+      .add("FLOOR", "SELECT FLOOR(datetimeColumn TO CENTURY")
+      .add("FLOOR", "SELECT FLOOR(datetimeColumn TO CENTURY)")
+
+      .add("CEIL", "SELECT CEIL(")
+      .add("CEIL", "SELECT CEIL(datetimeColumn")
+      .add("CEIL", "SELECT CEIL(datetimeColumn TO")
+      .add("CEIL", "SELECT CEIL(datetimeColumn TO CENTURY")
+      .add("CEIL", "SELECT CEIL(datetimeColumn TO CENTURY)")
+
+      .add("SUBSTRING", "SELECT SUBSTRING(")
+      .add("SUBSTRING", "SELECT SUBSTRING(string1")
+      .add("SUBSTRING", "SELECT SUBSTRING(string1 FROM")
+      .add("SUBSTRING", "SELECT SUBSTRING(string1 FROM integer1")
+      .add("SUBSTRING", "SELECT SUBSTRING(string1 FROM integer1 FOR ")
+      .add("SUBSTRING", "SELECT SUBSTRING(string1 FROM integer1 FOR integer2")
+      .add("SUBSTRING", "SELECT SUBSTRING(string1 FROM integer1 FOR integer2)")
+
+      .add("TRIM", "SELECT TRIM(")
+      .add("TRIM", "SELECT TRIM(string1")
+      .add("TRIM", "SELECT TRIM(string1 FROM")
+      .add("TRIM", "SELECT TRIM(string1 FROM string2")
+      .add("TRIM", "SELECT TRIM(string1 FROM string2)")
+      .add("TRIM", "SELECT TRIM(BOTH")
+      .add("TRIM", "SELECT TRIM(BOTH string1")
+      .add("TRIM", "SELECT TRIM(BOTH string1 FROM")
+      .add("TRIM", "SELECT TRIM(BOTH string1 FROM string2")
+      .add("TRIM", "SELECT TRIM(BOTH string1 FROM string2)")
+      .add("TRIM", "SELECT TRIM(LEADING")
+      .add("TRIM", "SELECT TRIM(LEADING string1")
+      .add("TRIM", "SELECT TRIM(LEADING string1 FROM")
+      .add("TRIM", "SELECT TRIM(LEADING string1 FROM string2")
+      .add("TRIM", "SELECT TRIM(LEADING string1 FROM string2)")
+      .add("TRIM", "SELECT TRIM(TRAILING")
+      .add("TRIM", "SELECT TRIM(TRAILING string1")
+      .add("TRIM", "SELECT TRIM(TRAILING string1 FROM")
+      .add("TRIM", "SELECT TRIM(TRAILING string1 FROM string2")
+      .add("TRIM", "SELECT TRIM(TRAILING string1 FROM string2)")
+
+      .add("TIMESTAMPADD", "SELECT TIMESTAMPADD(")
+      .add("TIMESTAMPADD", "SELECT TIMESTAMPADD(DAY")
+      .add("TIMESTAMPADD", "SELECT TIMESTAMPADD(DAY, ")
+      .add("TIMESTAMPADD", "SELECT TIMESTAMPADD(DAY, myInteger")
+      .add("TIMESTAMPADD", "SELECT TIMESTAMPADD(DAY, myInteger, ")
+      .add("TIMESTAMPADD", "SELECT TIMESTAMPADD(DAY, myInteger, myDatetime")
+      .add("TIMESTAMPADD", "SELECT TIMESTAMPADD(DAY, myInteger, myDatetime)")
+
+      .add("TIMESTAMPDIFF", "SELECT TIMESTAMPDIFF(")
+      .add("TIMESTAMPDIFF", "SELECT TIMESTAMPDIFF(DAY")
+      .add("TIMESTAMPDIFF", "SELECT TIMESTAMPDIFF(DAY, ")
+      .add("TIMESTAMPDIFF", "SELECT TIMESTAMPDIFF(DAY, myDatetime")
+      .add("TIMESTAMPDIFF", "SELECT TIMESTAMPDIFF(DAY, myDatetime, ")
+      .add("TIMESTAMPDIFF", "SELECT TIMESTAMPDIFF(DAY, myDatetime, myDatetime2")
+      .add("TIMESTAMPDIFF", "SELECT TIMESTAMPDIFF(DAY, myDatetime, myDatetime2)")
+
+      .add("CASE", "SELECT CASE")
+      .add("CASE", "SELECT CASE case1 WHEN")
+      .add("CASE", "SELECT CASE case1 WHEN when1")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1 END")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1 ELSE")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1 ELSE resultZ")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1 ELSE resultZ END")
+      .add("CASE", "SELECT CASE case1 WHEN when1, when2")
+      .add("CASE", "SELECT CASE case1 WHEN when1, when2 THEN")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1")
+      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1 THEN")
+
+      .add("CASE", "SELECT CASE")
+      .add("CASE", "SELECT CASE WHEN condition1")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN result1")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN result1 END")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN result1 ELSE")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN result1 ELSE resultZ")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN result1 ELSE resultZ END")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN result1 WHEN ")
+      .add("CASE", "SELECT CASE WHEN condition1 THEN result1 WHEN condition2")
+
+      .add("COUNT", "SELECT COUNT(")
+      .add("COUNT", "SELECT COUNT(*")
+      .add("COUNT", "SELECT COUNT(*)")
+      .add("COUNT", "SELECT COUNT(DISTINCT")
+      .add("COUNT", "SELECT COUNT(DISTINCT myValue")
+      .add("COUNT", "SELECT COUNT(DISTINCT myValue)")
+      .add("COUNT", "SELECT COUNT(myValue")
+      .add("COUNT", "SELECT COUNT(myValue)")
+      .runTests();
+  }
+
+  @Test
+  public void collectionFunctions() {
+    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+      // MULTISET CONSTRUCTION
+      .add("MULTISET CONSTRUCTION", "SELECT MULTISET")
+      .add("MULTISET CONSTRUCTION SUBQUERY", "SELECT MULTISET(")
+      .add("MULTISET CONSTRUCTION ARRAY", "SELECT MULTISET[")
+
+      // ELEMENT
+      .add("ELEMENT", "SELECT ELEMENT")
+      .add("ELEMENT", "SELECT ELEMENT(")
+
+      // CARDINALITY
+      .add("CARDINALITY", "SELECT CARDINALITY")
+      .add("CARDINALITY", "SELECT CARDINALITY(")
+
+      // value MEMBER OF multiset
+      .add("myValue", "SELECT myValue")
+      .add("myValue MEMBER", "SELECT myValue MEMBER")
+      .add("myValue MEMBER OF", "SELECT myValue MEMBER OF")
+      .add("myValue MEMBER OF myMultiset", "SELECT myValue MEMBER OF myMultiset")
+
+      // multiset IS A SET
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset IS", "SELECT myMultiset IS")
+      .add("multiset IS A", "SELECT myMultiset IS A")
+      .add("multiset IS A SET", "SELECT myMultiset IS A SET")
+
+      // multiset IS NOT A SET
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset IS", "SELECT myMultiset IS")
+      .add("multiset IS NOT", "SELECT myMultiset IS NOT ")
+      .add("multiset IS NOT A", "SELECT myMultiset IS NOT A")
+      .add("multiset IS NOT A SET", "SELECT myMultiset IS NOT A SET")
+
+      // multiset IS EMPTY
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset IS", "SELECT myMultiset IS")
+      .add("multiset IS EMPTY", "SELECT myMultiset IS EMPTY")
+
+      // multiset IS NOT EMPTY
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset IS", "SELECT myMultiset IS")
+      .add("multiset IS NOT", "SELECT myMultiset IS NOT")
+      .add("multiset IS NOT EMPTY", "SELECT myMultiset IS NOT EMPTY")
+
+      // multiset SUBMULTISET OF multiset2
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset SUBMULTISET", "SELECT myMultiset SUBMULTISET")
+      .add("multiset SUBMULTISET OF", "SELECT myMultiset SUBMULTISET OF")
+      .add("multiset SUBMULTISET OF multiset2", "SELECT myMultiset SUBMULTISET OF myMultiset2")
+
+      // multiset NOT SUBMULTISET OF multiset2
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset NOT", "SELECT myMultiset NOT")
+      .add("multiset NOT SUBMULTISET", "SELECT myMultiset NOT SUBMULTISET")
+      .add("multiset NOT SUBMULTISET OF", "SELECT myMultiset NOT SUBMULTISET OF")
+      .add("multiset NOT SUBMULTISET OF multiset2", "SELECT myMultiset NOT SUBMULTISET OF myMultiset2")
+
+      // multiset MULTISET UNION [ ALL | DISTINCT ] multiset2
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset MULTISET", "SELECT myMultiset MULTISET")
+      .add("multiset MULTISET UNION ", "SELECT myMultiset MULTISET UNION")
+      .add("multiset MULTISET UNION multiset2", "SELECT myMultiset MULTISET UNION myMultiset2")
+      .add("multiset MULTISET UNION ALL", "SELECT myMultiset MULTISET UNION ALL")
+      .add("multiset MULTISET UNION ALL multiset2", "SELECT myMultiset MULTISET UNION ALL myMultiset2")
+      .add("multiset MULTISET UNION DISTINCT multiset2", "SELECT myMultiset MULTISET UNION DISTINCT")
+      .add("multiset MULTISET UNION DISTINCT multiset2", "SELECT myMultiset MULTISET UNION DISTINCT myMultiset2")
+
+      // multiset MULTISET INTERSECT [ ALL | DISTINCT ] multiset2
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset MULTISET", "SELECT myMultiset MULTISET")
+      .add("multiset MULTISET INTERSECT", "SELECT myMultiset MULTISET INTERSECT")
+      .add("multiset MULTISET INTERSECT multiset2", "SELECT myMultiset MULTISET INTERSECT myMultiset2")
+      .add("multiset MULTISET INTERSECT ALL", "SELECT myMultiset MULTISET INTERSECT ALL")
+      .add("multiset MULTISET INTERSECT ALL multiset2", "SELECT myMultiset MULTISET INTERSECT ALL myMultiset2")
+      .add("multiset MULTISET INTERSECT DISTINCT", "SELECT myMultiset MULTISET INTERSECT DISTINCT")
+      .add("multiset MULTISET INTERSECT DISTINCT multiset2", "SELECT myMultiset MULTISET INTERSECT DISTINCT myMultiset2")
+
+      // multiset MULTISET EXCEPT [ ALL | DISTINCT ] multiset2
+      .add("multiset", "SELECT myMultiset")
+      .add("multiset MULTISET", "SELECT myMultiset MULTISET")
+      .add("multiset MULTISET EXCEPT", "SELECT myMultiset MULTISET EXCEPT")
+      .add("multiset MULTISET EXCEPT multiset2", "SELECT myMultiset MULTISET EXCEPT myMultiset2")
+      .add("multiset MULTISET EXCEPT ALL", "SELECT myMultiset MULTISET EXCEPT ALL")
+      .add("multiset MULTISET EXCEPT ALL multiset2", "SELECT myMultiset MULTISET EXCEPT ALL myMultiset2")
+      .add("multiset MULTISET EXCEPT DISTINCT", "SELECT myMultiset MULTISET EXCEPT DISTINCT")
+      .add("multiset MULTISET EXCEPT DISTINCT multiset2", "SELECT myMultiset MULTISET EXCEPT DISTINCT myMultiset2")
+
+      .runTests();
+  }
+
+  @Test
+  public void periodPredicates() {
+    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+      // PERIOD CONSTRUCTION
+      .add("(", "SELECT (")
+      .add("(datetime", "SELECT (datetime")
+      .add("(datetime,", "SELECT (datetime, ")
+      .add("(datetime, datetime", "SELECT (datetime, datetime")
+      .add("(datetime, datetime)", "SELECT (datetime, datetime)")
+      .add("PERIOD(", "SELECT PERIOD(")
+      .add("PERIOD(datetime", "SELECT PERIOD(datetime")
+      .add("PERIOD(datetime,", "SELECT PERIOD(datetime, ")
+      .add("PERIOD(datetime, datetime", "SELECT PERIOD(datetime, datetime")
+      .add("PERIOD(datetime, datetime)", "SELECT PERIOD(datetime, datetime)")
+
+      // FUNCTIONS
+      .add("CONTAINS", "SELECT myPeriod CONTAINS")
+      .add("OVERLAPS", "SELECT myPeriod OVERLAPS")
+      .add("EQUALS", "SELECT myPeriod EQUALS")
+      .add("PRECEDES", "SELECT myPeriod PRECEDES")
+      .add("IMMEDIATELY PRECEDES", "SELECT myPeriod IMMEDIATELY")
+      .add("IMMEDIATELY PRECEDES", "SELECT myPeriod IMMEDIATELY PRECEDES")
+      .add("SUCCEEDS", "SELECT myPeriod SUCCEEDS")
+      .add("IMMEDIATELY SUCCEEDS", "SELECT myPeriod IMMEDIATELY")
+      .add("IMMEDIATELY SUCCEEDS", "SELECT myPeriod IMMEDIATELY SUCCEEDS")
+      .runTests();
+  }
+
+  @Test
+  public void valueOperations() {
+    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+      // Index is not recommended and close bracket is not high enough priority
+      .add("ROW", "SELECT ROW")
+      .add("ROW CONSTRUCTOR", "SELECT ROW(")
+      .add("ROW CONSTRUCTOR", "SELECT ROW(1")
+      .add("ROW CONSTRUCTOR", "SELECT ROW(1)")
+      .add("ROW CONSTRUCTOR", "SELECT ROW(1,")
+      .add("ROW INDEX", "SELECT ROW(1)[")
+      .add("ROW INDEX + INT", "SELECT ROW(1)[1")
+      .add("ROW INDEX + INT", "SELECT ROW(1)[1]")
+      .add("ROW INDEX + STRING", "SELECT ROW(1)['name'")
+      .add("ROW INDEX + STRING", "SELECT ROW(1)['name']")
+      .add("ARRAY", "SELECT ARRAY")
+      .add("ARRAY CONSTRUCTOR PARENS", "SELECT ARRAY(")
+      .add("ARRAY CONSTRUCTOR PARENS", "SELECT ARRAY(SELECT * FROM T")
+      .add("ARRAY CONSTRUCTOR PARENS", "SELECT ARRAY(SELECT * FROM T)")
+      .add("ARRAY CONSTRUCTOR PARENS", "SELECT ARRAY(SELECT * FROM T,")
+      .add("ARRAY PARENS INDEX", "SELECT ARRAY(SELECT * FROM T)[")
+      .add("ARRAY PARENS INDEX", "SELECT ARRAY(SELECT * FROM T)[1")
+      .add("ARRAY PARENS INDEX", "SELECT ARRAY(SELECT * FROM T)[1]")
+      .add("ARRAY CONSTRUCTOR BRACKET", "SELECT ARRAY[")
+      .add("ARRAY CONSTRUCTOR BRACKET", "SELECT ARRAY[1")
+      .add("ARRAY CONSTRUCTOR BRACKET", "SELECT ARRAY[1]")
+      .add("ARRAY CONSTRUCTOR BRACKET", "SELECT ARRAY[1,")
+      .add("ARRAY BRACKET INDEX", "SELECT ARRAY[1, 2, 3][")
+      .add("ARRAY BRACKET INDEX", "SELECT ARRAY[1, 2, 3][1")
+      .add("ARRAY BRACKET INDEX", "SELECT ARRAY[1, 2, 3][1]")
+      .add("MAP ", "SELECT MAP")
+      .add("MAP CONSTRUCTOR PARENS", "SELECT MAP(")
+      .add("MAP CONSTRUCTOR PARENS", "SELECT MAP(SELECT * FROM T")
+      .add("MAP CONSTRUCTOR PARENS", "SELECT MAP(SELECT * FROM T,")
+      .add("MAP CONSTRUCTOR PARENS", "SELECT MAP(SELECT * FROM T)")
+      .add("MAP PARENS INDEX", "SELECT MAP(SELECT * FROM T)[")
+      .add("MAP PARENS INDEX", "SELECT MAP(SELECT * FROM T)['key'")
+      .add("MAP PARENS INDEX", "SELECT MAP(SELECT * FROM T)['key']")
+      .add("MAP CONSTRUCTOR BRACKET", "SELECT MAP[")
+      .add("MAP CONSTRUCTOR BRACKET", "SELECT MAP['key'")
+      .add("MAP CONSTRUCTOR BRACKET", "SELECT MAP['key', 1")
+      .add("MAP CONSTRUCTOR BRACKET", "SELECT MAP['key', 1]")
+      .add("MAP BRACKET INDEX", "SELECT MAP['key', 1][")
+      .add("MAP BRACKET INDEX", "SELECT MAP['key', 1]['key'")
+      .add("MAP BRACKET INDEX", "SELECT MAP['key', 1]['key']")
+      .runTests();
+  }
+
+
   private static ResolverTestResults executeTest(String queryCorpus) {
     assert queryCorpus != null;
 
-    ImmutableList<DremioToken> tokenizedCorpus = ImmutableList.copyOf(SqlQueryTokenizer.tokenize(queryCorpus));
-    TokenResolver.Predictions predictions = TokenResolver.getNextPossibleTokens(tokenizedCorpus);
+    StringAndPos stringAndPos = SqlParserUtil.findPos(queryCorpus);
+    if (stringAndPos.cursor == -1) {
+      queryCorpus = queryCorpus + " ^";
+      stringAndPos = SqlParserUtil.findPos(queryCorpus);
+    }
+
+    ImmutableList<DremioToken> tokens = Cursor.tokenizeWithCursor(
+      stringAndPos.sql,
+      stringAndPos.cursor);
+    TokenResolver.Predictions predictions = TokenResolver.getNextPossibleTokens(tokens);
     return ResolverTestResults.create(predictions);
   }
 
@@ -228,7 +567,7 @@ public final class TokenResolverTests {
         .getKeywords()
         .stream()
         .limit(numCompletions)
-        .map(token -> token.getImage())
+        .map(kind -> NormalizedTokenDictionary.INSTANCE.indexToImage(kind))
         .toArray(String[]::new);
 
       boolean hasMoreResults = (predictions.getKeywords().size() - numCompletions) > 0;

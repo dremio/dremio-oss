@@ -33,14 +33,14 @@ public class TestComparisonFunctions extends BaseTestFunction {
   };
 
   Object[][] bigIntTests = {
-      {"c0 == c1", 10l, 10l, true},
-      {"c0 == c1", 10l, 11l, false},
-      {"c0 != c1", 10l, 10l, false},
-      {"c0 != c1", 10l, 11l, true},
-      {"c0 > c1", 10l, 11l, false},
-      {"c0 < c1", 10l, 11l, true},
-      {"c0 <= c1", 10l, 11l, true},
-      {"c0 >= c1", 10l, 11l, false}
+      {"c0 == c1", 10L, 10L, true},
+      {"c0 == c1", 10L, 11L, false},
+      {"c0 != c1", 10L, 10L, false},
+      {"c0 != c1", 10L, 11L, true},
+      {"c0 > c1", 10L, 11L, false},
+      {"c0 < c1", 10L, 11L, true},
+      {"c0 <= c1", 10L, 11L, true},
+      {"c0 >= c1", 10L, 11L, false}
   };
 
   Object[][] floatTests = {

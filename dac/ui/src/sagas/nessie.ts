@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { select } from "redux-saga/effects";
-import { NessieRootState } from "@app/reducers/nessie/nessie";
+import { NessieRootState } from "@app/types/nessie";
 import { getNessieReferencePayload } from "@app/utils/nessieUtils";
 
 export function* getNessieReferences() {

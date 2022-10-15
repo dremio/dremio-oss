@@ -45,19 +45,9 @@
     width: 100%;
   }
 
-  img {
-    filter: brightness(0) saturate(100%) invert(90%) sepia(6%) saturate(153%)
-      hue-rotate(169deg) brightness(97%) contrast(87%) !important;
-  }
-
   &.button-active {
     color: var(--dremio--color--link);
     font-weight: 600;
-
-    img {
-      .gray-icon-hover() !important;
-      transition: 300ms ease all;
-    }
 
     &::after {
       bottom: 0;
@@ -83,4 +73,9 @@
   height: @size;
   margin-right: 7px;
   margin-left: -4px;
+  color: var(--dremio--color--neutral--200);
+
+  &.icon-active {
+    color: var(--dremio--color--link);
+  }
 }

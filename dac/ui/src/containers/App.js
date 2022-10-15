@@ -20,8 +20,9 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import {
   ThemeProvider,
-  createMuiTheme as createTheme,
-} from "@material-ui/core/styles";
+  StyledEngineProvider,
+  createTheme,
+} from "@mui/material/styles";
 import { replace } from "react-router-redux";
 import DocumentTitle from "react-document-title";
 import urlParse from "url-parse";
@@ -40,6 +41,8 @@ import config from "dyn-load/utils/config";
 import enableFatalPropTypes from "@app/enableFatalPropTypes";
 
 import ModalsContainer from "@app/components/Modals/ModalsContainer";
+import PATModalContainer from "dyn-load/containers/PATModalContainer";
+import AccountSettingsModalContainer from "@app/containers/AccountSettingsModalContainer";
 import AboutModal from "@app/pages/HomePage/components/modals/AboutModal/AboutModal";
 import AppHOC from "@inject/containers/AppHOC";
 import NotificationContainer from "@app/containers/Notification";
@@ -50,34 +53,38 @@ import { LocationProvider } from "@app/containers/dremioLocation";
 import { withHookProvider } from "@app/containers/RouteLeave";
 
 import { themeStyles } from "dremio-ui-lib";
-import "react-datepicker/dist/react-datepicker.css";
+import "../uiTheme/css/react-datepicker.css";
+import "../uiTheme/css/leantable.css";
 
 DocumentTitle.join = (tokens) => {
   return [...tokens, formatMessage("App.Dremio")].filter(Boolean).join(" - ");
 };
 
-const { overrides: themeOverrides, ...otherStyles } = themeStyles;
+const { components: componentOverrides, palette, ...otherStyles } = themeStyles;
+
+const fontFamily = ["Inter var", "sans-serif"].join(",");
 
 const theme = createTheme({
   ...otherStyles,
   palette: {
+    ...palette,
     primary: {
-      main: "rgb(0, 188, 212)",
+      main: "#43B8C9",
     },
   },
-  overrides: {
-    ...themeOverrides,
+  components: {
+    ...componentOverrides,
     MuiSwitch: {
-      switchBase: {
-        height: "auto",
+      styleOverrides: {
+        switchBase: {
+          height: "auto",
+        },
       },
     },
   },
   typography: {
-    body1: {
-      fontSize: 12,
-    },
-    fontFamily: "'Inter var', sans-serif",
+    fontSize: 12,
+    fontFamily,
   },
 });
 
@@ -213,9 +220,13 @@ export class App extends Component {
           <Suspense>
             <LocationProvider location={this.props.location}>
               <div style={{ height: "100%" }}>
-                <ThemeProvider theme={theme}>{children}</ThemeProvider>
+                <StyledEngineProvider injectFirst>
+                  <ThemeProvider theme={theme}>{children}</ThemeProvider>
+                </StyledEngineProvider>
+                <AccountSettingsModalContainer />
                 <NotificationContainer />
                 <ConfirmationContainer />
+                <PATModalContainer />
                 <ModalsContainer modals={{ AboutModal }} />
                 <div className="popup-notifications" />
                 <div className="conifrmation-container" />

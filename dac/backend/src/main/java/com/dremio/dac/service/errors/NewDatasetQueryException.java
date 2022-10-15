@@ -31,7 +31,7 @@ public class NewDatasetQueryException extends Exception {
   private final ExplorePageInfo details;
 
   public NewDatasetQueryException(ExplorePageInfo details, Exception error) {
-    super(error instanceof UserException ? ((UserException) error).getOriginalMessage(): error.getMessage(), error);
+    super(error instanceof UserException ? "Unable to create dataset. " + ((UserException) error).getOriginalMessage(): error.getMessage(), error);
     this.details = details;
   }
 

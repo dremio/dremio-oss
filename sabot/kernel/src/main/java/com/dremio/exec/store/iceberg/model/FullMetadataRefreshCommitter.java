@@ -33,6 +33,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogRequestBuilder;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.catalog.UpdatableDatasetConfigFields;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -96,20 +97,30 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     try {
       addOrUpdateDataSet();
     } catch (StatusRuntimeException sre) {
+      logger.warn("Unexpected behavior with status {} has been observed with Metadata refresh for Dataset: {} and TableLocation: {} ",
+        sre.getStatus().getCode() , Arrays.toString(datasetPath.toArray()), tableLocation);
       try {
+        logger.debug("With failed Metadata refresh for Dataset: {} and TableLocation: {} , Cleanup task is going to happen with unwanted files.", Arrays.toString(datasetPath.toArray()), tableLocation);
         icebergCommand.deleteTable();
       } catch(Exception i){
         logger.warn("Failure during cleaning up the unwanted files", i);
       }
-
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
-        logger.error("Metadata refresh failed. Dataset: " + Arrays.toString(datasetPath.toArray())
-          + " TableLocation: " + tableLocation, sre);
-        throw UserException.concurrentModificationError(sre)
-          .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
-          .buildSilently();
+        logger.debug("Metadata Refresh has been ABORTED for Dataset: {} and TableLocation: {}. It's going to do validation for concurrent metadata refresh.", Arrays.toString(datasetPath.toArray()), tableLocation);
+        // Validate if metadata is available or not for current dataset before throwing CME.
+        if (isMetadataAlreadyCreated()) {
+          logger.info("Concurrent refresh have been seen here, Metadata is already present for dataset {}. so not failing the query.", datasetPath);
+        } else {
+          logger.error("Irrespective of Concurrent Metadata refresh. It failed for Dataset: " + Arrays.toString(datasetPath.toArray())
+            + " and TableLocation: " + tableLocation, sre);
+          throw UserException.concurrentModificationError(sre)
+            .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
+            .buildSilently();
+        }
+      } else {
+        //Throws non-handled RTE.
+        throw sre;
       }
-      throw sre;
     }
     return snapshot;
   }
@@ -117,6 +128,21 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
   @VisibleForTesting
   public void addOrUpdateDataSet() {
     client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
+  }
+
+  /**
+   * @return in case of concurrent refreshes of datasets.
+   * if metadata presents in the catalog return true else false.
+   */
+  @VisibleForTesting
+  boolean isMetadataAlreadyCreated() {
+    try {
+      UpdatableDatasetConfigFields previousMetadata = datasetCatalogRequestBuilder.getPreviousMetadata(client, datasetPath);
+      return previousMetadata != null;
+    } catch (UserException uex) {
+      logger.warn("Failure during retrieving metadata for CME dataset. {}", uex.getMessage());
+    }
+   return false;
   }
 
   @Override

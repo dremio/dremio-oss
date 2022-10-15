@@ -23,18 +23,20 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
-import java.lang.management.ManagementFactory;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -44,6 +46,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import com.dremio.common.VM;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
 import com.dremio.config.DremioConfig;
@@ -185,7 +188,7 @@ public class TestBackupManager extends BaseTestServer {
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
     Path backupDir2 = Path.of(
-      Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false)
+      Backup.createBackup(dacConfig, () -> null, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false)
       .getBackupPath());
 
     // destroy everything
@@ -314,7 +317,7 @@ public class TestBackupManager extends BaseTestServer {
     } else {
       backupArgs = new String[]{"backup", tempPath, "false", "false"};
     }
-    final String vmid = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+    final String vmid = VM.getProcessId();
     DremioAttach.main(vmid, backupArgs);
     //verify that repeated backup calls don't cause an exception
     DremioAttach.main(vmid, backupArgs);
@@ -328,10 +331,7 @@ public class TestBackupManager extends BaseTestServer {
     fs.mkdirs(dbDir);
 
     // Get last modified backup file
-    final Optional<java.nio.file.Path> restorePath = java.nio.file.Files.list(Paths.get(tempPath))
-      .filter(f -> java.nio.file.Files.isDirectory(f))
-      .filter(f -> f.getFileName().toString().startsWith("dremio_backup"))
-      .max(Comparator.comparingLong(f -> f.toFile().lastModified()));
+    final Optional<java.nio.file.Path> restorePath = findLastModifiedBackup(tempPath);
 
     //verify that backup in default(binary) format has some number of
     //files with .pb extension
@@ -377,6 +377,16 @@ public class TestBackupManager extends BaseTestServer {
     BackupRestoreUtil.restore(fs, backupDir1, dacConfig);
     // restart
     startDaemon(dacConfig);
+  }
+
+  @NotNull
+  private static Optional<java.nio.file.Path> findLastModifiedBackup(String workingDir) throws IOException {
+    try (Stream<java.nio.file.Path> stream = java.nio.file.Files.list(Paths.get(workingDir))) {
+      return stream
+        .filter(java.nio.file.Files::isDirectory)
+        .filter(f -> f.getFileName().toString().startsWith("dremio_backup"))
+        .max(Comparator.comparingLong(f -> f.toFile().lastModified()));
+    }
   }
 
   private CheckPoint checkPoint() throws Exception {

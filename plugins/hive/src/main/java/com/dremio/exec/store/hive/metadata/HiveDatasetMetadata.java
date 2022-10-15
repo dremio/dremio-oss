@@ -29,7 +29,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 
-public class HiveDatasetMetadata implements DatasetMetadata {
+public final class HiveDatasetMetadata implements DatasetMetadata {
 
   private final Schema schema;
   private final List<String> partitionColumns;

@@ -19,7 +19,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 
 public class ForemanException extends ExecutionSetupException {
   private static final long serialVersionUID = -6943409010231014085L;
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForemanException.class);
 
   public ForemanException() {
   }

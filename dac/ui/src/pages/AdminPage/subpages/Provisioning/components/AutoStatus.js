@@ -15,23 +15,35 @@
  */
 import PropTypes from "prop-types";
 
-import Art from "@app/components/Art";
+import { Tooltip } from "dremio-ui-lib";
 
 export default function AutoStatus(props) {
-  const { value, style, offIcon } = props;
+  const { value, style, offIcon, noMargin } = props;
   // off icon is shown as '-' in the list and as "x" in the engine status summary bar
   // the x icon is passed in as an optional param
-  const iconSrc = value ? "SimpleCheckMark.svg" : offIcon || "SimpleMinus.svg";
-  const size = offIcon || value ? 24 : 9; //SimpleMinus.svg has no padding
-  const pad = offIcon || value ? 0 : 7;
-  const altText = value ? la("On") : la("Off");
+  const iconSrc = value ? "interface/check" : offIcon || "interface/minus";
+  const size = 20;
+  const marg = offIcon || value ? 0 : 7;
+  const pad = offIcon || value ? 0 : 5;
+  const altText = value ? "Common.On" : "Common.Off";
+  const color = value
+    ? "var(--dremio--color--status--success--foreground)"
+    : "var(--dremio--color--icon--main)";
+
   return (
-    <Art
-      src={iconSrc}
-      style={{ height: size, width: size, marginLeft: pad, ...style }}
-      alt={altText}
-      title
-    />
+    <Tooltip title={altText}>
+      <dremio-icon
+        name={iconSrc}
+        style={{
+          height: size,
+          width: size,
+          marginLeft: !noMargin && marg,
+          padding: pad,
+          color: color,
+          ...style,
+        }}
+      />
+    </Tooltip>
   );
 }
 
@@ -39,4 +51,5 @@ AutoStatus.propTypes = {
   value: PropTypes.bool,
   style: PropTypes.object,
   offIcon: PropTypes.string,
+  noMargin: PropTypes.bool,
 };

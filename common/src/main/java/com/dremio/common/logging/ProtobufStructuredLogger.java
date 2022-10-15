@@ -15,9 +15,11 @@
  */
 package com.dremio.common.logging;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Message;
 
 import net.logstash.logback.argument.StructuredArguments;
@@ -33,14 +35,61 @@ class ProtobufStructuredLogger<T extends Message> implements StructuredLogger<T>
     this.logger = logger;
   }
 
+  @VisibleForTesting
+  Object[] constructArgsArray(T data, Object... args) {
+    if (args[args.length-1] instanceof Throwable) {
+      return ArrayUtils.insert(args.length-1, args, StructuredArguments.f(data));
+    } else {
+      return ArrayUtils.add(args, StructuredArguments.f(data));
+    }
+  }
+
   @Override
-  public void info(String message, T data) {
+  public void info(T data, String message, Object... args) {
+    if(!logger.isInfoEnabled()) { return; }
+    logger.info(message, constructArgsArray(data, args));
+  }
+
+  @Override
+  public void debug(T data, String message, Object... args) {
+    if(!logger.isDebugEnabled()) { return; }
+    logger.debug(message, constructArgsArray(data, args));
+  }
+
+  @Override
+  public void warn(T data, String message, Object... args) {
+    if(!logger.isWarnEnabled()) { return; }
+    logger.warn(message, constructArgsArray(data, args));
+  }
+
+  @Override
+  public void error(T data, String message, Object... args) {
+    if(!logger.isErrorEnabled()) { return; }
+    logger.error(message, constructArgsArray(data, args));
+  }
+
+  @Override
+  public void info(T data, String message) {
+    if(!logger.isInfoEnabled()) { return; }
     logger.info(message, StructuredArguments.f(data));
   }
 
   @Override
-  public void debug(String message, T data) {
+  public void debug(T data, String message) {
+    if(!logger.isDebugEnabled()) { return; }
     logger.debug(message, StructuredArguments.f(data));
+  }
+
+  @Override
+  public void warn(T data, String message) {
+    if(!logger.isWarnEnabled()) { return; }
+    logger.warn(message, StructuredArguments.f(data));
+  }
+
+  @Override
+  public void error(T data, String message) {
+    if(!logger.isErrorEnabled()) { return; }
+    logger.error(message, StructuredArguments.f(data));
   }
 
   static <M extends Message> ProtobufStructuredLogger<M> of(String loggerName) {

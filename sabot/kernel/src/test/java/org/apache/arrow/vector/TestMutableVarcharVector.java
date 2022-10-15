@@ -18,6 +18,7 @@ package org.apache.arrow.vector;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.util.Text;
 import org.junit.After;
@@ -287,26 +288,29 @@ public class TestMutableVarcharVector extends DremioTest {
   @Test
   public void TestCompactionThreshold()
   {
-    MutableVarcharVector m1 = new MutableVarcharVector("TestCompactionThreshold", testAllocator, 0.02D /* 2 percent */);
+    final MutableVarcharVector m1 = new MutableVarcharVector("TestCompactionThreshold", testAllocator, 0.02D /* 2 percent */);
 
-    try {
-      m1.allocateNew(64 * 1024, 2);
+    try (final ArrowBuf validityBuf = testAllocator.buffer(10);
+         final ArrowBuf dataBuf = testAllocator.buffer(128 * 1024)) {
 
-      byte[] b1 = new byte[1024];
-      byte[] b2 = new byte[512];
+      m1.loadBuffers(5, 64 * 1024, dataBuf, validityBuf);
 
-      //insert b1
+      final byte[] b1 = new byte[1024];
+      final byte[] b2 = new byte[512];
+
+      //insert at index 0
       m1.setSafe(0, b1);
-      //insert b2
+
       m1.setSafe(1, b1);
 
       Assert.assertEquals(0, m1.getGarbageSizeInBytes());
 
-      //update
+      //insert at index 1
       m1.setSafe(1, b2);
+
       Assert.assertEquals(1024, m1.getGarbageSizeInBytes());
 
-      //update - this should cause compaction.
+      //update - this should cause compaction
       m1.setSafe(0, b2);
       Assert.assertEquals(0, m1.getGarbageSizeInBytes());
 

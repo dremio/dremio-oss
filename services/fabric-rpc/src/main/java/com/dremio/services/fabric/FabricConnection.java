@@ -36,7 +36,6 @@ import io.netty.channel.socket.SocketChannel;
  * A client > server or server > client connection.
  */
 class FabricConnection extends RemoteConnection implements PhysicalConnection {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricConnection.class);
 
   private final RpcBus<RpcType, FabricConnection> bus;
   private final BufferAllocator allocator;

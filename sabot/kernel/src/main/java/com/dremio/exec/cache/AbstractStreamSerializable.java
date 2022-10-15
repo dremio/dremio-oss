@@ -20,7 +20,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public abstract class AbstractStreamSerializable extends LoopedAbstractSerializable {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractStreamSerializable.class);
 
   @Override
   public abstract void readFromStream(InputStream input) throws IOException;

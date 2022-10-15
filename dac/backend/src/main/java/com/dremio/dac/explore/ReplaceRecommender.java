@@ -23,8 +23,8 @@ import static com.dremio.dac.proto.model.dataset.ReplaceSelectionType.EXACT;
 import static com.dremio.dac.proto.model.dataset.ReplaceSelectionType.IS_NULL;
 import static com.dremio.dac.proto.model.dataset.ReplaceSelectionType.MATCHES;
 import static com.dremio.dac.proto.model.dataset.ReplaceSelectionType.STARTS_WITH;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.regex.Pattern.quote;
-import static org.apache.parquet.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,7 +44,6 @@ import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.ReplaceSelectionType;
 import com.dremio.dac.proto.model.dataset.ReplaceType;
-import com.google.common.base.Preconditions;
 
 /**
  * Replace/Keep only/Exclude transformation recommendation suggestions and generating examples and number of matches
@@ -55,7 +54,7 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
 
   @Override
   public List<ReplacePatternRule> getRules(Selection selection, DataType selColType) {
-    Preconditions.checkArgument(selColType == DataType.TEXT,
+    checkArgument(selColType == DataType.TEXT,
         "Cards generation for Replace/Keeponly/Exclude transforms is supported only on TEXT type columns");
 
     List<ReplacePatternRule> rules = new ArrayList<>();

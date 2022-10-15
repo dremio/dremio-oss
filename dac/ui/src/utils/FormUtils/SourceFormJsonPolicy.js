@@ -15,10 +15,7 @@
  */
 
 import { pick } from "lodash/object";
-import {
-  NESSIE,
-  SHARING_TAB_JSON_TEMPLATE,
-} from "dyn-load/constants/sourceTypes";
+import { SHARING_TAB_JSON_TEMPLATE } from "dyn-load/constants/sourceTypes";
 import { DEFAULT_VLHF_DETAIL } from "dyn-load/constants/vlh";
 import FormUtils from "utils/FormUtils/FormUtils";
 import FormConfig from "utils/FormUtils/FormConfig";
@@ -89,7 +86,7 @@ export default class SourceFormJsonPolicy {
    * @param typeCode
    * @param typeConfig
    */
-  static getCombinedConfig(typeCode, typeConfig) {
+  static getCombinedConfig(typeCode, typeConfig, opts) {
     // Sources can provide their own UI config
     const uiConfig = typeConfig.uiConfig
       ? typeConfig.uiConfig
@@ -101,7 +98,8 @@ export default class SourceFormJsonPolicy {
       );
     return SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
       combinedConfig,
-      typeConfig
+      typeConfig,
+      opts
     );
   }
 
@@ -349,7 +347,13 @@ export default class SourceFormJsonPolicy {
    * @param functionalConfig
    * @returns {*} - complete config used for form rendering
    */
-  static applyJsonPolicyToFormConfig(config, functionalConfig) {
+  static applyJsonPolicyToFormConfig(
+    config,
+    functionalConfig,
+    opts = {
+      reflectionsEnabled: true,
+    }
+  ) {
     // config is required to apply the policy, as we need the sourceType
     if (!config && !functionalConfig) return config;
 
@@ -390,7 +394,7 @@ export default class SourceFormJsonPolicy {
       functionalElements
     );
 
-    if (config.sourceType !== NESSIE) {
+    if (opts.reflectionsEnabled) {
       // add Acceleration tab
       config.form.addTab(
         new FormTabConfig(ACCELERATION_TAB_JSON_TEMPLATE, functionalElements)

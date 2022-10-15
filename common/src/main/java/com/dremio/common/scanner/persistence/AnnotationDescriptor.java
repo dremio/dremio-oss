@@ -153,18 +153,17 @@ public final class AnnotationDescriptor {
         } else if (c.equals(Class.class)) {
           // we need to replace all periods after the first capital letter with $ since inner classes are stored in bytecode differently than Class.forName() accepts.
           final Matcher m = CAPITAL_LETTER.matcher(value);
-          if(m.find()){
+          if (m.find()) {
             String prefix = value.substring(0, m.start());
             String suffix = value.substring(m.start(), value.length());
             String replacedSuffix = suffix.replace('.', '$');
             value = prefix + replacedSuffix;
-          };
+          }
           try {
             return Class.forName(value);
           } catch (ClassNotFoundException e) {
             throw new RuntimeException("Serialization/deserialization of function annotations failed for type of: " + c.getName(), e);
           }
-
         }
         throw new UnsupportedOperationException("Serialization/deserialization of function annotations failed for type of: " + c.getName());
       }

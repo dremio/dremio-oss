@@ -48,7 +48,7 @@ public abstract class MultiDestCopier {
   private static final int OFFSET_SIZE = 4;
 
   private final int srcBufferIdx;
-  final long dstAddrs[];
+  final long[] dstAddrs;
 
   private final int fieldId;
 
@@ -236,7 +236,7 @@ public abstract class MultiDestCopier {
 
   static class VariableCopier extends MultiDestCopier {
     private final FieldVector source;
-    private final Reallocators.Reallocator reallocs[];
+    private final Reallocators.Reallocator[] reallocs;
 
     private final long[] dstOffsetAddrs;
 
@@ -443,6 +443,7 @@ public abstract class MultiDestCopier {
         copiers.add(new BitCopier(source, fieldId, targets, NULL_BUFFER_ORDINAL, copyWatches.getBinary()));
         break;
 
+      case MAP:
       case LIST:
       case STRUCT:
       case UNION:

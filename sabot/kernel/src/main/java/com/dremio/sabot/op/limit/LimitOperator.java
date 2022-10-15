@@ -31,7 +31,6 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.collect.ImmutableList;
 
 public class LimitOperator implements SingleInputOperator {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LimitOperator.class);
 
   private State state = State.NEEDS_SETUP;
   private final boolean noEndLimit;

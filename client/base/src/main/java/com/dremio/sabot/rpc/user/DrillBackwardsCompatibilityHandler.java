@@ -20,9 +20,10 @@ import static com.dremio.common.types.TypeProtos.DataMode.REQUIRED;
 import static com.dremio.common.types.TypeProtos.MinorType.BIT;
 import static com.dremio.common.types.TypeProtos.MinorType.DECIMAL;
 import static com.dremio.common.types.TypeProtos.MinorType.INTERVALDAY;
+import static com.dremio.common.types.TypeProtos.MinorType.LIST;
+import static com.dremio.common.types.TypeProtos.MinorType.MAP;
 import static com.dremio.common.types.TypeProtos.MinorType.VARBINARY;
 import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
-import static java.lang.String.format;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -66,8 +67,8 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     String name = field.getNamePart().getName();
     boolean changed = false;
     if (logger.isDebugEnabled()) {
-      logger.debug(format("%sBEFORE PATCH: buffers %s for field %s.%s: %s %s expecting %s", indent,
-          sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength()));
+      logger.debug("{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
+          sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
     }
     if ("$values$".equals(name)) {
       // the values vectors inside the Vectors used to be called the same as their parent.
@@ -122,6 +123,9 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
           final ByteBuf newBuffer = patchDecimal(getAllocator(), decimalBuffer, field, decimalField);
           buffers[bufferStart + decimalBufferIndex] = newBuffer;
         }
+        if (minor == MAP) {
+          field.getMajorTypeBuilder().setMinorType(LIST);
+        }
       }
       // need to patch the value width
       if (minor == INTERVALDAY && mode == REQUIRED) {
@@ -131,6 +135,9 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
         NettyArrowBuf newBuf = padValues(getAllocator(), field, buffers[bufferStart], 8, 12);
         buffers[bufferStart] = newBuf;
       }
+    } else if (mode == OPTIONAL && minor == MAP) {
+        field.getMajorTypeBuilder().setMinorType(LIST);
+        changed = true;
     }
     if (children.size() > 0) {
       if ((minor == VARCHAR || minor == VARBINARY) && mode == REQUIRED) {
@@ -168,8 +175,8 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
       changed = true;
     }
     if (logger.isDebugEnabled() && changed) {
-      logger.debug(format("%sAFTER PATCH: buffers %s for field %s.%s: %s %s expecting %s", indent,
-          sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength()));
+      logger.debug("{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
+          sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
     }
   }
 

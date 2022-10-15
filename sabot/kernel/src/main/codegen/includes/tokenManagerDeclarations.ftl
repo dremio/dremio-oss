@@ -15,7 +15,6 @@
     limitations under the License.
 
 -->
-<#-- Copyright 2016 Dremio Corporation -->
 
   int depth = 1;
 

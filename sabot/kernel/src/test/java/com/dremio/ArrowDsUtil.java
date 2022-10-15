@@ -27,9 +27,9 @@ import org.apache.arrow.vector.util.Text;
  * Utilities useful to construct Arrow data structures
  */
 public class ArrowDsUtil {
-  public static JsonStringArrayList<Integer> intList(Integer anInt) {
-    JsonStringArrayList<Integer> list = new JsonStringArrayList<>(1);
-    list.add(anInt);
+  public static JsonStringArrayList<Integer> intList(Integer... ints) {
+    JsonStringArrayList<Integer> list = new JsonStringArrayList<>(ints.length);
+    list.addAll(Arrays.asList(ints));
     return list;
   }
 
@@ -65,7 +65,7 @@ public class ArrowDsUtil {
 
   public static JsonStringArrayList<BigDecimal> listOfDecimals(List<String> values) {
     JsonStringArrayList<BigDecimal> list = new JsonStringArrayList<>(values.size());
-    for (String value: values) {
+    for (String value : values) {
       list.add(new BigDecimal(value));
     }
     return list;

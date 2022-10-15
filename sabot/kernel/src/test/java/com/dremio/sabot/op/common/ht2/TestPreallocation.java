@@ -214,7 +214,7 @@ public class TestPreallocation extends DremioTest {
 
       /* compute hash on the pivoted data */
       hashValues.allocateNew(records);
-      final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+      final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
         pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
       HashComputation.computeHash(blockChunk);
 
@@ -222,7 +222,7 @@ public class TestPreallocation extends DremioTest {
       long offsetAddr = offsets.memoryAddress();
       for (int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH) {
         final int keyHash = (int)hashValues.get(keyIndex);
-        actualOrdinals[keyIndex] = hashTable.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+        actualOrdinals[keyIndex] = hashTable.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
         PlatformDependent.putByte(offsetAddr, (byte)0);
         PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.HTORDINAL_OFFSET, actualOrdinals[keyIndex]);
         PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.KEYINDEX_OFFSET, keyIndex);

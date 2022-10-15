@@ -16,7 +16,6 @@
 
 // @ts-ignore
 import { Link } from "react-router";
-import Art from "@app/components/Art";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 
@@ -28,8 +27,10 @@ type TopActionProps = {
   dataqa?: string;
   logo?: boolean;
   socketIsOpen?: boolean;
-  tooltipProps?: {};
+  tooltipProps?: Record<string, unknown>;
   tooltip?: boolean;
+  className?: string;
+  iconClassName?: string;
 };
 
 export const TopAction = (props: TopActionProps) => {
@@ -43,32 +44,38 @@ export const TopAction = (props: TopActionProps) => {
     socketIsOpen = true,
     tooltipProps = {},
     tooltip = true,
+    className = "",
+    iconClassName = "",
   } = props;
 
   const shouldHover = logo ? "" : "item__hover";
   const isSocketOpen = socketIsOpen ? "" : "socket__notOpen";
-
-  const content = () => {
+  const renderIcon = () => {
     return (
-      <div className={`${isSocketOpen} sideNav-item ${shouldHover}`}>
-        <Link to={url} data-qa={dataqa}>
-          <div className={`sideNav-item__link ${active}`}>
-            <div className={logo ? "sideNav-item__logo" : "sideNav-item__icon"}>
-              <Art src={icon} alt={alt} />
-            </div>
-          </div>
-        </Link>
+      <div className={logo ? "sideNav-item__logo" : "sideNav-item__icon"}>
+        <dremio-icon
+          name={icon}
+          alt={alt}
+          data-qa={icon}
+          class={iconClassName}
+        />
       </div>
     );
   };
 
-  if (tooltip) {
-    return (
-      <Tooltip title={alt} {...tooltipProps}>
-        {content()}
-      </Tooltip>
-    );
-  }
-
-  return content();
+  return (
+    <div className={`${isSocketOpen} sideNav-item ${shouldHover} ${className}`}>
+      <Link to={url} data-qa={dataqa}>
+        <div className={`sideNav-item__link ${active}`}>
+          {tooltip ? (
+            <Tooltip title={alt} {...tooltipProps}>
+              {renderIcon()}
+            </Tooltip>
+          ) : (
+            renderIcon()
+          )}
+        </div>
+      </Link>
+    </div>
+  );
 };

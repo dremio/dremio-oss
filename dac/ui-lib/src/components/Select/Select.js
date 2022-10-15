@@ -19,9 +19,9 @@ import clsx from "clsx";
 
 import { noop } from "lodash";
 
-import MuiSelect from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import { ReactComponent as ExpandMoreIcon } from "../../art/ArrowDown.svg";
+import MuiSelect from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import { ReactComponent as ExpandMoreIcon } from "../../art/CaretDown.svg";
 
 import Label from "../Label";
 
@@ -33,6 +33,14 @@ const MENU_PROPS = {
   },
   MenuListProps: {
     disablePadding: true,
+  },
+  anchorOrigin: {
+    vertical: "bottom",
+    horizontal: "left",
+  },
+  transformOrigin: {
+    vertical: "top",
+    horizontal: "left",
   },
 };
 
@@ -46,6 +54,7 @@ const Select = (props) => {
     label,
     name,
     helpText,
+    role,
     ...otherProps
   } = props;
 
@@ -53,7 +62,11 @@ const Select = (props) => {
   const labelClass = clsx("selectRoot__label", {
     [classes.label]: classes.label,
   });
-  const containerClass = clsx("selectRoot__select", { "--disabled": disabled });
+  const containerClass = clsx(
+    "selectRoot__select",
+    { "--disabled": disabled },
+    classes.container
+  );
 
   return (
     <div className={rootClass}>
@@ -61,15 +74,15 @@ const Select = (props) => {
         <Label
           value={label}
           className={labelClass}
+          labelInnerClass={classes.labelInner}
           id={`select-label-${name}`}
           helpText={helpText}
         />
       )}
 
       <MuiSelect
-        classes={{
-          root: containerClass,
-        }}
+        size="small"
+        className={containerClass}
         MenuProps={MENU_PROPS}
         name={name}
         value={value || ""}
@@ -77,7 +90,7 @@ const Select = (props) => {
         IconComponent={ExpandMoreIcon}
         displayEmpty
         aria-labelledby={`select-label-${name}`}
-        role="combobox"
+        role={role || "combobox"}
         disabled={disabled}
         {...otherProps}
       >
@@ -89,6 +102,7 @@ const Select = (props) => {
                 value: optionValue,
                 disabled: optionDisabled = false,
                 classes: itemClasses = {},
+                onClick: optionOnClick,
               },
               idx
             ) => (
@@ -102,6 +116,7 @@ const Select = (props) => {
                 ListItemClasses={{
                   disabled: itemClasses.disabled,
                 }}
+                onClick={optionOnClick}
                 disabled={optionDisabled}
               >
                 {optionLabel}
@@ -116,7 +131,9 @@ const Select = (props) => {
 Select.propTypes = {
   classes: PropTypes.shape({
     root: PropTypes.string,
+    container: PropTypes.string,
     label: PropTypes.string,
+    labelInner: PropTypes.string,
   }),
   value: PropTypes.string,
   options: PropTypes.arrayOf(
@@ -130,6 +147,7 @@ Select.propTypes = {
   name: PropTypes.string,
   helpText: PropTypes.string,
   disabled: PropTypes.bool,
+  role: PropTypes.string,
 };
 
 Select.defaultProps = {

@@ -42,11 +42,15 @@ public class NativeProjectorBuilder {
   private final VectorAccessible incoming;
   private final FunctionContext functionContext;
   private final boolean targetHostCPU;
+  private final boolean secondaryCacheEnabled;
+  private final double exprComplexityThreshold;
 
-  public NativeProjectorBuilder(VectorAccessible incoming, FunctionContext functionContext, Boolean targetHostCPU) {
+  public NativeProjectorBuilder(VectorAccessible incoming, FunctionContext functionContext, Boolean targetHostCPU, boolean secondaryCacheEnabled, double exprComplexityThreshold) {
     this.incoming = incoming;
     this.functionContext = functionContext;
     this.targetHostCPU = targetHostCPU;
+    this.secondaryCacheEnabled = secondaryCacheEnabled;
+    this.exprComplexityThreshold = exprComplexityThreshold;
   }
 
   /**
@@ -65,8 +69,10 @@ public class NativeProjectorBuilder {
       return NO_OP;
     }
 
-    final NativeProjector projectorWithOpt = new NativeProjector(incoming, incomingSchema, functionContext, true, targetHostCPU);
-    final NativeProjector projectorWithNoOpt = new NativeProjector(incoming, incomingSchema, functionContext, false, targetHostCPU);
+    final NativeProjector projectorWithOpt = new NativeProjector(incoming, incomingSchema, functionContext, true, targetHostCPU,
+      secondaryCacheEnabled, exprComplexityThreshold);
+    final NativeProjector projectorWithNoOpt = new NativeProjector(incoming, incomingSchema, functionContext, false, targetHostCPU,
+      secondaryCacheEnabled, exprComplexityThreshold);
     for (ExprPairing e : exprs) {
       if (e.optimize) {
         projectorWithOpt.add(e.expr, e.outputVector);

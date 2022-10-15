@@ -40,8 +40,6 @@ import com.google.common.collect.Lists;
 
 @Ignore("DX-3872")
 public class TestFragmentChecker extends PopUnitTestBase{
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestFragmentChecker.class);
-
 
   @Test
   public void checkSimpleExchangePlan() throws Exception{

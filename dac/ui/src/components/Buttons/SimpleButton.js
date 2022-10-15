@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import invariant from "invariant";
+import clsx from "clsx";
 
 import FontIcon from "components/Icon/FontIcon";
 
 import * as buttonStyles from "uiTheme/radium/buttons";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 class SimpleButton extends Component {
   static propTypes = {
@@ -66,16 +67,21 @@ class SimpleButton extends Component {
       `Unknown button style: "${buttonStyle}"`
     );
 
-    const combinedStyle = [
-      styles.base,
-      buttonStyles[buttonStyle],
-      disabled ? buttonStyles.disabled : {},
-      submitting ? buttonStyles.submitting[buttonStyle] : {},
-      style,
-    ];
+    const combinedStyle = {
+      ...styles.base,
+      ...buttonStyles[buttonStyle],
+      ...(disabled ? buttonStyles.disabled : {}),
+      ...(submitting ? buttonStyles.submitting[buttonStyle] : {}),
+      ...(style || {}),
+    };
+
     return (
       <button
-        className={className}
+        className={clsx(className, {
+          [classes[`${buttonStyle}ButtonPsuedoClasses`]]:
+            !submitting && !disabled,
+          [classes["buttonPsuedoClasses"]]: !submitting && !disabled,
+        })}
         disabled={submitting || disabled}
         {...props}
         // DX-34369: need to fix how we use classname and style
@@ -99,4 +105,4 @@ const styles = {
     },
   },
 };
-export default Radium(SimpleButton);
+export default SimpleButton;

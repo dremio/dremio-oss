@@ -22,6 +22,7 @@ export enum PageTypes {
   details = "details", // deTails, do not miss with deFaults. When both these values stands together, at first glance they look like duplicates. Graph was put between them intentionaly.
   wiki = "wiki",
   reflections = "reflections",
+  history = "history", //Sonar history view https://dremio.atlassian.net/browse/DX-48016
 }
 
 const values = Object.values(PageTypes);

@@ -52,11 +52,11 @@ public class TestHiveOrcFooterReader extends BaseTestQuery {
       HiveOrcFooterReader reader = new HiveOrcFooterReader(tableSchema, fs, opCtx);
       Path fileRoot = Path.of(Resources.getResource("orc/").toURI());
       String file1 = fileRoot.resolve("testsample1.orc").toString();
-      Footer footer = reader.getFooter(file1, 280l);
+      Footer footer = reader.getFooter(file1, 280L);
       assertEquals(1, footer.getRowCount());
 
       String file2 = fileRoot.resolve("testsample2.orc").toString();
-      footer = reader.getFooter(file2, 372l);
+      footer = reader.getFooter(file2, 372L);
       assertEquals(5, footer.getRowCount());
     }
   }

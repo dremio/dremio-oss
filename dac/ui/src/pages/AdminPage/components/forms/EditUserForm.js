@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component, Fragment } from "react";
-import Radium from "radium";
 import { createSelector } from "reselect";
 import { connect } from "react-redux";
 import { loadUser } from "@app/actions/modals/editUserModal";
@@ -35,6 +34,7 @@ import { formBody } from "uiTheme/less/forms.less";
 import { moduleStateHOC } from "@app/containers/ModuleStateContainer";
 import { compose } from "redux";
 import LoadingOverlay from "@app/components/LoadingOverlay";
+import * as VersionUtils from "@app/utils/versionUtils";
 
 const getPair = (formFieldName, entityFieldName) => ({
   form: formFieldName,
@@ -94,6 +94,8 @@ export class EditUserForm extends Component {
     isReadMode: PropTypes.bool,
     isLoading: PropTypes.bool,
     updateFormDirtyState: PropTypes.func.isRequired, // required for FormDirtyStateWatcher
+    leftAlignFooter: PropTypes.bool,
+    hideCancel: PropTypes.bool,
 
     //connected from pure redux
     editUser: PropTypes.func.isRequired,
@@ -118,8 +120,12 @@ export class EditUserForm extends Component {
       isReadMode,
       source,
       isLoading,
+      leftAlignFooter,
+      hideCancel,
     } = this.props;
+
     const isFormLoading = !!isLoading;
+
     const form = (
       <UserForm
         isReadMode={isReadMode}
@@ -130,26 +136,36 @@ export class EditUserForm extends Component {
         noExtras
       />
     );
+
+    const wrappedForm =
+      VersionUtils.getEditionFromConfig() === "OSS" ? (
+        form
+      ) : (
+        <div className="gutter-left--double">{form}</div>
+      );
+
     return (
       <Fragment>
         {isFormLoading && <LoadingOverlay showSpinner />}
         <UserDetailLoader userId={userId} />
         {isReadMode ? (
-          form
+          wrappedForm
         ) : (
           <ModalForm
             {...modalFormProps(this.props)}
             onSubmit={this.submit}
             isModal={isModal}
+            leftAlignFooter={leftAlignFooter}
+            hideCancel={hideCancel}
+            wrapperStyle={{ overflowY: "hidden" }}
           >
-            {form}
+            {wrappedForm}
           </ModalForm>
         )}
       </Fragment>
     );
   }
 }
-EditUserForm = Radium(EditUserForm);
 
 const getInitialValues = createSelector(
   (userConfig) => userConfig,

@@ -123,6 +123,7 @@ public class TestRecursiveDirectoryStream extends DremioTest {
     public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter)
         throws FileNotFoundException, IOException {
       final java.nio.file.Path p = Paths.get(f.toURI().getPath());
+      @SuppressWarnings("StreamResourceLeak")
       final DirectoryStream<java.nio.file.Path> stream = Files.newDirectoryStream(p, path -> filter.test(Path.of(path.toUri())));
       return new DirectoryStream<FileAttributes>() {
         @Override

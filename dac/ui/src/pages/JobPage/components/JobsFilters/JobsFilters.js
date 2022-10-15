@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from "react";
+import { cloneElement, Component } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
@@ -315,7 +315,7 @@ export class JobsFilters extends Component {
       .filter((item) => item.isVisible)
       .map((filter) => (
         <div style={styles.filterBlock} key={filter.value}>
-          <div>{React.cloneElement(filter.node, { isCustom })}</div>
+          <div>{cloneElement(filter.node, { isCustom })}</div>
         </div>
       ));
   }

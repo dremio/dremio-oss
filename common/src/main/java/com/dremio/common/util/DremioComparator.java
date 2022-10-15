@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Common comparator implementations
  */
-public class DremioComparator {
+public final class DremioComparator {
   public static final Comparator<List<String>> StringLexographicSizeThenReverseElementOrder =
     lexographicSizeThenReverseElementOrder(String::compareTo);
   private DremioComparator() {

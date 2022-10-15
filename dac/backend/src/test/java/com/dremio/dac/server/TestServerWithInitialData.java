@@ -409,10 +409,10 @@ public class TestServerWithInitialData extends BaseTestServer {
         new DatasetPath(saved2.getFullPath()),
         historyAfterSecondSave.getItems().get(2).getDataset());
     assertEquals(
-        new DatasetPath(saved.getFullPath()),
+        new DatasetPath(saved2.getFullPath()),
         historyAfterSecondSave.getItems().get(1).getDataset());
     assertEquals(
-        new DatasetPath(saved.getFullPath()),
+        new DatasetPath(saved2.getFullPath()),
         historyAfterSecondSave.getItems().get(0).getDataset());
 
     // test the "review" API, used by the UI when refreshing the page or navigating to a UI link saved

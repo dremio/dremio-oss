@@ -19,9 +19,9 @@ import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 
 import { Tooltip } from "@app/components/Tooltip";
+import { Tooltip as DremioTooltip } from "dremio-ui-lib";
 import DurationBreakdown from "@app/pages/JobPageNew/components/DurationBreakdown";
 import { getDuration } from "utils/jobListUtils";
-import Art from "components/Art";
 
 import "./JobsContent.less";
 
@@ -40,7 +40,7 @@ const DurationCell = ({
       const timer = setTimeout(() => setTooltipOpen(false), 3000);
       return () => clearTimeout(timer);
     }
-  }, [tooltipOpen]);
+  }, [tooltipOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMouseEnter = () => {
     if (!isFromExplorePage) {
@@ -64,11 +64,14 @@ const DurationCell = ({
           <span>{duration}</span>
           <span>
             {isSpilled && (
-              <Art
-                src="DiskSpill.svg"
-                alt={intl.formatMessage({ id: "Job.SpilledHover" })}
-                className="jobsContent__spillIcon"
-              />
+              <DremioTooltip
+                title={intl.formatMessage({ id: "Job.SpilledHover" })}
+              >
+                <dremio-icon
+                  name="interface/disk-spill"
+                  class="jobsContent__spillIcon"
+                />
+              </DremioTooltip>
             )}
           </span>
         </div>

@@ -28,8 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.arrow.util.Preconditions;
-
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 
 /**

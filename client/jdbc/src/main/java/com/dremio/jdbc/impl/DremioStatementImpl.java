@@ -403,7 +403,7 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public boolean execute(String sql, int columnIndexes[]) throws SQLException {
+  public boolean execute(String sql, int[] columnIndexes) throws SQLException {
     throwIfClosed();
     try {
       return super.execute(sql, columnIndexes);
@@ -414,7 +414,7 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public boolean execute(String sql, String columnNames[]) throws SQLException {
+  public boolean execute(String sql, String[] columnNames) throws SQLException {
     throwIfClosed();
     try {
       return super.execute(sql, columnNames);

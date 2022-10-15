@@ -17,10 +17,10 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 import { get } from "lodash/object";
-import Popover from "@material-ui/core/Popover";
-import Popper from "@material-ui/core/Popper";
-import Paper from "@material-ui/core/Paper";
-import ClickAwayListener from "@material-ui/core/ClickAwayListener";
+import Popover from "@mui/material/Popover";
+import Popper from "@mui/material/Popper";
+import Paper from "@mui/material/Paper";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { generateEnumFromList } from "@app/utils/enumUtils";
 import {
   popper as popperCls,

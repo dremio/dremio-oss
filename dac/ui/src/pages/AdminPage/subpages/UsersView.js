@@ -22,7 +22,6 @@ import { Link } from "react-router";
 import { createSelector } from "reselect";
 
 import SettingHeader from "@app/components/SettingHeader";
-import Art from "@app/components/Art";
 import FontIcon from "components/Icon/FontIcon";
 
 import StatefulTableViewer from "components/StatefulTableViewer";
@@ -155,11 +154,7 @@ class UsersView extends PureComponent {
         data-qa="add-user-link"
         className="settingHeader__action"
       >
-        <Art
-          src="PlusSolid.svg"
-          alt="+"
-          className="settingPage__icon margin-right"
-        />
+        <dremio-icon name="interface/add" class="settingPage__icon" alt="+" />
         <FormattedMessage id="Admin.UserManagement.Users.Add" />
       </Link>
     );
@@ -183,7 +178,7 @@ class UsersView extends PureComponent {
       <div id="admin-user" style={page}>
         {this.renderHeader()}
         {
-          <div className="filter user">
+          <div className="filter user gutter-left--double">
             <div className="search-wrap" style={styles.searchWrap}>
               <FontIcon type="Search" theme={styles.fontIcon} />
               <input

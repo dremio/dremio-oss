@@ -57,8 +57,7 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
       } else {
         return doInsert(catalog, config, path, sql, sqlInsertTable);
       }
-    }
-    catch(Exception ex){
+    } catch (Exception ex) {
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
   }
@@ -66,6 +65,7 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
   @VisibleForTesting
   public static void validateDmlRequest(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) {
     IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, SqlInsertTable.OPERATOR, false);
+    DmlHandler.blockDMLForMapTables(catalog, path);
   }
 
   @VisibleForTesting
@@ -76,7 +76,7 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
   private PhysicalPlan doInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlInsertTable sqlInsertTable) throws Exception {
     validateInsertTableFormatOptions(catalog, config, path);
     PhysicalPlan plan = super.getPlan(catalog, path, config, sql, sqlInsertTable, null);
-    super.validateIcebergSchemaForInsertCommand(sqlInsertTable.getFieldNames());
+    super.validateIcebergSchemaForInsertCommand(sqlInsertTable.getFieldNames(), config);
     return plan;
   }
 

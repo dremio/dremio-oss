@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { REAPPLY_DATASET_SUCCESS } from "actions/explore/dataset/reapply";
 import {
   LOAD_DEPENDENT_DATASETS_SUCCESS,
   LOAD_PARENTS_SUCCESS,
@@ -28,22 +27,6 @@ export default function data(state, action) {
       return state.setIn(["datasetUI", "descendantsList"], action.payload);
     case LOAD_PARENTS_FAILURE:
       return state.setIn(["datasetUI", "parentList"], []);
-    case REAPPLY_DATASET_SUCCESS: {
-      // seems like this block does not work, as previousId has wrong format.
-      // Example: previousId: "77dbab5e-a924-4cae-bdc9-eed4da63216d"
-      // But table data is stored by dataset version.
-      const newDataId = action.payload.getIn([
-        "entities",
-        "datasetUI",
-        action.payload.get("result"),
-        "id",
-      ]);
-      const oldData = state.getIn(["tableData", action.meta.previousId]);
-      if (oldData) {
-        return state.setIn(["tableData", newDataId], oldData);
-      }
-      return state;
-    }
     default:
       return state;
   }

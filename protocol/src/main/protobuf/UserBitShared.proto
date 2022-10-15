@@ -489,6 +489,7 @@ enum SharedResourceCategory {
   UPSTREAM = 0;
   DOWNSTREAM = 1;
   OTHER = 2;
+  MEMORY = 3;
 }
 
 message BlockedResourceDuration {
@@ -524,6 +525,7 @@ message MinorFragmentProfile {
   optional int64 blocked_on_downstream_duration = 1009;
   optional int64 blocked_on_shared_resource_duration = 1010;
   repeated BlockedResourceDuration per_resource_blocked_duration = 1011;
+  optional int64 blocked_on_memory_duration = 1012;
 }
 
 // Information about expression splits (in project/filter)
@@ -582,6 +584,8 @@ message OperatorProfile {
   optional int64 wait_nanos = 9;
   optional OperatorProfileDetails details = 10;
   optional int32 operator_subtype = 11;
+  optional int64 outputRecords = 12;
+  optional int64 outputBytes = 13;
 }
 
 message StreamProfile {
@@ -601,6 +605,7 @@ message NodeQueryProfile {
   optional int64 max_memory_used = 2;
   optional int64 time_enqueued_before_submit_ms = 3;  // Time spent enqueued after query arrived at executor, and before
                                                       // being submitted for execution. Measured in milliseconds
+  optional int32 number_of_cores = 4 [default = 0];
 }
 
 message MetricValue {
@@ -688,8 +693,22 @@ enum CoreOperatorType {
 }
 
 message MetricDef {
+  enum DisplayType {
+    DISPLAY_NEVER = 0;
+    DISPLAY_BY_DEFAULT = 1;
+    DISPLAY_ON_MORE = 2;
+  };
+  enum AggregationType {
+    SUM = 0;
+    MAX = 1;
+  };
   optional int32 id = 1;
   optional string name = 2;
+  optional int32 rank = 3 [deprecated = true];
+  optional string user_friendly_name = 4 [deprecated = true];
+  optional DisplayType display_type = 5 [default = DISPLAY_NEVER];
+  optional AggregationType aggregation_type = 6 [default = SUM];
+  optional string display_code = 7 [default = ""];
 }
 
 message MetricsDef {

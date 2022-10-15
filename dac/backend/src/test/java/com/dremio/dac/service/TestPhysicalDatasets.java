@@ -60,6 +60,7 @@ import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -304,15 +305,17 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileParentUrlPath = getUrlPath("/datasets/");
 
     doc("preview data for source file");
-    UserExceptionMapper.ErrorMessageWithContext error = expectError(
-            FamilyExpectation.CLIENT_ERROR,
-            getBuilder(getAPIv2()
-                .path("/source/dacfs_test/file_preview" + fileUrlPath))
-                .buildPost(Entity.json(fileConfig)),
-            UserExceptionMapper.ErrorMessageWithContext.class
-        );
-    assertTrue(error.getErrorMessage().contains("Number of fields in dataset exceeded the maximum number of fields"));
-    checkCounts(fileParentUrlPath, "widetable.txt", false /* false because we have not saved dataset yet */, 0, 0, 0);
+    try (AutoCloseable ignore = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800")) {
+      UserExceptionMapper.ErrorMessageWithContext error = expectError(
+          FamilyExpectation.CLIENT_ERROR,
+          getBuilder(getAPIv2()
+              .path("/source/dacfs_test/file_preview" + fileUrlPath))
+              .buildPost(Entity.json(fileConfig)),
+          UserExceptionMapper.ErrorMessageWithContext.class
+      );
+      assertTrue(error.getErrorMessage().contains("Number of fields in dataset exceeded the maximum number of fields"));
+      checkCounts(fileParentUrlPath, "widetable.txt", false /* false because we have not saved dataset yet */, 0, 0, 0);
+    }
   }
 
   @Test
@@ -326,13 +329,50 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   @Test
-  public void testLargeJsonFile() {
+  public void testLargeJsonFileWorksWithIncreasedScanLimit() throws Exception {
+    try (AutoCloseable ignore = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+      try (JobDataFragment result = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator)) {
+        assertEquals(1, result.getReturnedRowCount());
+      }
+    }
+  }
+
+  @Test
+  public void testLargeJsonFileScanLimit() {
     UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator));
   }
 
   @Test
-  public void testLargeNestedJsonFile() {
-    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator));
+  public void testLargeJsonFileColumnLimit() throws Exception {
+
+    try (AutoCloseable ignore1 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
+         AutoCloseable ignore2 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")
+    ) {
+      UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator));
+    }
+  }
+
+  @Test
+  public void testLargeNestedJsonFileWorksWithIncreasedScanLimit() throws Exception {
+    try (AutoCloseable ignore = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")) {
+      try (JobDataFragment result =submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator)) {
+        assertEquals(1, result.getReturnedRowCount());
+      }
+    }
+  }
+
+  @Test
+  public void testLargeNestedJsonFileScanLimit() {
+      UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator));
+  }
+
+  @Test
+  public void testLargeNestedJsonFileColumnLimit() throws Exception {
+    try (AutoCloseable ignore1 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getOptionName(), "800");
+         AutoCloseable ignore2 = withSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX.getOptionName(), "1000")
+    ) {
+      UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator));
+    }
   }
 
   @Test

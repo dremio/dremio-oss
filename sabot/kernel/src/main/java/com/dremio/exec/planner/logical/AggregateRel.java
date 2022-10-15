@@ -37,6 +37,7 @@ import com.dremio.exec.planner.cost.DremioCost.Factory;
  * Aggregation implemented in Dremio.
  */
 public class AggregateRel extends AggregateRelBase implements Rel {
+
   /** Creates a AggregateRel. */
   private AggregateRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) throws InvalidRelException {
@@ -81,5 +82,4 @@ public class AggregateRel extends AggregateRelBase implements Rel {
     float multiplier = 1f + aggCalls.size() * 0.125f;
     return ((Factory) planner.getCostFactory()).makeCost(rowCount,childRowCount * multiplier * DremioCost.FUNC_CPU_COST, 0, 0);
   }
-
 }

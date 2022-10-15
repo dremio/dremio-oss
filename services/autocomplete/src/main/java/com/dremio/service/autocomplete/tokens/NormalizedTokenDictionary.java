@@ -17,12 +17,9 @@ package com.dremio.service.autocomplete.tokens;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 
 /**
  * Dictionary for mapping token kinds to a normalized list of images.
@@ -31,13 +28,10 @@ public final class NormalizedTokenDictionary {
   public static final NormalizedTokenDictionary INSTANCE = new NormalizedTokenDictionary();
 
   private final ImmutableList<String> images;
-  private final ImmutableMap<String, Integer> imageToIndex;
-  private final Set<String> imageSet;
 
   private NormalizedTokenDictionary() {
     ImmutableList.Builder<String> imagesBuilder = new ImmutableList.Builder<>();
     Map<String, Integer> imageToIndexBuilder = new HashMap<>();
-    imageSet = new TreeSet(String.CASE_INSENSITIVE_ORDER);
     for (int index = 0; index < ParserImplConstants.tokenImage.length; index++) {
       String image = ParserImplConstants.tokenImage[index];
       String normalizedImage = image
@@ -45,7 +39,6 @@ public final class NormalizedTokenDictionary {
         .replace("\"", "");
 
       imagesBuilder.add(normalizedImage);
-      imageSet.add(normalizedImage);
 
       // It's possible that two tokens have the same image,
       // so just use the latest one.
@@ -53,16 +46,9 @@ public final class NormalizedTokenDictionary {
     }
 
     this.images = imagesBuilder.build();
-    this.imageToIndex = ImmutableMap.copyOf(imageToIndexBuilder);
   }
 
   public String indexToImage(int index) {
     return images.get(index);
   }
-
-  public int imageToIndex(String image) {
-    return imageToIndex.get(image);
-  }
-
-  public boolean isImage(String text) { return imageSet.contains(text); }
 }

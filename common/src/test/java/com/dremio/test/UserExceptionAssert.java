@@ -68,18 +68,21 @@ public class UserExceptionAssert extends ThrowableAssert<UserException> {
 
   @Override
   public UserExceptionAssert hasMessage(String message) {
+    // override needed for more precise return type
     super.hasMessage(message);
     return this;
   }
 
   @Override
   public UserExceptionAssert hasMessageContaining(String description) {
+    // override needed for more precise return type
     super.hasMessageContaining(description);
     return this;
   }
 
   @Override
   public UserExceptionAssert hasMessageContaining(String description, Object... parameters) {
+    // override needed for more precise return type
     super.hasMessageContaining(description, parameters);
     return this;
   }

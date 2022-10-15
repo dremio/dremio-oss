@@ -16,6 +16,8 @@
 
 package com.dremio.service.flight;
 
+import static org.junit.Assert.assertNotNull;
+
 import java.io.ByteArrayInputStream;
 import java.nio.channels.Channels;
 import java.util.Collections;
@@ -287,20 +289,15 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
 
   @Test
   public void testGetSchemasClosingBeforeStreamIsRetrieved() throws Exception {
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
     try (final FlightStream stream = getSchemasFlightStream()) {
-      //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+      assertNotNull(stream);
     }
   }
 
   @Test
   public void testGetSchemasClosingAfterStreamIsRetrieved() throws Exception {
     try (final FlightStream stream = getSchemasFlightStream()) {
-      //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-      while (stream.next()) {
-        // Draining the stream before closing.
-      }
-      //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+      drainStream(stream);
     }
   }
 
@@ -314,10 +311,8 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
   @Test
   public void testGetSchemasCancelingAfterStreamIsRetrieved() throws Exception {
     try (final FlightStream stream = getSchemasFlightStream()) {
-      //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-      while(stream.next()) {
-        // Draining the stream before cancellation.
-      }
+      drainStream(stream);
+
       stream.cancel("Metadata retrieved canceled", new Exception("Testing query data retrieval cancellation."));
       stream.getRoot().clear();
     }
@@ -338,21 +333,15 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
 
   @Test
   public void testGetTablesClosingBeforeStreamIsRetrieved() throws Exception {
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-
     try (final FlightStream stream = getTablesFlightStream()) {
-      //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+      assertNotNull(stream);
     }
   }
 
   @Test
   public void testGetTablesClosingAfterStreamIsRetrieved() throws Exception {
     final FlightStream stream = getTablesFlightStream();
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-    while (stream.next()) {
-      // Draining the stream before closing.
-    }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+    drainStream(stream);
 
     stream.close();
   }
@@ -367,11 +356,8 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
   @Test
   public void testGetTablesCancelingAfterStreamIsRetrieved() throws Exception {
     try (final FlightStream stream = getTablesFlightStream()) {
-      //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-      while(stream.next()) {
-        // Draining the stream before cancellation.
+      drainStream(stream);
 
-      }
       stream.cancel("Metadata retrieved canceled", new Exception("Testing query data retrieval cancellation."));
       stream.getRoot().clear();
     }
@@ -390,20 +376,15 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
 
   @Test
   public void testGetTablesTypesClosingBeforeStreamIsRetrieved() throws Exception {
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
     try (FlightStream stream = getTableTypesFlightStream()) {
-      //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+      assertNotNull(stream);
     }
   }
 
   @Test
   public void testGetTablesTypesClosingAfterStreamIsRetrieved() throws Exception {
     final FlightStream stream = getTableTypesFlightStream();
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-    while (stream.next()) {
-      // Draining the stream before closing.
-    }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+    drainStream(stream);
 
     stream.close();
   }
@@ -418,11 +399,8 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
   @Test
   public void testGetTablesTypesCancelingAfterStreamIsRetrieved() throws Exception {
     try (final FlightStream stream = getTableTypesFlightStream()) {
-      //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-      while (stream.next()) {
-        // Draining the stream before cancellation.
+      drainStream(stream);
 
-      }
       stream.cancel("Metadata retrieved canceled", new Exception("Testing query data retrieval cancellation."));
       stream.getRoot().clear();
     }
@@ -430,9 +408,8 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
 
   @Test
   public void testGetCatalogsClosingBeforeStreamIsRetrieved() throws Exception {
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
     try (final FlightStream stream = getCatalogsFlightStream()) {
-      //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+      assertNotNull(stream);
     }
   }
 
@@ -450,11 +427,7 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
   @Test
   public void testGetCatalogsClosingAfterStreamIsRetrieved() throws Exception {
     final FlightStream stream = getCatalogsFlightStream();
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-    while (stream.next()) {
-      // Draining the stream before closing.
-    }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+    drainStream(stream);
 
     stream.close();
   }
@@ -469,11 +442,8 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
   @Test
   public void testGetCatalogsCancelingAfterStreamIsRetrieved() throws Exception {
     try (final FlightStream stream = getCatalogsFlightStream()) {
-      //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-      while (stream.next()) {
-        // Draining the stream before cancellation.
+      drainStream(stream);
 
-      }
       stream.cancel("Metadata retrieved canceled", new Exception("Testing query data retrieval cancellation."));
       stream.getRoot().clear();
     }

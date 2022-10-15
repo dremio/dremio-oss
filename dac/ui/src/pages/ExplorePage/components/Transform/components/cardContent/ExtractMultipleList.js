@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -69,10 +68,10 @@ class ExtractMultipleList extends Component {
   render() {
     const { startIndex, endIndex } = this.props;
     return (
-      <div style={[styles.extract]}>
-        <div style={[styles.largeItem, { marginTop: 0 }]}>
-          <div style={[styles.item]}>
-            <span style={[styles.font, formLabel]}>
+      <div style={styles.extract}>
+        <div style={{ ...styles.largeItem, marginTop: 0 }}>
+          <div style={styles.item}>
+            <span style={{ ...styles.font, ...formLabel }}>
               {this.props.firstElementLabel}
             </span>
             <FieldWithError {...startIndex.value} errorPlacement="bottom">
@@ -84,8 +83,8 @@ class ExtractMultipleList extends Component {
               />
             </FieldWithError>
           </div>
-          <div style={[styles.item]}>
-            <span style={[styles.font, formLabel]}>Relative To</span>
+          <div style={styles.item}>
+            <span style={{ ...styles.font, ...formLabel }}>Relative To</span>
             <Select
               items={this.items}
               {...startIndex.direction}
@@ -94,9 +93,9 @@ class ExtractMultipleList extends Component {
           </div>
         </div>
         {endIndex ? (
-          <div style={[styles.largeItem, { paddingBottom: 8 }]}>
-            <div style={[styles.item]}>
-              <span style={[styles.font, formLabel]}>
+          <div style={{ ...styles.largeItem, paddingBottom: 8 }}>
+            <div style={styles.item}>
+              <span style={{ ...styles.font, ...formLabel }}>
                 {this.props.lastElementLabel}
               </span>
               <FieldWithError {...endIndex.value} errorPlacement="bottom">
@@ -108,8 +107,8 @@ class ExtractMultipleList extends Component {
                 />
               </FieldWithError>
             </div>
-            <div style={[styles.item]}>
-              <span style={[styles.font, formLabel]}>Relative To</span>
+            <div style={styles.item}>
+              <span style={{ ...styles.font, ...formLabel }}>Relative To</span>
               <Select
                 items={this.items}
                 {...endIndex.direction}
@@ -162,4 +161,4 @@ const styles = {
     margin: 0,
   },
 };
-export default Radium(ExtractMultipleList);
+export default ExtractMultipleList;

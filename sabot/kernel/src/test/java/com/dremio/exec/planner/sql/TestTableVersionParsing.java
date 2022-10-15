@@ -32,6 +32,7 @@ import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
@@ -44,6 +45,7 @@ import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.ReflectiveFunctionBase;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -52,6 +54,7 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.calcite.sql.type.FamilyOperandTypeChecker;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
@@ -70,6 +73,7 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.TableVersionType;
@@ -87,11 +91,15 @@ import com.google.common.collect.ImmutableMap;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestTableVersionParsing {
+  private static SqlDialect DREMIO_DIALECT =
+    new SqlDialect(SqlDialect.DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
 
   private Map<List<String>, VersionedTableMacro> tableMacroMocks;
 
   private static final List<String> TIME_TRAVEL_MACRO_NAME = TableMacroNames.TIME_TRAVEL;
   private static final List<String> TABLE_HISTORY_MACRO_NAME = ImmutableList.of("table_history");
+  private static final List<String> TABLE_FILES_MACRO_NAME = ImmutableList.of("table_files");
+
 
   @Test
   public void testTableWithSnapshotVersion() throws Exception {
@@ -341,7 +349,140 @@ public class TestTableVersionParsing {
     parseAndValidate(sql, expectedTableMacroInvocations, true);
   }
 
-  public void parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations,
+  @Test
+  public void testUnparseTableWithVersion() throws Exception {
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.BRANCH, "branch1"));
+    String inputSqlString = "SELECT * FROM my.table1 AT BRANCH branch1";
+    String expectedUnparsedString  = "SELECT *\n" +
+      "FROM \"my\".\"table1\" AT BRANCH branch1";
+    SqlNode rootNode = parseAndValidate(inputSqlString, ImmutableList.of(expected), true);
+    rootNode.unparse(writer, 0, 0);
+    String sqlString = writer.toString();
+    Assert.assertEquals(sqlString, expectedUnparsedString);
+  }
+  @Test
+  public void testUnparseTableMacroWithSnapshotVersion() throws Exception {
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TABLE_FILES_MACRO_NAME,
+      ImmutableList.of("my.table1"),
+      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "snapshotid1"));
+
+    String expectedUnparsedString  = "SELECT *\n" +
+      "FROM my.table1 AT SNAPSHOT_ID snapshotid1";
+    SqlNode rootNode = parseAndValidate("SELECT * FROM TABLE(table_files('my.table1')) AT SNAPSHOT 'snapshotid1'",
+      ImmutableList.of(expected),
+      true);
+    rootNode.unparse(writer, 0, 0);
+    String sqlString = writer.toString();
+    Assert.assertEquals(sqlString, expectedUnparsedString);
+  }
+
+  @Ignore("DX-51980")
+  @Test
+  public void testUnparseTableWithLiteralTimestampVersion() throws Exception {
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    cal.set(2022, Calendar.JANUARY, 1, 1, 1, 1);
+    cal.set(Calendar.MILLISECOND, 111);
+    long timestampInMillis = cal.getTimeInMillis();
+
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+
+    String expectedUnparsedString  = "SELECT *\n" +
+      "FROM \"my\".\"table1\" AT TIMESTAMP 2022-01-01 01:01:01.111";
+
+
+    SqlNode rootNode = parseAndValidate("SELECT * FROM my.table1 AT TIMESTAMP '2022-01-01 01:01:01.111'",
+      ImmutableList.of(expected), true);
+    rootNode.unparse(writer, 0, 0);
+    String sqlString = writer.toString();
+    Assert.assertEquals(sqlString, expectedUnparsedString);
+  }
+
+  @Ignore("DX-51980")
+  @Test
+  public void testUnparseTableWithTimestampExpressionVersion() throws Exception {
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    cal.set(2022, Calendar.JANUARY, 11, 1, 1, 1);
+    cal.set(Calendar.MILLISECOND, 111);
+    long timestampInMillis = cal.getTimeInMillis();
+
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+
+    String expectedUnparsedString  = "SELECT *\n" +
+      "FROM \"my\".\"table1\" AT TIMESTAMPADD(DAY, 10, TIMESTAMP '2022-01-01 01:01:01.111')";
+    SqlNode rootNode = parseAndValidate("SELECT * FROM my.table1 AT " +
+      "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')", ImmutableList.of(expected), true);
+    rootNode.unparse(writer, 0, 0);
+    String sqlString = writer.toString();
+    Assert.assertEquals(sqlString, expectedUnparsedString);
+  }
+
+  @Test
+  public void testUnparseQuotedTableNameWithTag() throws Exception {
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"quoted/path.with.dots/to/table1\""),
+      new TableVersionContext(TableVersionType.TAG, "tag1"));
+    String expectedUnparsedString  = "SELECT *\n" +
+      "FROM \"my\".\"quoted/path.with.dots/to/table1\" AT TAG tag1";
+
+    SqlNode rootNode = parseAndValidate("SELECT * FROM my.\"quoted/path.with.dots/to/table1\" AT TAG tag1",
+      ImmutableList.of(expected),
+      true);
+    rootNode.unparse(writer, 0, 0);
+    String sqlString = writer.toString();
+    Assert.assertEquals(sqlString, expectedUnparsedString);
+  }
+
+  @Test
+  public void testUnparseTableWithSnapshotVersion() throws Exception {
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+
+    String expectedUnparsedString  = "SELECT *\n" +
+      "FROM \"my\".\"table1\" AT SNAPSHOT_ID 1";
+    SqlNode rootNode = parseAndValidate("SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true);
+    rootNode.unparse(writer, 0, 0);
+    String sqlString = writer.toString();
+    Assert.assertEquals(sqlString, expectedUnparsedString);
+  }
+
+  @Test
+  public void testUnparseTableMacroWithTagVersion() throws Exception {
+    SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TABLE_HISTORY_MACRO_NAME,
+      ImmutableList.of("my.table1"),
+      new TableVersionContext(TableVersionType.TAG, "tag1"));
+
+    String expectedUnparsedString  = "SELECT *\n" +
+      "FROM my.table1 AT TAG tag1";
+    SqlNode rootNode = parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT TAG tag1",
+      ImmutableList.of(expected),
+      true);
+    rootNode.unparse(writer, 0, 0);
+    String sqlString = writer.toString();
+    Assert.assertEquals(sqlString, expectedUnparsedString);
+  }
+
+  public SqlNode parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations,
                                boolean enableTimeTravel) throws Exception {
     // Mocks required for validator and expression resolver
     final Prepare.CatalogReader catalogReader = mock(Prepare.CatalogReader.class);
@@ -396,6 +537,7 @@ public class TestTableVersionParsing {
       VersionedTableMacro macro = tableMacroMocks.get(expected.name);
       verify(macro).apply(expected.arguments, expected.tableVersionContext);
     }
+    return validatedRootNode;
   }
 
   private void initializeTableMacroMocks() {
@@ -410,7 +552,8 @@ public class TestTableVersionParsing {
 
     tableMacroMocks = ImmutableMap.of(
       TIME_TRAVEL_MACRO_NAME, mock(VersionedTableMacro.class),
-      TABLE_HISTORY_MACRO_NAME, mock(VersionedTableMacro.class)
+      TABLE_HISTORY_MACRO_NAME, mock(VersionedTableMacro.class),
+      TABLE_FILES_MACRO_NAME, mock(VersionedTableMacro.class)
     );
 
     tableMacroMocks.values().forEach(m -> {

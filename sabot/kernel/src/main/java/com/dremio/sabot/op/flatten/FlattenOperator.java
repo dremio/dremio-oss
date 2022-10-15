@@ -37,11 +37,9 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ClassGenerator;
-import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.ValueVectorWriteExpression;
-import com.dremio.exec.expr.fn.ComplexWriterFunctionHolder;
 import com.dremio.exec.physical.config.FlattenPOP;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
@@ -119,12 +117,7 @@ public class FlattenOperator implements SingleInputOperator {
       switch (ProjectOperator.getEvalMode(incoming, expr, transferFieldIds)) {
       case COMPLEX:
         complexWriters = Lists.newArrayList();
-        // The reference name will be passed to ComplexWriter, used as the name
-        // of the output vector from the writer.
-        ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) expr).getHolder())
-            .setReference(namedExpression.getRef());
-        cg.addExpr(expr);
-
+        cg.addExpr(expr, namedExpression.getRef());
         break;
 
       case DIRECT:

@@ -63,7 +63,8 @@ public class InitialPreviewResponse {
                                           JobDataFragment data, boolean isApproximate,
                                           History history, ApiErrorModel error) {
 
-    return new InitialPreviewResponse(dataset, data, JobResource.getPaginationURL(jobId),
+    return new InitialPreviewResponse(dataset, data,
+      jobId != null ? JobResource.getPaginationURL(jobId): null,
       isApproximate, jobId, sessionId, history, error);
   }
 

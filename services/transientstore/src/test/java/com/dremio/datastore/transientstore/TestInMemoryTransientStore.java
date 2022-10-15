@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.apache.logging.log4j.util.Strings;
 import org.junit.Test;
 
 import com.dremio.datastore.api.Document;
@@ -41,6 +40,7 @@ import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.options.ImmutableVersionOption;
 import com.dremio.datastore.api.options.VersionOption;
 import com.dremio.datastore.format.Format;
+import com.google.common.base.Strings;
 import com.google.common.base.Ticker;
 
 /**
@@ -72,7 +72,7 @@ public class TestInMemoryTransientStore {
     assertTrue(store.contains("key"));
     assertEquals("key", document.getKey());
     assertEquals(Integer.valueOf(1), document.getValue());
-    assertFalse(Strings.isEmpty(document.getTag()));
+    assertFalse(Strings.isNullOrEmpty(document.getTag()));
   }
 
   @Test

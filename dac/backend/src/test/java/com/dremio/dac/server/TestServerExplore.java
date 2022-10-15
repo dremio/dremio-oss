@@ -25,7 +25,7 @@ import static com.dremio.dac.proto.model.dataset.DataType.DATE;
 import static com.dremio.dac.proto.model.dataset.DataType.DATETIME;
 import static com.dremio.dac.proto.model.dataset.DataType.FLOAT;
 import static com.dremio.dac.proto.model.dataset.DataType.INTEGER;
-import static com.dremio.dac.proto.model.dataset.DataType.MAP;
+import static com.dremio.dac.proto.model.dataset.DataType.STRUCT;
 import static com.dremio.dac.proto.model.dataset.DataType.TEXT;
 import static com.dremio.dac.proto.model.dataset.DataType.TIME;
 import static com.dremio.dac.proto.model.dataset.Direction.FROM_THE_END;
@@ -758,7 +758,7 @@ public class TestServerExplore extends BaseTestServer {
             "convert_from(a, 'json') as foo",
             new FieldConvertFromJSON(),
             "a", "cp.\"json/json.json\"");
-    assertEquals(MAP, data.getColumn("foo").getType());
+    assertEquals(STRUCT, data.getColumn("foo").getType());
   }
 
   @Test
@@ -878,7 +878,7 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals("extract from map Tuesday", cards.get(0).getDescription());
 
     Card<ExtractMapRule> cardPreview = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_map_preview"))
+        getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/extract_struct_preview"))
             .buildPost(entity(new PreviewReq<>(new MapSelection("a", asList("Monday")), new ExtractMapRule("Monday.close")), JSON)),
         new GenericType<Card<ExtractMapRule>>() {});
 

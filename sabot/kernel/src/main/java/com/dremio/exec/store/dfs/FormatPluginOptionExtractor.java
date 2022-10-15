@@ -128,7 +128,7 @@ public final class FormatPluginOptionExtractor {
     if (typeObject == null || !(typeObject instanceof String)) {
       throw UserException.validationError()
           .message("Invalid format type in storage options")
-          .addContext("Given options: ", formatOptions)
+          .addContext("Given options: %s", formatOptions)
           .build(logger);
     }
 

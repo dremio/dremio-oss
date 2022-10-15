@@ -37,7 +37,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.util.AutoCloseables;
-import org.apache.arrow.util.Preconditions;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -61,8 +60,8 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
-import com.dremio.exec.store.iceberg.deletes.ParquetPositionalDeleteFileReaderFactory;
-import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilterFactory;
+import com.dremio.exec.store.iceberg.deletes.ParquetRowLevelDeleteFileReaderFactory;
+import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -79,6 +78,7 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -116,7 +116,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private final boolean arrowCachingEnabled;
   private final boolean isConvertedIcebergDataset;
   private final FileConfig formatSettings;
-  private final PositionalDeleteFilterFactory positionalDeleteFilterFactory;
+  private final RowLevelDeleteFilterFactory rowLevelDeleteFilterFactory;
   private UserDefinedSchemaSettings userDefinedSchemaSettings;
   private List<SplitAndPartitionInfo> inputSplits;
   private boolean ignoreSchemaLearning = false;
@@ -208,7 +208,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     sortedBlockSplitsIterator = Collections.emptyIterator();
     splitsPathRowGroupsMap = null;
     this.produceFromBufferedSplits = true;  // in non-v2 case there is no prefetching across batches, so set it to true
-    this.positionalDeleteFilterFactory = null;
+    this.rowLevelDeleteFilterFactory = null;
     processSplits();
     if (prefetchReader) {
       initSplits(null, numSplitsToPrefetch);
@@ -281,10 +281,10 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     sortedBlockSplitsIterator = Collections.emptyIterator();
     splitsPathRowGroupsMap = null;
     this.produceFromBufferedSplits = produceFromBufferedSplits; // initially set to false, after no more to consume from upstream this is set to true
-    this.positionalDeleteFilterFactory = DatasetHelper.isIcebergFile(config.getFunctionContext().getFormatSettings()) ?
-        new PositionalDeleteFilterFactory(context,
-            new ParquetPositionalDeleteFileReaderFactory(factory, readerFactory, fs,
-                Iterables.getFirst(tablePath, null))) :
+    this.rowLevelDeleteFilterFactory = DatasetHelper.isIcebergFile(config.getFunctionContext().getFormatSettings()) ?
+        new RowLevelDeleteFilterFactory(context,
+            new ParquetRowLevelDeleteFileReaderFactory(factory, readerFactory, fs,
+                Iterables.getFirst(tablePath, null), fullSchema)) :
         null;
 
     processSplits();
@@ -518,8 +518,11 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     ParquetProtobuf.ParquetDatasetSplitScanXAttr splitScanXAttr = rowGroupSplitIterator.next();
     String dataFilePath = splitScanXAttr.getOriginalPath().isEmpty() ? splitScanXAttr.getPath() :
         splitScanXAttr.getOriginalPath();
-    ParquetFilters filtersForCurrentRowGroup = positionalDeleteFilterFactory != null ?
-        filters.withPositionalDeleteFilter(positionalDeleteFilterFactory.create(dataFilePath)) : filters;
+    ParquetFilters filtersForCurrentRowGroup = rowLevelDeleteFilterFactory != null ?
+        filters.withRowLevelDeleteFilters(
+            rowLevelDeleteFilterFactory.createPositionalDeleteFilter(dataFilePath),
+            rowLevelDeleteFilterFactory.createEqualityDeleteFilter(dataFilePath, icebergSchemaFields)) :
+        filters;
 
     SplitReaderCreator creator = new ParquetSplitReaderCreator(autoCorrectCorruptDates, context, enableDetailedTracing,
             fs, globalDictionaries, globalDictionaryEncodedColumns, numSplitsToPrefetch, prefetchReader, readInt96AsTimeStamp,
@@ -616,10 +619,10 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     // PositionalDeleteFilters.  Each row group adds a reference count on a filter, which is decremented when the row
     // group reader is closed.  In the case where this split expanded to no row groups, we need to decrement the
     // reference count by 1.
-    if (positionalDeleteFilterFactory != null) {
+    if (rowLevelDeleteFilterFactory != null) {
       int delta = rowGroupNums.size() - 1;
       if (delta != 0) {
-        positionalDeleteFilterFactory.adjustRowGroupCount(blockSplit.getPath(), delta);
+        rowLevelDeleteFilterFactory.adjustRowGroupCount(blockSplit.getPath(), delta);
       }
     }
 
@@ -693,7 +696,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
 
     Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
     ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(
-            realFields, icebergSchemaFields, isConvertedIcebergDataset, context);
+            realFields, icebergSchemaFields, isConvertedIcebergDataset, context, fullSchema);
 
     // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
     boolean readColumnIndices = context.getOptions().getOption(READ_COLUMN_INDEXES) &&
@@ -746,14 +749,14 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   }
 
   private void decrementRowGroupCount(String path) {
-    if (positionalDeleteFilterFactory != null) {
-      positionalDeleteFilterFactory.adjustRowGroupCount(path, -1);
+    if (rowLevelDeleteFilterFactory != null) {
+      rowLevelDeleteFilterFactory.adjustRowGroupCount(path, -1);
     }
   }
 
-  public void setDataFileInfoForBatch(Map<String, PositionalDeleteFilterFactory.DataFileInfo> dataFileInfo) {
-    Preconditions.checkNotNull(positionalDeleteFilterFactory);
-    positionalDeleteFilterFactory.setDataFileInfoForBatch(dataFileInfo);
+  public void setDataFileInfoForBatch(Map<String, RowLevelDeleteFilterFactory.DataFileInfo> dataFileInfo) {
+    Preconditions.checkNotNull(rowLevelDeleteFilterFactory);
+    rowLevelDeleteFilterFactory.setDataFileInfoForBatch(dataFileInfo);
   }
 
   public boolean isIgnoreSchemaLearning() {

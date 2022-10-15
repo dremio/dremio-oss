@@ -16,6 +16,8 @@
 
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import com.dremio.exec.proto.UserBitShared.MetricDef.AggregationType;
+import com.dremio.exec.proto.UserBitShared.MetricDef.DisplayType;
 import com.dremio.sabot.exec.context.MetricDef;
 
 /**
@@ -59,10 +61,10 @@ public class HashAggStats {
     READ_SPILLED_BATCH_TIME,  /* cumulative time taken to read all spilled batches */
     TOTAL_BATCHES_SPILLED,    /* total number of batches spilled across all spills */
     MAX_BATCHES_SPILLED,      /* maximum number of batches spilled across all spills */
-    TOTAL_RECORDS_SPILLED,    /* total number of records spilled across all spills */
+    TOTAL_RECORDS_SPILLED(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of records spilled"),    /* total number of records spilled across all spills */
     MAX_RECORDS_SPILLED,      /* maximum number of records spilled across all spills */
     RECURSION_DEPTH,          /* recursion depth, 0 (no spilling), 1 (no recursive spilling), >= 2(recursive spilling) */
-    TOTAL_SPILLED_DATA_SIZE,  /* total size (in bytes) of data spilled by vectorized hash agg operator */
+    TOTAL_SPILLED_DATA_SIZE(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of bytes spilled"),  /* total size (in bytes) of data spilled by vectorized hash agg operator */
     MAX_SPILLED_DATA_SIZE,    /* max size (in bytes) of data spilled by vectorized hash agg operator */
     MAX_TOTAL_NUM_BUCKETS,    /* max total capacity in hash tables */
     MAX_TOTAL_NUM_ENTRIES,    /* max total size in hash tables */
@@ -90,9 +92,38 @@ public class HashAggStats {
     OOB_DROP_ALREADY_SPILLING, // Number of times operator dropped spilling notification as it was already spilling
     ;
 
+    private final DisplayType displayType;
+    private final AggregationType aggregationType;
+    private final String displayCode;
+
+    Metric() {
+      this(DisplayType.DISPLAY_NEVER, AggregationType.SUM, "");
+    }
+
+    Metric(DisplayType displayType, AggregationType aggregationType, String displayCode) {
+      this.displayType = displayType;
+      this.aggregationType = aggregationType;
+      this.displayCode = displayCode;
+    }
+
     @Override
     public int metricId() {
       return ordinal();
+    }
+
+    @Override
+    public DisplayType getDisplayType() {
+      return this.displayType;
+    }
+
+    @Override
+    public AggregationType getAggregationType() {
+      return this.aggregationType;
+    }
+
+    @Override
+    public String getDisplayCode() {
+      return this.displayCode;
     }
   }
 

@@ -19,7 +19,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.parquet.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +40,7 @@ import com.dremio.io.file.Path;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.MetadataProtoUtils;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 @Options

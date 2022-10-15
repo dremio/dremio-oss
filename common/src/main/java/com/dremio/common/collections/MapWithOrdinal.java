@@ -60,7 +60,7 @@ public class MapWithOrdinal<K, V> implements Map<K, V> {
   private final Map<K, V> delegate = new Map<K, V>() {
     @Override
     public boolean isEmpty() {
-      return size() == 0;
+      return primary.isEmpty();
     }
 
     @Override

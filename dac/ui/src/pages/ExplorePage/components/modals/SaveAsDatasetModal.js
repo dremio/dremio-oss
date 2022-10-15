@@ -34,6 +34,7 @@ import { loadDependentDatasets } from "actions/resources/spaceDetails";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import FormUnsavedWarningHOC from "@app/components/Modals/FormUnsavedWarningHOC";
 import { splitFullPath } from "@app/utils/pathUtils";
+import { intl } from "@app/utils/intl";
 
 import SaveAsDatasetForm from "../forms/SaveAsDatasetForm";
 
@@ -121,9 +122,10 @@ export class SaveAsDatasetModal extends Component {
     return (
       <Modal
         size="small"
-        title={la("Save View As")}
+        title={intl.formatMessage({ id: "NewQuery.SaveViewAsBtn" })}
         isOpen={isOpen}
         hide={hide}
+        modalHeight="500px"
       >
         <SaveAsDatasetForm
           dependentDatasets={dependentDatasets}

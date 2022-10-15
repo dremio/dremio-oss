@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from "react";
+import { createRef, PureComponent } from "react";
 import PropTypes from "prop-types";
-import ReactDOM from "react-dom";
 import shallowEqual from "shallowequal";
 import $ from "jquery";
 import Immutable from "immutable";
@@ -31,6 +30,7 @@ import ViewStateWrapper from "components/ViewStateWrapper";
 import ViewCheckContent from "components/ViewCheckContent";
 import { withLocation } from "containers/dremioLocation";
 import { getViewState } from "selectors/resources";
+import { getExploreState } from "@app/selectors/explore";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
 import { loadNextRows } from "actions/explore/dataset/data";
 import ExploreTableCell from "./ExploreTableCell";
@@ -47,6 +47,7 @@ const mapStateToProps = (state) => ({
   isPreviewMode: getIsExplorePreviewMode(state),
   tableViewState: getViewState(state, EXPLORE_TABLE_ID),
   isDatasetMetadataLoaded: getIsDatasetMetadataLoaded(state),
+  previousMultiSql: getExploreState(state)?.view.previousMultiSql,
 });
 
 const mapDispatchToProps = {
@@ -82,6 +83,7 @@ export class ExploreTableView extends PureComponent {
     height: PropTypes.number,
     isGrayed: PropTypes.bool,
     intl: PropTypes.object.isRequired,
+    shouldRenderInvisibles: PropTypes.bool,
     isMultiSql: PropTypes.bool,
     isEdited: PropTypes.bool,
     isCurrentQueryFinished: PropTypes.bool,
@@ -92,12 +94,13 @@ export class ExploreTableView extends PureComponent {
     // connect properties
     isPreviewMode: PropTypes.bool,
     isDatasetMetadataLoaded: PropTypes.bool,
+    previousMultiSql: PropTypes.string,
     loadNextRows: PropTypes.func.isRequired,
   };
 
   static defaultProps = {
     columns: new Immutable.List(),
-    rows: new Immutable.List(),
+    rows: null,
   };
 
   static getCellStyle(column) {
@@ -181,6 +184,7 @@ export class ExploreTableView extends PureComponent {
     this.handleColumnResizeEnd = this.handleColumnResizeEnd.bind(this);
     this.loadNextRows = this.loadNextRows.bind(this);
     const columns = props.columns;
+    this.nodeRef = createRef();
 
     this.state = {
       defaultColumnWidth: 0,
@@ -251,6 +255,11 @@ export class ExploreTableView extends PureComponent {
 
     const defaultColumnWidth = this.state.size.get("defaultColumnWidth");
     const tableWidth = this.state.size.get("width");
+
+    if (tableWidth === 0 || defaultColumnWidth === 0) {
+      return null;
+    }
+
     const visibleColumns = tableWidth / defaultColumnWidth;
     const offset = Math.floor(visibleColumns / 2);
     return index + offset > columns.size - 1
@@ -271,7 +280,7 @@ export class ExploreTableView extends PureComponent {
       !viewState.get("isInProgress") &&
       !viewState.get("isFailed") &&
       Boolean(dataset.get("datasetVersion") || dataset.get("isNewQuery")) &&
-      !rows.size
+      !rows?.size
     );
   }
 
@@ -294,7 +303,7 @@ export class ExploreTableView extends PureComponent {
 
   updateSize = (width) => {
     const columns = this.state.columns.toJS().filter((col) => !col.hidden);
-    const node = ReactDOM.findDOMNode(this);
+    const node = this.nodeRef.current;
     const nodeOffset = $(node).offset();
     const nodeOffsetTop = nodeOffset && nodeOffset.top;
     const wrapperForWidth = $(node).parents(".explorePage")[0];
@@ -381,7 +390,7 @@ export class ExploreTableView extends PureComponent {
     );
   }
 
-  renderCell(column) {
+  renderCell(column, renderInvisibleSymbols) {
     const cellStyle = ExploreTableView.getCellStyle(column);
 
     return (
@@ -398,6 +407,7 @@ export class ExploreTableView extends PureComponent {
         onCellTextSelect={this.props.onCellTextSelect}
         columns={this.props.columns}
         isDumbTable={this.props.isDumbTable}
+        shouldRenderInvisibles={renderInvisibleSymbols}
       />
     );
   }
@@ -405,6 +415,7 @@ export class ExploreTableView extends PureComponent {
   renderColumns() {
     const columns = this.state.columns.toJS();
     const filteredColumns = columns.filter((column) => !column.hidden);
+    const { shouldRenderInvisibles } = this.props;
 
     return filteredColumns.map((column) => {
       const cellWidth =
@@ -418,7 +429,7 @@ export class ExploreTableView extends PureComponent {
           isResizable
           allowCellsRecycling
           columnKey={column.index}
-          cell={this.renderCell(column)}
+          cell={this.renderCell(column, shouldRenderInvisibles)}
         />
       );
     });
@@ -426,7 +437,8 @@ export class ExploreTableView extends PureComponent {
 
   renderTable() {
     const { dataset, columns, rows } = this.props;
-    if (!dataset.get("isNewQuery") && columns.size) {
+    // If rows doesn't exist, it shouldn't render table. If row count = 0, it should render the table
+    if (!dataset.get("isNewQuery") && columns.size && rows) {
       const scrollToColumn = this.getScrollToColumn();
       return (
         <AutoSizer>
@@ -489,15 +501,18 @@ export class ExploreTableView extends PureComponent {
       isDatasetMetadataLoaded,
       isMultiSql,
       isCurrentQueryFinished,
+      rows,
+      previousMultiSql,
     } = this.props;
     const showMessage = pageType === "default" && !isMultiSql;
     const viewState = this.getViewState();
     const noDataMessageId = isPreviewMode
       ? "Dataset.NoPreviewData"
       : "Dataset.NoData";
-    const messageId = dataset.get("isNewQuery")
-      ? "Dataset.NewQueryNoData"
-      : noDataMessageId;
+    const messageId =
+      dataset.get("isNewQuery") || !rows || previousMultiSql == null
+        ? "Dataset.NewQueryNoData"
+        : noDataMessageId;
 
     // we should not block header if it is presented and actual metadata is loaded
     const maskStyle =
@@ -506,7 +521,11 @@ export class ExploreTableView extends PureComponent {
         : null;
 
     return (
-      <div className="fixed-data-table" style={{ width: "100%" }}>
+      <div
+        className="fixed-data-table"
+        style={{ width: "100%" }}
+        ref={this.nodeRef}
+      >
         <ViewStateWrapper
           style={{ overflow: "hidden", height: "100%" }}
           spinnerDelay={columns.size ? TIME_BEFORE_SPINNER : 0}

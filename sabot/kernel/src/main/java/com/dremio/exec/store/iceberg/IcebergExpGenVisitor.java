@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -43,7 +44,7 @@ public class IcebergExpGenVisitor extends RexVisitorImpl<Expression> {
     private final List<String> fieldNames;
     private final RexBuilder rexBuilder;
     private final RelOptCluster relOptCluster;
-    private HashSet<String> usedColumns;
+    private Set<String> usedColumns;
 
     IcebergExpGenVisitor(RelDataType rowType, RelOptCluster cluster) {
         super(true);

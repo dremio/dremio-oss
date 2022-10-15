@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import clsx from "clsx";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+
 import SimpleButton from "components/Buttons/SimpleButton";
 
 import config from "dyn-load/utils/config";
@@ -27,6 +30,7 @@ export default function (input) {
           <SimpleButton
             key="email-help"
             buttonStyle="secondary"
+            className={clsx(classes["secondaryButtonPsuedoClasses"])}
             onClick={this.handleEmail}
           >
             {la("Email Help")}
@@ -37,6 +41,7 @@ export default function (input) {
           <SimpleButton
             key="download-profile"
             buttonStyle="secondary"
+            className={clsx(classes["secondaryButtonPsuedoClasses"])}
             submitting={this.props.downloadViewState.get("isInProgress")}
             onClick={this.handleDownload}
           >
@@ -49,6 +54,7 @@ export default function (input) {
             <SimpleButton
               key="support-bundle"
               buttonStyle="secondary"
+              className={clsx(classes["secondaryButtonPsuedoClasses"])}
               style={{ width: "220px" }}
               onClick={this.handleQueryDownload}
             >

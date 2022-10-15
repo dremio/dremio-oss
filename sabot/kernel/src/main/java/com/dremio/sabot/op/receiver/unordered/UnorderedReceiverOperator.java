@@ -26,6 +26,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.dremio.sabot.op.receiver.RawFragmentBatchProvider;
+import com.dremio.sabot.op.receiver.ReceiverLatencyTracker;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.base.Preconditions;
@@ -41,10 +42,16 @@ public class UnorderedReceiverOperator implements ProducerOperator {
   private final OperatorContext context;
   private final VectorContainer outgoing;
   private final BatchStreamProvider streams;
+  private final ReceiverLatencyTracker latencyTracker = new ReceiverLatencyTracker();
 
   public enum Metric implements MetricDef {
     BYTES_RECEIVED,
-    NUM_SENDERS;
+    BATCHES_RECEIVED,
+    NUM_SENDERS,
+    SUM_TX_MILLIS,
+    MAX_TX_MILLIS,
+    SUM_QUEUE_MILLIS,
+    MAX_QUEUE_MILLIS;
 
     @Override
     public int metricId() {
@@ -105,15 +112,15 @@ public class UnorderedReceiverOperator implements ProducerOperator {
         }
         return 0;
       }
+      latencyTracker.updateLatencyFromBatch(batch.getHeader());
 
       int size = batchLoader.load(batch);
-
-      stats.addLongStat(Metric.BYTES_RECEIVED, batch.getByteCount());
+      stats.addLongStat(Metric.BYTES_RECEIVED, size);
+      stats.addLongStat(Metric.BATCHES_RECEIVED, 1);
 
       final int count = batchLoader.getRecordCount();
       stats.batchReceived(0, count, size);
-      int cnt = outgoing.setAllCount(count);
-      return cnt;
+      return outgoing.setAllCount(count);
     }
   }
 
@@ -124,6 +131,10 @@ public class UnorderedReceiverOperator implements ProducerOperator {
 
   @Override
   public void close() throws Exception {
+    stats.setLongStat(Metric.SUM_TX_MILLIS, latencyTracker.getSumTxMillis());
+    stats.setLongStat(Metric.MAX_TX_MILLIS, latencyTracker.getMaxTxMillis());
+    stats.setLongStat(Metric.SUM_QUEUE_MILLIS, latencyTracker.getSumQueueMillis());
+    stats.setLongStat(Metric.MAX_QUEUE_MILLIS, latencyTracker.getMaxQueueMillis());
     AutoCloseables.close((AutoCloseable) batchLoader, outgoing);
   }
 

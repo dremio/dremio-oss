@@ -20,8 +20,10 @@ import static java.lang.String.format;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.DoubleSummaryStatistics;
 import java.util.HashMap;
 import java.util.List;
+import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -35,13 +37,14 @@ import com.dremio.dac.util.QueryProfileUtil;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.job.proto.OperationType;
 import com.dremio.service.jobAnalysis.proto.BaseMetrics;
-import com.dremio.service.jobAnalysis.proto.MetricValue;
 import com.dremio.service.jobAnalysis.proto.OperatorSpecificDetails;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class JobProfileOperatorInfo {
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobProfileOperatorInfo.class);
 
   private final String phaseId;
   private final String operatorId;
@@ -54,8 +57,13 @@ public class JobProfileOperatorInfo {
   private final long bytesProcessed;
   private final long batchesProcessed;
   private final long recordsProcessed;
-  private final Map<String,Long> operatorMetricsMap;
+  private final Map<String,String> operatorMetricsMap;
   private final OperatorSpecificDetails operatorSpecificDetails;
+  private final long numberOfThreads;
+  private final long outputRecords;
+  private final long outputBytes;
+  private final JobProfileOperatorHealth jpOperatorHealth;
+  private final Map<String,JobProfileMetricDetails> metricsDetailsMap;
 
   @JsonCreator
   public JobProfileOperatorInfo(
@@ -70,8 +78,13 @@ public class JobProfileOperatorInfo {
     @JsonProperty("bytesProcessed") Long bytesProcessed,
     @JsonProperty("batchesProcessed") Long batchesProcessed,
     @JsonProperty("recordsProcessed") Long recordsProcessed,
-    @JsonProperty("operatorMetricsMap") Map<String,Long> operatorMetricsMap,
-    @JsonProperty("operatorSpecificDetails") OperatorSpecificDetails operatorSpecificDetails) {
+    @JsonProperty("operatorMetricsMap") Map<String,String> operatorMetricsMap,
+    @JsonProperty("operatorSpecificDetails") OperatorSpecificDetails operatorSpecificDetails,
+    @JsonProperty("numberOfThreads") Long numberOfThreads,
+    @JsonProperty("outputRecords") Long outputRecords,
+    @JsonProperty("outputBytes") Long outputBytes,
+    @JsonProperty("jpOperatorHealth") JobProfileOperatorHealth jpOperatorHealth,
+    @JsonProperty("metricsDetailsMap") Map<String,JobProfileMetricDetails> metricsDetailsMap) {
     super();
     this.phaseId = phaseId;
     this.operatorId = operatorId;
@@ -86,9 +99,14 @@ public class JobProfileOperatorInfo {
     this.recordsProcessed = recordsProcessed;
     this.operatorMetricsMap = operatorMetricsMap;
     this.operatorSpecificDetails = operatorSpecificDetails;
+    this.numberOfThreads = numberOfThreads;
+    this.outputRecords = outputRecords;
+    this.outputBytes = outputBytes;
+    this.jpOperatorHealth = jpOperatorHealth;
+    this.metricsDetailsMap = metricsDetailsMap;
   }
 
-  public JobProfileOperatorInfo(String phaseId, String operatorId, String operatorName, int operatorType, long setupTime, long waitTime, long peakMemory, long processTime, long bytesProcessed, long batchesProcessed, long recordsProcessed, Map<String, Long> operatorMetricsMap, OperatorSpecificDetails operatorSpecificDetails) {
+  public JobProfileOperatorInfo(String phaseId, String operatorId, String operatorName, int operatorType, long setupTime, long waitTime, long peakMemory, long processTime, long bytesProcessed, long batchesProcessed, long recordsProcessed, Map<String,String> operatorMetricsMap, OperatorSpecificDetails operatorSpecificDetails, long numberOfThreads, long outputRecords, long outputBytes, JobProfileOperatorHealth jpOperatorHealth, Map<String,JobProfileMetricDetails> metricsDetailsMap) {
     this.phaseId = phaseId;
     this.operatorId = operatorId;
     this.operatorName = operatorName;
@@ -102,6 +120,11 @@ public class JobProfileOperatorInfo {
     this.recordsProcessed = recordsProcessed;
     this.operatorMetricsMap = operatorMetricsMap;
     this.operatorSpecificDetails = operatorSpecificDetails;
+    this.numberOfThreads = numberOfThreads;
+    this.outputRecords = outputRecords;
+    this.outputBytes = outputBytes;
+    this.jpOperatorHealth = jpOperatorHealth;
+    this.metricsDetailsMap = metricsDetailsMap;
   }
 
 
@@ -113,11 +136,13 @@ public class JobProfileOperatorInfo {
       UserBitShared.MajorFragmentProfile majorFragmentProfile = getPhaseDetails(profile, phaseId);
       int operatorType = getOperatorTypeHelper(operatorId, majorFragmentProfile);
       OperatorSpecificDetails opsDetails = new OperatorSpecificDetails();
-       Map<String,Long> operatorMetricMap = getOperatorMetricMap(profile.getOperatorTypeMetricsMap(), operatorId, majorFragmentProfile, operatorType,opsDetails); // get OperatorMetricsMap
+      JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
+      Map<String, JobProfileMetricDetails> metricsDetailsMap = new HashMap<>();
+       Map<String, String> operatorMetricMap = getOperatorMetricMap(profile.getOperatorTypeMetricsMap(), operatorId, majorFragmentProfile, operatorType,opsDetails, metricsDetailsMap); // get OperatorMetricsMap
 
       long batchesProcessed = getBatchSize(majorFragmentProfile, operatorId);
 
-      long bytesProcessed = operatorMetricMap.entrySet().stream().filter(name->name.getKey().toUpperCase().contains("BYTES_")).collect(Collectors.summarizingLong(bytes->bytes.getValue())).getMax();
+      long bytesProcessed = operatorMetricMap.entrySet().stream().filter(name->name.getKey().toUpperCase().contains("BYTES_")).collect(Collectors.summarizingLong(bytes-> new Long(bytes.getValue()))).getMax();
 
       bytesProcessed = (bytesProcessed > -1) ? bytesProcessed : -1;
 
@@ -129,6 +154,7 @@ public class JobProfileOperatorInfo {
         .collect(Collectors.groupingBy(thread -> thread.getOperatorId(), Collectors.toList())).forEach(
         (opId, threadLevelMetrics) -> {
           QueryProfileUtil.buildBaseMetrics(threadLevelMetrics, baseMetrics);
+          QueryProfileUtil.getJobProfileOperatorHealth(threadLevelMetrics, jpOperatorHealth, baseMetrics);
         }
       );
 
@@ -145,6 +171,11 @@ public class JobProfileOperatorInfo {
       this.recordsProcessed = baseMetrics.getRecordsProcessed();
       this.operatorMetricsMap = operatorMetricMap;
       this.operatorSpecificDetails = opsDetails;
+      this.numberOfThreads = majorFragmentProfile.getMinorFragmentProfileCount();
+      this.outputRecords = baseMetrics.getOutputRecords();
+      this.outputBytes = baseMetrics.getOutputBytes();
+      this.jpOperatorHealth = jpOperatorHealth;
+      this.metricsDetailsMap = metricsDetailsMap;
     } else {
       throw new NotFoundException(format("Profile Fragment is not available"));
     }
@@ -194,12 +225,32 @@ public class JobProfileOperatorInfo {
     return recordsProcessed;
   }
 
-  public Map<String, Long> getOperatorMetricsMap() {
+  public Map<String, String> getOperatorMetricsMap() {
     return operatorMetricsMap;
+  }
+
+  public Map<String, JobProfileMetricDetails> getMetricsDetailsMap() {
+    return metricsDetailsMap;
   }
 
   public OperatorSpecificDetails getOperatorSpecificDetails() {
     return operatorSpecificDetails;
+  }
+
+  public long getNumberOfThreads() {
+    return numberOfThreads;
+  }
+
+  public long getOutputRecords() {
+    return outputRecords;
+  }
+
+  public long getOutputBytes() {
+    return outputBytes;
+  }
+
+  public JobProfileOperatorHealth getJpOperatorHealth() {
+    return jpOperatorHealth;
   }
 
   /**
@@ -251,9 +302,9 @@ public class JobProfileOperatorInfo {
   /**
    * This method to add the information to MetricsValue to Add all the Operators
    */
-  private void buildMetricsValueList(UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int operatorType, List<MetricValue> tempMetricsList, Integer id, List<UserBitShared.MetricValue> metricValueList) {
+  private void buildMetricsValueList(UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int operatorType, List<UserBitShared.MetricValue> tempMetricsList, Integer id, List<UserBitShared.MetricValue> metricValueList) {
     String metricName = "";
-    Long metricValue = -1L;
+    //Long metricValue = -1L;
     Optional<UserBitShared.MetricDef> mapMetricsDef = getMetricById(coreOperatorTypeMetricsMap, operatorType, id);
     if (mapMetricsDef.isPresent()) {
       metricName = mapMetricsDef.get().getName();
@@ -261,8 +312,23 @@ public class JobProfileOperatorInfo {
       List<String> validMetricsList = Arrays.asList(nodeValues).stream().map(n -> n.toLowerCase()).collect(Collectors.toList());
       String listString = validMetricsList.stream().map(Object::toString).collect(Collectors.joining(", "));
       if (containsName(validMetricsList, metricName.toLowerCase()) || listString.isEmpty()) {
-        metricValue = metricValueList.stream().collect(Collectors.summarizingLong(metricsValue -> metricsValue.getLongValue())).getSum();
-        tempMetricsList.add(new MetricValue(id, WordUtils.capitalizeFully(metricName, '_'), metricValue));
+       long metricLong = 0L;
+       double metricDouble = 0D;
+        for(UserBitShared.MetricValue metricValue : metricValueList)  {
+          if (metricValue.hasDoubleValue()) {
+            metricDouble += metricValue.getDoubleValue();
+          } else if (metricValue.hasLongValue()) {
+            metricLong += metricValue.getLongValue();
+          }
+        }
+
+        UserBitShared.MetricValue metricValue;
+        if(metricDouble !=0 ) {
+          metricValue = UserBitShared.MetricValue.newBuilder().setMetricId(id).setDoubleValue(metricDouble).build();
+        } else {
+          metricValue = UserBitShared.MetricValue.newBuilder().setMetricId(id).setLongValue(metricLong).build();
+        }
+        tempMetricsList.add(metricValue);
       }
     }
   }
@@ -288,21 +354,52 @@ public class JobProfileOperatorInfo {
   /**
    * This is the Method which will return Sum/min/Max Operator Metrics value
    */
-  public static Map<String, Long> buildOperatorMetricsMap(List<MetricValue> tempMetricsList) {
-    Map<String,Long> operatorMetricsMap = new HashMap<>();
-    tempMetricsList.stream().collect(Collectors.groupingBy(metricName -> metricName.getMetricName(), Collectors.summarizingLong(value -> value.getMetricValue()))).forEach(
-      (name, value) -> {
-        operatorMetricsMap.put(name, value.getSum());
-      }
-    );
+  public static Map<String,String> buildOperatorMetricsMap(List<UserBitShared.MetricValue> tempMetricsList, int operatorType, UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, Map<String, JobProfileMetricDetails> metricsDetailsMap) {
+    Map<String,String> operatorMetricsMap = new HashMap<>();
+    tempMetricsList.stream().collect(Collectors.groupingBy(metricId -> metricId.getMetricId())).forEach((id, metric) -> {
+        Optional<UserBitShared.MetricDef> mapMetricsDef = getMetricById(coreOperatorTypeMetricsMap, operatorType, id);
+        if (mapMetricsDef.isPresent()) {
+          String name = mapMetricsDef.get().getName();
+          String metricValue = "";
+          UserBitShared.MetricDef.DisplayType displayType = mapMetricsDef.get().getDisplayType();
+          if(displayType == UserBitShared.MetricDef.DisplayType.DISPLAY_BY_DEFAULT) {
+            if(metric.get(0).hasDoubleValue()) {
+              DoubleSummaryStatistics value = metric.stream().collect(Collectors.summarizingDouble(UserBitShared.MetricValue::getDoubleValue));
+              UserBitShared.MetricDef.AggregationType aggregationType = mapMetricsDef.get().getAggregationType();
+              if (aggregationType == UserBitShared.MetricDef.AggregationType.SUM) {
+                metricValue = String.valueOf(value.getSum());
+              } else if (aggregationType == UserBitShared.MetricDef.AggregationType.MAX) {
+                metricValue = String.valueOf(value.getMax());
+              } else {
+                logger.warn("Aggregation value not provided for operator type {} and metric id {} ", operatorType, id);
+              }
+            } else {
+              LongSummaryStatistics value = metric.stream().collect(Collectors.summarizingLong(UserBitShared.MetricValue::getLongValue));
+              UserBitShared.MetricDef.AggregationType aggregationType = mapMetricsDef.get().getAggregationType();
+              if (aggregationType == UserBitShared.MetricDef.AggregationType.SUM) {
+                metricValue = String.valueOf(value.getSum());
+              } else if (aggregationType == UserBitShared.MetricDef.AggregationType.MAX) {
+                metricValue = String.valueOf(value.getMax());
+              } else {
+                logger.warn("Aggregation value not provided for operator type {} and metric id {} ", operatorType, id);
+              }
+            }
+            String displayCode = mapMetricsDef.get().getDisplayCode();
+            operatorMetricsMap.put(WordUtils.capitalizeFully(name, '_'), metricValue);
+            metricsDetailsMap.put(WordUtils.capitalizeFully(name, '_'), new JobProfileMetricDetails(true, displayCode));
+          }
+        } else {
+          logger.warn("Metric details are not available in coreOperatorTypeMetricsMap for operator type {} and metric id {} ", operatorType, id);
+        }
+    });
     return operatorMetricsMap;
   }
 
   /**
    * This Method Will return Metric List for operator
    */
-  private Map<String,Long> getOperatorMetricMap(UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int nodeId, UserBitShared.MajorFragmentProfile major, int operatorType,OperatorSpecificDetails opsDetails) {
-    List<MetricValue> tempMetricsList = new ArrayList<>();
+  private Map<String,String> getOperatorMetricMap(UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int nodeId, UserBitShared.MajorFragmentProfile major, int operatorType,OperatorSpecificDetails opsDetails, Map<String,JobProfileMetricDetails> metricsDetailsMap) {
+    List<UserBitShared.MetricValue> tempMetricsList = new ArrayList<>();
     major.getMinorFragmentProfileList().stream()
       .flatMap(minorFragmentProfile -> minorFragmentProfile.getOperatorProfileList().stream().filter(minor -> minor.getOperatorId() == nodeId))
       .forEach(
@@ -317,7 +414,7 @@ public class JobProfileOperatorInfo {
         }
       );
 
-    return buildOperatorMetricsMap(tempMetricsList);
+    return buildOperatorMetricsMap(tempMetricsList, operatorType, coreOperatorTypeMetricsMap, metricsDetailsMap);
   }
 
   /**

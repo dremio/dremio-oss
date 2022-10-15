@@ -61,6 +61,7 @@ public class ITValidateShadedJar {
   private static final List<String> ALLOWED_FILES = Collections.unmodifiableList(Arrays.asList(
       "CDJDLog4j-charsets.properties",
       "git.properties",
+      "arrow-git.properties",
       "dremio-jdbc.properties",
       "dremio-reference.conf",
       "sabot-default.conf",

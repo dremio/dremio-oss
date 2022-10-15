@@ -16,15 +16,14 @@
 package com.dremio.dac.service.datasets;
 
 import static java.util.Collections.emptyList;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import java.util.List;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
@@ -32,7 +31,6 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.Lists;
 
@@ -41,9 +39,6 @@ public class TestDatasetVersionMutator extends BaseTestServer {
   private final DatasetVersionMutator service = newDatasetVersionMutator();
   private LegacyKVStoreProvider provider;
 
-  @Rule
-  public ExpectedException exceptionRule = ExpectedException.none();
-
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
@@ -51,7 +46,7 @@ public class TestDatasetVersionMutator extends BaseTestServer {
   }
 
   @Test
-  public void testDeleteDatasetVersion() throws NamespaceException {
+  public void testDeleteDatasetVersion() {
     final InitialPreviewResponse showSchemasResponse = createDatasetFromSQL("SHOW SCHEMAS", emptyList());
     final List<String> path = showSchemasResponse.getDataset().getFullPath();
     final String version = showSchemasResponse.getDataset().getDatasetVersion().getVersion();
@@ -62,9 +57,9 @@ public class TestDatasetVersionMutator extends BaseTestServer {
 
     DatasetVersionMutator.deleteDatasetVersion(provider, path, version);
 
-    exceptionRule.expect(DatasetVersionNotFoundException.class);
-    exceptionRule.expectMessage(String.format("dataset %s version %s", String.join(".", path), version));
-    service.getVersion(datasetPath, datasetVersion);
+    assertThatThrownBy(() -> service.getVersion(datasetPath, datasetVersion))
+      .isInstanceOf(DatasetVersionNotFoundException.class)
+      .hasMessageContaining(String.format("dataset %s version %s", String.join(".", path), version));
   }
 
   @Test

@@ -17,8 +17,6 @@ package com.dremio.service.autocomplete.functions;
 
 import java.util.Comparator;
 
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.google.common.collect.ImmutableList;
 
 public final class FunctionSignatureComparator implements Comparator<FunctionSignature> {
@@ -30,12 +28,7 @@ public final class FunctionSignatureComparator implements Comparator<FunctionSig
   public int compare(FunctionSignature first, FunctionSignature second) {
     int cmp;
 
-    cmp = compare(first.getTemplate(), second.getTemplate());
-    if (cmp != 0) {
-      return cmp;
-    }
-
-    cmp = compare(first.getOperandTypes(), second.getOperandTypes());
+    cmp = compare(first.getParameters(), second.getParameters());
     if (cmp != 0) {
       return cmp;
     }
@@ -43,36 +36,26 @@ public final class FunctionSignatureComparator implements Comparator<FunctionSig
     return first.getReturnType().compareTo(second.getReturnType());
   }
 
-  private static int compare(ImmutableList<SqlTypeName> operands1, ImmutableList<SqlTypeName> operands2) {
-    int cmp = Integer.compare(operands1.size(), operands2.size());
+  private static int compare(ImmutableList<Parameter> parameters1, ImmutableList<Parameter> parameters2) {
+    int cmp = Integer.compare(parameters1.size(), parameters2.size());
     if (cmp != 0) {
       return cmp;
     }
 
-    for (int i = 0; i < operands1.size(); i++) {
-      SqlTypeName firstType = operands1.get(i);
-      SqlTypeName secondType = operands2.get(i);
-      cmp = firstType.compareTo(secondType);
+    for (int i = 0; i < parameters1.size(); i++) {
+      Parameter parameter1 = parameters1.get(i);
+      Parameter parameter2 = parameters2.get(i);
+      cmp = parameter1.getType().compareTo(parameter2.getType());
+      if (cmp != 0) {
+        return cmp;
+      }
+
+      cmp = parameter1.getKind().compareTo(parameter2.getKind());
       if (cmp != 0) {
         return cmp;
       }
     }
 
     return cmp;
-  }
-
-  private static int compare(String firstTemplate, String secondTemplate) {
-    boolean firstTemplateNull = firstTemplate == null;
-    boolean secondTemplateNull = secondTemplate == null;
-
-    if (!firstTemplateNull && secondTemplateNull) {
-      return -1;
-    } else if (firstTemplateNull && !secondTemplateNull) {
-      return 1;
-    } else if (firstTemplateNull && secondTemplateNull) {
-      return 0;
-    } else {
-      return firstTemplate.compareTo(secondTemplate);
-    }
   }
 }

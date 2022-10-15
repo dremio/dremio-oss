@@ -22,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Logical plan meta properties.
  */
-public class PlanProperties {
+public final class PlanProperties {
   public static enum PlanType {LOGICAL, PHYSICAL}
 
   public PlanType type;
@@ -33,7 +33,7 @@ public class PlanProperties {
   public int queue;
 
 //  @JsonInclude(Include.NON_NULL)
-  public static class Generator {
+  public static final class Generator {
     public String type;
     public String info;
 

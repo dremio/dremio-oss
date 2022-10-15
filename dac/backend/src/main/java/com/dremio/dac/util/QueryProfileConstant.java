@@ -41,4 +41,7 @@ public interface QueryProfileConstant {
   int DEFAULT_INDEX = 0;
   long DEFAULT_LONG = -1L;
   Boolean DEFAULT_IND = false;
+  String REFLECTION_PREFIX = "__accelerator";
+  long ONE_SEC = (long) 1e9;
+  int MINIMUM_THREADS_TO_CHECK_FOR_SKEW = 3;
 }

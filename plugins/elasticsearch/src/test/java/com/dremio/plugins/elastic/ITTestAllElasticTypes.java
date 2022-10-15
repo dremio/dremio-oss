@@ -96,11 +96,11 @@ public class ITTestAllElasticTypes extends ElasticBaseTestQuery {
             {1}
         }),
         new ElasticsearchCluster.ColumnData("review_count_bigint", LONG, new Object[][]{
-            {11l},
-            {22l},
-            {33l},
-            {11l},
-            {1l}
+            {11L},
+            {22L},
+            {33L},
+            {11L},
+            {1L}
         }),
         new ElasticsearchCluster.ColumnData("stars", FLOAT, new Object[][]{
             {4.5f},

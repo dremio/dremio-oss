@@ -47,9 +47,8 @@ import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
 import com.google.common.collect.Lists;
 
-public class ExpressionTreeMaterializer {
+public final class ExpressionTreeMaterializer {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionTreeMaterializer.class);
   public static final boolean DISALLOW_GANDIVA_FUNCTIONS = false;
   public static final boolean ALLOW_GANDIVA_FUNCTIONS = true;
 
@@ -244,13 +243,12 @@ public class ExpressionTreeMaterializer {
               castArgs.add(new ValueExpressions.LongExpression(10));
             }
             castArgs.add(new ValueExpressions.LongExpression(0));
-          }
-          else if (input.getCompleteType().equals(CompleteType.BIGINT)) {
+          } else if (input.getCompleteType().equals(CompleteType.BIGINT)) {
             if (input instanceof ValueExpressions.LongExpression) {
               // if it's a constant, we know the exact value.
               long value = ((ValueExpressions.LongExpression) input)
                 .getLong();
-              int precision = DecimalUtils.getPrecisionForValue(value);;
+              int precision = DecimalUtils.getPrecisionForValue(value);
               castArgs.add(new ValueExpressions.LongExpression(precision));
             } else {
               castArgs.add(new ValueExpressions.LongExpression(19));
@@ -284,9 +282,8 @@ public class ExpressionTreeMaterializer {
     // logCastFunctionResolutionError.
     if (call.getName().toLowerCase().startsWith("cast")) {
       logCastFunctionResolutionError(errorCollector, call);
-    }
-    // add error to collector
-    else {
+    } else {
+      // add error to collector
       StringBuilder sb = new StringBuilder();
       sb.append("Failure finding function: ");
       sb.append(call.getName());

@@ -24,9 +24,9 @@
     tokens:
      - "WITH"
      - "CASE"
+     - "SELECT"
+     - "VALUES"
      - "("
-     - "+"
-     - "-"
  -
   description: "IN"
   input: "SELECT * FROM EMP WHERE EMP.age IN ("
@@ -35,10 +35,10 @@
     hasMoreResults: true
     tokens:
      - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
  -
   description: "NOT IN"
   input: "SELECT * FROM EMP WHERE EMP.age NOT IN ( "
@@ -47,10 +47,10 @@
     hasMoreResults: true
     tokens:
      - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
  -
   description: "DML"
   input: "UPDATE EMP SET age = age * 2 WHERE id IN ("
@@ -59,10 +59,10 @@
     hasMoreResults: true
     tokens:
      - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
  -
   description: "COMPARISON ="
   input: "SELECT CustomerID FROM Sales.Customer WHERE TerritoryID = ("
@@ -71,10 +71,10 @@
     hasMoreResults: true
     tokens:
      - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
  -
   description: "COMPARISON >"
   input: "SELECT Name FROM Production.Product WHERE ListPrice > ("
@@ -84,9 +84,9 @@
     tokens:
      - "SELECT"
      - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
  -
   description: "ANY"
   input: "SELECT Name FROM Production.Product WHERE ListPrice >= ANY "
@@ -102,11 +102,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
-     - "ARRAY"
  -
   description: "SOME"
   input: "SELECT Name FROM Production.Product WHERE ListPrice >= SOME "
@@ -122,11 +122,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
-     - "ARRAY"
  -
   description: "ALL"
   input: "SELECT Name FROM Production.Product WHERE ListPrice >= ALL "
@@ -142,11 +142,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
-     - "ARRAY"
  -
   description: "EXISTS"
   input: "SELECT Name FROM Production.Product WHERE EXISTS "
@@ -168,9 +168,9 @@
     tokens:
      - "SELECT"
      - "WITH"
+     - "VALUES"
+     - "CASE"
      - "("
-     - "+"
-     - "-"
  -
   description: "NOT EXISTS"
   input: "SELECT Name FROM Production.Product WHERE NOT EXISTS "
@@ -191,10 +191,10 @@
     hasMoreResults: true
     tokens:
      - "SELECT"
+     - "WITH"
+     - "VALUES"
+     - "CASE"
      - "("
-     - "+"
-     - "-"
-     - "?"
  -
   description: "UNIQUE"
   input: "SELECT Name FROM Production.Product WHERE UNIQUE "
@@ -214,11 +214,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "CASE"
      - "("
-     - "+"
-     - "-"
-     - "?"
-     - "ARRAY"
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
  -
   description: "ALIAS"
   input: "SELECT Name, ListPrice, (SELECT AVG(ListPrice) FROM Production.Product) "
@@ -229,5 +229,5 @@
      - ","
      - "FROM"
      - "ORDER"
+     - ";"
      - "EXCEPT"
-     - "FETCH"

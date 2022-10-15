@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE module PUBLIC
+  "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+  "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!-- Sabot Kernel specific copy of Legacy Checkstyle configuration for Dremio -->
+
+<module name="Checker">
+
+  <!-- Checks whether files end with a new line. -->
+  <module name="NewlineAtEndOfFile">
+    <property name="lineSeparator" value="lf"/>
+  </module>
+
+  <!-- Maximum file line length -->
+  <module name="FileLength">
+    <property name="max" value="3000"/>
+  </module>
+
+  <!-- No TAB characters -->
+  <module name="FileTabCharacter"/>
+
+  <!-- No Windows newlines -->
+  <module name="RegexpMultiline">
+    <property name="id" value="windows_newlines"/>
+    <property name="format" value="\r"/>
+    <property name="message" value="No windows newlines"/>
+  </module>
+
+  <module name="RegexpSingleline">
+    <property name="format" value="\s+$"/>
+    <property name="message" value="A line of code cannot contain any trailing whitespace"/>
+  </module>
+
+  <module name="SuppressWarningsFilter" />
+
+  <module name="TreeWalker">
+    <module name="SuppressionCommentFilter">
+      <property name="offCommentFormat" value="CHECKSTYLE\:OFF ([\w\|]+)" />
+      <property name="onCommentFormat" value="CHECKSTYLE\:ON ([\w\|*])" />
+      <property name="checkFormat" value="$1"/>
+    </module>
+
+    <module name="IllegalImport">
+      <!-- For "org.apache.commons.lang.*" classes use the corresponding class from "org.apache.commons.lang3.*" -->
+      <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang,hive,oadd,org.kududb.client.shaded,org.jboss.netty,org.apache.curator.shaded,org.apache.htrace.fasterxml,twill"/>
+    </module>
+
+    <module name="AvoidStarImport">
+      <property name="allowStaticMemberImports" value="true"/>
+    </module>
+
+    <module name="ImportOrder">
+      <property name="groups" value="java.,javax.,org.,com."/>
+      <property name="ordered" value="true"/>
+      <property name="separated" value="true"/>
+      <property name="option" value="top"/>
+      <property name="sortStaticImportsAlphabetically" value="true"/>
+    </module>
+
+    <module name="UnusedImports"/>
+    <module name="RedundantImport"/>
+
+    <!-- Checks for Javadoc comments. -->
+    <!-- See http://checkstyle.sf.net/config_javadoc.html -->
+    <module name="JavadocType">
+      <property name="scope" value="public"/>
+      <property name="allowMissingParamTags" value="true"/>
+    </module>
+    <module name="JavadocStyle">
+      <property name="checkFirstSentence" value="false"/>
+    </module>
+
+    <!-- Checks for Naming Conventions. -->
+    <!-- See http://checkstyle.sf.net/config_naming.html -->
+    <module name="ConstantName">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+      <property name="format" value="^logger|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
+    </module>
+    <module name="LocalFinalVariableName">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="LocalVariableName">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="MemberName">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="MethodName">
+      <property name="id" value="method_name_main"/>
+      <!-- default pattern -->
+      <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="MethodName">
+      <property name="id" value="method_name_test"/>
+      <!-- allow underscores if method starts with test -->
+      <property name="format" value="^(test[a-zA-Z0-9_]*|[a-z][a-zA-Z0-9]*)$"/>
+      <property name="severity" value="warning"/>
+    </module>
+
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="extends RelShuttleImpl"/>
+      <property name="ignoreComments" value="true"/>
+      <property name="message" value="Please do not extend RelShuttleImpl, instead extend StatelessRelShuttleImpl"/>
+    </module>
+
+    <module name="RegexpSinglelineJava">
+      <property name="format" value=" Schema\.fromJSON"/>
+      <property name="ignoreComments" value="true"/>
+      <property name="message" value="Please use DremioArrowSchema.fromJSON instead of Schema.fromJSON"/>
+    </module>
+
+    <!-- Modifier Checks -->
+    <!-- See http://checkstyle.sourceforge.net/config_modifier.html -->
+    <module name="ModifierOrder">
+      <message key="mod.order" value="''{0}'' modifier out of order with the JLS suggestions: public protected private abstract static final transient volatile synchronized native strictfp"/>
+    </module>
+    <!-- module name="RedundantModifier"/ -->
+
+    <!-- Checks for blocks. You know, those {}'s -->
+    <!-- See http://checkstyle.sf.net/config_blocks.html -->
+    <module name="EmptyBlock">
+      <property name="option" value="text"/>
+    </module>
+    <module name="EmptyCatchBlock">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
+    <!-- module name="LeftCurly"/ -->
+    <module name="NeedBraces"/>
+    <module name="RightCurly">
+      <property name="severity" value="warning"/>
+    </module>
+
+    <!-- Checks for common coding problems -->
+    <!-- See http://checkstyle.sf.net/config_coding.html -->
+    <module name="EmptyStatement"/>
+    <module name="EqualsAvoidNull">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="EqualsHashCode"/>
+    <module name="HiddenField">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+      <property name="tokens" value="VARIABLE_DEF"/>
+    </module>
+    <module name="IllegalInstantiation"/>
+    <module name="IllegalType">
+      <property name="tokens" value="PARAMETER_DEF, METHOD_DEF, VARIABLE_DEF"/>
+    </module>
+    <module name="InnerAssignment">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="MissingSwitchDefault">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="MissingOverride"/>
+    <module name="SimplifyBooleanExpression"/>
+    <module name="SimplifyBooleanReturn"/>
+    <module name="StringLiteralEquality"/>
+
+    <!-- Checks for class design -->
+    <!-- See http://checkstyle.sf.net/config_design.html -->
+    <module name="FinalClass">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="HideUtilityClassConstructor">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="InterfaceIsType">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
+    <!-- FIXME: sabot kernel has about 2000 violations of VisibilityModifier
+    <module name="VisibilityModifier">
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.Rule" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.ClassRule" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.runners.Parameterized.Parameter" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.jupiter.api.io.TempDir" />
+      <property name="ignoreAnnotationCanonicalNames" value="com.google.common.annotations.VisibleForTesting" />
+      <property name="ignoreAnnotationCanonicalNames" value="io.protostuff.Tag" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.projectnessie.versioned.persist.tests.extension.NessieDbAdapter" />
+      <property name="allowPublicImmutableFields" value="true" />
+      <property name="severity" value="warning"/>
+    </module>
+    -->
+
+    <!-- Miscellaneous other checks. -->
+    <!-- See http://checkstyle.sf.net/config_misc.html -->
+    <module name="ArrayTypeStyle"/>
+    <module name="UpperEll"/>
+
+    <module name="SuppressWarningsHolder"/>
+    <module name="OuterTypeFilename"/>
+    <module name="PackageDeclaration"/>
+  </module>
+
+  <!-- Different MethodName rules for production and test code -->
+  <module name="SuppressionSingleFilter">
+    <property name="id" value="method_name_test"/>
+    <property name="files" value="[\\/]src[\\/]main[\\/]"/>
+  </module>
+  <module name="SuppressionSingleFilter">
+    <property name="id" value="method_name_main"/>
+    <property name="files" value="[\\/]src[\\/]test[\\/]"/>
+  </module>
+  <!-- Disable certain checks in generated code -->
+  <module name="SuppressionSingleFilter">
+    <property name="checks" value="AvoidStarImport|NeedBraces"/>
+    <property name="files" value="[\\/]generated-sources[\\/]"/>
+  </module>
+  <!-- Disable certain checks in test data -->
+  <module name="SuppressionSingleFilter">
+    <property name="checks" value="FileLength|FileTabCharacter|NewlineAtEndOfFile"/>
+    <property name="files" value="[\\/]src[\\/]test[\\/]resources[\\/].+\.json$"/>
+  </module>
+  <!-- Disable all checks in resource files that are not part of <resourceIncludes> in the maven plugin config -->
+  <!-- This allows equivalent usage of this checkstyle config outside of maven -->
+  <module name="SuppressionSingleFilter">
+    <property name="checks" value=".*"/>
+    <property name="files" value="[\\/]src[\\/](test|main)[\\/]resources[\\/].+\.(?!properties$|conf$|json$|xml$).+$"/>
+  </module>
+
+</module>

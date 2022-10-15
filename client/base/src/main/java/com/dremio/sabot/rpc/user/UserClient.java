@@ -121,6 +121,7 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
         .setSupportTimeout(true)
         .setCredentials(credentials)
         .setRecordBatchType(RecordBatchType.DREMIO)
+        .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_23_0)
         .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_1_4)
         .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
         .setClientInfos(UserRpcUtils.getRpcEndpointInfos(clientName));
@@ -198,6 +199,7 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
 
     switch(recordBatchFormat) {
     case DREMIO_1_4:
+    case DREMIO_23_0:
       break;
 
     case DREMIO_0_9:

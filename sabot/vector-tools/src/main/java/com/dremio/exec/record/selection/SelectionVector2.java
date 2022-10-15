@@ -24,7 +24,6 @@ import com.dremio.exec.record.DeadBuf;
  * A selection vector that fronts, at most, a
  */
 public class SelectionVector2 implements AutoCloseable {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SelectionVector2.class);
 
   private final BufferAllocator allocator;
   private int recordCount;

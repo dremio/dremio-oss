@@ -47,6 +47,7 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.BaseSender;
+import com.dremio.sabot.op.sender.SenderLatencyTracker;
 import com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metric;
 import com.dremio.sabot.op.sender.partition.vectorized.MultiDestCopier.CopyWatches;
 import com.google.common.annotations.VisibleForTesting;
@@ -87,6 +88,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   private final CopyWatches copyWatches = new CopyWatches();
   private final Stopwatch preCopyWatch = Stopwatch.createUnstarted();
   private final Stopwatch flushWatch = Stopwatch.createUnstarted();
+  private final SenderLatencyTracker latencyTracker = new SenderLatencyTracker();
 
   /**
    * number of records before we flush any outgoing batch.<br>
@@ -225,8 +227,8 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
       final MinorFragmentEndpoint destination = destinations.get(p);
       final AccountingExecTunnel tunnel = tunnelProvider.getExecTunnel(destination.getEndpoint());
 
-      batches[p] = new OutgoingBatch(p, batchB, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats);
-      batches[batchB] = new OutgoingBatch(batchB, p, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats);
+      batches[p] = new OutgoingBatch(p, batchB, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats, latencyTracker);
+      batches[batchB] = new OutgoingBatch(batchB, p, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats, latencyTracker);
 
       if (!delayAllocSendBatches) {
         // Only allocate the primary batch. Backup batch is allocated when it is needed.
@@ -400,6 +402,8 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
   @Override
   public void close() throws Exception {
+    stats.setLongStat(Metric.SUM_ACK_MILLIS, latencyTracker.getSumAckMillis());
+    stats.setLongStat(Metric.MAX_ACK_MILLIS, latencyTracker.getMaxAckMillis());
     AutoCloseables.close(Arrays.asList(batches), Arrays.asList(copyIndices, partitionIndices));
   }
 

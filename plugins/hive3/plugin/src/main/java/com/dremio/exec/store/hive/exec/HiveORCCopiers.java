@@ -879,7 +879,7 @@ public class HiveORCCopiers {
               .bigDecimalValue()
               .movePointRight(outputScale)
               .unscaledValue()
-              .toByteArray();;
+              .toByteArray();
             outputVector.setBigEndian(outputIdx, decimalValue);
           }
           catch (Exception e) {
@@ -899,7 +899,7 @@ public class HiveORCCopiers {
                 .bigDecimalValue()
                 .movePointRight(outputScale)
                 .unscaledValue()
-                .toByteArray();;
+                .toByteArray();
               outputVector.setBigEndian(outputIdx, decimalValue);
             } catch (Exception e) {
 

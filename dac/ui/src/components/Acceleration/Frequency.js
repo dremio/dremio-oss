@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 import timeUtils from "utils/timeUtils";
 import { TextField, Select } from "components/Fields";
@@ -154,4 +153,4 @@ class Frequency extends PureComponent {
     );
   }
 }
-export default Radium(Frequency);
+export default Frequency;

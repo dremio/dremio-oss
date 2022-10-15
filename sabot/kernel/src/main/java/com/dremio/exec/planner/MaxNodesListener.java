@@ -39,7 +39,7 @@ class MaxNodesListener implements RelOptListener {
     foundNodes++;
     if(foundNodes > maxEquivalence) {
       throw UserException.resourceError()
-      .message("Job was cancelled because the query went beyond system capacity during query planning. Please simplify the query.")
+      .message("Job was canceled because the query is too complex. Please simplify the query.")
       .build(logger);
     }
   }

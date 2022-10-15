@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -28,7 +27,7 @@ class DividerHr extends Component {
   }
 
   render() {
-    return <hr style={[styles.base, this.props.style]} />;
+    return <hr style={{ ...styles.base, ...(this.props.style || {}) }} />;
   }
 }
 
@@ -42,4 +41,4 @@ const styles = {
     background: "#e4e4e4",
   },
 };
-export default Radium(DividerHr);
+export default DividerHr;

@@ -38,7 +38,7 @@ import com.dremio.options.OptionManager;
  * Filter that adds several security related HTTP headers
  */
 public class SecurityHeadersFilter implements Filter {
-  private static final long STS_MAX_AGE = TimeUnit.SECONDS.toDays(356);
+  private static final long STS_MAX_AGE = TimeUnit.DAYS.toSeconds(365);
 
   private final String cspCache;
 

@@ -32,6 +32,9 @@
     }
 
     &__title {
+      .settingHeader__icon {
+        margin-right: 8px;
+      }
       display: flex;
       align-items: center;
       font-size: 18px !important;
@@ -44,26 +47,29 @@
     }
 
     &__action {
-      cursor: pointer;
       display: flex;
-      font-size: 13px;
       align-items: center;
-      color: @blue;
+      border-radius: 4px;
+      border: none;
+      height: 32px;
       margin-right: 8px;
+      font-size: 14px;
+      padding: 8px 7px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none !important;
+      color: var(--dremio--color--link);
 
       &:hover {
-        text-decoration: underline;
-      }
-
-      &.--default {
-        color: @mine-shaft;
-        text-decoration-color: @mine-shaft;
+        background: var(--dremio--color--primary--100);
       }
     }
 
     &__icon {
+      margin-right: 4px;
       height: @icon-size;
       width: @icon-size;
+      color: var(--dremio--color--neutral--600);
     }
   }
 }

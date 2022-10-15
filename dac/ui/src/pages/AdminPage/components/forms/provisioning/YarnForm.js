@@ -355,7 +355,9 @@ export class YarnForm extends Component {
         confirmText={confirmText}
       >
         <FormBody style={style}>
-          <h2 style={sectionTitle}>{la("General")}</h2>
+          <h2 style={sectionTitle} className="margin-top--double">
+            {la("General")}
+          </h2>
           <div style={styles.formRow}>
             <div
               style={{

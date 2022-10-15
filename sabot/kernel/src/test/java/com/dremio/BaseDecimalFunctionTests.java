@@ -421,10 +421,10 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
   public void testCastLongToDecimal() throws Exception {
     testFunctionsCompiledOnly(
       new Object[][] {
-        {"castDECIMAL(c0, 38l, 2l)", 123l, BigDecimal.valueOf(12300, 2)},
-        {"castDECIMAL(c0, 38l, 2l)", 158l, BigDecimal.valueOf(15800, 2)},
-        {"castDECIMAL(c0, 38l, 2l)", -123l, BigDecimal.valueOf(-12300, 2)},
-        {"castDECIMAL(c0, 38l, 2l)", -158l, BigDecimal.valueOf(-15800, 2)}
+        {"castDECIMAL(c0, 38l, 2l)", 123L, BigDecimal.valueOf(12300, 2)},
+        {"castDECIMAL(c0, 38l, 2l)", 158L, BigDecimal.valueOf(15800, 2)},
+        {"castDECIMAL(c0, 38l, 2l)", -123L, BigDecimal.valueOf(-12300, 2)},
+        {"castDECIMAL(c0, 38l, 2l)", -158L, BigDecimal.valueOf(-15800, 2)}
      });
   }
 
@@ -474,10 +474,10 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
   public void testCastDecimalToLong() throws Exception {
     testFunctionsCompiledOnly(
       new Object[][] {
-        {"castBIGINT(c0)", BigDecimal.valueOf(123, 2), 1l},
-        {"castBIGINT(c0)", BigDecimal.valueOf(-123, 2), -1l},
-        {"castBIGINT(c0)", BigDecimal.valueOf(158, 2), 2l},
-        {"castBIGINT(c0)", BigDecimal.valueOf(-158, 2), -2l},
+        {"castBIGINT(c0)", BigDecimal.valueOf(123, 2), 1L},
+        {"castBIGINT(c0)", BigDecimal.valueOf(-123, 2), -1L},
+        {"castBIGINT(c0)", BigDecimal.valueOf(158, 2), 2L},
+        {"castBIGINT(c0)", BigDecimal.valueOf(-158, 2), -2L},
       });
   }
 
@@ -519,7 +519,7 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
         {"c0 / c1", BigDecimal.valueOf(123, 2), 2f, BigDecimal.valueOf(1.23).divide(BigDecimal
           .valueOf(2f)).doubleValue()},
         {"c0 * c1", BigDecimal.valueOf(123, 2), 2L, BigDecimal.valueOf(1.23).multiply(BigDecimal
-          .valueOf(2l))},
+          .valueOf(2L))},
         {"c0 * c1", BigDecimal.valueOf(123, 2), 2, BigDecimal.valueOf(1.23).multiply(BigDecimal
           .valueOf(2))},
         {"mod(c0,c1)", BigDecimal.valueOf(123, 2), 2f, BigDecimal.valueOf(1.23).divideAndRemainder
@@ -577,7 +577,7 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
       {"case when false " +
         " then castDECIMAL('2.45', 38l, 2l) " +
         " else c0  end",
-        12l,
+        12L,
         new BigDecimal("12.00")},
       {"case when false " +
         " then castDECIMAL('2.45', 38l, 2l) " +

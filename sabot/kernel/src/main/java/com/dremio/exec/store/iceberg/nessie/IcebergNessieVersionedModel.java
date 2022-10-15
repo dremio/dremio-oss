@@ -19,6 +19,7 @@ import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.store.iceberg.DremioFileIO;
@@ -52,11 +53,18 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
   }
 
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
+    String jobId = null;
+
+    //context is only available for executors
+    if (context != null) {
+      jobId = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
+    }
+
     IcebergNessieVersionedTableOperations tableOperations = new IcebergNessieVersionedTableOperations(
       context == null ? null : context.getStats(),
       new DremioFileIO(fs, context, null, null, null, configuration, plugin),
       nessieClient,
-      ((IcebergNessieVersionedTableIdentifier) tableIdentifier));
+      ((IcebergNessieVersionedTableIdentifier) tableIdentifier), jobId);
 
     return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  fs, tableOperations, plugin);
   }

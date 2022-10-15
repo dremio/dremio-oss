@@ -288,11 +288,7 @@ export class ProvisioningPage extends Component {
       className="settingHeader__action"
       onClick={this.openAddProvisionModal}
     >
-      <dremio-icon
-        name="interface/circle-plus"
-        alt="+"
-        class="settingPage__icon margin-right"
-      />
+      <dremio-icon name="interface/add" alt="+" class="settingPage__icon" />
       <FormattedMessage id="Admin.Engines.ElasticEngines.Add" />
     </div>
   );
@@ -318,7 +314,7 @@ export class ProvisioningPage extends Component {
       />
     ) : (
       <SettingHeader
-        icon="Engines.svg"
+        icon="settings/engines"
         titleStyle={{ fontSize: 20 }}
         title={la("Engines")}
         endChildren={canCreate ? this.renderAddEngineButton() : null}
@@ -364,17 +360,23 @@ export class ProvisioningPage extends Component {
     // want to not flicker the UI as we poll
     const isInFirstLoad = !this.pollId;
     return (
-      <div id="admin-provisioning" style={page}>
+      <>
         {this.renderHeader()}
-        <ViewStateWrapper
-          viewState={viewState}
-          style={pageContent}
-          hideChildrenWhenFailed={false}
-          hideSpinner={!isInFirstLoad}
+        <div
+          id="admin-provisioning"
+          style={page}
+          className="gutter-left--double"
         >
-          {this.renderProvisions(selectedEngineId, provisions, viewState)}
-        </ViewStateWrapper>
-      </div>
+          <ViewStateWrapper
+            viewState={viewState}
+            style={pageContent}
+            hideChildrenWhenFailed={false}
+            hideSpinner={!isInFirstLoad}
+          >
+            {this.renderProvisions(selectedEngineId, provisions, viewState)}
+          </ViewStateWrapper>
+        </div>
+      </>
     );
   }
 }

@@ -17,7 +17,6 @@ package com.dremio.service.autocomplete.columns;
 
 import static com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog.createCatalog;
 
-import java.util.List;
 import java.util.Set;
 
 import org.apache.calcite.sql.parser.SqlParserUtil;
@@ -28,7 +27,9 @@ import com.dremio.service.autocomplete.QueryParserFactory;
 import com.dremio.service.autocomplete.catalog.mock.MockAutocompleteSchemaProvider;
 import com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog;
 import com.dremio.service.autocomplete.parsing.SqlNodeParser;
+import com.dremio.service.autocomplete.statements.grammar.Expression;
 import com.dremio.service.autocomplete.statements.grammar.Statement;
+import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.test.GoldenFileTestBuilder;
 import com.google.common.collect.ImmutableList;
 
@@ -190,13 +191,18 @@ public final class ColumnResolverTests {
   private static Set<ColumnAndTableAlias> executeTest(MockMetadataCatalog.CatalogData data, String query) {
     SqlNodeParser dremioQueryParser = QueryParserFactory.create(new MockMetadataCatalog(data));
     ColumnResolver columnResolver = new ColumnResolver(
-      new MockAutocompleteSchemaProvider(data.getContext(), data.getHead()),
+      new MockAutocompleteSchemaProvider(
+        data.getContext(),
+        data.getHead()),
       dremioQueryParser);
 
     StringAndPos stringAndPos = SqlParserUtil.findPos(query);
-    List<Statement> statementPath = Statement.extractCurrentStatementPath(stringAndPos.sql, stringAndPos.cursor);
+    Expression expression = (Expression) Cursor.extractElementWithCursor(
+      Statement.parse(
+        stringAndPos.sql,
+        stringAndPos.cursor));
 
-    Set<ColumnAndTableAlias> columnAndTableAliases = columnResolver.resolve(statementPath);
+    Set<ColumnAndTableAlias> columnAndTableAliases = columnResolver.resolve(expression.getTableReferences());
     return columnAndTableAliases;
   }
 }

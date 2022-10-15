@@ -442,6 +442,7 @@ message SubmitJobRequest {
   VersionedDatasetPath versionedDataset = 6;
   bool runInSameThread = 7;
   bool streamResultsMode = 8;
+  bool ignoreColumnLimits = 9;
 }
 
 message MaterializationSettings {

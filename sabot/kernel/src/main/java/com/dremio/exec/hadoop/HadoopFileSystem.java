@@ -55,10 +55,10 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 
+import com.dremio.common.VM;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.OpenFileTracker;
 import com.dremio.exec.store.dfs.SimpleFileBlockLocation;
-import com.dremio.exec.util.AssertionUtil;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
@@ -84,7 +84,7 @@ import com.google.common.collect.Maps;
 public class HadoopFileSystem
   implements FileSystem, OpenFileTracker {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopFileSystem.class);
-  private static final boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
+  private static final boolean TRACKING_ENABLED = VM.areAssertsEnabled();
 
   private static final String FORCE_REFRESH_LEVELS = "dremio.fs.force_refresh_levels";
   private static int FORCE_REFRESH_LEVELS_VALUE = Integer.getInteger(FORCE_REFRESH_LEVELS, 2);

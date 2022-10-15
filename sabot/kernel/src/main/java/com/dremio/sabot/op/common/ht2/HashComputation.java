@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import com.google.common.base.Preconditions;
+
 import io.netty.util.internal.PlatformDependent;
 
 public final class HashComputation {
@@ -33,6 +35,7 @@ public final class HashComputation {
   public static final void computeHash(final BlockChunk blockChunk) {
     final long keyFixedVectorAddr = blockChunk.keyFixedVectorAddr;
     final long keyVarVectorAddr = blockChunk.keyVarVectorAddr;
+    long keyVarVectorSize = blockChunk.keyVarVectorSize;
     final int blockWidth = blockChunk.blockWidth;
     long hashValueAddress = blockChunk.hashValueVectorAddr;
 
@@ -56,8 +59,11 @@ public final class HashComputation {
     } else {
       dataWidth = blockWidth - LBlockHashTable.VAR_OFFSET_SIZE;
       for (long blockAddr = keyFixedVectorAddr; blockAddr <= maxAddress; blockAddr += blockWidth) {
-        keyVarAddr = keyVarVectorAddr + PlatformDependent.getInt(blockAddr + dataWidth);
+        long keyVarOffset = PlatformDependent.getInt(blockAddr + dataWidth);
+        keyVarAddr = keyVarVectorAddr + keyVarOffset;
         keyVarLen = PlatformDependent.getInt(keyVarAddr);
+        // check bound of the var section
+        Preconditions.checkState(keyVarOffset + LBlockHashTable.VAR_OFFSET_SIZE + keyVarLen <= keyVarVectorSize);
         keyHash = keyHashCode(blockAddr, dataWidth, keyVarAddr, keyVarLen, blockChunk.seed);
         PlatformDependent.putLong(hashValueAddress, keyHash);
         hashValueAddress += EIGHT_BYTES;

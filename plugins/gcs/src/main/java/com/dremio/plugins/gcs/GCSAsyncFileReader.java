@@ -58,7 +58,15 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
   private final String httpVersion;
   private final Path path;
   private final String threadName;
-  private final AsyncReadWithRetry asyncReaderWithRetry = new AsyncReadWithRetry();
+  private final AsyncReadWithRetry asyncReaderWithRetry = new AsyncReadWithRetry(throwable -> {
+    if (throwable.getMessage().contains("PreconditionFailed")) {
+      return AsyncReadWithRetry.Error.PRECONDITION_NOT_MET;
+    } else if (throwable.getMessage().contains("PathNotFound")) {
+      return AsyncReadWithRetry.Error.PATH_NOT_FOUND;
+    } else {
+      return AsyncReadWithRetry.Error.UNKNOWN;
+    }
+  });
   private final ExponentialBackoff backoff = new ExponentialBackoff() {
     @Override public int getBaseMillis() { return BASE_MILLIS_TO_WAIT; }
     @Override public int getMaxMillis() { return MAX_MILLIS_TO_WAIT; }

@@ -17,27 +17,25 @@ import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import Immutable from "immutable";
 import jobsUtils from "@app/utils/jobsUtils";
-import Art from "@app/components/Art";
+import { Tooltip } from "dremio-ui-lib";
+import { getIconPath } from "@app/utils/getIconPath";
 import timeUtils from "utils/timeUtils";
 
 import "./Reflection.less";
 
 const renderIcon = (iconName, className) => {
   return (
-    <Art
-      src={iconName}
-      alt="Reflection"
-      title="Reflection"
-      className={className}
-    />
+    <Tooltip title="Reflection">
+      <img src={getIconPath(iconName)} alt="Reflection" className={className} />
+    </Tooltip>
   );
 };
 
 const getReflectionIcon = (reflectionType) => {
   const reflectionCreatedIcon =
     reflectionType === "RAW"
-      ? "ReflectionCreatedRaw.svg"
-      : "ReflectionCreatedAgg.svg";
+      ? "interface/reflections-created-raw"
+      : "interface/reflections-created-agg";
   return renderIcon(reflectionCreatedIcon, "reflectionIcon");
 };
 

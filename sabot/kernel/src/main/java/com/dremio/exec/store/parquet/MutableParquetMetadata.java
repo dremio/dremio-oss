@@ -54,7 +54,7 @@ public class MutableParquetMetadata {
         accumulatedRowCount[i + 1] = accumulatedRowCount[i] + footer.getBlocks().get(i).getRowCount();
       }
     }
-    logger.debug("Created parquet meatdata with row group size {} for file {}", footer.getBlocks().size(), this.fileName);
+    logger.debug("Created parquet metadata with row group size {} for file {}", footer.getBlocks().size(), this.fileName);
   }
 
   public List<BlockMetaData> getBlocks() {

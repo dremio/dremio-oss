@@ -49,8 +49,7 @@ public class DremioGetObject {
         ((DateMilliVector)vector).get(index, holder);
         if (holder.isSet == 0) {
           return null;
-        }
-        else {
+        } else {
           long millis = holder.value;
           return new LocalDateTime(millis,
             DateTimeZone.UTC);

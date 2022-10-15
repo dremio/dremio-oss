@@ -39,7 +39,7 @@ public class InternalIcebergScanTableMetadata extends TableMetadataImpl {
   private final String tableName;
 
   public InternalIcebergScanTableMetadata(TableMetadata tableMetadata, FileSystemPlugin<?> icebergTableStoragePlugin, String tableName) {
-    super(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(), tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey());
+    super(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(), tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), tableMetadata.getPrimaryKey());
     Preconditions.checkNotNull(icebergTableStoragePlugin);
     Preconditions.checkNotNull(tableName, "tableName is required");
     this.icebergTableStoragePlugin = icebergTableStoragePlugin;

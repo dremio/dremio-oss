@@ -115,6 +115,7 @@ import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.parser.ParserUtil;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
@@ -327,7 +328,8 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       @QueryParam("engineName") String engineName,
       @QueryParam("sessionId") String sessionId,
       @QueryParam("refType") String refType,
-      @QueryParam("refValue") String refValue)
+      @QueryParam("refValue") String refValue,
+      @QueryParam("triggerJob") String triggerJob) // "true" or "false". Default - "true". On error - "true"
     throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException, NewDatasetQueryException, IOException {
     Catalog catalog = datasetService.getCatalog();
     final boolean versioned = isVersionedPlugin(datasetPath, catalog);
@@ -344,7 +346,8 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
               datasetPath, (tipVersion != null) ? tipVersion : dataset.getVersion()),
           limit,
           engineName,
-          sessionId);
+          sessionId,
+          triggerJob);
     }
 
     if (refType == null || refValue == null) {
@@ -402,7 +405,8 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
         new DatasetVersionResourcePath(datasetPath, version),
         limit,
         engineName,
-        sessionId);
+        sessionId,
+        triggerJob);
   }
 
   @GET @Path("review")
@@ -618,6 +622,11 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
   public DatasetUI save(VirtualDatasetUI vds, DatasetPath asDatasetPath, String savedTag, String branchName, boolean isVersionedSource, NamespaceAttribute... attributes)
     throws DatasetNotFoundException, UserNotFoundException, NamespaceException, DatasetVersionNotFoundException {
     checkSaveVersionedView(branchName, isVersionedSource);
+    String queryString = vds.getSql();
+    boolean isVersionViewEnabled = datasetService.checkIfVersionedViewEnabled();
+    if (isVersionViewEnabled) {
+      ParserUtil.validateViewQuery(queryString);
+    }
     final String nameConflictErrorMsg = String.format("VDS '%s' already exists. Please enter a different name.",
       asDatasetPath.getLeaf());
     final List<String> fullPathList = asDatasetPath.toPathList();
@@ -723,7 +732,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     return new Cards<>(rules);
   }
 
-  @POST @Path("extract_map_preview") @Produces(APPLICATION_JSON) @Consumes(APPLICATION_JSON)
+  @POST @Path("extract_struct_preview") @Produces(APPLICATION_JSON) @Consumes(APPLICATION_JSON)
   public Card<ExtractMapRule> getExtractMapCard(
       /* Body */ PreviewReq<ExtractMapRule, MapSelection> req) throws DatasetVersionNotFoundException {
     String colName = req.getSelection().getColName();

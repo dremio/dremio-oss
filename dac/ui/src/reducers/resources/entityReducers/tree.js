@@ -13,13 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LOAD_RESOURCE_TREE_SUCCESS } from "actions/resources/tree";
-import { resourceTreeNodeDecorator } from "@app/components/Tree/resourceTreeUtils";
+import {
+  CLEAR_RESOURCE_TREE_BY_NAME,
+  LOAD_RESOURCE_TREE_SUCCESS,
+} from "actions/resources/tree";
+import {
+  resourceTreeNodeDecorator,
+  clearResourcesByName,
+} from "@app/components/Tree/resourceTreeUtils";
 
 export default (state, action) => {
   switch (action.type) {
     case LOAD_RESOURCE_TREE_SUCCESS: {
       return resourceTreeNodeDecorator(state, action);
+    }
+    case CLEAR_RESOURCE_TREE_BY_NAME: {
+      return clearResourcesByName(state, action);
     }
     default:
       return state;

@@ -20,6 +20,7 @@ import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorT
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 
 import com.dremio.common.types.TypeProtos.DataMode;
@@ -108,6 +109,7 @@ public class JsonWriter {
       case DECIMAL38SPARSE:
       case DECIMAL9:
       case DECIMAL18:
+      case DECIMAL:
         gen.writeDecimal(reader);
         break;
 
@@ -132,6 +134,18 @@ public class JsonWriter {
         }
         gen.writeEndObject();
         break;
+      case MAP:
+        gen.writeStartObject();
+        if (reader.isSet()) {
+          UnionMapReader mapReader = (UnionMapReader) reader;
+          while (mapReader.next()) {
+            FieldReader keyReader = mapReader.key();
+            gen.writeFieldName(getFieldNameFromMapKey(keyReader));
+            writeValue(mapReader.value());
+          }
+        }
+        gen.writeEndObject();
+        break;
       case NULL:
       case LATE:
         gen.writeUntypedNull();
@@ -151,6 +165,40 @@ public class JsonWriter {
       break;
     }
 
+  }
+
+  private String getFieldNameFromMapKey(FieldReader keyReader) {
+    final MinorType mt = getMinorTypeFromArrowMinorType(keyReader.getMinorType());
+    switch (mt) {
+      case FLOAT4:
+        return keyReader.readFloat().toString();
+      case FLOAT8:
+        return keyReader.readDouble().toString();
+      case INT:
+        return keyReader.readInteger().toString();
+      case BIGINT:
+        return keyReader.readLong().toString();
+      case BIT:
+        return keyReader.readBoolean().toString();
+      case DATE:
+        return keyReader.readLocalDateTime().toLocalDate().toString();
+      case TIME:
+        return keyReader.readLocalDateTime().toLocalTime().toString();
+      case TIMESTAMP:
+        return keyReader.readLocalDateTime().toString();
+      case DECIMAL:
+        return keyReader.readBigDecimal().toPlainString();
+      case VARBINARY:
+        return keyReader.readObject().toString();
+      case VARCHAR:
+        return keyReader.readText().toString();
+      case LIST:
+      case STRUCT:
+      case MAP:
+      case NULL:
+      default:
+        throw new UnsupportedOperationException("unsupported type for a map key " + mt.name());
+    }
   }
 
 }

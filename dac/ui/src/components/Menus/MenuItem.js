@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 import { Component, createRef } from "react";
-import ReactDOM from "react-dom";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 
-import MenuItemMaterial from "@material-ui/core/MenuItem";
-import Popper from "@material-ui/core/Popper";
-import Paper from "@material-ui/core/Paper";
-import ClickAwayListener from "@material-ui/core/ClickAwayListener";
+import MenuItemMaterial from "@mui/material/MenuItem";
+import Popper from "@mui/material/Popper";
+import Paper from "@mui/material/Paper";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { MENU_SELECTED } from "uiTheme/radium/colors";
 
 import "./MenuItem.less";
@@ -41,6 +40,7 @@ class MenuItem extends Component {
     style: PropTypes.object,
     isInformational: PropTypes.bool, // shouldn't look intereactive,
     classname: PropTypes.string,
+    isSmallDropdown: PropTypes.bool, // this is to have display flex styling so it doesn't break MenuItem styling in other places
   };
 
   constructor(props) {
@@ -70,9 +70,7 @@ class MenuItem extends Component {
     }
     return (
       (!this.subMenuRef.current ||
-        !ReactDOM.findDOMNode(this.subMenuRef.current).contains(
-          enteredElement
-        )) &&
+        !this.subMenuRef.current.contains(enteredElement)) &&
       !this.menuItemRef.current.contains(enteredElement)
     );
   }
@@ -115,6 +113,7 @@ class MenuItem extends Component {
       isInformational,
       style,
       classname,
+      isSmallDropdown,
     } = this.props;
     const itemStyle = {
       ...styles.menuItem,
@@ -138,9 +137,27 @@ class MenuItem extends Component {
             className={className}
             style={itemStyle}
           >
-            {leftIcon ? leftIcon : null}
-            {this.props.children}
-            {rightIcon ? rightIcon : null}
+            {isSmallDropdown ? (
+              <>
+                {leftIcon ? (
+                  <div className="menu-item-inner__icon">{leftIcon}</div>
+                ) : null}
+                <div className="menu-item-inner__innerText">
+                  {this.props.children}
+                </div>
+                {rightIcon ? (
+                  <div className="menu-item-inner__icon--right">
+                    {rightIcon}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {leftIcon ? leftIcon : null}
+                {this.props.children}
+                {rightIcon ? rightIcon : null}
+              </>
+            )}
           </div>
         </MenuItemMaterial>
         {

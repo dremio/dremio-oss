@@ -36,8 +36,7 @@ import io.netty.buffer.NettyArrowBuf;
 /**
  * A specialized version of record batch that can moves out buffers and preps them for writing.
  */
-public class WritableBatch implements AutoCloseable {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WritableBatch.class);
+public final class WritableBatch implements AutoCloseable {
 
   private final RecordBatchDef def;
   private final ArrowBuf[] buffers;

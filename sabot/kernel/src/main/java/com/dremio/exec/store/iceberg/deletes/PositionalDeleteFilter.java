@@ -20,6 +20,8 @@ import java.util.function.Supplier;
 import org.apache.arrow.vector.SimpleIntVector;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.google.common.base.Preconditions;
 
 /**
@@ -29,20 +31,19 @@ import com.google.common.base.Preconditions;
 public class PositionalDeleteFilter implements AutoCloseable {
 
   private final Supplier<PositionalDeleteIterator> iteratorSupplier;
+  private final OperatorStats operatorStats;
   private PositionalDeleteIterator iterator;
   private long currentRowPos;
   private long nextDeletePos;
   private int refCount;
 
-  public PositionalDeleteFilter(Supplier<PositionalDeleteIterator> iteratorSupplier, int initialRefCount) {
+  public PositionalDeleteFilter(Supplier<PositionalDeleteIterator> iteratorSupplier, int initialRefCount,
+      OperatorStats operatorStats) {
     this.iteratorSupplier = Preconditions.checkNotNull(iteratorSupplier);
     this.currentRowPos = 0;
     this.nextDeletePos = -1;
     this.refCount = initialRefCount;
-  }
-
-  public PositionalDeleteFilter(PositionalDeleteIterator iterator) {
-    this(() -> iterator, 1);
+    this.operatorStats = operatorStats;
   }
 
   public void retain() {
@@ -87,6 +88,7 @@ public class PositionalDeleteFilter implements AutoCloseable {
 
     int outputIndex = 0;
     int currentDelta = 0;
+    int deleteCount = 0;
     while (outputIndex < maxEvalCount && currentRowPos < endRowPos) {
       long cmp = currentRowPos - nextDeletePos;
       if (cmp < 0) {
@@ -105,11 +107,16 @@ public class PositionalDeleteFilter implements AutoCloseable {
         // deleted row, increment current delta
         currentRowPos++;
         currentDelta++;
+        deleteCount++;
         advance();
       } else {
         throw new IllegalStateException("Current row position should never be greater than next delete position." +
             "  Positional delete files may be invalid with unsorted positions.");
       }
+    }
+
+    if (operatorStats != null) {
+      operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_POS_DELETED_ROWS, deleteCount);
     }
 
     deltas.setValueCount(outputIndex);

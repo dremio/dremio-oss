@@ -16,12 +16,21 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import Art from "@app/components/Art";
 import SettingsBtn from "@app/components/Buttons/SettingsBtn";
 import EngineActionCellMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/EngineActionCellMixin";
+import { Button } from "dremio-ui-lib";
+import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
+import { intl } from "@app/utils/intl";
 
 export function StartStopButton(props) {
-  const { engine, handleStartStop, style = {}, textStyle = {} } = props;
+  const {
+    engine,
+    handleStartStop,
+    isHeaderButton,
+    style = {},
+    textStyle = {},
+  } = props;
+
   const currentState = engine.get("currentState");
   const desiredState = engine.get("desiredState");
   const canStart =
@@ -31,32 +40,47 @@ export function StartStopButton(props) {
   let startStop = "";
   let startStopIcon = "";
   if (canStart) {
-    startStop = "Start";
-    startStopIcon = "StartSquare.svg";
+    startStop = "Common.Start";
+    startStopIcon = "sql-editor/run";
   } else if (canStop) {
-    startStop = "Stop";
-    startStopIcon = "StopSquare.svg";
+    startStop = "Common.Stop";
+    startStopIcon = "sql-editor/stop";
   }
   if (!startStop) return null;
 
-  const onStartStop = () => {
+  const onStartStop = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     handleStartStop(engine);
   };
 
-  return (
+  return isHeaderButton ? (
+    <Button
+      color="primary"
+      className="start-stop-btn"
+      variant={ButtonTypes.OUTLINED}
+      data-qa="start-stop-btn"
+      onClick={onStartStop}
+      style={styles.startStopButton}
+      disableMargin
+    >
+      <dremio-icon name={startStopIcon} style={styles.buttonIcon} />
+      {intl.formatMessage({ id: startStop })}
+    </Button>
+  ) : (
     <button
       className="settings-button"
       onClick={onStartStop}
       data-qa="start-stop-btn"
       style={{ ...styles.settingsButton, ...style }}
     >
-      <Art
-        src={startStopIcon}
-        alt={startStop}
-        title
-        style={styles.buttonWithTextIcon}
+      <dremio-icon
+        name={startStopIcon}
+        style={{ ...styles.buttonIcon, marginRight: 2 }}
       />
-      <div style={{ ...styles.textByIcon, ...textStyle }}>{startStop}</div>
+      <div style={{ marginRight: 4, ...textStyle }}>
+        {intl.formatMessage({ id: startStop })}
+      </div>
     </button>
   );
 }
@@ -66,6 +90,7 @@ StartStopButton.propTypes = {
   handleStartStop: PropTypes.func,
   style: PropTypes.object,
   textStyle: PropTypes.object,
+  isHeaderButton: PropTypes.bool,
 };
 
 @EngineActionCellMixin
@@ -81,31 +106,48 @@ export class EngineActionCell extends PureComponent {
 
   render() {
     const { engine, className } = this.props;
+    const currentState = engine.get("currentState");
+    const isStartingOrStopping =
+      currentState === "STARTING" || currentState === "STOPPING";
     return (
-      <div className={`actions-wrap ${className}`} style={{ display: "flex" }}>
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        className={`actions-wrap ${className}`}
+        style={{ display: "flex" }}
+      >
         {this.renderButton()}
-        <SettingsBtn
-          className="settings-button"
-          style={styles.settingsButton}
-          handleSettingsClose={() => {}}
-          handleSettingsOpen={() => {}}
-          dataQa={engine.get("tag")}
-          menu={this.renderMenu()}
-          hideArrowIcon
-        >
-          <Art
-            src="Ellipsis.svg"
-            alt={la("more...")}
-            title
-            style={styles.buttonIcon}
-          />
-        </SettingsBtn>
+        {!isStartingOrStopping && (
+          <SettingsBtn
+            className="settings-button"
+            style={styles.settingsButton}
+            handleSettingsClose={() => {}}
+            handleSettingsOpen={() => {}}
+            dataQa={engine.get("tag")}
+            menu={this.renderMenu()}
+            hideArrowIcon
+          >
+            <dremio-icon
+              name="interface/more"
+              alt={intl.formatMessage({ id: "Common.More" })}
+              styles={styles.buttonIcon}
+            />
+          </SettingsBtn>
+        )}
       </div>
     );
   }
 }
 
 const styles = {
+  startStopButton: {
+    height: 32,
+    width: 100,
+    marginTop: 5,
+    color: "var(--dremio--color--neutral--600)",
+  },
   settingsButton: {
     display: "flex",
     padding: "0px 5px 0 3px",
@@ -119,12 +161,9 @@ const styles = {
     fontSize: 11,
     alignItems: "center",
   },
-  buttonWithTextIcon: {
+  buttonIcon: {
     height: 20,
     width: 20,
-  },
-  buttonIcon: {
-    height: 24,
-    width: 24,
+    color: "var(--dremio--color--neutral--600)",
   },
 };

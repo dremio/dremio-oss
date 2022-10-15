@@ -407,15 +407,19 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
                 tableId.getParserPosition(), SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION, null, list);
             call = new SqlVersionedTableMacroCall(call.getOperator(), call.getOperandList().toArray(new SqlNode[0]),
                 type, specifier, tableId.getComponent(tableId.names.size() - 1), tableId.getParserPosition());
-            return SqlStdOperatorTable.COLLECTION_TABLE.createCall(pos, call);
+            return new SqlVersionedTableCollectionCall(pos, (SqlVersionedTableMacroCall)call);
         } else if (tableRef.getKind() == SqlKind.COLLECTION_TABLE) {
             // for the case where our tableRef is a TABLE(function()) call, we want to rewrite the call
             // with our SqlVersionedTableMacroCall wrapping the inner function call.
             collectionTableCall = (SqlBasicCall) tableRef;
             functionCall = collectionTableCall.operand(0);
-            collectionTableCall.setOperand(0, new SqlVersionedTableMacroCall(functionCall.getOperator(),
-                functionCall.getOperands(), type, specifier, null, functionCall.getParserPosition()));
-            return collectionTableCall;
+            SqlBasicCall versionTableMacroCall = new SqlVersionedTableMacroCall(functionCall.getOperator(),
+                                                                                functionCall.getOperands(),
+                                                                                type,
+                                                                                specifier,
+                                                                                null,
+                                                                                functionCall.getParserPosition());
+            return new SqlVersionedTableCollectionCall(pos, (SqlVersionedTableMacroCall)versionTableMacroCall);
         } else {
             throw generateParseException();
         }

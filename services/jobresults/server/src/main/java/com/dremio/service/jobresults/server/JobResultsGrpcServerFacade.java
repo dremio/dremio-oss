@@ -129,7 +129,12 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
             // request has to be forwarded to foreman coordinator.
             execToCoordResultsHandlerProvider.get().dataArrived(request.getHeader(), null, request, sender);
           } else {
-            execToCoordResultsHandlerProvider.get().dataArrived(requestWrapper, sender);
+            boolean forwaded = execToCoordResultsHandlerProvider.get().dataArrived(requestWrapper, sender);
+            if (!forwaded) {
+              // attempt manager has taken a ref to write to client
+              // release now to not leak
+              requestWrapper.close();
+            }
           }
         } catch (RpcException e) {
           Throwables.propagate(e);

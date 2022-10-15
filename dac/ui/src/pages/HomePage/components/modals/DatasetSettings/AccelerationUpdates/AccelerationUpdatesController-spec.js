@@ -22,7 +22,7 @@ import { ALL_TYPES, INCREMENTAL_TYPES } from "@app/constants/columnTypeGroups";
 import { AccelerationUpdatesController } from "./AccelerationUpdatesController";
 import AccelerationUpdatesForm from "./AccelerationUpdatesForm";
 
-describe("AccelerationUpdatesController", () => {
+describe.skip("AccelerationUpdatesController", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {

@@ -79,6 +79,24 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
   @Tag(10)
   public String externalId = null;
 
+  @Tag(11)
+  public String tokenEndpoint = null;
+
+  @Tag(12)
+  public String clientId = null;
+
+  @Tag(13)
+  public String clientSecret = null;
+
+  @Tag(14)
+  public String accountName = null;
+
+  @Tag(15)
+  public String accountKind = null;
+
+  @Tag(16)
+  public String sharedAccessKey = null;
+
   public AccelerationStoragePluginConfig() {
   }
 
@@ -101,9 +119,19 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
       if (dataCredentials.hasKeys()) {
         this.accessKey = dataCredentials.getKeys().getAccessKey();
         this.secretKey = dataCredentials.getKeys().getSecretKey();
-      } else {
+      } else if (dataCredentials.hasDataRole()) {
         this.iamRole = dataCredentials.getDataRole().getIamRole();
         this.externalId = dataCredentials.getDataRole().getExternalId();
+      } else if (dataCredentials.hasClientAccess()) {
+        this.tokenEndpoint = dataCredentials.getClientAccess().getTokenEndpoint();
+        this.clientId = dataCredentials.getClientAccess().getClientId();
+        this.clientSecret = dataCredentials.getClientAccess().getClientSecret();
+        this.accountName = dataCredentials.getClientAccess().getAccountName();
+        this.accountKind = dataCredentials.getClientAccess().getAccountKind();
+      } else if (dataCredentials.hasSharedAccessKey()) {
+        this.sharedAccessKey = dataCredentials.getSharedAccessKey().getAccessKey();
+        this.accountName = dataCredentials.getSharedAccessKey().getAccountName();
+        this.accountKind = dataCredentials.getSharedAccessKey().getAccountKind();
       }
     }
   }
@@ -186,6 +214,36 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
   @Override
   public String getExternalId() {
     return externalId;
+  }
+
+  @Override
+  public String getTokenEndpoint() {
+    return tokenEndpoint;
+  }
+
+  @Override
+  public String getClientId() {
+    return clientId;
+  }
+
+  @Override
+  public String getClientSecret() {
+    return clientSecret;
+  }
+
+  @Override
+  public String getAccountName() {
+    return accountName;
+  }
+
+  @Override
+  public String getAccountKind() {
+    return accountKind;
+  }
+
+  @Override
+  public String getSharedAccessKey() {
+    return sharedAccessKey;
   }
 
   @Override

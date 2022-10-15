@@ -14,29 +14,26 @@
  * limitations under the License.
  */
 
-// console.info(`'${__filename}' config is loaded`);
 module.exports = {
   presets: [
     [
       "@babel/preset-env",
       {
-        useBuiltIns: "usage",
         corejs: "3.22.3",
+        useBuiltIns: "usage",
       },
     ],
-    "@babel/preset-react",
+    [
+      "@babel/preset-react",
+      {
+        runtime: "automatic",
+      },
+    ],
     "@babel/preset-typescript",
   ],
   plugins: [
-    "@babel/plugin-proposal-export-default-from",
-    // plugin-proposal-decorators must be before @babel/plugin-proposal-class-properties
-    // see https://babeljs.io/docs/en/babel-plugin-proposal-decorators#note-compatibility-with-babel-plugin-proposal-class-properties
     ["@babel/plugin-proposal-decorators", { legacy: true }],
-    ["@babel/plugin-proposal-class-properties", { loose: true }],
-    "@babel/plugin-transform-runtime",
     "@babel/plugin-transform-modules-commonjs",
-    "@babel/plugin-proposal-optional-chaining",
-    "@babel/plugin-proposal-nullish-coalescing-operator",
   ],
   env: {
     production: {

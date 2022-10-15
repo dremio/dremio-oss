@@ -34,7 +34,6 @@ import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.modelmapper.internal.util.Lists;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.api.LegacyKVStore;
@@ -226,7 +225,7 @@ public class TestSystemOptionManager extends DremioTest {
       .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
-    assertThat(Lists.from(som.iterator())).contains(optionValue0, optionValue1);
+    assertThat(som.iterator()).toIterable().contains(optionValue0, optionValue1);
   }
 
   @Test

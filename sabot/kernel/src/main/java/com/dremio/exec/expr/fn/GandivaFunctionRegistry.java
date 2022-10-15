@@ -33,7 +33,9 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveMap;
+import com.dremio.exec.planner.sql.Checker;
 import com.dremio.exec.planner.sql.OperatorTable;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
@@ -106,8 +108,15 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
           max = holder.getParamCount();
         }
       }
-      SqlOperator operator = GandivaOperator.getSimpleFunction(name, min, max,
-        TypeInferenceUtils.getSqlReturnTypeInference(name, supportedFunctions.get(name), isDecimalV2Enabled));
+
+      SqlOperator operator = SqlFunctionImpl.create(
+        name,
+        TypeInferenceUtils.getSqlReturnTypeInference(
+          name,
+          supportedFunctions.get(name),
+          isDecimalV2Enabled),
+        Checker.between(min, max),
+        SqlFunctionImpl.Source.GANDIVA);
       operatorTable.add(name, operator);
     }
   }

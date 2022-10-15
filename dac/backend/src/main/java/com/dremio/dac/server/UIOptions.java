@@ -34,6 +34,8 @@ public final class UIOptions {
 
   public static final StringValidator WHITE_LABEL_URL  = new StringValidator("ui.whitelabel.url", "dremio");
 
+  public static final BooleanValidator ALLOW_FORMATTING = new BooleanValidator("ui.formatter.allow", false);
+
   /*
   * Specifies weather non admin users are able to perform CRUD operations for spaces
   */
@@ -51,9 +53,11 @@ public final class UIOptions {
    */
   public static final StringValidator CSP_HEADER_VALUE = new StringValidator("ui.csp.value",
     "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    + " blob: ws: wss: *.mktoutil.com *.dremio.com *.bm4u.net *.mktoresp.com *.cloudfront.net *.marketo.com *.sentry.io *.intercom.io"
-    + " *.walkme.com *.intercomcdn.com *.io *.marketo.net *.bootstrapcdn.com *.googletagmanager.com; img-src 'self'"
-    + " blob: data: *.cloudfront.net *.amazonaws.com; font-src 'self' data: *.bootstrapcdn.com;");
+      + " blob: ws: wss: *.dremio.com *.googletagmanager.com *.intercom.io *.intercomcdn.com *.intercomusercontent.com"
+      + " *.cloudfront.net *.sentry.io *.walkme.com;"
+      + " img-src 'self' blob: data: *;"
+      + " font-src 'self' data: *.intercomcdn.com;"
+      + " object-src 'none';");
 
   /*
    * Specifies whether new jobs profile UI should be shown

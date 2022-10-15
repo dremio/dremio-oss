@@ -33,6 +33,7 @@ import com.google.common.base.Preconditions;
  *
  * @param <T>
  */
+@SuppressWarnings("checkstyle:FinalClass")
 public class Retryer<T> implements ExponentialBackoff {
   private static Logger logger = LoggerFactory.getLogger(Retryer.class);
 

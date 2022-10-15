@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
-import Art from "@app/components/Art";
+import { Tooltip } from "dremio-ui-lib";
 import {
   title as titleInnerCls,
   section as sectionCls,
@@ -30,15 +30,25 @@ export const getIconButtonConfig = ({
   icon, //string. SVG icon names
   onClick, // () => void
   dataQa, // string
+  styles = {},
 }) => {
   const style = {
     display: "block",
     width: 24,
     height: 24,
   };
+
   return {
     key,
-    text: <Art src={`${icon}.svg`} alt={altText} style={style} title />,
+    text: (
+      <Tooltip title={altText}>
+        <dremio-icon
+          name={icon}
+          alt={altText}
+          style={{ ...style, ...styles }}
+        />
+      </Tooltip>
+    ),
     onClick,
     dataQa,
   };

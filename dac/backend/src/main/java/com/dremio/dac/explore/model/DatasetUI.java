@@ -120,6 +120,10 @@ public class DatasetUI {
 
     Map<String, VersionContextReq> versionContextReqMap = DatasetUIUtils.createVersionContextMap(vds.getReferencesList());
 
+    // if it's versioned, vds'id will be the same as entityId
+    if(entityId == null && context!=null && context.size() >= 1 && versionContextReqMap.containsKey(context.get(0))) {
+      entityId = vds.getId();
+    }
     return new DatasetUI(vds.getId(), sql, context, fullPath, displayFullPath, vds.getSavedTag(), vds.getVersion(),
         null, null, canReapply, datasetType,
         createLinks(fullPath, displayFullPath, vds.getVersion(), isUnsavedDirectPhysicalDataset),

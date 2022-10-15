@@ -36,7 +36,6 @@ import com.google.common.collect.Iterables;
  */
 @Deprecated
 class OptionValueStore {
-//  private static final Logger logger = LoggerFactory.getLogger(OptionValueStore.class);
 
   public interface OptionValueStoreCreator extends LegacyKVStoreCreationFunction<String, byte[]> {}
 

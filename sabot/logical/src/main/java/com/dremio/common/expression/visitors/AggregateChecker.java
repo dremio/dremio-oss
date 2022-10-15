@@ -25,8 +25,10 @@ import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.IfExpression.IfCondition;
 import com.dremio.common.expression.InputReference;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
@@ -190,6 +192,16 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
 
   @Override
   public Boolean visitNullExpression(NullExpression e, ErrorCollector value) throws RuntimeException {
+    return false;
+  }
+
+  @Override
+  public Boolean visitListAggExpression(ListAggExpression e, ErrorCollector value) throws RuntimeException {
+    return true;
+  }
+
+  @Override
+  public Boolean visitOrdering(Ordering e, ErrorCollector value) throws RuntimeException {
     return false;
   }
 

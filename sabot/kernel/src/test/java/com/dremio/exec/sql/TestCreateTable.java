@@ -31,7 +31,6 @@ import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.types.Types;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -63,43 +62,43 @@ public class TestCreateTable extends PlanTestBase {
   @Test
   public void withDuplicateColumnsInDef1() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (region_id int, region_id int)", TEMP_SCHEMA, "testTableName2"),
-        "Column [REGION_ID] specified multiple times.");
+        "Column [region_id] specified multiple times.");
   }
 
   @Test
   public void withDuplicateColumnsInDef2() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (region_id int, sales_city varchar, sales_city varchar)",
-        TEMP_SCHEMA, "testTableName3"),"Column [SALES_CITY] specified multiple times.");
+        TEMP_SCHEMA, "testTableName3"),"Column [sales_city] specified multiple times.");
   }
 
   @Test
   public void withDuplicateColumnsInStruct() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ROW(region_id  int, Region_id  int))", TEMP_SCHEMA, "testTableNameDupStruct"),
-      "Column [REGION_ID] specified multiple times.");
+      "Column [Region_id] specified multiple times.");
   }
 
   @Test
   public void withDuplicateColumnsInListOfStruct() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ARRAY(ROW(region_id  int, Region_id  int)))",
-      TEMP_SCHEMA, "testTableNameDupListOfStruct"), "Column [REGION_ID] specified multiple times.");
+      TEMP_SCHEMA, "testTableNameDupListOfStruct"), "Column [Region_id] specified multiple times.");
   }
 
   @Test
   public void withDuplicateColumnsInListOfListOfStruct() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ARRAY(ARRAY(ROW(region_id  int, Region_id  int))))",
-      TEMP_SCHEMA, "testTableNameDupListOfListOfStruct"), "Column [REGION_ID] specified multiple times.");
+      TEMP_SCHEMA, "testTableNameDupListOfListOfStruct"), "Column [Region_id] specified multiple times.");
   }
 
   @Test
   public void withDuplicateColumnsInStructOfListOfStruct() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ROW( x ARRAY(ROW(x int,region_id  int, Region_id  int))))",
-      TEMP_SCHEMA, "testTableNameDupStructOfListOfStruct"), "Column [REGION_ID] specified multiple times.");
+      TEMP_SCHEMA, "testTableNameDupStructOfListOfStruct"), "Column [Region_id] specified multiple times.");
   }
 
   @Test
   public void withDuplicateColumnsInStructOfStruct() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ROW( x ROW(x int,region_id  int, Region_id  int)))",
-      TEMP_SCHEMA, "testTableNameDupStructOfStruct"), "Column [REGION_ID] specified multiple times.");
+      TEMP_SCHEMA, "testTableNameDupStructOfStruct"), "Column [Region_id] specified multiple times.");
   }
 
   @Test
@@ -123,7 +122,6 @@ public class TestCreateTable extends PlanTestBase {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void createTableAndSelect() throws Exception {
     final String newTblName = "createEmptyTable";
 
@@ -137,10 +135,10 @@ public class TestCreateTable extends PlanTestBase {
       testBuilder()
         .sqlQuery(describeCreatedTable)
         .unOrdered()
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES")
-        .baselineValues("id", "INTEGER", "YES", 32, 0, "[]")
-        .baselineValues("name", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("distance", "DECIMAL", "YES", 38, 3, "[]")
+        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES", "MASKING_POLICY")
+        .baselineValues("id", "INTEGER", "YES", 32, 0, "[]", null)
+        .baselineValues("name", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("distance", "DECIMAL", "YES", 38, 3, "[]", null)
         .build()
         .run();
 

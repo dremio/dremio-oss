@@ -28,8 +28,6 @@ import com.dremio.common.util.TestTools;
 
 
 public class TestJdbcMetadata extends JdbcTestActionBase {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJdbcMetadata.class);
-
 
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);

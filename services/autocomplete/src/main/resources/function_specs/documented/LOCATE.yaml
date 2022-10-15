@@ -1,0 +1,51 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: LOCATE
+signatures:
+  - returnType: NUMERIC
+    parameters:
+      - kind: REGULAR
+        type: CHARACTERS
+        name: needle
+        description: The string to search for.
+      - kind: REGULAR
+        type: CHARACTERS
+        name: haystack
+        description: The input expression to search in.
+      - kind: OPTIONAL
+        type: NUMERIC
+        name: start
+        description: Position to start the search from.
+    description: >-
+      Returns the position of the first occurrence of the subSTRING in the
+      expression if found.
+    sampleCodes:
+      - call: 'SELECT LOCATE(''an'',''banana'', 3)'
+        result: '4'
+      - call: 'SELECT LOCATE(''no'',''banana'')'
+        result: '0'
+      - call: 'SELECT LOCATE(''an'',''banana'')'
+        result: '2'
+dremioVersion: 1.0+
+functionCategories:
+  - CHARACTER
+description: >-
+  Searches for the first occurrence of the first argument in the second argument
+  and if found, returns the position the of the first argument in the second
+  argument. The first character in a STRING is position 1. Returns 0 if the
+  substring isn't found in the expression.

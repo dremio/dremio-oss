@@ -124,8 +124,8 @@ public class BlockLocationsCacheManager implements AutoCloseable {
   @VisibleForTesting
   BlockLocationsList putOnce(byte[] key, String filePath, long fileSize) {
     final Lock fileLock = IN_PROGRESS_FILE_LOCKS.get(filePath);
+    fileLock.lock();
     try {
-      fileLock.lock();
       byte[] value = readerWriter.get(key, false);
       if (value == null) {
         value = readerWriter.put(key, filePath, fileSize);

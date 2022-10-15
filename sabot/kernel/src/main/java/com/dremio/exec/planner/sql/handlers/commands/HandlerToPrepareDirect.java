@@ -35,6 +35,6 @@ public class HandlerToPrepareDirect extends HandlerToPrepareDirectBase<CreatePre
       ServerPreparedStatementState.newBuilder().setHandle(-1).setSqlQuery(getSql()).build();
     final QueryContext context = getContext();
     return PreparedStatementProvider
-      .build(getSchema(), state, context.getQueryId(), context.getSession().getCatalogName());
+      .build(getSchema(), state, context.getQueryId(), context.getSession().getCatalogName(), context.getSession().getRecordBatchFormat());
   }
 }

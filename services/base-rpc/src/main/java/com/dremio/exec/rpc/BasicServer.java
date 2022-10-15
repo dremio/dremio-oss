@@ -136,7 +136,7 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
   /**
    * Closes a connection if no data was read on the channel for the given timeout.
    */
-  private class LoggingReadTimeoutHandler extends ReadTimeoutHandler {
+  private final class LoggingReadTimeoutHandler extends ReadTimeoutHandler {
 
     private final C connection;
     private final int timeoutSeconds;

@@ -16,9 +16,9 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-
-import Art from "components/Art";
+import { Tooltip } from "dremio-ui-lib";
 import { formatMessage } from "utils/locale";
+import { getIconPath } from "@app/utils/getIconPath";
 
 export default class ReflectionIcon extends Component {
   static propTypes = {
@@ -38,22 +38,24 @@ export default class ReflectionIcon extends Component {
 
     if (type === "RAW") {
       text = "Reflection.Raw";
-      icon = "RawMode";
+      icon = "interface/reflection-raw-mode";
     } else if (type === "AGGREGATION") {
       text = "Reflection.Aggregation";
-      icon = "Aggregate";
+      icon = "interface/reflection-aggregate";
     } else if (type === "EXTERNAL") {
       text = "Reflection.External";
-      icon = "PhysicalDatasetGray";
+      icon = "interface/physical-dataset-gray";
     }
 
     return (
-      <Art
-        src={`${icon}.svg`}
-        style={{ height: 24, ...style }}
-        alt={formatMessage(text)}
-        title
-      />
+      <Tooltip title={formatMessage(text)}>
+        <img
+          src={getIconPath(icon)}
+          data-qa={icon}
+          alt={formatMessage(text)}
+          style={{ height: 24, width: 24, ...style }}
+        />
+      </Tooltip>
     );
   }
 }

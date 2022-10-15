@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { IndexRoute, Redirect, Route } from "react-router";
-import React from "react";
 
 import {
   CheckUserAuthentication,
@@ -39,7 +38,7 @@ import {
   SSO_LANDING_PATH,
 } from "@app/sagas/loginLogout";
 import { lazy } from "@app/components/Lazy";
-import { AccountPageRouting, AdminPageRouting } from "@inject/RouteMixin.js";
+import { AdminPageRouting } from "@inject/RouteMixin.js";
 import SSOConsent from "@inject/pages/AuthenticationPage/components/SSOConsent";
 import AuthenticationPage from "@inject/pages/AuthenticationPage/AuthenticationPage";
 import additionalRoutes from "@inject/additionalRoutes";
@@ -47,6 +46,7 @@ import ReflectionJobsPage from "@inject/pages/JobPage/ReflectionJobsPage";
 import JobPage from "@inject/pages/QVJobPage/QVJobPage";
 import SingleJobPage from "@app/pages/JobDetailsPageNew/JobDetailsPage";
 import config from "@inject/routesConfig";
+import notFoundRoute from "@inject/NotFoundRoute";
 
 import jobsUtils from "./utils/jobsUtils.js";
 import App from "./containers/App";
@@ -67,10 +67,11 @@ import JobModals from "./pages/JobPage/JobModals";
 
 import Page, { MainMasterPage } from "./components/Page";
 import NessieRoutes, {
+  arcticSourceRoutes,
   nessieSourceRoutes,
 } from "./pages/NessieHomePage/NessieRoutes";
 
-window.React = React;
+import { renderedRoutes as ossRoutes } from "./exports/routes";
 
 const resourceKeyName = "resourceId";
 export const getSourceRoute = (rootType, component) => {
@@ -166,12 +167,12 @@ export default (dispatch, projectContext, isDataPlaneEnabled) => {
           <Route path="/status" component={ServerStatusPage} />
         </Route>
       </Route>
+      {ossRoutes}
       {additionalRoutes}
       <Route component={CheckUserAuthentication}>
         <Route component={UserIsAuthenticated(JobModals)}>
           {JobsRouting()}
         </Route>
-        {AccountPageRouting()}
         {AdminPageRouting()}
         <Route component={UserIsAuthenticated(HomeModals)}>
           {isDDPOnly ? (
@@ -188,10 +189,15 @@ export default (dispatch, projectContext, isDataPlaneEnabled) => {
               </Route>
               <Route path="/spaces/list" component={AllSpaces} />
               <Route path="/sources/list" component={AllSources} />
-              <Route path="/sources/datalake/list" component={AllSources} />
+              <Route
+                path="/sources/objectStorage/list"
+                component={AllSources}
+              />
+              <Route path="/sources/metastore/list" component={AllSources} />
               <Route path="/sources/external/list" component={AllSources} />
               <Route path="/sources/dataplane/list" component={AllSources} />
               {isDataPlaneEnabled && nessieSourceRoutes()}
+              {isDataPlaneEnabled && arcticSourceRoutes()}
             </Route>
           )}
         </Route>
@@ -218,6 +224,7 @@ export default (dispatch, projectContext, isDataPlaneEnabled) => {
           </Route>
         )}
       </Route>
+      {notFoundRoute}
     </Route>
   );
 };

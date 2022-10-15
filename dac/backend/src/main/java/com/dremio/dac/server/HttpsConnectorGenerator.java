@@ -22,6 +22,8 @@ import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.Optional;
 
+import javax.inject.Provider;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -34,6 +36,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -52,6 +55,7 @@ public class HttpsConnectorGenerator {
    *
    * @param hostName      hostname
    * @param config        {@link DremioConfig} containing SSL related settings if any.
+   * @param credentialsServiceProvider provide a service to look up password URI
    * @param embeddedJetty Jetty server instance needed for creating a ServerConnector.
    * @return Initialized {@link ServerConnector} for HTTPS connections and the trust store. Trust store is non-null only
    * when in case of auto generated self-signed certificate.
@@ -60,12 +64,13 @@ public class HttpsConnectorGenerator {
   public Pair<ServerConnector, KeyStore> createHttpsConnector(
       final Server embeddedJetty,
       final DremioConfig config,
+      final Provider<CredentialsService> credentialsServiceProvider,
       final String hostName,
       final String... alternativeNames
   ) throws Exception {
     logger.info("Setting up HTTPS connector for web server");
 
-    final SSLConfigurator configurator = new SSLConfigurator(config, DremioConfig.WEB_SSL_PREFIX, "web");
+    final SSLConfigurator configurator = new SSLConfigurator(config, credentialsServiceProvider, DremioConfig.WEB_SSL_PREFIX, "web");
     final Optional<SSLConfig> sslConfigOption = configurator.getSSLConfig(true, hostName, alternativeNames);
     Preconditions.checkState(sslConfigOption.isPresent()); // caller's responsibility
     final SSLConfig sslConfig = sslConfigOption.get();
@@ -131,6 +136,7 @@ public class HttpsConnectorGenerator {
     // this ensures that jersey is aware that we are using https - without this it thinks that every connection is unsecured
     final HttpConfiguration httpConfig = new HttpConfiguration();
     httpConfig.setSecureScheme("https");
+    httpConfig.setSendServerVersion(false);
     httpConfig.addCustomizer(new SecureRequestCustomizer());
 
     final ServerConnector sslConnector =

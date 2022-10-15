@@ -50,7 +50,7 @@ import com.dremio.service.namespace.file.proto.FileType;
  */
 
 public class DeltaMetadataFetchJob implements Supplier {
-  private static final Logger logger = LoggerFactory.getLogger(DeltaLakeSchemaConverter.class);
+  private static final Logger logger = LoggerFactory.getLogger(DeltaMetadataFetchJob.class);
 
   public Path metaDir;
   private final Path rootFolder;

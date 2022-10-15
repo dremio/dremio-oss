@@ -38,6 +38,7 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.dremio.common.VM;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -47,7 +48,6 @@ import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.util.AssertionUtil;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -78,7 +78,7 @@ public class StreamAggPrel extends AggregatePrel implements Prel{
     final RelTraitSet adjustedTraits = AggregatePrel.adjustTraits(traits, child, groupSet)
         .replaceIf(RelCollationTraitDef.INSTANCE, () -> {
           // Validate input collation which should match groups
-          if (AssertionUtil.isAssertionsEnabled()) {
+          if (VM.areAssertsEnabled()) {
             validateCollation(cluster, child, groupSet);
           }
 

@@ -226,35 +226,4 @@ describe("DatasetsPanel", () => {
       expect(instance.shouldShowParentTab()).to.be.false;
     });
   });
-
-  describe("#renderHeaderTabsItems", () => {
-    let wrapper;
-    let instance;
-    beforeEach(() => {
-      wrapper = shallow(<DatasetsPanel {...commonProps} />, { context });
-      instance = wrapper.instance();
-    });
-
-    it("should render all tab items only if shouldShowParentTab returns true", () => {
-      let tabs = instance.renderHeaderTabsItems();
-      expect(tabs).to.have.length(3);
-      expect(tabs[0]).to.be.null;
-
-      sinon.stub(instance, "shouldShowParentTab").returns(true);
-      tabs = instance.renderHeaderTabsItems();
-      expect(tabs).to.have.length(3);
-      expect(tabs[0]).to.not.be.null;
-    });
-
-    it("should hide parents tab when !shouldShowParentTab", () => {
-      sinon.stub(instance, "shouldShowParentTab").returns(false);
-      wrapper.setState({
-        activeTabId: BROWSE_TAB,
-      });
-      const tabs = instance.renderHeaderTabsItems();
-      expect(wrapper.state().activeTabId).to.be.equal(BROWSE_TAB);
-      expect(tabs).to.have.length(3);
-      expect(tabs[0]).to.be.null;
-    });
-  });
 });

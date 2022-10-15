@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.planner;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
@@ -37,8 +36,8 @@ public class TestFragmentPriorityAssignment extends PlanOnlyTestBase {
     final PhysicalPlan plan = createPlan(sql);
     AssignFragmentPriorityVisitor priorityAssigner = new AssignFragmentPriorityVisitor();
     plan.getRoot().accept(priorityAssigner, null);
-    assertThat(priorityAssigner.getFragmentWeight(0), is(1));
-    assertThat(priorityAssigner.getFragmentWeight(1), is(1));
+    assertEquals(1, priorityAssigner.getFragmentWeight(0));
+    assertEquals(1, priorityAssigner.getFragmentWeight(1));
   }
 
   @Test
@@ -59,14 +58,39 @@ public class TestFragmentPriorityAssignment extends PlanOnlyTestBase {
     final PhysicalPlan plan = createPlan(sql);
     AssignFragmentPriorityVisitor priorityAssigner = new AssignFragmentPriorityVisitor();
     plan.getRoot().accept(priorityAssigner, null);
-    assertThat(priorityAssigner.getFragmentWeight(1), is(2));
-    assertThat(priorityAssigner.getFragmentWeight(2), is(1));
-    assertThat(priorityAssigner.getFragmentWeight(3), is(2));
+    assertEquals(2, priorityAssigner.getFragmentWeight(1));
+    assertEquals(1, priorityAssigner.getFragmentWeight(2));
+    assertEquals(2, priorityAssigner.getFragmentWeight(3));
+  }
+
+  @Test
+  public void testComplexMultiFragmentAssignment() throws Exception {
+    final String yelpTable = TEMP_SCHEMA + ".\"yelp\"";
+    final String sql = "SELECT * from " +
+      "(SELECT review_id, user_id, stars, name, sumreview," +
+      " rank() over (partition by user_id order by sumreview desc) rk" +
+      " FROM (\n" +
+      "  SELECT x.review_id as review_id, x.user_id as user_id, x.stars as stars, u.name as name, " +
+      "  sum(coalesce(y.review_count*y.stars,0)) sumreview" +
+      "  FROM cp.\"yelp_review.json\" x, " + yelpTable + " y, cp.\"yelp_user_data.json\" z, " +
+      "  cp.\"user.json\" u \n" +
+      " where x.business_id = y.business_id and x.user_id = z.user_id and z.name = u.name \n" +
+      " group by  rollup(review_id, user_id, stars, name))dw1) dw2" +
+      " where rk <= 100 " +
+      " order by review_id, user_id, sumreview, rk" +
+      " limit 100;";
+    final PhysicalPlan plan = createPlan(sql);
+    AssignFragmentPriorityVisitor priorityAssigner = new AssignFragmentPriorityVisitor();
+    plan.getRoot().accept(priorityAssigner, null);
+    assertEquals(5, priorityAssigner.getFragmentWeight(0));
+    assertEquals(5, priorityAssigner.getFragmentWeight(7));
+    assertEquals(1, priorityAssigner.getFragmentWeight(8));
   }
 
   private PhysicalPlan createPlan(String sql) throws Exception {
     final SabotContext context = createSabotContext(
       () -> OptionValue.createLong(OptionValue.OptionType.SYSTEM, "planner.slice_target", 1),
+      () -> OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "planner.enable_join_optimization", false),
       () -> OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "planner.assign_priority", true)
     );
     final QueryContext queryContext = createContext(context);

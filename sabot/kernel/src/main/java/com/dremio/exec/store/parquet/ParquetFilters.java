@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import java.util.List;
 
+import com.dremio.exec.store.iceberg.deletes.EqualityDeleteFilter;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
 import com.google.common.collect.ImmutableList;
 
@@ -26,24 +27,23 @@ import com.google.common.collect.ImmutableList;
 public class ParquetFilters implements AutoCloseable {
   private final List<ParquetFilterCondition> pushdownFilters;
   private final PositionalDeleteFilter positionalDeleteFilter;
+  private final EqualityDeleteFilter equalityDeleteFilter;
 
   public static final ParquetFilters NONE = new ParquetFilters();
 
   public ParquetFilters() {
-    this(null, null);
+    this(null, null, null);
   }
 
   public ParquetFilters(List<ParquetFilterCondition> pushdownFilters) {
-    this(pushdownFilters, null);
+    this(pushdownFilters, null, null);
   }
 
-  public ParquetFilters(PositionalDeleteFilter positionalDeleteFilter) {
-    this(null, positionalDeleteFilter);
-  }
-
-  public ParquetFilters(List<ParquetFilterCondition> pushdownFilters, PositionalDeleteFilter positionalDeleteFilter) {
+  public ParquetFilters(List<ParquetFilterCondition> pushdownFilters, PositionalDeleteFilter positionalDeleteFilter,
+      EqualityDeleteFilter equalityDeleteFilter) {
     this.pushdownFilters = pushdownFilters == null ? ImmutableList.of() : pushdownFilters;
     this.positionalDeleteFilter = positionalDeleteFilter;
+    this.equalityDeleteFilter = equalityDeleteFilter;
   }
 
   public boolean hasPushdownFilters() {
@@ -62,14 +62,26 @@ public class ParquetFilters implements AutoCloseable {
     return positionalDeleteFilter;
   }
 
-  public ParquetFilters withPositionalDeleteFilter(PositionalDeleteFilter positionalDeleteFilter) {
-    return new ParquetFilters(this.pushdownFilters, positionalDeleteFilter);
+  public boolean hasEqualityDeleteFilter() {
+    return equalityDeleteFilter != null;
+  }
+
+  public EqualityDeleteFilter getEqualityDeleteFilter() {
+    return equalityDeleteFilter;
+  }
+
+  public ParquetFilters withRowLevelDeleteFilters(PositionalDeleteFilter positionalDeleteFilter,
+      EqualityDeleteFilter equalityDeleteFilter) {
+    return new ParquetFilters(this.pushdownFilters, positionalDeleteFilter, equalityDeleteFilter);
   }
 
   @Override
   public void close() throws Exception {
     if (positionalDeleteFilter != null) {
       positionalDeleteFilter.release();
+    }
+    if (equalityDeleteFilter != null) {
+      equalityDeleteFilter.release();
     }
   }
 }

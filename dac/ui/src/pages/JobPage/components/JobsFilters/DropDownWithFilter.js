@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { createRef, PureComponent } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
@@ -117,7 +116,7 @@ class DropDownWithFilter extends PureComponent {
         </div>
       ) : null;
     return (
-      <div className="drop-down-with-filter" style={[styles.base]}>
+      <div className="drop-down-with-filter" style={styles.base}>
         <span>{allLabel}</span>
         <div className="scroll-box">{selectOptions}</div>
         {filter}
@@ -130,7 +129,7 @@ class DropDownWithFilter extends PureComponent {
 const styles = {
   base: {
     background: "#fff",
-    boxShadow: "0 0 5px #999",
+    boxShadow: "var(--dremio--shadow--layer-1)",
     borderRadius: "2px",
     width: "200px",
     zIndex: "99",
@@ -157,4 +156,4 @@ const styles = {
     margin: "0",
   },
 };
-export default Radium(DropDownWithFilter);
+export default DropDownWithFilter;

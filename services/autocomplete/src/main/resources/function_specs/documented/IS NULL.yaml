@@ -1,0 +1,40 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "IS NULL"
+signatures:
+ -
+  returnType: "BOOLEAN"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "ANY"
+    name: "expression"
+    description: "Expression of any type to evaluate."
+  description: "Returns true if <expression> is NULL, and false otherwise."
+  sampleCodes:
+   -
+    call: "select ISNULL('dremio')"
+    result: "false"
+   -
+    call: "select 'dremio' IS NULL"
+    result: "false"
+dremioVersion: "1.0+"
+functionCategories:
+ - "CONDITIONAL"
+ - "BOOLEAN"
+description: "Determines if an expression is NULL. Returns true if <expression> is NULL, and false otherwise.  Alias for the operator IS NULL."

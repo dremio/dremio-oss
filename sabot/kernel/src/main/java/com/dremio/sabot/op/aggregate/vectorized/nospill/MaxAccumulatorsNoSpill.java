@@ -37,7 +37,7 @@ public class MaxAccumulatorsNoSpill {
   private MaxAccumulatorsNoSpill(){};
 
   public static class IntMaxAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
-    private static final long INIT = 0x8000000080000000l;
+    private static final long INIT = 0x8000000080000000L;
     private static final int WIDTH = 4;
 
     public IntMaxAccumulatorNoSpill(FieldVector input, FieldVector output) {
@@ -396,7 +396,7 @@ public class MaxAccumulatorsNoSpill {
   }
 
   public static class IntervalDayMaxAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
-    private static final long INIT = 0x8000000080000000l;
+    private static final long INIT = 0x8000000080000000L;
     private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
     private static final int WIDTH_INPUT = 8;       // pair-of-ints inputs
     private static final int WIDTH_ACCUMULATOR = 8; // pair-of-ints pair accumulators

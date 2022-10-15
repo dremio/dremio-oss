@@ -65,19 +65,9 @@
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
-
-  .list-content {
-    min-width: 500px;
-    min-height: ~"calc(100vh - 65px)";
-    display: flex;
-    flex-grow: 0;
-    flex-shrink: 0;
-    justify-content: center;
-    width: 100%;
-  }
-
   .list-content__title-wrap {
     display: flex;
+    align-items: center;
     overflow: hidden;
   }
 
@@ -85,13 +75,14 @@
     margin-left: 8px;
   }
 
+  //Job table relies on the below CSS also since it's a global style
   .ReactVirtualized__Table {
     border-collapse: collapse;
     * {
       outline: 0;
     }
     .ReactVirtualized__Table__headerRow {
-      height: 39px !important;
+      height: 40px !important;
       text-transform: initial;
       line-height: 20px;
       vertical-align: bottom;
@@ -122,7 +113,6 @@
       }
       .copy-button {
         opacity: 0;
-        margin: 0 0 0 5px;
       }
       &:hover {
         .action-wrap .main-settings-btn {
@@ -150,39 +140,49 @@
     }
     .action-wrap {
       justify-content: center;
+      color: var(--dremio--color--icon--main);
+
+      // Customizes <SettingsBtn> with same style as <IconButton>
+      span.main-settings-btn.min-btn.catalog-btn .settings-button {
+        height: 32px;
+        width: 32px;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        color: inherit;
+        padding: var(--dremio--spacing--05);
+        transition: color 125ms ease-in-out;
+        background-color: transparent;
+
+        dremio-icon {
+          height: 24px;
+          width: 24px;
+        }
+
+        &:hover {
+          color: var(--dremio--color--link);
+        }
+      }
     }
     td {
       border: 0;
       padding: 0;
       vertical-align: middle;
     }
-    .ReactVirtualized__Table__sortableHeaderColumn {
-      position: relative;
+  }
 
-      .sort-icon() {
-        display: inline-flex;
-        background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
-        content: "";
-        width: 24px;
-        height: 24px;
-      }
+  .list-content {
+    min-width: 500px;
+    min-height: ~"calc(100vh - 65px)";
+    display: flex;
+    flex-grow: 0;
+    flex-shrink: 0;
+    justify-content: center;
+    width: 100%;
 
-      .sort-asc,
-      .sort-desc {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-      }
-      .sort-asc {
-        &::after {
-          .sort-icon();
-        }
-      }
-      .sort-desc {
-        &::after {
-          .sort-icon();
-          transform: rotate(180deg);
-        }
+    .ReactVirtualized__Table {
+      &--noZebraStripesRows {
+        cursor: unset !important;
       }
     }
   }
@@ -217,7 +217,14 @@
     height: 48px;
     flex-shrink: 0;
     border-bottom: 1px solid var(--dremio--color--neutral--150);
-
+    .copy-button {
+      display: none;
+    }
+    &:hover {
+      .copy-button {
+        display: block;
+      }
+    }
     .btn {
       .fa {
         font-size: 15px;
@@ -336,5 +343,19 @@
     .ReactVirtualized__Table__rowColumn.row-buttons,
   .ReactVirtualized__Table__headerColumn.row-buttons {
     margin-right: 5px;
+  }
+
+  .ReactVirtualized__Table__headerColumn {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+
+    &:hover {
+      .headerCell__sorting-icon {
+        display: inline-flex;
+        opacity: 50%;
+      }
+    }
   }
 }

@@ -130,7 +130,7 @@ public class TestPageListMultimap extends ExecTest {
   public void largeListViaCollection() throws Exception {
 
     // use a consistent random seed.
-    Random r = new Random(1425657l);
+    Random r = new Random(1425657L);
 
     // generate batches of imaginary data until we've added.
     // For each batch, populate randomly among a set of possible keys
@@ -159,7 +159,7 @@ public class TestPageListMultimap extends ExecTest {
         expectedFullList.add(new KeyAndCarryAlongId(key, carryAlongId.getId()));
       }
 
-      list.insertCollection(keysBuffer.memoryAddress(), maxKey, batchId, recordsInBatch);
+      list.insertCollection(keysBuffer, maxKey, batchId, recordsInBatch);
       elements += recordsInBatch;
       batchId++;
     }

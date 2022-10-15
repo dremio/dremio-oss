@@ -32,6 +32,7 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
 
   private enum Mode {FIXED, VARIABLE, OTHER}
   private final Mode mode;
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final T vector;
   private final BaseFixedWidthVector fixedVector;
   private final BaseVariableWidthVector variableVector;

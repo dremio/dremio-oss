@@ -23,7 +23,6 @@ import org.apache.arrow.flight.auth2.Auth2Constants;
 import org.apache.arrow.flight.auth2.AuthUtilities;
 import org.apache.arrow.flight.auth2.BasicCallHeaderAuthenticator;
 import org.apache.arrow.flight.auth2.CallHeaderAuthenticator;
-import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +30,7 @@ import com.dremio.service.flight.DremioFlightSessionsManager;
 import com.dremio.service.flight.utils.DremioFlightAuthUtils;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.UserService;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Dremio's custom implementation of CallHeaderAuthenticator for bearer token authentication.

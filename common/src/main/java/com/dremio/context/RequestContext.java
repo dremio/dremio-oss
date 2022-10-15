@@ -32,6 +32,7 @@ import java.util.concurrent.Callable;
  *     RequestContext.current().get(key);
  *   });
  */
+@SuppressWarnings("checkstyle:FinalClass")
 public class RequestContext {
   private static final LocalValue<RequestContext> CURRENT = new LocalValue<>();
   private static final RequestContext EMPTY = new RequestContext(Collections.emptyMap());
@@ -95,7 +96,7 @@ public class RequestContext {
       runnable.run();
     } finally {
       CURRENT.set(saved);
-;    }
+    }
   }
 
   /**

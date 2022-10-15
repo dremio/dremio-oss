@@ -18,12 +18,9 @@ package com.dremio.service.autocomplete.statements.grammar;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.DIMENSIONS;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.MEASURES;
 
-import org.apache.arrow.util.Preconditions;
-
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -36,7 +33,7 @@ import com.google.common.collect.ImmutableList;
  [ LOCALSORT BY (field1, field2, ..) ]
  */
 public final class AggregateReflectionCreateStatement extends Statement {
-  private final CatalogPath catalogPath;
+  private final TableReference tableReference;
   private final String name;
   private final FieldList dimensions;
   private final FieldList measures;
@@ -44,23 +41,23 @@ public final class AggregateReflectionCreateStatement extends Statement {
 
   private AggregateReflectionCreateStatement(
     ImmutableList<DremioToken> tokens,
-    CatalogPath catalogPath,
+    TableReference tableReference,
     String name,
     FieldList dimensionTokens,
     FieldList measures,
     FieldLists fieldLists) {
-    super(tokens, ImmutableList.of());
-    Preconditions.checkNotNull(catalogPath);
+    super(tokens, asListIgnoringNulls(tableReference, dimensionTokens, measures, fieldLists));
+    Preconditions.checkNotNull(tableReference);
     Preconditions.checkNotNull(name);
-    this.catalogPath = catalogPath;
+    this.tableReference = tableReference;
     this.name = name;
     this.dimensions = dimensionTokens;
     this.measures = measures;
     this.fieldLists = fieldLists;
   }
 
-  public CatalogPath getCatalogPath() {
-    return catalogPath;
+  public TableReference getTableReference() {
+    return tableReference;
   }
 
   public String getName() {
@@ -79,31 +76,21 @@ public final class AggregateReflectionCreateStatement extends Statement {
     return fieldLists;
   }
 
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
-  }
-
   static AggregateReflectionCreateStatement parse(
     TokenBuffer tokenBuffer,
-    CatalogPath catalogPath,
+    TableReference tableReference,
     String reflectionName) {
     Preconditions.checkNotNull(tokenBuffer);
-    Preconditions.checkNotNull(catalogPath);
+    Preconditions.checkNotNull(tableReference);
     Preconditions.checkNotNull(reflectionName);
-    return builder(tokenBuffer.toList(), catalogPath, reflectionName)
-      .dimensions(parseDimensions(tokenBuffer))
-      .measures(parseMeasures(tokenBuffer))
-      .fieldLists(FieldLists.parse(tokenBuffer))
+    return builder(tokenBuffer.toList(), tableReference, reflectionName)
+      .dimensions(parseDimensions(tokenBuffer, tableReference))
+      .measures(parseMeasures(tokenBuffer, tableReference))
+      .fieldLists(FieldLists.parse(tokenBuffer, tableReference))
       .build();
   }
 
-  private static FieldList parseDimensions(TokenBuffer tokenBuffer) {
+  private static FieldList parseDimensions(TokenBuffer tokenBuffer, TableReference tableReference) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -113,10 +100,10 @@ public final class AggregateReflectionCreateStatement extends Statement {
       return null;
     }
 
-    return FieldList.parse(tokenBuffer);
+    return FieldList.parse(tokenBuffer, tableReference);
   }
 
-  private static FieldList parseMeasures(TokenBuffer tokenBuffer) {
+  private static FieldList parseMeasures(TokenBuffer tokenBuffer, TableReference tableReference) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -126,11 +113,11 @@ public final class AggregateReflectionCreateStatement extends Statement {
       return null;
     }
 
-    return FieldList.parse(tokenBuffer);
+    return FieldList.parse(tokenBuffer, tableReference);
   }
 
-  private static DimensionsStep builder(ImmutableList<DremioToken> tokens, CatalogPath catalogPath, String tableName) {
-    return new Builder(tokens, catalogPath, tableName);
+  private static DimensionsStep builder(ImmutableList<DremioToken> tokens, TableReference tableReference, String tableName) {
+    return new Builder(tokens, tableReference, tableName);
   }
 
   private interface DimensionsStep {
@@ -151,15 +138,15 @@ public final class AggregateReflectionCreateStatement extends Statement {
 
   private static final class Builder implements DimensionsStep, MeasuresStep, FieldListStep, Build{
     private final ImmutableList<DremioToken> tokens;
-    private final CatalogPath catalogPath;
+    private final TableReference tableReference;
     private final String tableName;
     private FieldList dimensions;
     private FieldList measures;
     private FieldLists fieldLists;
 
-    public Builder (ImmutableList<DremioToken> tokens, CatalogPath catalogPath, String tableName) {
+    public Builder (ImmutableList<DremioToken> tokens, TableReference tableReference, String tableName) {
       this.tokens = tokens;
-      this.catalogPath = catalogPath;
+      this.tableReference = tableReference;
       this.tableName = tableName;
     }
 
@@ -185,7 +172,7 @@ public final class AggregateReflectionCreateStatement extends Statement {
     public AggregateReflectionCreateStatement build() {
       return new AggregateReflectionCreateStatement(
         tokens,
-        catalogPath,
+        tableReference,
         tableName,
         dimensions,
         measures,

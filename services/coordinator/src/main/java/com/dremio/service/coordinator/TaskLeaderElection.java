@@ -150,6 +150,12 @@ public class TaskLeaderElection implements AutoCloseable {
 
   private void enterElections() {
     logger.info("Starting TaskLeader Election Service for {}", serviceName);
+
+    // setting this before calling joinElection, trying to avoid the callback on electionListener returning before this
+    // is configured and then missing an onElected operation
+    // there is a call to enterElections() from reset() where no synchronizer is used (can't be used because the handle is closed & set to null).
+    electionHandleClosed = false;
+
     final ElectionListener electionListener = new ElectionListener() {
       @Override
       public void onElected() {
@@ -207,7 +213,6 @@ public class TaskLeaderElection implements AutoCloseable {
 
     // no need to do anything if it is a follower
 
-    electionHandleClosed = false;
     failSafeReElectionTask = new FailSafeReElectionTask();
   }
 

@@ -279,6 +279,7 @@ message NodeQueryStatus {
   optional int64 max_memory_used = 4;
   optional int64 time_enqueued_before_submit_ms = 5;  // Time spent enqueued after query arrived at executor, and before
   // being submitted for execution. Measured in milliseconds
+  optional int32 number_of_cores = 6 [default = 0];
 }
 
 // phase level metrics, for a query.

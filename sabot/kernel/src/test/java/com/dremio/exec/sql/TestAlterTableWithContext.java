@@ -59,8 +59,8 @@ public class TestAlterTableWithContext extends BaseTestQuery {
 
         test("USE " + testSchema);
 
-        String query = String.format("ALTER TABLE %s ADD COLUMNS(col1 varchar, col2 int, col3 MAP)", tableName);
-        errorMsgTestHelper(query, "Type conversion error for column col3");
+        String query = String.format("ALTER TABLE %s ADD COLUMNS(col1 varchar, col2 int, col3 map)", tableName);
+        errorMsgTestHelper(query, "Invalid column type [`map`] specified for column [col3]");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }

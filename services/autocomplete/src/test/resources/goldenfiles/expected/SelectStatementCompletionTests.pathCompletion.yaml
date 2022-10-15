@@ -24,7 +24,6 @@
       data:
         name: "@space"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "\"@space\""
       kind: "CatalogEntry"
       label: "@space"
@@ -32,7 +31,6 @@
       data:
         name: "space"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "space"
       kind: "CatalogEntry"
       label: "space"
@@ -40,20 +38,13 @@
       data:
         name: "space with a space in the name"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "\"space with a space in the name\""
       kind: "CatalogEntry"
       label: "space with a space in the name"
      -
-      data: "("
-      detail: "Some SQL keyword"
-      insertText: "("
       kind: "Keyword"
       label: "("
      -
-      data: "LATERAL"
-      detail: "Some SQL keyword"
-      insertText: "LATERAL"
       kind: "Keyword"
       label: "LATERAL"
     functionContext: null
@@ -67,14 +58,10 @@
       data:
         name: "folder"
         type: "Folder"
-      detail: "Some CatalogEntry"
       insertText: "folder"
       kind: "CatalogEntry"
       label: "folder"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -88,14 +75,10 @@
       data:
         name: "folder with a space in the name"
         type: "Folder"
-      detail: "Some CatalogEntry"
       insertText: "\"folder with a space in the name\""
       kind: "CatalogEntry"
       label: "folder with a space in the name"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -109,7 +92,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -117,7 +99,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -125,7 +106,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -133,7 +113,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -141,7 +120,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"
@@ -153,9 +131,6 @@
   output:
     completions:
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -166,9 +141,6 @@
   output:
     completions:
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -182,7 +154,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -190,7 +161,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -198,7 +168,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -206,7 +175,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -214,7 +182,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"
@@ -229,7 +196,6 @@
       data:
         name: "@space"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "\"@space\""
       kind: "CatalogEntry"
       label: "@space"
@@ -237,7 +203,6 @@
       data:
         name: "space"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "space"
       kind: "CatalogEntry"
       label: "space"
@@ -245,20 +210,13 @@
       data:
         name: "space with a space in the name"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "\"space with a space in the name\""
       kind: "CatalogEntry"
       label: "space with a space in the name"
      -
-      data: "("
-      detail: "Some SQL keyword"
-      insertText: "("
       kind: "Keyword"
       label: "("
      -
-      data: "LATERAL"
-      detail: "Some SQL keyword"
-      insertText: "LATERAL"
       kind: "Keyword"
       label: "LATERAL"
     functionContext: null
@@ -272,7 +230,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -280,7 +237,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -288,7 +244,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -296,7 +251,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -304,7 +258,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"
@@ -316,35 +269,20 @@
   output:
     completions:
      -
-      data: "("
-      detail: "Some SQL keyword"
-      insertText: "("
       kind: "Keyword"
       label: "("
      -
-      data: ","
-      detail: "Some SQL keyword"
-      insertText: ","
       kind: "Keyword"
       label: ","
      -
-      data: "CROSS"
-      detail: "Some SQL keyword"
-      insertText: "CROSS"
+      kind: "Keyword"
+      label: ";"
+     -
       kind: "Keyword"
       label: "CROSS"
      -
-      data: "EXCEPT"
-      detail: "Some SQL keyword"
-      insertText: "EXCEPT"
       kind: "Keyword"
       label: "EXCEPT"
-     -
-      data: "FETCH"
-      detail: "Some SQL keyword"
-      insertText: "FETCH"
-      kind: "Keyword"
-      label: "FETCH"
     functionContext: null
     hasMoreResults: true
  -
@@ -353,34 +291,40 @@
   output:
     completions:
      -
-      data: "("
-      detail: "Some SQL keyword"
-      insertText: "("
       kind: "Keyword"
       label: "("
      -
-      data: ","
-      detail: "Some SQL keyword"
-      insertText: ","
       kind: "Keyword"
       label: ","
      -
-      data: "CROSS"
-      detail: "Some SQL keyword"
-      insertText: "CROSS"
+      kind: "Keyword"
+      label: ";"
+     -
       kind: "Keyword"
       label: "CROSS"
      -
-      data: "EXCEPT"
-      detail: "Some SQL keyword"
-      insertText: "EXCEPT"
       kind: "Keyword"
       label: "EXCEPT"
-     -
-      data: "FETCH"
-      detail: "Some SQL keyword"
-      insertText: "FETCH"
-      kind: "Keyword"
-      label: "FETCH"
     functionContext: null
     hasMoreResults: true
+ -
+  description: "Path with special character incorrect."
+  input: "SELECT * FROM @^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "Path with special character correct."
+  input: "SELECT * FROM \"@^"
+  output:
+    completions:
+     -
+      data:
+        name: "@space"
+        type: "Space"
+      insertText: "\"@space\""
+      kind: "CatalogEntry"
+      label: "@space"
+    functionContext: null
+    hasMoreResults: false

@@ -1,0 +1,62 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.arctic-table-header {
+  min-height: 48px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--dremio--spacing--1) var(--dremio--spacing--2) !important;
+  border-bottom: none !important;
+
+  &__left,
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: var(--dremio--spacing--1);
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .arctic-search-box {
+    height: 32px;
+    width: 300px;
+
+    input {
+      &:hover {
+        border-color: var(--dremio--color--neutral--300);
+      }
+
+      &:focus {
+        border-color: var(--dremio--color--primary--500);
+        background-color: var(--dremio--color--neutral--000);
+      }
+    }
+  }
+
+  &__header-button {
+    min-width: auto;
+    span {
+      color: var(--dremio--color--icon--main);
+      font-size: 16px;
+      font-weight: 500;
+    }
+  }
+}

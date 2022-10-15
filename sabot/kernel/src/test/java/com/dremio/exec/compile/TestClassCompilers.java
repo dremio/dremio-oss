@@ -53,7 +53,7 @@ import com.google.common.io.Resources;
 public class TestClassCompilers {
 
   @ClassRule
-  public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
   /*
    * Classes are compiled independently into classes/ directory
@@ -66,13 +66,13 @@ public class TestClassCompilers {
     JavaCompiler javaCompiler = ToolProvider.getSystemJavaCompiler();
     Assume.assumeNotNull(javaCompiler);
 
-    classes = temporaryFolder.newFolder("classes");;
+    classes = TEMP_FOLDER.newFolder("classes");
 
     StandardJavaFileManager fileManager = javaCompiler.getStandardFileManager(null, Locale.ROOT, UTF_8);
     fileManager.setLocation(StandardLocation.CLASS_OUTPUT, ImmutableList.of(classes));
 
     SimpleJavaFileObject compilationUnit = new SimpleJavaFileObject(URI.create("FooTest.java"), Kind.SOURCE) {
-      String fooTestSource = Resources.toString(Resources.getResource("com/dremio/exec/compile/FooTest.java"), UTF_8);
+      private final String fooTestSource = Resources.toString(Resources.getResource("com/dremio/exec/compile/FooTest.java"), UTF_8);
       @Override
       public CharSequence getCharContent(boolean ignoreEncodingErrors) throws IOException {
         return fooTestSource;
@@ -88,7 +88,7 @@ public class TestClassCompilers {
     try(URLClassLoader classLoader = new URLClassLoader(new URL[] { classes.toURI().toURL()}, null)) {
       JDKClassCompiler jdkClassCompiler = JDKClassCompiler.newInstance(classLoader);
       testCompilation(jdkClassCompiler);
-    };
+    }
   }
 
   @Test
@@ -96,7 +96,7 @@ public class TestClassCompilers {
     try(URLClassLoader classLoader = new URLClassLoader(new URL[] { classes.toURI().toURL()}, null)) {
       JaninoClassCompiler janinoClassCompiler = new JaninoClassCompiler(classLoader);
       testCompilation(janinoClassCompiler);
-    };
+    }
   }
 
   private void testCompilation(ClassCompiler compiler) throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {

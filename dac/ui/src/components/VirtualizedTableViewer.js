@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import clsx from "clsx";
 import PropTypes from "prop-types";
 import { AutoSizer, Column, Table } from "react-virtualized";
 import Draggable from "react-draggable";
@@ -22,16 +23,18 @@ import Immutable, { List } from "immutable";
 
 import { humanSorter, getSortValue } from "@app/utils/sort";
 import { stopPropagation } from "../utils/reactEventUtils.js";
+import {
+  getSortIconName,
+  SortDirection,
+} from "@app/components/Table/TableUtils";
 import { virtualizedRow } from "./VirtualizedTableViewer.less";
+import { intl } from "@app/utils/intl";
+import "@app/components/Table/TableHeader.less";
 
 const ROW_HEIGHT = 30;
 const HEADER_HEIGHT = 30;
 const TABLE_BOTTOM_CUSHION = 10;
 const MIN_COLUMN_WIDTH = 25;
-export const SortDirection = {
-  ASC: "ASC",
-  DESC: "DESC",
-};
 
 // todo: make this determined by the render time on the current machine
 const DEFERRED_SPEED_THRESHOLD = 5;
@@ -58,6 +61,7 @@ class VirtualizedTableViewer extends Component {
     sortRecords: PropTypes.func,
     disableSort: PropTypes.bool,
     showIconHeaders: PropTypes.object,
+    defaultDescending: PropTypes.bool,
     disableZebraStripes: PropTypes.any, // for Jobs Page specific styling with no zebra stripes
     // other props passed into react-virtualized Table
   };
@@ -131,7 +135,7 @@ class VirtualizedTableViewer extends Component {
         (rowData && rowData.rowClassName) || "",
         virtualizedRow,
         "virtualized-row",
-        "ReactVirtualized__Table--noZebraStripesRows"
+        index !== -1 ? "ReactVirtualized__Table--noZebraStripesRows" : null
       ); // Adding virtualizedRow for keeping the Row styles stable wrt another class
     }
   }
@@ -182,9 +186,10 @@ class VirtualizedTableViewer extends Component {
   };
 
   renderHeader = (
-    { label, dataKey, sortBy, sortDirection },
-    /* column */ { style, infoContent, headerStyle }
+    { label, dataKey, sortBy, sortDirection, disableSort },
+    item
   ) => {
+    const { defaultDescending } = this.props;
     const isSorted = sortBy === dataKey;
     const headerClassName = classNames(
       "text",
@@ -194,6 +199,33 @@ class VirtualizedTableViewer extends Component {
         "sort-desc": isSorted && sortDirection === SortDirection.DESC,
       }
     );
+
+    const sortSrc = getSortIconName({
+      sortDirection,
+      columnKey: dataKey,
+      sortBy,
+      defaultDescending,
+    });
+
+    const sortingIcon = (
+      <>
+        {!disableSort && label && (
+          <dremio-icon
+            class={clsx("headerCell__sorting-icon", {
+              ["headerCell__sorting-icon--selected"]: sortBy === dataKey,
+              ["headerCell__sorting-icon--unsortable"]: disableSort,
+            })}
+            name={sortSrc}
+            alt={
+              sortDirection === SortDirection.DESC
+                ? intl.formatMessage({ id: "Common.Sort.Alt.Desc" })
+                : intl.formatMessage({ id: "Common.Sort.Alt.Asc" })
+            }
+          />
+        )}
+      </>
+    );
+
     const infoContentStyle = {};
     if (isSorted) {
       // sort icon with - 4px to put infoContent closer to sort icon. See .sort-icon() mixin
@@ -201,23 +233,13 @@ class VirtualizedTableViewer extends Component {
     }
 
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          cursor: "default",
-          ...style,
-          ...headerStyle,
-        }}
-      >
+      <>
+        {item.columnAlignment === "alignRight" && sortingIcon}
         <div className={headerClassName}>
-          {" "}
-          {label === undefined ? dataKey : label}{" "}
+          {label === undefined ? dataKey : label}
         </div>
-        {infoContent ? (
-          <span style={infoContentStyle}>{infoContent}</span>
-        ) : null}
-      </div>
+        {item.columnAlignment !== "alignRight" && sortingIcon}
+      </>
     );
   };
 
@@ -256,8 +278,12 @@ class VirtualizedTableViewer extends Component {
       ? showIconHeaders[rowData.dataKey].node()
       : rowData;
     return (
-      <div className="draggableHeaderContent text">
-        <div className="draggableHeaderInnerText">
+      <div className={clsx("draggableHeaderContent", "text")}>
+        <div
+          className={clsx("draggableHeaderInnerText", {
+            "headerCell--alignRight": item.columnAlignment === "alignRight",
+          })}
+        >
           {this.renderHeader(key, item)}
         </div>
         <div className="maxZIndex" onClick={(e) => stopPropagation(e)}>
@@ -271,9 +297,13 @@ class VirtualizedTableViewer extends Component {
               y: 0,
             }}
           >
-            <div className="draggableHeaderContent__pipe">
+            <span
+              className={clsx(
+                "draggableHeaderContent__pipe headerCell__dragPipe"
+              )}
+            >
               {item.isDraggable ? "|" : ""}
-            </div>
+            </span>
           </Draggable>
         </div>
       </div>
@@ -371,6 +401,7 @@ class VirtualizedTableViewer extends Component {
                       headerClassName={item.headerClassName}
                       label={item.label}
                       style={item.style}
+                      headerStyle={item.headerStyle}
                       headerRenderer={
                         !resizableColumn
                           ? (options) => this.renderHeader(options, item)
@@ -384,6 +415,7 @@ class VirtualizedTableViewer extends Component {
                         const tabIndex =
                           opts.rowData.data.sql &&
                           opts.rowData.data.sql.tabIndex;
+
                         return (
                           <div
                             onClick={() => {

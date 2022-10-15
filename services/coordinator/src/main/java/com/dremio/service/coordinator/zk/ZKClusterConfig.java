@@ -15,6 +15,7 @@
  */
 package com.dremio.service.coordinator.zk;
 
+import com.dremio.configfeature.ConfigFeatureProvider;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
 
 /**
@@ -50,4 +51,12 @@ public interface ZKClusterConfig {
   String getClusterId();
 
   String getConnection();
+
+  ConfigFeatureProvider getConfigFeatureProvider();
+
+  int getZkSupervisorIntervalMilliSec();
+
+  int getZkSupervisorReadTimeoutMilliSec();
+
+  int getZkSupervisorMaxFailures();
 }

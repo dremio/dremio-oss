@@ -34,8 +34,8 @@ import com.google.common.base.Preconditions;
  * Manages datasets/sources acceleration settings.
  */
 public class ReflectionSettingsImpl implements ReflectionSettings {
-  private static final long DEFAULT_REFRESH_PERIOD = TimeUnit.HOURS.toMillis(3);
-  private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(9);
+  private static final long DEFAULT_REFRESH_PERIOD = TimeUnit.HOURS.toMillis(1);
+  private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(3);
 
   private final Provider<NamespaceService> namespace;
   private final ReflectionSettingsStore store;
@@ -88,8 +88,8 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
     } else {
       return new AccelerationSettings()
         .setMethod(RefreshMethod.FULL)
-        .setGracePeriod(DEFAULT_REFRESH_PERIOD)
-        .setRefreshPeriod(DEFAULT_GRACE_PERIOD);
+        .setGracePeriod(DEFAULT_GRACE_PERIOD)
+        .setRefreshPeriod(DEFAULT_REFRESH_PERIOD);
     }
   }
 
@@ -114,6 +114,16 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
   @Override
   public void removeSettings(NamespaceKey key) {
     store.delete(key);
+  }
+
+  @Override
+  public int getAllHash() {
+    final int prime = 31;
+    int result = 1;
+    for (Object object : store.getAll()) {
+      result = prime * result + object.hashCode();
+    }
+    return result;
   }
 
 }

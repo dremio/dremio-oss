@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.nio.file.AccessMode;
 import java.util.Set;
 
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,7 @@ import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.dremio.exec.util.FSHealthChecker;
 import com.dremio.io.file.Path;
 import com.dremio.plugins.util.CloseableResource;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * S3 implementation of FSHealthChecker used by storage plugins.

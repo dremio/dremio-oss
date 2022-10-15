@@ -16,20 +16,18 @@
 
 import { useState } from "react";
 import { FormattedMessage } from "react-intl";
+import { Button } from "dremio-ui-lib/dist-esm";
 
 import {
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
-} from "@material-ui/core";
+} from "@mui/material";
 
-import {
-  Merge,
-  MergeRefIntoBranchRequest,
-  Reference,
-} from "@app/services/nessie/client";
+import { Merge, MergeRefIntoBranchRequest } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
+
 import { CustomDialogTitle } from "../NewBranchDialog/utils";
 import { useNessieContext } from "../../utils/context";
 
@@ -41,6 +39,8 @@ type MergeBranchDialogProps = {
   mergeTo: Reference;
   closeDialog: () => void;
   setSuccessMessage?: React.Dispatch<React.SetStateAction<JSX.Element | null>>;
+  allRefs?: Reference[];
+  setAllRefs?: React.Dispatch<React.SetStateAction<Reference[]>>;
 };
 
 function MergeBranchDialog({
@@ -49,6 +49,8 @@ function MergeBranchDialog({
   mergeTo,
   closeDialog,
   setSuccessMessage,
+  allRefs,
+  setAllRefs,
 }: MergeBranchDialogProps): JSX.Element {
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
@@ -71,6 +73,17 @@ function MergeBranchDialog({
         setSuccessMessage(
           <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Success" />
         );
+      }
+
+      if (allRefs && setAllRefs) {
+        const indexToRemove = allRefs.findIndex(
+          (ref: Reference) => ref.name === mergeFrom.name
+        );
+
+        setAllRefs([
+          ...allRefs.slice(0, indexToRemove),
+          ...allRefs.slice(indexToRemove + 1),
+        ]);
       }
 
       setErrorText(null);
@@ -120,17 +133,13 @@ function MergeBranchDialog({
         </DialogContent>
         <DialogActions className="merge-branch-dialog-actions">
           <Button
+            variant="secondary"
             onClick={closeDialog}
             disabled={isSending}
-            className="cancel-button"
           >
             <FormattedMessage id="Common.Cancel" />
           </Button>
-          <Button
-            onClick={onMerge}
-            disabled={isSending}
-            className="merge-button"
-          >
+          <Button variant="primary" onClick={onMerge} disabled={isSending}>
             <FormattedMessage id="BranchHistory.Header.Merge" />
           </Button>
         </DialogActions>

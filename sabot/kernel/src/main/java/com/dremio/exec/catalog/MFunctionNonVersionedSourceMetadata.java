@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.catalog.CatalogUtil.getTimeTravelRequest;
+
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
@@ -29,8 +31,8 @@ public class MFunctionNonVersionedSourceMetadata extends MFunctionMetadataImpl {
   private final DatasetConfig underlyingTableConfig;
 
   public MFunctionNonVersionedSourceMetadata(NamespaceKey canonicalKey, DatasetConfig currentConfig, ManagedStoragePlugin plugin,
-                                             SchemaConfig schemaConfig) {
-    super(canonicalKey, currentConfig, plugin, schemaConfig);
+                                             SchemaConfig schemaConfig, TableVersionContext context) {
+    super(canonicalKey, currentConfig, plugin, schemaConfig, context);
     this.underlyingTableConfig = currentConfig;
   }
 
@@ -38,6 +40,7 @@ public class MFunctionNonVersionedSourceMetadata extends MFunctionMetadataImpl {
   public DatasetRetrievalOptions getOptions() {
     return plugin.getDefaultRetrievalOptions()
       .toBuilder()
+      .setTimeTravelRequest(getTimeTravelRequest(canonicalKey, context))
       .build();
   }
 

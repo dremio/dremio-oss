@@ -38,9 +38,11 @@
       justify-content: space-between;
       padding-right: 8px;
 
-      &:hover {
-        .dropdownMenu__text {
-          color: var(--dremio--color--link);
+      .dropdownMenu {
+        &__content {
+          &:hover {
+            color: var(--dremio--color--link);
+          }
         }
       }
     }
@@ -125,7 +127,7 @@
 
   &:hover {
     filter: invert(53%) sepia(45%) saturate(6859%) hue-rotate(157deg)
-    brightness(70%) contrast(73%);
+      brightness(70%) contrast(73%);
     cursor: pointer;
   }
 }

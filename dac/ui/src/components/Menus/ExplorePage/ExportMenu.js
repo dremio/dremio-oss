@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { injectIntl } from "react-intl";
 
-import { LIST, MAP, MIXED } from "@app/constants/DataTypes";
+import { LIST, MAP, MIXED, STRUCT } from "@app/constants/DataTypes";
 import { getExploreJobId, getExploreState } from "@app/selectors/explore";
 import { isSqlChanged } from "@app/sagas/utils";
 import { addNotification } from "actions/notification";
@@ -31,7 +31,7 @@ import MenuItem from "./MenuItem";
 import Menu from "./Menu";
 
 const UNSUPPORTED_TYPE_COLUMNS = {
-  CSV: new Set([MAP, LIST, MIXED]),
+  CSV: new Set([MAP, LIST, MIXED, STRUCT]),
 };
 
 const TYPES = [

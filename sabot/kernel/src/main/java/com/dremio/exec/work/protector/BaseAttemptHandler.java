@@ -18,6 +18,7 @@ package com.dremio.exec.work.protector;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
@@ -75,6 +76,10 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
     final UserException ex = context.getException();
     switch (ex.getErrorType()) {
       case OUT_OF_MEMORY: {
+        if (!options.getOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM)) {
+          logger.debug("{}: retry on OOMs has been disabled", attemptId);
+          return AttemptReason.NONE;
+        }
         if (context.containsHashAggregate()) {
           if (ex.getContextStrings().size() > 2 && ex.getContextStrings().get(1).equals(VectorizedHashAggOperator.OUT_OF_MEMORY_MSG)) {
             /* Vectorized Hash Agg should never run out of memory except when the setup fails during preallocation

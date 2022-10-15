@@ -15,11 +15,14 @@
  */
 package com.dremio.common.expression.visitors;
 
+import com.google.errorprone.annotations.FormatMethod;
+
 public class ExpressionValidationError {
     private final String message;
 
-    public ExpressionValidationError(String message, Object...args){
-      this.message = String.format(message, args);
+    @FormatMethod
+    public ExpressionValidationError(String format, Object... args) {
+      this(String.format(format, args));
     }
 
     public ExpressionValidationError(String message) {

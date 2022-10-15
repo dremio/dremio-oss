@@ -130,10 +130,11 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
         .buildSilently();
     }
 
-    if (numEqualityDeletes > 0) {
+    if (numEqualityDeletes > 0 &&
+      !optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE)) {
       throw UserException.unsupportedError()
-          .message("Iceberg V2 tables with equality deletes are not supported.")
-          .buildSilently();
+        .message("Iceberg V2 tables with equality deletes are not supported.")
+        .buildSilently();
     }
 
     final FileConfig fileConfig = getFileConfig();
@@ -143,7 +144,7 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
         ScanCostFactor.PARQUET.getFactor());
     final DatasetStats deleteManifestStats = DatasetStats.of(numDeleteFiles, ScanCostFactor.EASY.getFactor());
 
-    final SchemaConverter schemaConverter = new SchemaConverter(table.name());
+    final SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).setMapTypeEnabled(optionResolver.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
     org.apache.iceberg.Schema schema = tableSchemaProvider.apply(table, snapshot);
     final BatchSchema batchSchema = schemaConverter.fromIceberg(schema);
 

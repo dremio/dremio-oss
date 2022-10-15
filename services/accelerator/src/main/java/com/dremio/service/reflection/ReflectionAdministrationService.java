@@ -20,6 +20,7 @@ import java.util.List;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.reflection.proto.ExternalReflection;
+import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.google.common.base.Optional;
@@ -44,7 +45,7 @@ public interface ReflectionAdministrationService {
 
   List<ReflectionGoal> getRecommendedReflections(String datasetId);
 
-  boolean doesReflectionHaveAnyMaterializationDone(ReflectionId reflectionId);
+  Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
   long getTotalReflectionSize(ReflectionId reflectionId);
 

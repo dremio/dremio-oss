@@ -45,6 +45,7 @@ export default class DragColumnMenu extends PureComponent {
     fieldType: PropTypes.string,
     className: PropTypes.string,
     canAlter: PropTypes.any,
+    showSearchIcon: PropTypes.bool,
   };
 
   static sortColumns(columns, disabledColumnNames) {
@@ -131,6 +132,7 @@ export default class DragColumnMenu extends PureComponent {
       >
         <SearchField
           dataQa={"search-field-" + this.props.fieldType}
+          showIcon={this.props.showSearchIcon}
           showCloseIcon
           placeholder={la("Search fields…")}
           value={this.state.filter}
@@ -147,6 +149,7 @@ export default class DragColumnMenu extends PureComponent {
                 rowHeight={30}
                 height={height}
                 width={width}
+                className="inner-join-left-menu__column-list"
               />
             )}
           </AutoSizer>

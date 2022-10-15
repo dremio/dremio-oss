@@ -22,6 +22,15 @@ export const LOAD_RESOURCE_TREE_START = "LOAD_RESOURCE_TREE_START";
 export const LOAD_RESOURCE_TREE_SUCCESS = "LOAD_RESOURCE_TREE_SUCCESS";
 export const LOAD_RESOURCE_TREE_FAILURE = "LOAD_RESOURCE_TREE_FAILURE";
 
+export const CLEAR_RESOURCE_TREE_BY_NAME = "CLEAR_RESOURCE_TREE_BY_NAME";
+
+export const clearResourceTreeByName = (rootNodeName) => {
+  return {
+    type: CLEAR_RESOURCE_TREE_BY_NAME,
+    payload: rootNodeName,
+  };
+};
+
 const fetchResourceTree = (
   storageName,
   viewId,
@@ -51,7 +60,7 @@ const fetchResourceTree = (
       types: [
         {
           type: `${
-            storageName ? `${storageName}_START}` : LOAD_RESOURCE_TREE_START
+            storageName ? `${storageName}_START` : LOAD_RESOURCE_TREE_START
           }`,
           meta,
         },

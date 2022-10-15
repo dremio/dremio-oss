@@ -31,8 +31,6 @@ import com.google.common.base.Charsets;
 
 public class MappifyUtility {
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MappifyUtility.class);
-
   // Default names used in the map.
   public static final String fieldKey = "key";
   public static final String fieldValue = "value";

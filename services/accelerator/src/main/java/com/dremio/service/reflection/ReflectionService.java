@@ -53,7 +53,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   ExcludedReflectionsProvider getExcludedReflectionsProvider();
 
-  Materialization getLastDoneMaterialization(ReflectionId reflectionId);
+  Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
   Materialization getLastMaterialization(ReflectionId reflectionId);
 
@@ -163,13 +163,8 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public boolean doesReflectionHaveAnyMaterializationDone(ReflectionId reflectionId) {
-      return false;
-    }
-
-    @Override
-    public Materialization getLastDoneMaterialization(ReflectionId reflectionId) {
-      return null;
+    public Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId) {
+      return Optional.absent();
     }
 
     @Override

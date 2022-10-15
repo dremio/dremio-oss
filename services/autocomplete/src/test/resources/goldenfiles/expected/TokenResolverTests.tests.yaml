@@ -23,10 +23,10 @@
     hasMoreResults: true
     tokens:
      - "SELECT"
+     - "MULTISET"
+     - "("
+     - "PERIOD"
      - "UPDATE"
-     - "WITH"
-     - "DELETE"
-     - "DROP"
  -
   description: "SELECT"
   input: "SELECT "
@@ -34,11 +34,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
-     - "DISTINCT"
-     - "CASE"
-     - "("
      - "*"
-     - "+"
+     - "DISTINCT"
+     - "("
+     - "CASE"
+     - "ROW"
  -
   description: "SELECT STAR"
   input: "SELECT * "
@@ -48,9 +48,9 @@
     tokens:
      - "FROM"
      - ","
+     - ";"
      - "EXCEPT"
      - "FETCH"
-     - "INTERSECT"
  -
   description: "SELECT STAR FROM"
   input: "SELECT * FROM "
@@ -71,9 +71,9 @@
     tokens:
      - "WHERE"
      - "JOIN"
+     - "ORDER"
      - ","
      - "NATURAL"
-     - "ORDER"
  -
   description: "SELECT STAR FROM IDENTIFIER WHERE"
   input: "SELECT * FROM emp WHERE "
@@ -105,11 +105,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
-     - "("
+     - "SELECT"
      - ")"
+     - "VALUES"
      - "*"
-     - "+"
-     - "-"
+     - "CASE"
  -
   description: "JOIN ON "
   input: "SELECT * FROM EMP JOIN DEPT ON "

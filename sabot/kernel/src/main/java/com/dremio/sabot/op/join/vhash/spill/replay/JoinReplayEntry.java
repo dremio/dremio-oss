@@ -15,8 +15,11 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.replay;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import com.dremio.sabot.op.join.vhash.spill.io.SpillFileDescriptor;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.google.common.collect.ImmutableList;
 
@@ -25,32 +28,68 @@ import com.google.common.collect.ImmutableList;
  */
 public class JoinReplayEntry {
   // list of build files
-  private final List<SpillFile> buildFiles;
+  private final List<SpillFileDescriptor> buildSpills;
   // list of probe files
-  private final List<SpillFile> probeFiles;
+  private final List<SpillFileDescriptor> probeSpills;
 
-  JoinReplayEntry(List<SpillFile> buildFiles, List<SpillFile> probeFiles) {
-    this.buildFiles = buildFiles;
-    this.probeFiles = probeFiles;
+  JoinReplayEntry(List<SpillFileDescriptor> buildSpills, List<SpillFileDescriptor> probeSpills) {
+    this.buildSpills = buildSpills;
+    this.probeSpills = probeSpills;
   }
 
-  public static JoinReplayEntry of(List<SpillFile> preBuildSpillFiles, SpillFile buildFile, SpillFile probeFile) {
-    ImmutableList.Builder<SpillFile> buildFilesBuilder = new ImmutableList.Builder<>();
-    buildFilesBuilder.addAll(preBuildSpillFiles);
-    if (buildFile != null) {
-      buildFilesBuilder.add(buildFile);
+  public static JoinReplayEntry of(List<SpillFileDescriptor> preBuildSpills, SpillFileDescriptor buildSpill, SpillFileDescriptor probeSpill) {
+    ImmutableList.Builder<SpillFileDescriptor> buildFilesBuilder = new ImmutableList.Builder<>();
+    buildFilesBuilder.addAll(preBuildSpills);
+    if (buildSpill != null) {
+      buildFilesBuilder.add(buildSpill);
     }
     return new JoinReplayEntry(
       buildFilesBuilder.build(),
-      probeFile == null ? ImmutableList.of() : ImmutableList.of(probeFile)
+      probeSpill == null ? ImmutableList.of() : ImmutableList.of(probeSpill)
     );
   }
 
+  private long getCumulativeSize(List<SpillFileDescriptor> spills) throws IOException {
+    long total = 0;
+    for (SpillFileDescriptor desc : spills) {
+      total += desc.getSizeInBytes();
+    }
+    return total;
+  }
+
+  private long getCumulativeNumRecords(List<SpillFileDescriptor> spills) throws IOException {
+    long total = 0;
+    for (SpillFileDescriptor desc : spills) {
+      total += desc.getNumRecords();
+    }
+    return total;
+  }
+
+  public long getBuildSize() throws IOException {
+    return getCumulativeSize(buildSpills);
+  }
+
+  public long getBuildNumRecords() throws IOException {
+    return getCumulativeNumRecords(buildSpills);
+  }
+
+  public long getProbeSize() throws IOException {
+    return getCumulativeSize(probeSpills);
+  }
+
+  public long getProbeNumRecords() throws IOException {
+    return getCumulativeNumRecords(probeSpills);
+  }
+
   List<SpillFile> getBuildFiles() {
-    return this.buildFiles;
+    return buildSpills.stream()
+      .map(SpillFileDescriptor::getFile)
+      .collect(Collectors.toList());
   }
 
   List<SpillFile> getProbeFiles() {
-    return this.probeFiles;
+    return probeSpills.stream()
+      .map(SpillFileDescriptor::getFile)
+      .collect(Collectors.toList());
   }
 }

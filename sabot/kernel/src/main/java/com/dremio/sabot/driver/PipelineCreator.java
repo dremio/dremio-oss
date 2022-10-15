@@ -62,6 +62,7 @@ public class PipelineCreator {
   private final IncomingBuffers buffers;
   private final OperatorCreator creator;
   private final List<Wrapped<?>> operators = new ArrayList<>();
+  private final List<Operator.ShrinkableOperator> shrinkableOperators = new ArrayList<>();
   private final SharedResourcesContext sharedResourcesContext;
 
   private PipelineCreator(
@@ -108,7 +109,7 @@ public class PipelineCreator {
       final CreatorVisitor visitor = new CreatorVisitor();
       OpPipe opPipe = operator.accept(visitor, null);
       Preconditions.checkNotNull(opPipe.getPipe());
-      Pipeline driver = new Pipeline(opPipe.getPipe(), visitor.terminal, operators, sharedResourcesContext);
+      Pipeline driver = new Pipeline(opPipe.getPipe(), visitor.terminal, operators, shrinkableOperators, sharedResourcesContext);
       closeable.commit();
       return driver;
     }
@@ -125,6 +126,11 @@ public class PipelineCreator {
      */
     private <X extends Operator, T extends SmartOp<X>> T record(T operator){
       operators.add(operator);
+      Operator inner = operator.getInner();
+      if (inner instanceof Operator.ShrinkableOperator) {
+        // add the inner operator to the list of shrinkable operators
+        shrinkableOperators.add((Operator.ShrinkableOperator) inner);
+      }
       return operator;
     }
 

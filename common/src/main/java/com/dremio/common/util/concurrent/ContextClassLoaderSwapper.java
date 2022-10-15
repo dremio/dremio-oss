@@ -21,7 +21,7 @@ import com.dremio.common.util.Closeable;
  * Swaps current thread's class loader with given class loader
  * and restore back when closed
  */
-public class ContextClassLoaderSwapper implements Closeable {
+public final class ContextClassLoaderSwapper implements Closeable {
 
   private final ClassLoader originalClassLoader;
 

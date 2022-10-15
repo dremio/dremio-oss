@@ -55,7 +55,7 @@ export const smallestModal = {
     ...modalContent,
     overflow: "visible",
     width: 450,
-    height: 200,
+    height: 230,
   },
 };
 

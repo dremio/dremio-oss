@@ -35,7 +35,7 @@ public class TestExtractMapRecommender {
 
   @Test
   public void testExtractMapRules() throws Exception {
-    List<ExtractMapRule> rules = recommender.getRules(new MapSelection("foo", ImmutableList.of("a")), DataType.MAP);
+    List<ExtractMapRule> rules = recommender.getRules(new MapSelection("foo", ImmutableList.of("a")), DataType.STRUCT);
     assertEquals(1, rules.size());
     assertEquals("a", rules.get(0).getPath());
   }

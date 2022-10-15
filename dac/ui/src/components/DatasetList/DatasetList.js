@@ -15,7 +15,7 @@
  */
 import { PureComponent } from "react";
 import Immutable from "immutable";
-import Radium from "radium";
+import clsx from "clsx";
 
 import PropTypes from "prop-types";
 
@@ -25,10 +25,12 @@ import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 import { constructFullPath } from "utils/pathUtils";
 import { bodySmall } from "uiTheme/radium/typography";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
+import * as classes from "@app/components/DatasetList/DatasetList.module.less";
 
 class DatasetList extends PureComponent {
   static propTypes = {
     data: PropTypes.instanceOf(Immutable.List).isRequired,
+    showColumnLevel: PropTypes.bool,
     changeSelectedNode: PropTypes.func.isRequired,
     isInProgress: PropTypes.bool.isRequired,
     inputValue: PropTypes.string,
@@ -40,6 +42,7 @@ class DatasetList extends PureComponent {
     unstarNode: PropTypes.func,
     isStarredLimitReached: PropTypes.bool,
     starredItems: PropTypes.array,
+    isExpandable: PropTypes.bool,
   };
 
   constructor(props) {
@@ -70,6 +73,7 @@ class DatasetList extends PureComponent {
       dragType,
       isStarredLimitReached,
       starredItems,
+      isExpandable,
     } = this.props;
     return (
       data &&
@@ -79,13 +83,17 @@ class DatasetList extends PureComponent {
         const nodeId = value.get("id");
         const displayFullPath =
           value.get("displayFullPath") || value.get("fullPath");
-
         return (
-          <DragSource dragType={dragType || ""} key={key} id={displayFullPath}>
+          <DragSource
+            dragType={dragType || ""}
+            key={key}
+            id={displayFullPath}
+            className={classes["datasetItem"]}
+          >
             <div
               key={key}
-              style={[styles.datasetItem, bodySmall]}
-              className="dataset-item"
+              style={bodySmall}
+              className={"datasets-list"}
               onClick={this.setActiveDataset.bind(this, value)}
             >
               <DatasetItemLabel
@@ -98,7 +106,7 @@ class DatasetList extends PureComponent {
                   value.get("datasetType")
                 )}
                 placement="right"
-                isExpandable
+                isExpandable={isExpandable}
                 shouldShowOverlay
                 shouldAllowAdd={shouldAllowAdd}
                 addtoEditor={addtoEditor}
@@ -127,58 +135,14 @@ class DatasetList extends PureComponent {
       data && data.size && data.size > 0 ? (
         this.getDatasetsList(data, inputValue)
       ) : (
-        <div style={styles.notFound}>{la("No results found")}</div>
+        <div className={classes["notFound"]}>{la("No results found")}</div>
       );
     return (
-      <div style={styles.dataSetsList} className="datasets-list">
+      <div className={clsx(classes["dataSetsList"], "datasets-list")}>
         {isInProgress ? <Spinner /> : searchBlock}
       </div>
     );
   }
 }
 
-const styles = {
-  dataSetsList: {
-    background: "#fff",
-    maxHeight: "50vh",
-    overflow: "auto",
-    boxShadow: "rgb(0 0 0 / 10%) 0px 0px 8px 0px",
-    borderRadius: 5,
-    padding: 10,
-    minWidth: 480,
-  },
-  datasetItem: {
-    borderBottom: "1px solid #E9EDF0",
-    width: "100%",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(0,1fr))",
-    cursor: "pointer",
-    padding: "10px 0",
-    ":hover": {
-      background: "#F1FAFB",
-    },
-  },
-  datasetData: {
-    margin: "0 0 0 5px",
-    minWidth: 300,
-  },
-  parentDatasetsHolder: {
-    display: "flex",
-    flex: "1 1 auto",
-    overflow: "hidden", // don't scroll - avoid windows scroll bars
-  },
-  parentDataset: {
-    display: "flex",
-    margin: "0 10px 0 10px",
-  },
-  notFound: {
-    padding: "10px 10px",
-  },
-  addIcon: {
-    Container: {
-      marginRight: 0,
-      marginLeft: 10,
-    },
-  },
-};
-export default Radium(DatasetList);
+export default DatasetList;

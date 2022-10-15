@@ -18,23 +18,39 @@
   .branch-body {
     display: flex;
     flex-direction: column;
+    min-width: fit-content;
     height: 100%;
 
-    &-search {
-      width: 25%;
+    &-header {
+      display: flex;
+      align-items: center;
       margin-top: 16px;
+      &-project-name {
+        font-weight: 600;
+      }
+    }
+
+    &-search {
+      display: flex;
+      width: 30%;
+      margin-left: auto;
+      min-width: 348px;
+      .branch-button {
+        margin-right: 16px;
+      }
     }
 
     &-default-branch {
-      margin: 16px 0;
-      height: 78px;
+      margin: 16px;
+      height: 119px;
       .branch-list-container [role="grid"] {
         overflow: hidden !important;
       }
     }
-
     &-all-branch-list {
-      flex: 1;
+      margin: 24px 16px 0 16px;
+      overflow: auto;
+      max-height: 65.5vh;
       // Add min-height to prevent flex: 1 item from overflowing
       //https://stackoverflow.com/questions/42130384/why-should-i-specify-height-0-even-if-i-specified-flex-basis-0-in-css3-flexbox
       min-height: 0;

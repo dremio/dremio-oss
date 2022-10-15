@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 public class GraphAlgos {
   static final Logger logger = LoggerFactory.getLogger(GraphAlgos.class);
 
-  public static class TopoSorter<V extends GraphValue<V>> {
+  public static final class TopoSorter<V extends GraphValue<V>> {
     final List<AdjacencyList<V>.Node> sorted = new LinkedList<AdjacencyList<V>.Node>();
     final AdjacencyList<V> rGraph;
 

@@ -29,7 +29,9 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,8 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -68,8 +72,8 @@ public final class GoldenFileTestBuilder<I, O> {
 
   private final ThrowingFunction<I, O> executeTestFunction;
   private final List<DescriptionAndInput<I>> descriptionAndInputs;
-  boolean allowExceptions;
-  boolean showFullStackTrace;
+  private boolean allowExceptions;
+  private boolean showFullStackTrace;
 
   public GoldenFileTestBuilder(ThrowingFunction<I, O> executeTestFunction) {
     this.executeTestFunction = executeTestFunction;
@@ -88,6 +92,17 @@ public final class GoldenFileTestBuilder<I, O> {
 
   public GoldenFileTestBuilder<I, O> add(String description, I input) {
     this.descriptionAndInputs.add(new DescriptionAndInput<I>(description, input));
+    return this;
+  }
+
+  public <T> GoldenFileTestBuilder<I, O> addListByRule(List<T> list, Function<T, Pair<String, I>> rule) {
+    for (T item : list) {
+      Pair<String, I> output = rule.apply(item);
+      String description = output.getLeft();
+      I input = output.getRight();
+      add(description, input);
+    }
+
     return this;
   }
 
@@ -257,8 +272,8 @@ public final class GoldenFileTestBuilder<I, O> {
   }
 
   private static final class DescriptionAndInput<I> {
-    public final String description;
-    public final I input;
+    private final String description;
+    private final I input;
 
     private DescriptionAndInput(String description, I input) {
       assert description != null;
@@ -269,6 +284,7 @@ public final class GoldenFileTestBuilder<I, O> {
     }
   }
 
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   public static final class InputAndOutput<I, O> {
     public final String description;
     public final I input;
@@ -442,18 +458,17 @@ public final class GoldenFileTestBuilder<I, O> {
   }
 
   private static ObjectMapper getObjectMapper(){
-    ObjectMapper objectMapper = new ObjectMapper(
+    return new ObjectMapper(
       new YAMLFactory()
         .disable(YAMLGenerator.Feature.SPLIT_LINES)
         .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
         .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
       .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-      .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY);
-
-    objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    objectMapper.registerModule(new JavaTimeModule());
-
-    return objectMapper;
+      .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+      .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+      .registerModule(new JavaTimeModule())
+      .registerModule(new GuavaModule())
+      .registerModule(new Jdk8Module());
   }
 
   private static final class MultiLineStringDeserializer extends StdDeserializer<MultiLineString> {

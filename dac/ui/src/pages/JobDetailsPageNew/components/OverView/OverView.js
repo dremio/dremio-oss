@@ -125,7 +125,7 @@ const OverView = (props) => {
         jobDetails.get("inputBytes")
       )} / ${jobsUtils.getFormattedNumber(
         jobDetails.get("inputRecords")
-      )} Records`,
+      )} Rows`,
     },
     {
       label: "Job.Summary.Output",
@@ -133,7 +133,7 @@ const OverView = (props) => {
         jobDetails.get("outputBytes")
       )} / ${jobsUtils.getFormattedNumber(
         jobDetails.get("outputRecords")
-      )} Records`,
+      )} Rows`,
       secondaryContent: jobDetails.get("isOutputLimited") && (
         <div className="summary__content">
           <div className="summary__contentHeader"></div>
@@ -147,7 +147,12 @@ const OverView = (props) => {
             >
               <dremio-icon
                 name="interface/information"
-                style={{ height: 16, width: 16, marginLeft: 4 }}
+                style={{
+                  height: 16,
+                  width: 16,
+                  marginLeft: 4,
+                  color: "var(--dremio--color--neutral--600)",
+                }}
               ></dremio-icon>
             </Tooltip>
           </div>

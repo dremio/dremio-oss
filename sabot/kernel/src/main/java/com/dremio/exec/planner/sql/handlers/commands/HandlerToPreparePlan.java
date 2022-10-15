@@ -44,6 +44,6 @@ public class HandlerToPreparePlan extends HandlerToPreparePlanBase<CreatePrepare
   public CreatePreparedStatementResp execute() {
     final QueryContext context = getContext();
     return PreparedStatementProvider.build(getPlan().getRoot().getProps().getSchema(), getState(),
-      context.getQueryId(), context.getSession().getCatalogName());
+      context.getQueryId(), context.getSession().getCatalogName(), context.getSession().getRecordBatchFormat());
   }
 }

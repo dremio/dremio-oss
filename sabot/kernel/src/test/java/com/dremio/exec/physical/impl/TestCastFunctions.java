@@ -34,10 +34,10 @@ public class TestCastFunctions extends BaseTestFunction {
   @Test
   public void bigInt(){
     testFunctions(new Object[][]{
-      {"cast(c0 as bigint)", 14.0f, 14l},
-      {"cast(c0 as bigint)", 14.0d, 14l},
-      {"cast(c0 as bigint)", 14, 14l},
-      {"cast(c0 as bigint)", "14", 14l},
+      {"cast(c0 as bigint)", 14.0f, 14L},
+      {"cast(c0 as bigint)", 14.0d, 14L},
+      {"cast(c0 as bigint)", 14, 14L},
+      {"cast(c0 as bigint)", "14", 14L},
     });
   }
 
@@ -46,7 +46,7 @@ public class TestCastFunctions extends BaseTestFunction {
     testFunctions(new Object[][]{
       {"cast(c0 as int)", 14.0f, 14},
       {"cast(c0 as int)", 14.0d, 14},
-      {"cast(c0 as int)", 14l, 14},
+      {"cast(c0 as int)", 14L, 14},
       {"cast(c0 as int)", "14", 14},
     });
   }
@@ -54,7 +54,7 @@ public class TestCastFunctions extends BaseTestFunction {
   @Test
   public void floating(){
     testFunctions(new Object[][]{
-      {"cast(c0 as float4)", 14l, 14f},
+      {"cast(c0 as float4)", 14L, 14f},
       {"cast(c0 as float4)", 14.3d, 14.3f},
       {"cast(c0 as float4)", 14, 14f},
       {"cast(c0 as float4)", "14.3", 14.3f},
@@ -64,7 +64,7 @@ public class TestCastFunctions extends BaseTestFunction {
   @Test
   public void doublePrecision(){
     testFunctions(new Object[][]{
-      {"cast(c0 as float8)", 14l, 14d},
+      {"cast(c0 as float8)", 14L, 14d},
       {"cast(c0 as float8)", 14f, 14d},
       {"cast(c0 as float8)", 14, 14d},
       {"cast(c0 as float8)", "14.3", 14.3d},
@@ -75,7 +75,7 @@ public class TestCastFunctions extends BaseTestFunction {
   @Test
   public void varchar(){
     testFunctions(new Object[][]{
-      {"cast(c0 as varchar(30))", 14l, "14"},
+      {"cast(c0 as varchar(30))", 14L, "14"},
       {"cast(c0 as varchar(30))", 14.3f, "14.3"},
       {"cast(c0 as varchar(30))", 14, "14"},
       {"cast(c0 as varchar(30))", 14.3d, "14.3"},
@@ -85,8 +85,8 @@ public class TestCastFunctions extends BaseTestFunction {
   @Test
   public void fromBigInt(){
     testFunctions(new Object[][]{
-      {"cast(c0 as INTERVALDAY)", 14l, Period.millis(14)}, // INTERVALDAY is represented in milliseconds
-      {"cast(c0 as INTERVALYEAR)", 7l, Period.months(7)}, // INTERVALYEAR is represented in months
+      {"cast(c0 as INTERVALDAY)", 14L, Period.millis(14)}, // INTERVALDAY is represented in milliseconds
+      {"cast(c0 as INTERVALYEAR)", 7L, Period.months(7)}, // INTERVALYEAR is represented in months
     });
   }
 

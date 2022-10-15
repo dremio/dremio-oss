@@ -30,13 +30,15 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.op.copier.CopierFactory;
+import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
+import com.dremio.sabot.op.join.vhash.PartitionColFilters;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.MemoryReleaser;
+import com.dremio.sabot.op.join.vhash.spill.io.SpillFileDescriptor;
 import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.dremio.sabot.op.join.vhash.spill.slicer.PageBatchSlicer;
 import com.dremio.sabot.op.join.vhash.spill.slicer.RecordBatchPage;
-import com.dremio.sabot.op.sort.external.SpillManager;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -44,7 +46,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Implementation of partition where the build table is entirely in memory.
  */
-class MemoryPartition implements Partition, CanSwitchToSpilling {
+final class MemoryPartition implements Partition, CanSwitchToSpilling {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryPartition.class);
 
   private final JoinSetupParams setupParams;
@@ -53,8 +55,8 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
   private final BufferAllocator allocator;
   private final PagePool pool;
   private final String partitionID;
-  private final long sv2Addr;
-  private final long tableHashAddr4B;
+  private final ArrowBuf sv2;
+  private final ArrowBuf tableHash4B;
 
   private final JoinTable table;
   private final Stopwatch slicerCopyWatch = Stopwatch.createUnstarted();
@@ -68,12 +70,12 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
   private int buildBatchIndex = 0;
   private boolean switchedToSpilling = false;
 
-  MemoryPartition(JoinSetupParams setupParams, CopierFactory copierFactory, int partitionIdx, long sv2Addr, long tableHashAddr4B) {
+  MemoryPartition(JoinSetupParams setupParams, CopierFactory copierFactory, int partitionIdx, ArrowBuf sv2, ArrowBuf tableHash4B) {
     this.setupParams = setupParams;
     this.copierFactory = copierFactory;
     this.partitionIdx = partitionIdx;
-    this.sv2Addr = sv2Addr;
-    this.tableHashAddr4B = tableHashAddr4B;
+    this.sv2 = sv2;
+    this.tableHash4B = tableHash4B;
     this.partitionID = String.format("p_gen_%08d_idx_%08d", setupParams.getGeneration(), partitionIdx);
 
   /*
@@ -85,12 +87,12 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
       // linked list to link duplicate records (not collisions)
       this.linkedList = rc.add(new PageListMultimap(pool));
       // slicer to slice and copy incoming build batch into fixed size pages.
-      this.slicer = new PageBatchSlicer(pool, sv2Addr, setupParams.getRight(), setupParams.getBuildNonKeyFieldsBitset());
+      this.slicer = new PageBatchSlicer(pool, sv2, setupParams.getRight(), setupParams.getBuildNonKeyFieldsBitset());
       // container for all the sliced record batches.
       this.hyperContainer = rc.add(new ExpandableHyperContainer(allocator, setupParams.getCarryAlongSchema()));
       this.table = rc.add(new BlockJoinTable(setupParams.getBuildKeyPivot(), allocator, setupParams.getComparator(),
           (int) setupParams.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE,
-          setupParams.getSabotConfig(), setupParams.getOptions()));
+          setupParams.getSabotConfig(), setupParams.getOptions(), setupParams.isRuntimeFilterEnabled()));
 
       // temp buffer to hold hash table ordinals, post-insertion into the table
       this.hashTableOrdinals4B = rc.add(allocator.buffer(setupParams.getMaxInputBatchSize() * ORDINAL_SIZE));
@@ -103,12 +105,12 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
   }
 
   @Override
-  public int buildPivoted(int records) throws Exception {
+  public int buildPivoted(int pivotShift, int records) throws Exception {
     Preconditions.checkState(!switchedToSpilling);
     // Add entries into the hash-table and get the hash table ordinals.
-    int recordsInserted = table.insertPivoted(sv2Addr, records,
-      tableHashAddr4B, setupParams.getPivotedFixedBlock(), setupParams.getPivotedVariableBlock(),
-      hashTableOrdinals4B.memoryAddress() /*output*/);
+    int recordsInserted = table.insertPivoted(sv2, pivotShift, records,
+      tableHash4B, setupParams.getPivotedFixedBlock(), setupParams.getPivotedVariableBlock(),
+      hashTableOrdinals4B /*output*/);
     Preconditions.checkState(recordsInserted <= records);
     if (recordsInserted == 0) {
       return 0;
@@ -134,8 +136,8 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
       // Update the links in the linked-list for the newly added batch.
       linkWatch.start();
       try {
-        linkedList.insertCollection(hashTableOrdinals4B.memoryAddress() + numRecordsDone * ORDINAL_SIZE,
-          table.size() - 1, buildBatchIndex, batch.getRecordCount());
+        ArrowBuf hashOrdinals = hashTableOrdinals4B.slice(numRecordsDone * ORDINAL_SIZE, batch.getRecordCount() * ORDINAL_SIZE);
+        linkedList.insertCollection(hashOrdinals, table.getMaxOrdinal(), buildBatchIndex, batch.getRecordCount());
       } finally {
         linkWatch.stop();
       }
@@ -168,16 +170,22 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
 
   private void checkAndCreateProbe() {
     if (probe == null) {
-      probe = new VectorizedProbe(setupParams, copierFactory, sv2Addr, tableHashAddr4B, table, linkedList, hyperContainer);
+      probe = new VectorizedProbe(setupParams, copierFactory, sv2, tableHash4B, table, linkedList, hyperContainer);
     }
   }
 
   @Override
-  public int probePivoted(int records, int startOutputIndex, int maxOutputIndex) throws Exception {
+  public void probeBatchBegin(int pivotShift, int numRecords) {
     Preconditions.checkState(!switchedToSpilling);
     checkAndCreateProbe();
-    int ret = probe.probeBatch(records, startOutputIndex, maxOutputIndex);
-    logger.trace("partition {} processed {} probe records output {}", partitionID, records, ret);
+    probe.batchBegin(pivotShift, numRecords);
+  }
+
+  @Override
+  public int probePivoted(int startOutputIndex, int maxOutputIndex) throws Exception {
+    Preconditions.checkState(!switchedToSpilling);
+    int ret = probe.probeBatch(startOutputIndex, maxOutputIndex);
+    logger.trace("partition {} probe records output {}", partitionID, ret);
     return ret;
   }
 
@@ -188,6 +196,16 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
     int ret = probe.projectBuildNonMatches(startOutputIndex, maxOutputIndex);
     logger.trace("partition {} projectBuildNonMatches output {}", partitionID, ret);
     return ret;
+  }
+
+  @Override
+  public void prepareBloomFilters(PartitionColFilters partitionColFilters) {
+    table.prepareBloomFilters(partitionColFilters);
+  }
+
+  @Override
+  public void prepareValueListFilters(NonPartitionColFilters nonPartitionColFilters) {
+    table.prepareValueListFilters(nonPartitionColFilters);
   }
 
   @Override
@@ -317,16 +335,16 @@ class MemoryPartition implements Partition, CanSwitchToSpilling {
   public SwitchResult switchToSpilling(boolean spillAll) {
     Preconditions.checkState(!switchedToSpilling);
     switchedToSpilling = true;
-    logger.info("switching partition {} to spill mode", partitionID);
+    setupParams.getSpillStats().incrementSpillCount();
 
     // create a releaser to free up the in-memory hash-table & the hyper-container.
-    SpillManager.SpillFile spillFile = setupParams.getSpillManager().getSpillFile(partitionID + "_preSpillBuild.arrow");
+    SpillFileDescriptor spillFile = new SpillFileDescriptor(setupParams.getSpillManager().getSpillFile(partitionID + "_preSpillBuild.arrow"));
     MemoryReleaser releaser = new BuildMemoryReleaser(setupParams, spillFile,
       linkedList, table, hyperContainer, slicedBatchPages, allocator, ImmutableList.of(pool));
     setupParams.getMultiMemoryReleaser().addReleaser(releaser);
 
     // Create a disk-partition to use in-place of this partition.
-    Partition newPartition = new DiskPartition(setupParams, partitionIdx, sv2Addr, ImmutableList.of(spillFile));
+    Partition newPartition = new DiskPartition(setupParams, partitionIdx, sv2, ImmutableList.of(spillFile), new RecordedStats(getStats()));
 
     // clean-up this partition
     AutoCloseables.closeNoChecked(this);

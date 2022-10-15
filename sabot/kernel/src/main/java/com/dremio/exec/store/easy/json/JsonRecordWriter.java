@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 
 import com.dremio.common.AutoCloseables;
@@ -42,6 +43,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class JsonRecordWriter extends JSONOutputRecordWriter {
@@ -126,14 +128,14 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   }
 
   @Override
-  public FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader) {
-    return new MapJsonConverter(fieldId, fieldName, reader);
+  public FieldConverter getNewStructConverter(int fieldId, String fieldName, FieldReader reader) {
+    return new StructJsonConverter(fieldId, fieldName, reader);
   }
 
-  public class MapJsonConverter extends FieldConverter {
+  public class StructJsonConverter extends FieldConverter {
     List<FieldConverter> converters = Lists.newArrayList();
 
-    public MapJsonConverter(int fieldId, String fieldName, FieldReader reader) {
+    public StructJsonConverter(int fieldId, String fieldName, FieldReader reader) {
       super(fieldId, fieldName, reader);
       int i = 0;
       for (String name : reader) {
@@ -155,6 +157,46 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
       for (FieldConverter converter : converters) {
         converter.startField();
         converter.writeField();
+      }
+      gen.writeEndObject();
+    }
+  }
+
+  @Override
+  public FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader) {
+    return new MapJsonConverter(fieldId, fieldName, reader);
+  }
+
+  public class MapJsonConverter extends FieldConverter {
+    FieldConverter keyConverter;
+    FieldConverter valueConverter;
+    public MapJsonConverter(int fieldId, String fieldName, FieldReader reader) {
+      super(fieldId, fieldName, reader);
+      Preconditions.checkState(reader instanceof UnionMapReader);
+      UnionMapReader unionMapReader = (UnionMapReader) reader;
+      keyConverter = EventBasedRecordWriter.getConverter(JsonRecordWriter.this, 0,
+        "key", unionMapReader.key().getMinorType(), unionMapReader.key());
+      valueConverter = EventBasedRecordWriter.getConverter(JsonRecordWriter.this, 1,
+        "value", unionMapReader.value().getMinorType(), unionMapReader.value());
+    }
+
+    @Override
+    public void startField() throws IOException {
+      gen.writeFieldName(fieldName);
+    }
+
+    @Override
+    public void writeField() throws IOException {
+      gen.writeStartObject();
+      if (!reader.isSet()) {
+        return; // null field
+      }
+      UnionMapReader mapReader = (UnionMapReader) reader;
+      while (mapReader.next()) {
+        keyConverter.startField();
+        keyConverter.writeField();
+        valueConverter.startField();
+        valueConverter.writeField();
       }
       gen.writeEndObject();
     }

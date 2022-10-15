@@ -19,6 +19,7 @@ import {
   CONTAINER_ENTITY_TYPES,
   DATASET_ENTITY_TYPES,
 } from "@app/constants/Constants";
+import { TreeNode } from "./ResourceTree.types";
 
 export const starTabNames = {
   all: "All",
@@ -176,7 +177,7 @@ function starredResourceDecorator(
 ) {
   if (!nodeExpanded) {
     // top most level so it needs to be set as the base node for styling and view path for rendering future children
-    const baseNodeResources = resources.map((item: any, index: number) => {
+    const baseNodeResources = resources?.map((item: any, index: number) => {
       item = item.set("baseNode", true);
       item = item.set("viewPath", [item.get("name")]);
       item = item.set("branchId", index);
@@ -186,7 +187,7 @@ function starredResourceDecorator(
     return state.set("starResourceList", baseNodeResources);
   } else {
     // children nodes need to have a new view path so the path to their location to store things is correct
-    const resourcesWithViewPath = resources.map((item: any) => {
+    const resourcesWithViewPath = resources?.map((item: any) => {
       const parentViewPath = parentNode.get("viewPath");
       const parentBranchId = parentNode.get("branchId");
       item = item.set("viewPath", [...parentViewPath, item.get("name")]);
@@ -231,7 +232,7 @@ export function starredResourceTreeNodeDecorator(
       : // @ts-ignore
         action.payload[payloadKey]
   );
-  const resources = payloadResources.sort(
+  const resources = payloadResources?.sort(
     (prevRes: any, res: any) =>
       (prevRes.get("type") !== "HOME" && res.get("type") === "HOME") ||
       (prevRes.get("type") === "HOME" && res.get("type") !== "HOME" && -1)
@@ -325,4 +326,12 @@ export function resourceTreeNodeDecorator(
 
 export function getNodeBranchId(node: any) {
   return `${node.get("id")}-${node.get("branchId")}`;
+}
+
+export function clearResourcesByName(state: any, action: { payload: string }) {
+  const tree: TreeNode[] = state.get("tree").toJS();
+  const idx = tree.findIndex((cur) => cur.name === action.payload);
+  if (idx === -1) return;
+  if (tree[idx].resources) delete tree[idx].resources;
+  return state.set("tree", Immutable.fromJS(tree));
 }

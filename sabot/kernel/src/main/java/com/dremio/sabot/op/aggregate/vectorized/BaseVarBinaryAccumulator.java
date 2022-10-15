@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.MutableVarcharVector;
@@ -59,6 +60,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   private int runtimeVarLenEntries = 0;
   private final int accumIndex;
   private final VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer;
+  private final AccumStats accumStats;
 
   /**
    * @param input
@@ -68,7 +70,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
                                   final AccumulatorBuilder.AccumulatorType type, final int maxValuesPerBatch,
                                   final BufferAllocator computationVectorAllocator, int estimatedVariableWidthKeySize,
                                   int maxVariableWidthKeySize, int maxVarWidthVecUsagePercent,
-                                  int accumIndex, BaseVariableWidthVector tempAccumulatorHolder,
+                                  int accumIndex, BaseValueVector tempAccumulatorHolder,
                                   VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
     this.input = input;
     this.transferVector = transferVector;
@@ -82,8 +84,9 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     this.maxVariableWidthKeySize = maxVariableWidthKeySize;
     this.maxVarWidthVecUsagePercent = maxVarWidthVecUsagePercent;
     this.accumIndex = accumIndex;
-    this.tempAccumulatorHolder = tempAccumulatorHolder;
+    this.tempAccumulatorHolder = (BaseVariableWidthVector)tempAccumulatorHolder;
     this.varLenVectorResizer = varLenVectorResizer;
+    this.accumStats = new AccumStats();
   }
 
   public void updateRunTimeVarLenColumnSize(int varLenColumnSize) {
@@ -172,7 +175,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   private void addBatchHelper(final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
     /* store the new vector and increment batches before allocating memory */
     FieldVector vector = new MutableVarcharVector(input.getField().getName(),
-      computationVectorAllocator, 0.2, maxVarWidthVecUsagePercent);
+      computationVectorAllocator, 0.2, maxVarWidthVecUsagePercent, accumStats);
     accumulators[batches++] = vector;
     resizeAttempted = true;
 
@@ -180,9 +183,6 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
      * we have captured enough info to rollback the operation.
      */
     loadAccumulatorForNewBatch(vector, dataBuffer, validityBuffer);
-
-    /* need to clear the data since allocate new doesn't do so and we want to start with clean memory */
-    vector.reset();
 
     checkNotNull();
   }
@@ -316,6 +316,9 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     vector.reset();
   }
 
+  @Override
+  public void compact(final int batchIndex, final int nextRecSize) { }
+
   /**
    * Take the accumulator vector (the vector that stores computed values)
    * for a particular batch (identified by batchIndex) and output its contents.
@@ -415,9 +418,9 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   }
 
   @Override
-  public boolean hasSpace(final int space, int batchIndex) {
+  public boolean hasSpace(final int space, int numOfRecords, int batchIndex, int offsetInBatch) {
     final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
-    return mv.checkHasAvailableSpace(space);
+    return mv.checkHasAvailableSpace(space, numOfRecords);
   }
 
   @Override
@@ -429,22 +432,12 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
 
   @Override
   public long getCompactionTime(TimeUnit unit) {
-    long result = 0;
-    for (int i = 0; i < batches; ++i) {
-      final MutableVarcharVector mv = (MutableVarcharVector)accumulators[i];
-      result += mv.getCompactionTime(unit);
-    }
-    return result;
+    return accumStats.getTotalCompactionTime(unit);
   }
 
   @Override
   public int getNumCompactions() {
-    int result = 0;
-    for (int i = 0; i < batches; ++i) {
-      final MutableVarcharVector mv = (MutableVarcharVector) accumulators[i];
-      result += mv.getNumCompactions();
-    }
-    return result;
+    return accumStats.getNumCompactions();
   }
 
   @Override

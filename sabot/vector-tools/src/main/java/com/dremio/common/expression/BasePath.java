@@ -28,6 +28,7 @@ import com.dremio.exec.proto.UserBitShared.NamePart.Type;
  */
 public abstract class BasePath implements ProvidesUnescapedPath {
 
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final NameSegment rootSegment;
 
   public static BasePath getSimple(String name) {

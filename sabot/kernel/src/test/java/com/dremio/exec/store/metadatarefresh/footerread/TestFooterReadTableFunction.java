@@ -18,10 +18,10 @@ package com.dremio.exec.store.metadatarefresh.footerread;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -374,12 +374,12 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     AvroRowCountEstimater reader = new AvroRowCountEstimater(tableSchema, getOpCtx());
     Path fileRoot = Path.of(Resources.getResource("avro/").toURI());
     String file1 = fileRoot.resolve("avro1.avro").toString();
-    Footer footer = reader.getFooter(file1, 300l);
+    Footer footer = reader.getFooter(file1, 300L);
     assertTrue(footer.getRowCount() > 0);
     long file1RowCount = footer.getRowCount();
 
     String file2 = fileRoot.resolve("avro5").toString();
-    footer = reader.getFooter(file2, 340l);
+    footer = reader.getFooter(file2, 340L);
     assertTrue(footer.getRowCount() > file1RowCount);
   }
 

@@ -27,6 +27,7 @@ package com.dremio.sabot.op.common.ht2;
 public final class BlockChunk {
   protected final long keyFixedVectorAddr;
   protected final long keyVarVectorAddr;
+  protected final long keyVarVectorSize;
   protected final boolean fixedOnly;
   protected final int blockWidth;
   protected final int records;
@@ -34,10 +35,11 @@ public final class BlockChunk {
   protected final long seed;
 
 
-  public BlockChunk(long keyFixedVectorAddr, long keyVarVectorAddr, boolean fixedOnly,
+  public BlockChunk(long keyFixedVectorAddr, long keyVarVectorAddr, long keyVarVectorSize, boolean fixedOnly,
                     int blockWidth, int records, long hashValueVectorAddr, long seed) {
     this.keyFixedVectorAddr = keyFixedVectorAddr;
     this.keyVarVectorAddr = keyVarVectorAddr;
+    this.keyVarVectorSize = keyVarVectorSize;
     this.fixedOnly = fixedOnly;
     this.blockWidth = blockWidth;
     this.records = records;
@@ -51,6 +53,10 @@ public final class BlockChunk {
 
   public long getKeyVarVectorAddr() {
     return keyVarVectorAddr;
+  }
+
+  public long getKeyVarVectorSize() {
+    return keyVarVectorSize;
   }
 
   public boolean isFixedOnly() {

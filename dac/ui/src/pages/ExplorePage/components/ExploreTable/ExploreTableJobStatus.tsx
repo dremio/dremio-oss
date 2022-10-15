@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 import { connect } from "react-redux";
-import { withRouter, Link } from "react-router";
+import { withRouter } from "react-router";
+import { compose } from "redux";
 
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { addNotification } from "@app/actions/notification";
 import RealTimeTimer from "@app/components/RealTimeTimer";
 import SampleDataMessage from "@app/pages/ExplorePage/components/SampleDataMessage";
@@ -27,8 +29,10 @@ import {
   getRunStatus,
 } from "@app/selectors/explore";
 import { getCurrentSessionJobList, getJobList } from "selectors/jobs";
-import { compose } from "redux";
 import { intl } from "@app/utils/intl";
+
+// @ts-ignore
+import { Tooltip } from "dremio-ui-lib";
 
 import "./ExploreTableJobStatus.less";
 
@@ -128,7 +132,7 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
 
   const jobStatus = {
     label: formatMessage({
-      id: `Explore.${isComplete ? "Records" : "Status"}`,
+      id: `Explore.${isComplete ? "Rows" : "Status"}`,
     }),
     value: isComplete
       ? jobDetails?.outputRecords?.toLocaleString() ?? "-"
@@ -167,20 +171,21 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
           </span>
 
           {jobId && (
-            <Link
-              to={{
-                pathname: `/job/${jobId}`,
-                query: {
-                  attempts: jobAttempts,
-                },
-                state: {
-                  isFromJobListing: false,
-                },
-              }}
-              title={`Jobs Detail Page for #${jobId}`}
-            >
-              {jobType}
-            </Link>
+            <Tooltip title={`Jobs Detail Page for #${jobId}`}>
+              <LinkWithRef
+                to={{
+                  pathname: `/job/${jobId}`,
+                  query: {
+                    attempts: jobAttempts,
+                  },
+                  state: {
+                    isFromJobListing: false,
+                  },
+                }}
+              >
+                {jobType}
+              </LinkWithRef>
+            </Tooltip>
           )}
         </div>
 

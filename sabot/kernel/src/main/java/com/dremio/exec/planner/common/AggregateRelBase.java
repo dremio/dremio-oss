@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.planner.common;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -27,6 +29,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.google.common.collect.ImmutableList;
@@ -71,5 +74,19 @@ public abstract class AggregateRelBase extends Aggregate {
       return planner.getCostFactory().makeInfiniteCost();
     }
     return super.computeSelfCost(planner, mq);
+  }
+
+  public boolean containsSupportedListAggCall() {
+    return containsListAggCall() && aggCalls.stream().anyMatch(this::isSupportedListAgg);
+  }
+
+  public boolean containsListAggCall() {
+    return aggCalls.stream().anyMatch(aggregateCall -> SqlKind.LISTAGG == aggregateCall.getAggregation().getKind());
+  }
+
+  public boolean isSupportedListAgg(AggregateCall call) {
+    // Currently, we only support order by for the column used as list_agg argument.
+    final Set<Integer> args = new HashSet<>(call.getArgList());
+    return call.getCollation().getFieldCollations().stream().allMatch(collation -> args.contains(collation.getFieldIndex()));
   }
 }

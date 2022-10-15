@@ -49,6 +49,15 @@ public final class TokenBuffer {
     return next.getKind();
   }
 
+  public String peekImage() {
+    DremioToken next = peek();
+    if (next == null) {
+      return null;
+    }
+
+    return next.getImage();
+  }
+
   public boolean kindIs(int kind) {
     return peekKind() == kind;
   }
@@ -62,6 +71,21 @@ public final class TokenBuffer {
     position++;
     return token;
   }
+
+  public ImmutableList<DremioToken> read(int length) {
+    ImmutableList.Builder<DremioToken> tokens = new ImmutableList.Builder<>();
+    for (int i = 0; i < length; i++) {
+      DremioToken tokenRead = read();
+      if (tokenRead == null) {
+        break;
+      }
+
+      tokens.add(tokenRead);
+    }
+
+    return tokens.build();
+  }
+
 
   public int readKind() {
     DremioToken token = read();
@@ -96,6 +120,10 @@ public final class TokenBuffer {
 
   public DremioToken readIfKind(int expectedKind) {
     return readIf(token -> token.getKind() == expectedKind);
+  }
+
+  public DremioToken readIfKinds(ImmutableSet<Integer> kinds) {
+    return readIf(token -> kinds.contains(token.getKind()));
   }
 
   public DremioToken readAndCheckKind(int expectedKind) {
@@ -183,5 +211,14 @@ public final class TokenBuffer {
 
   public ImmutableList<DremioToken> readUntilKinds(ImmutableSet<Integer> kinds) {
     return readUntil(token -> kinds.contains(token.getKind()));
+  }
+
+  public static TokenBuffer create(String corpus) {
+    ImmutableList<DremioToken> tokens = SqlQueryTokenizer.tokenize(corpus);
+    return create(tokens);
+  }
+
+  public static TokenBuffer create(ImmutableList<DremioToken> tokens) {
+    return new TokenBuffer(tokens);
   }
 }

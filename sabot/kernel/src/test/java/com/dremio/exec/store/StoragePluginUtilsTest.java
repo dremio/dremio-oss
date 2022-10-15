@@ -39,9 +39,9 @@ public class StoragePluginUtilsTest {
   @Test
   public void testGenerateSourceErrorMessageFromFormatString() {
     final String sourceName = "test-source";
-    final String errorFmtString = "Returned status code %s from cluster";
+    final String errorString = "Returned status code 500 from cluster";
     Assert.assertEquals("Source 'test-source' returned error 'Returned status code 500 from cluster'",
-      StoragePluginUtils.generateSourceErrorMessage(sourceName, errorFmtString, "500"));
+      StoragePluginUtils.generateSourceErrorMessage(sourceName, errorString));
   }
 
   @Test

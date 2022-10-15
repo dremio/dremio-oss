@@ -130,7 +130,10 @@ public class ExecProtocol implements FabricProtocol {
     try {
 
       ArrowBuf dBodyBuf = (body == null) ? null : ((NettyArrowBuf) body)
-        .arrowBuf();
+        .arrowBuf().writerIndex(body.writerIndex());
+      fragmentBatch = FragmentRecordBatch.newBuilder(fragmentBatch)
+        .setRecvEpochTimestamp(System.currentTimeMillis())
+        .build();
       final IncomingDataBatch batch = new IncomingDataBatch(fragmentBatch, dBodyBuf, ack);
       final int targetCount = fragmentBatch.getReceivingMinorFragmentIdCount();
 

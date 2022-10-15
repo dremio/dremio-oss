@@ -29,7 +29,6 @@ import java.util.stream.StreamSupport;
 import org.apache.arrow.flatbuf.RecordBatch;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.compression.NoCompressionCodec;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
@@ -41,6 +40,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.LocalSyncableFileSystem.WritesArrowBuf;
 import com.dremio.io.FSInputStream;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.google.common.base.Preconditions;
 import com.google.flatbuffers.FlatBufferBuilder;
 
 import io.netty.buffer.ByteBuf;
@@ -130,8 +130,8 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
   }
 
   private void readFully(byte[] target, int offset, int len, InputStream input) throws IOException {
-    org.apache.arrow.util.Preconditions.checkArgument(offset >= 0 && offset < target.length);
-    org.apache.arrow.util.Preconditions.checkArgument(len <= target.length);
+    Preconditions.checkArgument(offset >= 0 && offset < target.length);
+    Preconditions.checkArgument(len <= target.length);
 
     while(len > 0) {
       int read = input.read(target, offset, len);

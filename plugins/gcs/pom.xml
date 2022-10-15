@@ -25,7 +25,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-gcs-plugin</artifactId>
@@ -38,7 +38,7 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
-      <version>hadoop3-2.2.2-dremio-202108161113150127-7bb5f20</version>
+      <version>hadoop3-${gcs-connector-version}</version>
       <classifier>shaded</classifier>
       <exclusions>
           <exclusion>

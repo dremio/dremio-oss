@@ -22,7 +22,7 @@ export function getIconByType(type?: string | null, elements?: string[]) {
     case Type.IcebergTable:
     case Type.DeltaLakeTable:
       return { type: "PhysicalDataset", id: `Nessie.${type}` };
-    case Type.View:
+    case "ICEBERG_VIEW": // TODO, need to update generated types
       return { type: "VirtualDataset", id: `Nessie.${type}` };
     default:
       return {
@@ -37,8 +37,8 @@ export function getUrlByType(type: string | null, fullPath: string) {
     case Type.IcebergTable:
     case Type.DeltaLakeTable:
       return `/table/${fullPath}`;
-    case Type.View:
-      return "/"; //TODO, View is not in current MVP
+    case "ICEBERG_VIEW": // TODO, need to update generated types
+      return `/view/${fullPath}`;
     default:
       return `/namespace/${fullPath}`;
   }

@@ -29,6 +29,8 @@ import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingSpanExporter;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.extension.trace.propagation.B3Propagator;
+import io.opentelemetry.extension.trace.propagation.JaegerPropagator;
 import io.opentelemetry.opentracingshim.OpenTracingShim;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.extension.trace.jaeger.sampler.JaegerRemoteSampler;
@@ -51,19 +53,22 @@ public class OpenTelemetryConfigurator extends TracerConfigurator {
   private final String samplerEndpoint;
   private final Boolean logSpans;
   private final String collectorEndpoint;
+  private final String propagator;
 
   public OpenTelemetryConfigurator(
     @JsonProperty("serviceName") String serviceName,
     @JsonProperty("samplerType") String samplerType,
     @JsonProperty("samplerEndpoint") String samplerEndpoint,
     @JsonProperty("logSpans") Boolean logSpans,
-    @JsonProperty("collectorEndpoint") String collectorEndpoint
+    @JsonProperty("collectorEndpoint") String collectorEndpoint,
+    @JsonProperty("propagator") String propagator
   ) {
     this.serviceName = serviceName;
     this.samplerType = samplerType;
     this.samplerEndpoint = samplerEndpoint;
     this.logSpans = logSpans;
     this.collectorEndpoint = collectorEndpoint;
+    this.propagator = propagator;
   }
 
   @Override
@@ -79,12 +84,13 @@ public class OpenTelemetryConfigurator extends TracerConfigurator {
       && Objects.equal(samplerType, that.samplerType)
       && Objects.equal(samplerEndpoint, that.samplerEndpoint)
       && Objects.equal(logSpans, that.logSpans)
-      && Objects.equal(collectorEndpoint, that.collectorEndpoint);
+      && Objects.equal(collectorEndpoint, that.collectorEndpoint)
+      && Objects.equal(propagator, that.propagator);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(serviceName, samplerType, samplerEndpoint, logSpans, collectorEndpoint);
+    return Objects.hashCode(serviceName, samplerType, samplerEndpoint, logSpans, collectorEndpoint, propagator);
   }
 
   @Override
@@ -133,9 +139,29 @@ public class OpenTelemetryConfigurator extends TracerConfigurator {
     //Set up the servicename.. this will show up in Console.
     sdkTracerProviderBuilder.setResource(Resource.create(Attributes.of(ResourceAttributes.SERVICE_NAME, serviceName)));
 
+    ContextPropagators contextPropagators;
+    if (propagator == null) {
+      contextPropagators = ContextPropagators.create(W3CTraceContextPropagator.getInstance());
+    } else {
+      switch(propagator.toLowerCase()) {
+        case "b3multi":
+          contextPropagators = ContextPropagators.create(B3Propagator.injectingMultiHeaders());
+          break;
+        case "b3":
+          contextPropagators = ContextPropagators.create(B3Propagator.injectingSingleHeader());
+          break;
+        case "jaeger":
+          contextPropagators = ContextPropagators.create(JaegerPropagator.getInstance());
+          break;
+        case "tracecontext":
+        default:
+          contextPropagators = ContextPropagators.create(W3CTraceContextPropagator.getInstance());
+      }
+    }
+
     OpenTelemetrySdk.builder()
       .setTracerProvider(sdkTracerProviderBuilder.build())
-      .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+      .setPropagators(contextPropagators)
       .buildAndRegisterGlobal();
 
     return OpenTracingShim.createTracerShim();

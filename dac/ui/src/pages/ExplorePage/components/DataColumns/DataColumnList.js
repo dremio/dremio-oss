@@ -15,11 +15,9 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import { connect } from "react-redux";
 import ImmutablePropTypes from "react-immutable-proptypes";
 import classNames from "classnames";
 import { formatMessage } from "@app/utils/locale";
-import { getTableColumns } from "@app/selectors/explore";
 import {
   columnPropTypes,
   DataColumn,
@@ -32,17 +30,6 @@ import {
   column as columnCls,
 } from "./DataColumnList.less";
 
-const mapStateToProps = (state) => {
-  const location = state.routing.locationBeforeTransitions || {};
-  return {
-    columns: getTableColumns(
-      state,
-      location.query && location.query.version,
-      location
-    ),
-  };
-};
-
 export class DataColumnListView extends PureComponent {
   static propTypes = {
     columns: ImmutablePropTypes.listOf(
@@ -53,7 +40,7 @@ export class DataColumnListView extends PureComponent {
   };
 
   render() {
-    const { columns, titleClass, className } = this.props;
+    const { titleClass, className, columns } = this.props;
 
     return (
       <div className={classNames(wrapper, className)}>
@@ -77,4 +64,4 @@ export class DataColumnListView extends PureComponent {
   }
 }
 
-export const DataColumnList = connect(mapStateToProps)(DataColumnListView);
+export const DataColumnList = DataColumnListView;

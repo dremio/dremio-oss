@@ -15,11 +15,10 @@
  */
 import { Component } from "react";
 import Checkbox from "components/Fields/Checkbox";
-import HoverHelp from "components/HoverHelp";
 import { checkboxStandalone } from "@app/components/Fields/Checkbox.less";
 import PropTypes from "prop-types";
-
-import { flexContainer, tooltipIcon } from "./FormWrappers.less";
+import { HoverHelp } from "dremio-ui-lib";
+import { flexContainer } from "./FormWrappers.less";
 
 export default class CheckboxWrapper extends Component {
   static propTypes = {
@@ -48,7 +47,7 @@ export default class CheckboxWrapper extends Component {
           labelBefore={config.labelBefore}
           label={elementConfig.getConfig().label}
         />
-        {tooltip && <HoverHelp content={tooltip} className={tooltipIcon} />}
+        {tooltip && <HoverHelp content={tooltip} />}
       </div>
     );
   }

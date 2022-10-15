@@ -16,16 +16,16 @@
 package com.dremio.exec.planner.acceleration;
 
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
@@ -33,6 +33,7 @@ import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.collect.ImmutableList;
 
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class TestMaterializationList {
 
   @Mock
@@ -55,11 +56,6 @@ public class TestMaterializationList {
 
   @Mock
   private MaterializationDescriptor included;
-
-  @Before
-  public void setup() {
-    MockitoAnnotations.initMocks(this);
-  }
 
   @Test
   public void testListDiscardsGivenExclusions() {

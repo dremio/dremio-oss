@@ -27,6 +27,7 @@ public enum SharedResourceType {
   NWAY_RECV_MEM_BUFFER(SharedResourceCategory.UPSTREAM),
   NWAY_RECV_SPOOL_BUFFER(SharedResourceCategory.UPSTREAM),
   OUTGOING_MSG_ACK(SharedResourceCategory.DOWNSTREAM),
+  WAIT_FOR_MEMORY(SharedResourceCategory.MEMORY),
   FRAGMENT_ACTIVATE_SIGNAL(SharedResourceCategory.OTHER),
   TEST(SharedResourceCategory.OTHER);
 

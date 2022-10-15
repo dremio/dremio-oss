@@ -30,7 +30,6 @@ import com.dremio.options.OptionValue.OptionType;
  * (see {@link #options}) whereas {@link SystemOptionManager} stores options in a persistent store.
  */
 public abstract class InMemoryOptionManager extends BaseOptionManager {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InMemoryOptionManager.class);
 
   protected final Map<String, OptionValue> options;
 

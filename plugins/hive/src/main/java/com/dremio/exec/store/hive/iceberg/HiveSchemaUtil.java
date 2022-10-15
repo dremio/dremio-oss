@@ -29,7 +29,7 @@ import org.apache.iceberg.types.Types;
  * This class is a duplicate of HiveSchemaUtil in iceberg-hive-metastore, copied here to avoid
  * adding dependency on the iceberg jar.
  */
-public class HiveSchemaUtil {
+public final class HiveSchemaUtil {
 
   private HiveSchemaUtil() {
   }

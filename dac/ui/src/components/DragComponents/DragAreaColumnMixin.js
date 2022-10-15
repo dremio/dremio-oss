@@ -13,19 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FontIcon from "components/Icon/FontIcon";
-import { styles } from "@app/components/DragComponents/DragAreaColumn.js";
+
+import { IconButton } from "dremio-ui-lib";
 
 function DragAreaColumnMixin(input) {
   Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
     renderCancelGreyButtons() {
       return (
-        <FontIcon
-          type="CanceledGray"
-          theme={styles.fontIcon}
-          onClick={this.handleRemoveColumn}
-        />
+        <IconButton tooltip="Common.Remove" onClick={this.handleRemoveColumn}>
+          <dremio-icon name="interface/close-small" />
+        </IconButton>
       );
     },
   });

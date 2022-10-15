@@ -39,6 +39,7 @@ import {
   getFetchDatasetMetaAction,
   proceedWithDataLoad,
   performTransformSingle,
+  getParsedSql,
 } from "./performTransform";
 
 describe("performTransform saga", () => {
@@ -355,7 +356,7 @@ describe("performTransform saga", () => {
         });
         goToTransformData();
         expect(next.value).to.be.eql(
-          call(loadDataset, dataset, viewId, forceDataLoad, "")
+          call(loadDataset, dataset, viewId, forceDataLoad, "", true)
         );
 
         const mockApiAction = "mock api call";
@@ -443,5 +444,40 @@ describe("performTransform saga", () => {
         });
       });
     [true, false].map(testTransformHistoryCheck);
+  });
+
+  describe("getParsedSql", () => {
+    it("returns datasetSql if currentSql and runningSql are undefined", () => {
+      const params = {
+        dataset,
+        currentSql: undefined,
+        runningSql: undefined,
+      };
+
+      const [sql] = getParsedSql(params);
+      expect(sql).to.eql(["select * from foo"]);
+    });
+
+    it("returns currentSql if provided and runningSql is undefined", () => {
+      const params = {
+        dataset,
+        currentSql: "select 1; select 2",
+        runningSql: undefined,
+      };
+
+      const [sql] = getParsedSql(params);
+      expect(sql).to.eql(["select 1", " select 2"]);
+    });
+
+    it("returns runningSql if provided", () => {
+      const params = {
+        dataset,
+        currentSql: "select 1; select 2",
+        runningSql: "select 1",
+      };
+
+      const [sql] = getParsedSql(params);
+      expect(sql).to.eql(["select 1"]);
+    });
   });
 });

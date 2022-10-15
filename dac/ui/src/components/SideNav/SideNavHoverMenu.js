@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import React, { useState, useRef } from "react";
+import { cloneElement, useState, useRef } from "react";
 import { useIntl } from "react-intl";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 import { Tooltip } from "dremio-ui-lib";
-import Art from "@app/components/Art";
 
 import "./SideNav.less";
 import "./SideNavHoverMenu.less";
@@ -31,13 +30,12 @@ const SideNavHoverMenu = (props) => {
     menu,
     icon,
     divBlob,
-    menuDisplayUp,
     isActive,
+    isDCS,
   } = props;
 
   const intl = useIntl();
   const linkBtnRef = useRef();
-  const menuRef = useRef();
   const [popMenuExtraClass, popupMenuClass] = useState(" --hide");
   const [showPopup, setShowPopup] = useState(false);
   const showPopupWaitTime = 250;
@@ -85,18 +83,7 @@ const SideNavHoverMenu = (props) => {
     }, hidePopupWaitTime);
   };
 
-  const closeMenu = () => {};
-
-  // adjust the position of the menu
-  let menuAdjustment = 0;
-  if (menuDisplayUp) {
-    menuAdjustment = linkBtnRef.current ? linkBtnRef.current.offsetTop : 0;
-    menuAdjustment -= menuRef.current ? menuRef.current.clientHeight : 0;
-    menuAdjustment = { top: menuAdjustment + 64 + "px" };
-  } else {
-    menuAdjustment = linkBtnRef.current ? linkBtnRef.current.offsetTop : 0;
-    menuAdjustment = { top: menuAdjustment + "px" };
-  }
+  const closeMenu = () => setShowPopup(false);
 
   // get the tooltip
   const stringObj = {};
@@ -108,39 +95,45 @@ const SideNavHoverMenu = (props) => {
 
   return (
     <div className={classNames("sideNav-item", isActive)} ref={linkBtnRef}>
-      <Tooltip title={tooltip}>
-        <div
-          className={classNames(
-            "sideNav-item__hoverMenu",
-            isActive,
-            menuLinkMenuDisplayed
-          )}
-          onMouseEnter={(e) => mouseEnter(e)}
-          onMouseLeave={(e) => mouseLeave(e)}
-        >
+      <div
+        className={classNames(
+          "sideNav-item__hoverMenu",
+          isActive,
+          menuLinkMenuDisplayed
+        )}
+        onMouseEnter={(e) => mouseEnter(e)}
+        onMouseLeave={(e) => mouseLeave(e)}
+        aria-label={props["aria-label"]}
+      >
+        <Tooltip title={tooltip}>
           <div className="sideNav-items">
             {icon && (
               <div className="sideNav-item__icon">
-                <Art src={icon} alt={tooltip} />
+                <dremio-icon name={icon} alt={tooltip} data-qa={icon} />
               </div>
             )}
             {divBlob && divBlob}
           </div>
-        </div>
-      </Tooltip>
+        </Tooltip>
+      </div>
+      {isDCS && (
+        <dremio-icon
+          name="interface/caret-down-right"
+          alt="caret-down-right"
+          class="sideNav-item__caret-icon"
+        />
+      )}
       {showPopup && (
         <div
-          ref={menuRef}
           className={classNames(
             "sideNav-menu",
             popMenuExtraClass,
             menuPosition
           )}
-          style={{ ...menuAdjustment }}
           onMouseEnter={(e) => mouseEnter(e)}
           onMouseLeave={(e) => mouseLeave(e)}
         >
-          {React.cloneElement(menu, { closeMenu })}
+          {cloneElement(menu, { closeMenu })}
         </div>
       )}
     </div>
@@ -155,6 +148,8 @@ SideNavHoverMenu.propTypes = {
   divBlob: PropTypes.object,
   isActive: PropTypes.string,
   menuDisplayUp: PropTypes.bool,
+  "aria-label": PropTypes.string,
+  isDCS: PropTypes.bool,
 };
 
 export default SideNavHoverMenu;

@@ -25,11 +25,11 @@ import static org.apache.twill.internal.Constants.Files.APPLICATION_JAR;
 import static org.apache.twill.internal.Constants.Files.TWILL_JAR;
 
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import com.dremio.common.JULBridge;
+import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
@@ -133,7 +133,7 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     livenessService.addHealthMonitor(ClasspathHealthMonitor.newInstance());
 
     DremioConfig dremioConfig = daemon.getDACConfig().getConfig();
-    final long watchedPID = Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);
+    final long watchedPID = Long.parseLong(VM.getProcessId());
     final long pollTimeoutMs = dremioConfig.getMilliseconds(POLL_TIMEOUT_MS);
     final long pollIntervalMs = dremioConfig.getMilliseconds(POLL_INTERVAL_MS);
     final int missedPollsBeforeKill = dremioConfig.getInt(MISSED_POLLS_BEFORE_KILL);

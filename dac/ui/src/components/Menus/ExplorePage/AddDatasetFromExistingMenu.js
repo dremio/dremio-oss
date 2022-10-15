@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -59,4 +58,4 @@ class AddDatasetFromExistingMenu extends PureComponent {
     );
   }
 }
-export default Radium(AddDatasetFromExistingMenu);
+export default AddDatasetFromExistingMenu;

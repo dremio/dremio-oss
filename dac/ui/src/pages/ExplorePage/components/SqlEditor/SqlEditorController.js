@@ -21,7 +21,6 @@ import PropTypes from "prop-types";
 
 import { getExploreState } from "@app/selectors/explore";
 
-import { editOriginalSql } from "actions/explore/dataset/reapply";
 import { setCurrentSql, setQueryContext } from "actions/explore/view";
 
 import { constructFullPath } from "utils/pathUtils";
@@ -64,7 +63,6 @@ export class SqlEditorController extends PureComponent {
     // actions
     setCurrentSql: PropTypes.func,
     setQueryContext: PropTypes.func,
-    editOriginalSql: PropTypes.func,
     replaceUrlAction: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
   };
@@ -269,28 +267,9 @@ export class SqlEditorController extends PureComponent {
             }
           }
 
-          const sqlError = extractSqlErrorFromResponse(
-            errorResponse,
-            querySelections[index]
+          errorMessages.push(
+            extractSqlErrorFromResponse(errorResponse, querySelections[index])
           );
-
-          // handles impersonation when an unauthorized user tries to access a physical table,
-          // backend error doesn't return a 'range' in those cases so it needs to be handled
-          // on the UI side
-          if (sqlError.range == null && queryStatuses.length === 1) {
-            sqlError.range = {
-              endColumn: status?.sqlStatement?.length + 1 ?? 1,
-              endLineNumber: 1,
-              positionColumn: 1,
-              positionLineNumber: 1,
-              selectionStartColumn: 1,
-              selectionStartLineNumber: 1,
-              startColumn: 1,
-              startLineNumber: 1,
-            };
-          }
-
-          errorMessages.push(sqlError);
         }
       });
 
@@ -397,7 +376,6 @@ export default compose(
     {
       setCurrentSql,
       setQueryContext,
-      editOriginalSql,
       replaceUrlAction: replace,
       showUnsavedChangesConfirmDialog,
     },

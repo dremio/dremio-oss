@@ -55,7 +55,7 @@ export class ResourcePin extends PureComponent {
     const { isPinned } = this.props;
     const pinClass = classNames("pin", { active: isPinned });
     return (
-      <span className={pinClass} onClick={this.onPinClick}>
+      <span className={pinClass} onClick={this.onPinClick} aria-label="Pin">
         {isPinned ? <FilledSmallPin /> : <HollowSmallPin />}
       </span>
     );

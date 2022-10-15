@@ -25,9 +25,9 @@ public class TestCastVarCharToBigInt extends BaseTestFunction {
   @Test
   public void toBigInt(){
     testFunctions(new Object[][]{
-      {"cast(c0 as bigint)", "2006", 2006l},
-      {"cast(c0 as bigint)", "2007", 2007l},
-      {"cast(c0 as bigint)", "2008", 2008l}
+      {"cast(c0 as bigint)", "2006", 2006L},
+      {"cast(c0 as bigint)", "2007", 2007L},
+      {"cast(c0 as bigint)", "2008", 2008L}
     });
   }
 }

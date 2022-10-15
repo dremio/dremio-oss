@@ -19,11 +19,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FilterFileSystem;
+import com.google.common.base.Preconditions;
 
 /**
  * A file system for accelerations

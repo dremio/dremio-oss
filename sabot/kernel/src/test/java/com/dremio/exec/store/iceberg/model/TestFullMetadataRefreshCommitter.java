@@ -24,9 +24,10 @@ import org.apache.iceberg.Table;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
@@ -40,6 +41,7 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
+@RunWith(MockitoJUnitRunner.class)
 public class TestFullMetadataRefreshCommitter {
 
   @Mock
@@ -57,6 +59,7 @@ public class TestFullMetadataRefreshCommitter {
   public void testCommitWhenThereIsException() {
     // Given
     Mockito.doThrow(new StatusRuntimeException(Status.ABORTED)).when(fullMetadataRefreshCommitter).addOrUpdateDataSet();
+    Mockito.doReturn(false).when(fullMetadataRefreshCommitter).isMetadataAlreadyCreated();
 
     try {
       // When
@@ -73,7 +76,6 @@ public class TestFullMetadataRefreshCommitter {
 
   @Before
   public void init() {
-    MockitoAnnotations.openMocks(this);
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
     datasetConfig.setPhysicalDataset(new PhysicalDataset());

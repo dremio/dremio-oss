@@ -66,7 +66,7 @@ import com.google.common.collect.ImmutableMap;
 public final class OperatorTableFactory {
   private static final SabotConfig SABOT_CONFIG = SabotConfig.create();
   private static final ScanResult SCAN_RESULT = ClassPathScanner.fromPrescan(SABOT_CONFIG);
-  private static final FunctionImplementationRegistry FUNCTION_REGISTRY = new FunctionImplementationRegistry(
+  private static final FunctionImplementationRegistry FUNCTION_REGISTRY = FunctionImplementationRegistry.create(
     SABOT_CONFIG,
     SCAN_RESULT);
   private static final List<String> TIME_TRAVEL_MACRO_NAME = TableMacroNames.TIME_TRAVEL;
@@ -89,10 +89,7 @@ public final class OperatorTableFactory {
   }
 
   public static SqlOperatorTable createWithProductionFunctions(List<SqlOperator> operators) {
-    FunctionImplementationRegistry functionRegistry = new FunctionImplementationRegistry(
-      SABOT_CONFIG,
-      SCAN_RESULT);
-    OperatorTable operatorTable = new OperatorTable(functionRegistry);
+    OperatorTable operatorTable = new OperatorTable(FUNCTION_REGISTRY);
     for (SqlOperator sqlOperator : operators) {
       operatorTable.add(sqlOperator.getName(), sqlOperator);
     }

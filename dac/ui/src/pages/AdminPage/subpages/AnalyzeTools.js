@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import Art from "@app/components/Art";
 import { CLIENT_TOOL_ID } from "@app/constants/Constants";
 import Immutable from "immutable";
 
@@ -29,7 +28,7 @@ const AnalyzeTools = (props) => {
     return (
       <div style={styles.toolWrap}>
         <div style={styles.iconCell}>
-          <Art src={icon} alt={name} style={styles.icon} />
+          <dremio-icon name={icon} alt={name} style={styles.icon} />
         </div>
         <div style={styles.toolName}>{name}</div>
         <div style={styles.actionCell}>
@@ -54,11 +53,11 @@ const AnalyzeTools = (props) => {
       </div>
       <div style={styles.toolsTable}>
         <div style={styles.tableRightHeader}>{la("Enabled")}</div>
-        {renderTool(CLIENT_TOOL_ID.tableau, "Tableau:", "Tableau.svg")}
-        {renderTool(CLIENT_TOOL_ID.powerbi, "Power BI:", "PowerBi.svg")}
+        {renderTool(CLIENT_TOOL_ID.tableau, "Tableau:", "corporate/tableau")}
+        {renderTool(CLIENT_TOOL_ID.powerbi, "Power BI:", "corporate/power-bi")}
         {qlikEnabled &&
           qlikEnabled.get("value") &&
-          renderTool(CLIENT_TOOL_ID.qlik, "Qlik:", "Qlik.svg")}
+          renderTool(CLIENT_TOOL_ID.qlik, "Qlik:", "corporate/qlik")}
       </div>
     </div>
   );

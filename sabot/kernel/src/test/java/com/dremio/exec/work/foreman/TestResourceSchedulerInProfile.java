@@ -21,9 +21,10 @@ import java.util.function.Consumer;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.catalog.Catalog;
@@ -46,6 +47,7 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.test.DremioTest;
 import com.google.common.util.concurrent.Futures;
 
+@RunWith(MockitoJUnitRunner.class)
 public class TestResourceSchedulerInProfile extends DremioTest {
   @Mock
   private OptionManager optionManager;
@@ -64,8 +66,6 @@ public class TestResourceSchedulerInProfile extends DremioTest {
 
   @Before
   public void setUp() {
-    MockitoAnnotations.initMocks(this);
-
     // Boilerplate
     Mockito.when(context.getQueryUserName()).thenReturn("myuser");
 

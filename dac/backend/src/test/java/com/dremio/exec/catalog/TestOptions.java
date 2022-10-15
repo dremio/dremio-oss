@@ -38,7 +38,6 @@ import com.google.inject.AbstractModule;
 
 
 public class TestOptions extends BaseTestQuery{
-//  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestOptions.class);
 
   @ClassRule
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();

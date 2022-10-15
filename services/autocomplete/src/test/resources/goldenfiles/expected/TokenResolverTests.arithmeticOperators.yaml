@@ -22,10 +22,10 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "?"
      - "("
      - "+"
      - "-"
-     - "?"
      - "ARRAY"
  -
   description: "negative"
@@ -46,10 +46,10 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "?"
      - "("
      - "+"
      - "-"
-     - "?"
      - "ARRAY"
  -
   description: "minus"

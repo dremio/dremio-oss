@@ -276,7 +276,7 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
 
       /* compute hash on the pivoted data */
       hashValues.allocateNew(records);
-      final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+      final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
         pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
       HashComputation.computeHash(blockChunk);
 
@@ -292,7 +292,7 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
         for (int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH) {
           final int keyHash = (int)hashValues.get(keyIndex);
           hashTable = partitions[i].getHashTable();
-          actualOrdinals[keyIndex] = hashTable.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+          actualOrdinals[keyIndex] = hashTable.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           PlatformDependent.putByte(offsetAddr, (byte)hashPartitionIndex);
           PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.HTORDINAL_OFFSET, actualOrdinals[keyIndex]);
           PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.KEYINDEX_OFFSET, keyIndex);
@@ -333,7 +333,7 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
     /* mock 4 partitions */
     final int numPartitions = 4;
     final ArrowBuf combined = allocator.buffer(numPartitions * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
-    final VectorizedHashAggPartition partitions[] = new VectorizedHashAggPartition[numPartitions];
+    final VectorizedHashAggPartition[] partitions = new VectorizedHashAggPartition[numPartitions];
     //to track the temporary vectors. as a convenience for releasing them at once
     VarCharVector[] tempVectors = new VarCharVector[2];
     tempVectors[0] = new VarCharVector("varchar-min", allocator);

@@ -16,11 +16,48 @@
 package com.dremio.service.autocomplete.parsing;
 
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParseException;
 
-public interface SqlNodeParser {
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.dremio.service.autocomplete.tokens.SqlQueryUntokenizer;
+import com.google.common.collect.ImmutableList;
+
+public abstract class SqlNodeParser {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlNodeParser.class);
 
   /**
    * Converts sql string into a Calcite Sql Node
    */
-  SqlNode toSqlNode(String sql);
+  public abstract SqlNode parseWithException(String sql) throws SqlParseException;
+
+  public SqlNode parse(String sql) {
+    try {
+      return parseWithException(sql);
+    } catch (SqlParseException parseException) {
+      UserException.Builder builder = SqlExceptionHelper.parseError(
+        sql,
+        parseException);
+      builder.message(SqlExceptionHelper.QUERY_PARSING_ERROR);
+      throw builder.build(logger);
+    }
+  }
+
+  public SqlNode parseWithException(ImmutableList<DremioToken> tokens) throws SqlParseException {
+    String sql = SqlQueryUntokenizer.untokenize(tokens);
+    return parseWithException(sql);
+  }
+
+  public SqlNode parse(ImmutableList<DremioToken> tokens) {
+    try {
+      return parseWithException(tokens);
+    } catch (SqlParseException parseException) {
+      UserException.Builder builder = SqlExceptionHelper.parseError(
+        SqlQueryUntokenizer.untokenize(tokens),
+        parseException);
+      builder.message(SqlExceptionHelper.QUERY_PARSING_ERROR);
+      throw builder.build(logger);
+    }
+  }
 }

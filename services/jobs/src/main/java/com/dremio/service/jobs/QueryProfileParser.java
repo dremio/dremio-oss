@@ -39,6 +39,7 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
+import com.dremio.sabot.op.join.vhash.HashJoinStats;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.job.proto.CommonDatasetProfile;
@@ -252,10 +253,25 @@ class QueryProfileParser {
     }
   }
 
+  private void setJoinSpillInfo(CoreOperatorType operatorType, OperatorProfile operatorProfile) {
+    initSpillJobDetails();
+    final int operatorNumber = operatorType.getNumber();
+    Preconditions.checkState(operatorNumber == CoreOperatorType.HASH_JOIN_VALUE);
+    final List<UserBitShared.MetricValue> metricValues = operatorProfile.getMetricList();
+    for (UserBitShared.MetricValue metricValue : metricValues) {
+      final int metricId = metricValue.getMetricId();
+      if ((metricId == HashJoinStats.Metric.SPILL_WR_BUILD_BYTES.ordinal() ||
+           metricId == HashJoinStats.Metric.SPILL_WR_PROBE_BYTES.ordinal()) && metricValue.hasLongValue()) {
+        spillJobDetails.setTotalBytesSpilledByHashJoin(spillJobDetails.getTotalBytesSpilledByHashJoin() + metricValue.getLongValue());
+      }
+    }
+  }
+
   private void initSpillJobDetails() {
     if (spillJobDetails == null) {
       this.spillJobDetails = new SpillJobDetails();
       spillJobDetails.setTotalBytesSpilledByHashAgg((long)0);
+      spillJobDetails.setTotalBytesSpilledByHashJoin((long)0);
       spillJobDetails.setTotalBytesSpilledBySort((long)0);
     }
   }
@@ -279,7 +295,8 @@ class QueryProfileParser {
    * as of now, we only consider external sort and hashagg operators.
    */
   SpillJobDetails getSpillDetails() {
-    if (spillJobDetails != null && (spillJobDetails.getTotalBytesSpilledByHashAgg() > 0 || spillJobDetails.getTotalBytesSpilledBySort() > 0)) {
+    if (spillJobDetails != null && (spillJobDetails.getTotalBytesSpilledByHashAgg() > 0 || spillJobDetails.getTotalBytesSpilledBySort() > 0 ||
+        spillJobDetails.getTotalBytesSpilledByHashJoin() > 0)) {
       return spillJobDetails;
     }
     return null;
@@ -435,6 +452,7 @@ class QueryProfileParser {
               break;
 
             case HASH_JOIN:
+              setJoinSpillInfo(operatorType, operatorProfile);
             case MERGE_JOIN:
             case NESTED_LOOP_JOIN:
               setOperationStats(OperationType.Join, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));

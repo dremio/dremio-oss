@@ -63,13 +63,17 @@ public class NativeFilter implements AutoCloseable {
    */
   public static NativeFilter build(LogicalExpression expr, VectorAccessible input,
                                    SelectionVector2 selectionVector, FunctionContext functionContext,
-                                   boolean optimize, boolean targetHostCPU) throws GandivaException {
+                                   boolean optimize, boolean targetHostCPU,
+                                   boolean secondaryCacheEnabled, double exprComplexityThreshold) throws GandivaException {
     Set<ReferencedField> referencedFields = new LinkedHashSet<>();
     Condition condition = GandivaExpressionBuilder.serializeExprToCondition(input, expr, referencedFields, functionContext);
     VectorSchemaRoot root = GandivaUtils.getSchemaRoot(input, referencedFields);
     ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
       .withOptimize(optimize)
       .withTargetCPU(targetHostCPU);
+    if (secondaryCacheEnabled && expr.accept(new ExpressionWorkEstimator(), null) > exprComplexityThreshold) {
+      // enable secondary cache
+    }
     Filter filter = Filter.make(root.getSchema(), condition, configOptions);
     return new NativeFilter(filter, root, selectionVector);
   }

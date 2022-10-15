@@ -174,4 +174,19 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   public SqlIdentifier getTblName() {
     return tblName;
   }
+
+  @Override
+  public SqlNode getSourceTableRef() {
+    return super.getSource();
+  }
+
+  @Override
+  public SqlIdentifier getAlias() {
+    throw new UnsupportedOperationException("Alias is not supported for INSERT");
+  }
+
+  @Override
+  public SqlNode getCondition() {
+    throw new UnsupportedOperationException("Condition is not supported for INSERT");
+  }
 }

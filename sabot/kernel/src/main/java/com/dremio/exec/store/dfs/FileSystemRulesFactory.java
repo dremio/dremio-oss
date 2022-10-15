@@ -163,7 +163,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     @Override
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
-      return IcebergScanPlanBuilder.fromDrel(drel, context, drel.isArrowCachingEnabled()).build();
+      return IcebergScanPlanBuilder.fromDrel(drel, context, drel.isArrowCachingEnabled(), drel.canUsePartitionStats()).build();
     }
 
     @Override
@@ -235,7 +235,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     }
   }
 
-  private static boolean isIcebergDataset(TableMetadata datasetPointer) {
+  public static boolean isIcebergDataset(TableMetadata datasetPointer) {
     return datasetPointer.getFormatSettings() != null && !isIcebergMetadata(datasetPointer) && datasetPointer.getFormatSettings().getType() == FileType.ICEBERG;
   }
 
@@ -248,7 +248,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
   }
 
   public static boolean isIcebergMetadata(TableMetadata datasetPointer) {
-    return Boolean.TRUE.equals(datasetPointer.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled());
+    return datasetPointer.getDatasetConfig().getPhysicalDataset() != null && Boolean.TRUE.equals(datasetPointer.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled());
   }
 
   public static class IcebergMetadataFilesystemScanPrule extends ConverterRule {
@@ -265,7 +265,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
       InternalIcebergScanTableMetadata icebergTableMetadata = getInternalIcebergTableMetadata(drel.getTableMetadata(), context);
       return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
         drel.getTable(), icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata, drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount());
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount(), drel.canUsePartitionStats());
     }
 
     @Override
@@ -288,6 +288,9 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     }
 
     public static boolean supportsConvertedIcebergDataset(OptimizerRulesContext context, TableMetadata datasetPointer) {
+      if (datasetPointer instanceof TableFilesFunctionTableMetadata) {
+        return false;
+      }
       boolean isIcebergMetadata = isIcebergMetadata(datasetPointer);
       if (!isIcebergMetadata) {
         return false;

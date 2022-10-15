@@ -17,17 +17,21 @@ package com.dremio.exec.expr;
 
 import java.util.Objects;
 
+import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 
 public class ExpressionEvalInfo {
   private final LogicalExpression exp;
   private final ClassGenerator.BlockCreateMode mode;
   private final boolean allowInnerMethods;
+  private final FieldReference currentReference;
 
-  public ExpressionEvalInfo(LogicalExpression exp, ClassGenerator.BlockCreateMode mode, boolean allowInnerMethods) {
+  public ExpressionEvalInfo(LogicalExpression exp, ClassGenerator.BlockCreateMode mode,
+                            boolean allowInnerMethods, FieldReference currentReference) {
     this.exp = exp;
     this.mode = mode;
     this.allowInnerMethods = allowInnerMethods;
+    this.currentReference = currentReference;
   }
 
   public LogicalExpression getExp() {
@@ -42,6 +46,10 @@ public class ExpressionEvalInfo {
     return allowInnerMethods;
   }
 
+  public FieldReference getCurrentReference() {
+    return currentReference;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -53,12 +61,13 @@ public class ExpressionEvalInfo {
 
     ExpressionEvalInfo that = (ExpressionEvalInfo) o;
     return allowInnerMethods == that.allowInnerMethods && mode == that.mode &&
+      Objects.equals(currentReference, that.currentReference) &&
       this.exp.accept(new EqualityVisitor(), that.exp);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(mode, allowInnerMethods) + exp.accept(new HashVisitor(), null);
+    return Objects.hash(mode, allowInnerMethods, currentReference) + exp.accept(new HashVisitor(), null);
   }
 
   @Override

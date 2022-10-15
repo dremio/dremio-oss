@@ -26,8 +26,11 @@ import static org.apache.parquet.column.ParquetProperties.DEFAULT_COLUMN_INDEX_T
 import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static org.apache.parquet.hadoop.ParquetWriter.MAX_PADDING_SIZE_DEFAULT;
 import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
+import static org.apache.parquet.schema.Type.Repetition.REPEATED;
+import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,7 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.UnionVectorHelper;
 import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.complex.impl.UnionReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
@@ -284,11 +288,11 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       this.icebergBatchSchema = new BatchSchema(convertSchemaMilliToMicro(batchSchema.getFields()));
 
       if (this.icebergColumnIDMap == null) {
-        SchemaConverter schemaConverter = new SchemaConverter();
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
         this.icebergSchema = partitionSpec != null ? partitionSpec.schema() : schemaConverter.toIcebergSchema(batchSchema);
         this.icebergColumnIDMap = newImmutableMap(IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema));
       } else {
-        SchemaConverter schemaConverter = new SchemaConverter();
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
         SeededFieldIdBroker fieldIdBroker = new SeededFieldIdBroker(icebergColumnIDMap);
         this.icebergSchema = partitionSpec != null ? partitionSpec.schema() : schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
       }
@@ -351,7 +355,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       if (field.getName().equalsIgnoreCase(IncrementalUpdateUtils.UPDATE_COLUMN)) {
         continue;
       }
-      Type childType = getTypeWithId(field, field.getName());
+      Type childType = getTypeWithId(field, field.getName(), OPTIONAL);
       if (childType != null) {
         types.add(childType);
       }
@@ -370,7 +374,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       if (field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD)) {
         continue;
       }
-      Type childType = getType(field);
+      Type childType = getType(field, OPTIONAL);
       if (childType != null) {
         types.add(childType);
       }
@@ -407,7 +411,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     setUp(schema, consumer, isIcebergWriter);
   }
 
-  private PrimitiveType getPrimitiveType(Field field, boolean convertMillisToMicros) {
+  private PrimitiveType getPrimitiveType(Field field, boolean convertMillisToMicros, Repetition repetition) {
     MajorType majorType = getMajorTypeForField(field);
     MinorType minorType = majorType.getMinorType();
     String name = field.getName();
@@ -426,7 +430,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       length = ParquetTypeHelper.getLengthForMinorType(minorType);
       decimalMetadata  = ParquetTypeHelper.getDecimalMetadataForField(majorType);
     }
-    return new PrimitiveType(OPTIONAL, primitiveTypeName, length, name, originalType, decimalMetadata, null);
+    return new PrimitiveType(repetition, primitiveTypeName, length, name, originalType, decimalMetadata, null);
   }
 
   @SuppressWarnings("deprecation")
@@ -450,13 +454,13 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   }
 
   @Nullable
-  private Type getType(Field field) {
+  private Type getType(Field field, Repetition repetition) {
     MinorType minorType = getMajorTypeForField(field).getMinorType();
     switch(minorType) {
       case STRUCT: {
         List<Type> types = Lists.newArrayList();
         for (Field childField : field.getChildren()) {
-          Type childType = getType(childField);
+          Type childType = getType(childField, repetition);
           if (childType != null) {
             types.add(childType);
           }
@@ -479,18 +483,18 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
          * see <a href="https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#lists">logical lists</a>
          */
         Field child = field.getChildren().get(0);
-        Type childType = getType(child);
+        Type childType = getType(child, repetition);
         if (childType == null) {
           return null;
         }
-        childType = renameChildTypeToElement(getType(child));
+        childType = renameChildTypeToElement(getType(child, repetition));
         GroupType groupType = new GroupType(Repetition.REPEATED, "list", childType);
         return new GroupType(Repetition.OPTIONAL, field.getName(), OriginalType.LIST, groupType);
       }
-      case UNION:
+      case UNION: {
         List<Type> types = Lists.newArrayList();
         for (Field childField : field.getChildren()) {
-          Type childType = getType(childField);
+          Type childType = getType(childField, repetition);
           if (childType != null) {
             types.add(childType);
           }
@@ -499,21 +503,39 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
           return null;
         }
         return new GroupType(OPTIONAL, field.getName(), types);
+      }
+
+      case MAP: {
+        Field child = field.getChildren().get(0);
+        if (child == null) {
+          return null;
+        }
+        // Schema for map in Drmeio and Iceberg is same expect the map child's name.
+        // Dremio uses "entries" and Iceberg uses "key_value"
+
+        List<Type> types = new ArrayList<>();
+        types.add(getType(child.getChildren().get(0), REQUIRED)); //key Type
+        types.add(getType(child.getChildren().get(1), OPTIONAL)); //value Type
+        GroupType groupType = new GroupType(Repetition.REPEATED, "key_value", types);
+        GroupType mapType = new GroupType(OPTIONAL, field.getName(), OriginalType.MAP, groupType);
+        return mapType;
+      }
+
       default:
-        return getPrimitiveType(field, false);
+        return getPrimitiveType(field, false, repetition);
     }
   }
 
   @Nullable
-  private Type getTypeWithId(Field field, String icebergFieldName) {
+  private Type getTypeWithId(Field field, String icebergFieldName, Repetition repetition) {
     MinorType minorType = getMajorTypeForField(field).getMinorType();
     int column_id = this.icebergColumnIDMap.get(icebergFieldName);
     switch(minorType) {
       case STRUCT: {
         List<Type> types = Lists.newArrayList();
         for (Field childField : field.getChildren()) {
-          String childName = icebergFieldName + "." + childField.getName();
-          Type childType = getTypeWithId(childField, childName);
+          String childName = toIcebergFieldName(icebergFieldName, childField.getName());
+          Type childType = getTypeWithId(childField, childName, repetition);
           if (childType != null) {
             types.add(childType);
           }
@@ -549,8 +571,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         // Iceberg schema for list is the same except that the single child's name is 'element' instead of '$data$'
         // Dremio renames the name to 'element' later by invoking renameChildTypeToElement()
         // Using 'element' as the field name since this is the name of the child node in the iceberg schema
-        String childName = icebergFieldName + "." + "list.element";
-        Type childType = getTypeWithId(child, childName);
+        String childName = toIcebergFieldName(icebergFieldName, "list.element");
+        Type childType = getTypeWithId(child, childName, repetition);
         if (childType == null) {
           return null;
         }
@@ -563,11 +585,11 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
         return listType;
       }
-      case UNION:
+      case UNION: {
         List<Type> types = Lists.newArrayList();
         for (Field childField : field.getChildren()) {
-          String childName = icebergFieldName + "." + childField.getName();
-          Type childType = getTypeWithId(childField, childName);
+          String childName = toIcebergFieldName(icebergFieldName, childField.getName());
+          Type childType = getTypeWithId(childField, childName, repetition);
           if (childType != null) {
             types.add(childType);
           }
@@ -576,8 +598,46 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
           return null;
         }
         return new GroupType(OPTIONAL, field.getName(), types);
+      }
+
+      case MAP: {
+        /**
+         * Building Map with following schema
+         * <pre>
+         * <map-repetition> group <name> (MAP) {
+         *   repeated group key_value {
+         *     required <key-type> key;
+         *     <value-repetition> <value-type> value;
+         *   }
+         * }
+         * </pre>
+         * see <a href="https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps">logical Maps</a>
+         */
+        Field child = field.getChildren().get(0);
+        if (child == null) {
+          return null;
+        }
+        // Schema for map in Drmeio and Iceberg is same expect the map child's name.
+        // Dremio uses "entries" and Iceberg uses "key_value"
+
+        Field keyField = child.getChildren().get(0);
+        Field valueField = child.getChildren().get(1);
+        String keyName = toIcebergFieldName(icebergFieldName, keyField.getName());
+        String valueName = toIcebergFieldName(icebergFieldName, valueField.getName());
+        List<Type> types = new ArrayList<>();
+        types.add(getTypeWithId(keyField, keyName, REQUIRED)); //key Type
+        types.add(getTypeWithId(valueField, valueName, OPTIONAL)); //value Type
+        GroupType groupType = new GroupType(REPEATED, "key_value", types);
+        Type mapType = new GroupType(OPTIONAL, field.getName(), OriginalType.MAP, groupType);
+        if (column_id != -1) {
+          mapType = mapType.withId(column_id);
+        }
+
+        return mapType;
+      }
+
     default:
-        PrimitiveType primitiveType = getPrimitiveType(field, true);
+        PrimitiveType primitiveType = getPrimitiveType(field, true, repetition);
         if (column_id != -1) {
           primitiveType = primitiveType.withId(column_id);
         }
@@ -942,18 +1002,18 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   }
 
   @Override
-  public FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader) {
-    MapParquetConverter converter = new MapParquetConverter(fieldId, fieldName, reader);
+  public FieldConverter getNewStructConverter(int fieldId, String fieldName, FieldReader reader) {
+    StructParquetConverter converter = new StructParquetConverter(fieldId, fieldName, reader);
     if (converter.converters.size() == 0) {
       return null;
     }
     return converter;
   }
 
-  public class MapParquetConverter extends ParquetFieldConverter {
+  public class StructParquetConverter extends ParquetFieldConverter {
     List<FieldConverter> converters = Lists.newArrayList();
 
-    public MapParquetConverter(int fieldId, String fieldName, FieldReader reader) {
+    public StructParquetConverter(int fieldId, String fieldName, FieldReader reader) {
       super(fieldId, fieldName, reader);
       int i = 0;
       for (String name : reader) {
@@ -983,6 +1043,56 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       }
       consumer.startField(fieldName, fieldId);
       writeValue();
+      consumer.endField(fieldName, fieldId);
+    }
+  }
+
+  public FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader) {
+    MapParquetConverter converter = new MapParquetConverter(fieldId, fieldName, reader);
+    if (converter.keyConverter == null || converter.valueConverter == null) {
+      return null;
+    }
+    return converter;
+  }
+
+  public class MapParquetConverter extends ParquetFieldConverter {
+    FieldConverter keyConverter;
+    FieldConverter valueConverter;
+
+    public MapParquetConverter(int fieldId, String fieldName, FieldReader reader) {
+      super(fieldId, fieldName, reader);
+      Preconditions.checkState(reader instanceof UnionMapReader);
+      UnionMapReader unionMapReader = (UnionMapReader) reader;
+      keyConverter = EventBasedRecordWriter.getConverter(ParquetRecordWriter.this, 0,
+        "key", unionMapReader.key().getMinorType(), unionMapReader.key());
+      valueConverter = EventBasedRecordWriter.getConverter(ParquetRecordWriter.this, 1,
+        "value", unionMapReader.value().getMinorType(), unionMapReader.value());
+
+    }
+
+    @Override
+    public void writeValue() throws IOException {
+      consumer.startGroup();
+      keyConverter.writeField();
+      valueConverter.writeField();
+      consumer.endGroup();
+    }
+
+    @Override
+    public void writeField() throws IOException {
+      if (!reader.isSet()) {
+        return; // null field
+      }
+      consumer.startField(fieldName, fieldId);
+      consumer.startGroup();
+      if (reader.size() != 0) {
+        consumer.startField("key_value", 0);
+        while (reader.next()) {
+          writeValue();
+        }
+        consumer.endField("key_value", 0);
+      }
+      consumer.endGroup();
       consumer.endField(fieldName, fieldId);
     }
   }
@@ -1133,5 +1243,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     public void writeField() throws IOException {
       writeValue();
     }
+  }
+
+  private String toIcebergFieldName (String parentField, String childField) {
+    return parentField + "." + childField;
   }
 }

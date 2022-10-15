@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import Immutable from "immutable";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -38,7 +37,7 @@ class ConvertTrimContent extends PureComponent {
   render() {
     const { type, columnName } = this.props;
     return (
-      <div style={[style.base]} className="convert-case-content">
+      <div style={{ ...style.base }} className="convert-case-content">
         <EditTextContent
           dataset={this.props.dataset}
           changeFormType={this.props.changeFormType}
@@ -59,4 +58,4 @@ const style = {
   },
 };
 
-export default Radium(ConvertTrimContent);
+export default ConvertTrimContent;

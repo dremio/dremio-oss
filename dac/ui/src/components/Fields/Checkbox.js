@@ -16,7 +16,6 @@
 import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
-import Art from "@app/components/Art";
 import classNames from "classnames";
 import TooltipEnabledLabel from "components/TooltipEnabledLabel";
 import {
@@ -116,10 +115,15 @@ export default class Checkbox extends PureComponent {
         data-qa={this.props.dataQa || "dummyCheckbox"}
       >
         {isChecked || this.props.showCheckIcon ? (
-          <Art
-            src="Checkbox.svg"
+          <dremio-icon
+            name="interface/checkbox"
             alt="Checkbox-selected"
-            style={{ margin: "2px 1px 1px 1px" }}
+            style={{
+              height: 10,
+              width: 12,
+              marginBottom: 3,
+              color: "var(--dremio--color--neutral--000)",
+            }}
           />
         ) : (
           "\u00A0"

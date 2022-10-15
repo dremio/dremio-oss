@@ -199,7 +199,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         break;
       default:
         throw getExceptionWithContext(
-          UserException.dataReadError(), currentFieldName, null)
+          UserException.dataReadError(), currentFieldName)
           .message("Failure while reading JSON. (Got an invalid read state %s )", readState.toString())
           .build(logger);
     }
@@ -218,7 +218,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         return ReadState.END_OF_STREAM;
       default:
         throw getExceptionWithContext(
-          UserException.dataReadError(), currentFieldName, null)
+          UserException.dataReadError(), currentFieldName)
           .message("Failure while parsing JSON.  Found token of %s.  Dremio currently only supports parsing "
                   + "json strings that contain either lists or maps.  The root object cannot be a scalar.", t)
           .build(logger);
@@ -355,7 +355,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           readDef.writeList(list, token, parser);
         }
       } catch (Exception e) {
-        throw getExceptionWithContext(e, this.currentFieldName, null).build(logger);
+        throw getExceptionWithContext(e, this.currentFieldName).build(logger);
       }
     }
 
@@ -465,7 +465,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           break;
 
         default:
-          throw getExceptionWithContext(UserException.dataReadError(), currentFieldName, null)
+          throw getExceptionWithContext(UserException.dataReadError(), currentFieldName)
             .message("Unexpected token %s", parser.getCurrentToken()).build(logger);
         }
 
@@ -538,7 +538,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           throw UserException.dataReadError().message("Unexpected token %s", parser.getCurrentToken()).build(logger);
         }
       } catch (Exception e) {
-        throw getExceptionWithContext(e, this.currentFieldName, null).build(logger);
+        throw getExceptionWithContext(e, this.currentFieldName).build(logger);
       }
     }
     list.endList();

@@ -30,6 +30,7 @@ class MainInfoItemNameAndTag extends Component {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     intl: PropTypes.object.isRequired,
     startSearch: PropTypes.func, // (textToSearch) => {}
+    isIceberg: PropTypes.bool,
   };
 
   constructor() {
@@ -53,17 +54,16 @@ class MainInfoItemNameAndTag extends Component {
   };
 
   render() {
-    const { item, intl } = this.props;
+    const { item, intl, isIceberg } = this.props;
     const tagsFromItem = item.get("tags");
     const fullPath = constructFullPath(getFullPathListFromEntity(item));
     return (
-      <div style={{ display: "flex" }}>
-        <MainInfoItemName item={item} />
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <MainInfoItemName item={item} isIceberg={isIceberg} />
         {fullPath && (
           <CopyButton
             text={fullPath}
             title={intl.formatMessage({ id: "Path.Copy" })}
-            style={{ transform: "translateY(5px)" }}
           />
         )}
         {tagsFromItem && tagsFromItem.size && (

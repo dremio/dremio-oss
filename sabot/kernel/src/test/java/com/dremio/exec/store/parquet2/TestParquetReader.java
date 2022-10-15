@@ -18,7 +18,7 @@ package com.dremio.exec.store.parquet2;
 import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA;
 import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA_2_1;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_TEST_SCHEMA_FALLBACK_ONLY_VALIDATOR;
-import static junit.framework.TestCase.assertFalse;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -29,9 +29,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.io.FileUtils;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.AfterClass;
@@ -284,12 +285,19 @@ public class TestParquetReader extends BaseTestQuery {
       runSQL("SELECT * FROM dfs.\"" + parquetFiles + "\"");  // to detect schema and auto promote
 
       // Copy remaining files
-      Files.walk(Paths.get(parquetRefFolder))
-        .filter(Files::isRegularFile)
-        .filter(p -> !p.getFileName().toString().equals(primaryParquet))
-        .map(quietExecute(p -> Files.copy(p, Paths.get(parquetFiles, p.getFileName().toString()), StandardCopyOption.REPLACE_EXISTING)))
-        .forEach(p -> {
-        });
+      try (Stream<java.nio.file.Path> stream = Files.walk(Paths.get(parquetRefFolder))) {
+        stream
+          .filter(Files::isRegularFile)
+          .filter(p -> !p.getFileName().toString().equals(primaryParquet))
+          .forEach(p -> {
+            try {
+              Files.copy(p, Paths.get(parquetFiles, p.getFileName().toString()),
+                StandardCopyOption.REPLACE_EXISTING);
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          });
+      }
       runSQL("alter table dfs.\"" + parquetFiles + "\" refresh metadata force update");  // so it detects second parquet
       setEnableReAttempts(true);
       runSQL("select * from dfs.\"" + parquetFiles + "\""); // need to run select * from pds to get correct schema update. Check DX-25496 for details.
@@ -303,22 +311,6 @@ public class TestParquetReader extends BaseTestQuery {
   }
 
   private static void delete(java.nio.file.Path dir) throws Exception {
-    Files.list(dir).forEach(f -> {try { Files.delete(f); } catch (Exception ex) {}});
-    Files.delete(dir);
-  }
-
-  private static <T, R> Function<T, R> quietExecute(CheckedFunction<T, R> checkedFunction) {
-    return t -> {
-      try {
-        return checkedFunction.apply(t);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    };
-  }
-
-  @FunctionalInterface
-  private interface CheckedFunction<T, R> {
-    R apply(T t) throws Exception;
+    FileUtils.deleteDirectory(dir.toFile());
   }
 }

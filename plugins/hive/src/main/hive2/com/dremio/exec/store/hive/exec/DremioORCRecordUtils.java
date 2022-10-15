@@ -14,29 +14,11 @@
  * limitations under the License.
  */
 /*
- * This file is copy of impl/RecordReaderUtils.java from org/apache/orc hive-private repository
+ * This file is copy of impl/RecordReaderUtils.java from org/apache/orc project
  * It sets Arrow's BufferAllocator for ByteBuffer allocations
  * These ByteBuffers are used in zero copy read path of Hive ORC tables
  */
 package com.dremio.exec.store.hive.exec;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.ByteBufferUtil;
-import org.apache.hadoop.io.ByteBufferPool;
-import org.apache.orc.impl.BufferChunk;
-import org.apache.orc.impl.DataReaderProperties;
-import org.apache.orc.impl.DirectDecompressionCodec;
-import org.apache.orc.impl.HadoopShims;
-import org.apache.orc.impl.InStream;
-import org.apache.orc.impl.OrcIndex;
-import org.apache.orc.impl.WriterImpl;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -45,36 +27,157 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.fs.BlockLocation;
+import org.apache.hadoop.fs.ByteBufferUtil;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.io.DiskRange;
 import org.apache.hadoop.hive.common.io.DiskRangeList;
+import org.apache.hadoop.io.ByteBufferPool;
 import org.apache.orc.CompressionCodec;
+import org.apache.orc.CompressionKind;
 import org.apache.orc.DataReader;
+import org.apache.orc.OrcFile;
 import org.apache.orc.OrcProto;
 import org.apache.orc.StripeInformation;
+import org.apache.orc.TypeDescription;
+import org.apache.orc.impl.BufferChunk;
+import org.apache.orc.impl.DataReaderProperties;
+import org.apache.orc.impl.DirectDecompressionCodec;
+import org.apache.orc.impl.HadoopShims;
+import org.apache.orc.impl.HadoopShimsFactory;
+import org.apache.orc.impl.InStream;
+import org.apache.orc.impl.OrcCodecPool;
+import org.apache.orc.impl.OrcIndex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 
 /**
  * Stateless methods shared between RecordReaderImpl and EncodedReaderImpl.
  */
 public class DremioORCRecordUtils {
-  private static final HadoopShims SHIMS = HadoopShims.Factory.get();
+  private static final HadoopShims SHIMS = HadoopShimsFactory.get();
+  private static final Logger LOG = LoggerFactory.getLogger(DremioORCRecordUtils.class);
 
-  public static class DefaultDataReader implements DataReader {
-    protected final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
+  static boolean hadBadBloomFilters(TypeDescription.Category category,
+                                    OrcFile.WriterVersion version) {
+    switch(category) {
+      case STRING:
+      case CHAR:
+      case VARCHAR:
+        return !version.includes(OrcFile.WriterVersion.HIVE_12055);
+      case DECIMAL:
+        return true;
+      case TIMESTAMP:
+        return !version.includes(OrcFile.WriterVersion.ORC_135);
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Plans the list of disk ranges that the given stripe needs to read the
+   * indexes. All of the positions are relative to the start of the stripe.
+   * @param  fileSchema the schema for the file
+   * @param footer the stripe footer
+   * @param ignoreNonUtf8BloomFilter should the reader ignore non-utf8
+   *                                 encoded bloom filters
+   * @param fileIncluded the columns (indexed by file columns) that should be
+   *                     read
+   * @param sargColumns true for the columns (indexed by file columns) that
+   *                    we need bloom filters for
+   * @param version the version of the software that wrote the file
+   * @param bloomFilterKinds (output) the stream kind of the bloom filters
+   * @return a list of merged disk ranges to read
+   */
+  public static DiskRangeList planIndexReading(TypeDescription fileSchema,
+                                               OrcProto.StripeFooter footer,
+                                               boolean ignoreNonUtf8BloomFilter,
+                                               boolean[] fileIncluded,
+                                               boolean[] sargColumns,
+                                               OrcFile.WriterVersion version,
+                                               OrcProto.Stream.Kind[] bloomFilterKinds) {
+    DiskRangeList.CreateHelper result = new DiskRangeList.CreateHelper();
+    List<OrcProto.Stream> streams = footer.getStreamsList();
+    // figure out which kind of bloom filter we want for each column
+    // picks bloom_filter_utf8 if its available, otherwise bloom_filter
+    if (sargColumns != null) {
+      for (OrcProto.Stream stream : streams) {
+        if (stream.hasKind() && stream.hasColumn()) {
+          int column = stream.getColumn();
+          if (sargColumns[column]) {
+            switch (stream.getKind()) {
+              case BLOOM_FILTER:
+                if (bloomFilterKinds[column] == null &&
+                  !(ignoreNonUtf8BloomFilter &&
+                    hadBadBloomFilters(fileSchema.findSubtype(column)
+                      .getCategory(), version))) {
+                  bloomFilterKinds[column] = OrcProto.Stream.Kind.BLOOM_FILTER;
+                }
+                break;
+              case BLOOM_FILTER_UTF8:
+                bloomFilterKinds[column] = OrcProto.Stream.Kind.BLOOM_FILTER_UTF8;
+                break;
+              default:
+                break;
+            }
+          }
+        }
+      }
+    }
+    long offset = 0;
+    for(OrcProto.Stream stream: footer.getStreamsList()) {
+      if (stream.hasKind() && stream.hasColumn()) {
+        int column = stream.getColumn();
+        if (fileIncluded == null || fileIncluded[column]) {
+          boolean needStream = false;
+          switch (stream.getKind()) {
+            case ROW_INDEX:
+              needStream = true;
+              break;
+            case BLOOM_FILTER:
+              needStream = bloomFilterKinds[column] == OrcProto.Stream.Kind.BLOOM_FILTER;
+              break;
+            case BLOOM_FILTER_UTF8:
+              needStream = bloomFilterKinds[column] == OrcProto.Stream.Kind.BLOOM_FILTER_UTF8;
+              break;
+            default:
+              // PASS
+              break;
+          }
+          if (needStream) {
+            result.addOrMerge(offset, offset + stream.getLength(), true, false);
+          }
+        }
+      }
+      offset += stream.getLength();
+    }
+    return result.get();
+  }
+
+  public static final class DefaultDataReader implements DataReader {
+    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
     private FSDataInputStream file = null;
-    private DremioORCRecordUtils.ByteBufferAllocatorPool pool;
+    private ByteBufferAllocatorPool pool;
     private HadoopShims.ZeroCopyReaderShim zcr = null;
     private final FileSystem fs;
     private final Path path;
     private final boolean useZeroCopy;
-    private final CompressionCodec codec;
+    private CompressionCodec codec;
     private final int bufferSize;
     private final int typeCount;
+    private CompressionKind compressionKind;
     private final BufferAllocator allocator;
     private boolean useDirectMemory = true;
     private final boolean doComputeLocality;
@@ -91,28 +194,16 @@ public class DremioORCRecordUtils {
       }
     }
 
-    private DefaultDataReader(DremioORCRecordUtils.DefaultDataReader other) {
-      this.pool = other.pool;
-      this.bufferSize = other.bufferSize;
-      this.typeCount = other.typeCount;
-      this.fs = other.fs;
-      this.path = other.path;
-      this.useZeroCopy = other.useZeroCopy;
-      this.codec = other.codec;
-      this.allocator = other.allocator;
-      this.useDirectMemory = other.useDirectMemory;
-      this.doComputeLocality = other.doComputeLocality;
-    }
-
     private DefaultDataReader(BufferAllocator allocator, DataReaderProperties properties, boolean useDirectMemory,
                               final boolean doComputeLocality) {
       this.fs = properties.getFileSystem();
       this.path = properties.getPath();
       this.useZeroCopy = properties.getZeroCopy();
-      this.codec = WriterImpl.createCodec(properties.getCompression());
+      this.compressionKind = properties.getCompression();
+      this.codec = OrcCodecPool.getCodec(compressionKind);
       this.bufferSize = properties.getBufferSize();
       this.typeCount = properties.getTypeCount();
-      this.pool = new DremioORCRecordUtils.ByteBufferAllocatorPool(allocator);
+      this.pool = new ByteBufferAllocatorPool(allocator);
       this.allocator = allocator;
       this.useDirectMemory = useDirectMemory;
       this.doComputeLocality = doComputeLocality;
@@ -131,15 +222,22 @@ public class DremioORCRecordUtils {
       }
     }
 
-    /**
-     * This function is a copy of original implementation from hive-private repository
-     */
+    static List<DiskRange> singleton(DiskRange item) {
+      List<DiskRange> result = new ArrayList();
+      result.add(item);
+      return result;
+    }
+
     @Override
     public OrcIndex readRowIndex(StripeInformation stripe,
+                                 TypeDescription fileSchema,
                                  OrcProto.StripeFooter footer,
+                                 boolean ignoreNonUtf8BloomFilter,
                                  boolean[] included,
                                  OrcProto.RowIndex[] indexes,
                                  boolean[] sargColumns,
+                                 OrcFile.WriterVersion version,
+                                 OrcProto.Stream.Kind[] bloomFilterKinds,
                                  OrcProto.BloomFilterIndex[] bloomFilterIndices
     ) throws IOException {
       if (file == null) {
@@ -151,59 +249,62 @@ public class DremioORCRecordUtils {
       if (indexes == null) {
         indexes = new OrcProto.RowIndex[typeCount];
       }
+      if (bloomFilterKinds == null) {
+        bloomFilterKinds = new OrcProto.Stream.Kind[typeCount];
+      }
       if (bloomFilterIndices == null) {
         bloomFilterIndices = new OrcProto.BloomFilterIndex[typeCount];
       }
-      long offset = stripe.getOffset();
-      List<OrcProto.Stream> streams = footer.getStreamsList();
-      for (int i = 0; i < streams.size(); i++) {
-        OrcProto.Stream stream = streams.get(i);
-        OrcProto.Stream nextStream = null;
-        if (i < streams.size() - 1) {
-          nextStream = streams.get(i+1);
+      DiskRangeList ranges = planIndexReading(fileSchema, footer,
+        ignoreNonUtf8BloomFilter, included, sargColumns, version,
+        bloomFilterKinds);
+      ranges = readFileData(ranges, stripe.getOffset(), false);
+      long offset = 0;
+      DiskRangeList range = ranges;
+      for(OrcProto.Stream stream: footer.getStreamsList()) {
+        // advance to find the next range
+        while (range != null && range.getEnd() <= offset) {
+          range = range.next;
         }
-        int col = stream.getColumn();
-        int len = (int) stream.getLength();
-        // row index stream and bloom filter are interlaced, check if the sarg column contains bloom
-        // filter and combine the io to read row index and bloom filters for that column together
-        if (stream.hasKind() && (stream.getKind() == OrcProto.Stream.Kind.ROW_INDEX)) {
-          boolean readBloomFilter = false;
-          if (sargColumns != null && sargColumns[col] &&
-            nextStream.getKind() == OrcProto.Stream.Kind.BLOOM_FILTER) {
-            len += nextStream.getLength();
-            i += 1;
-            readBloomFilter = true;
-          }
-          if ((included == null || included[col]) && indexes[col] == null) {
-            byte[] buffer = new byte[len];
-            file.readFully(offset, buffer, 0, buffer.length);
-            ByteBuffer bb = ByteBuffer.wrap(buffer);
-            ByteBuffer rowIndexBB = bb.duplicate();
-            rowIndexBB.position(0);
-            rowIndexBB.limit((int)stream.getLength());
-            indexes[col] = OrcProto.RowIndex.parseFrom(InStream.create("index",
-              Lists.<DiskRange>newArrayList(new BufferChunk(rowIndexBB, 0)), stream.getLength(),
-              codec, bufferSize, null));
-            if (readBloomFilter) {
-              ByteBuffer bloomFilterBB = bb.duplicate();
-              bloomFilterBB.position((int)stream.getLength());
-              bloomFilterBB.limit(buffer.length);
-              bloomFilterIndices[col] = OrcProto.BloomFilterIndex.parseFrom(InStream.create(
-                "bloom_filter", Lists.<DiskRange>newArrayList(new BufferChunk(bloomFilterBB, 0)),
-                nextStream.getLength(), codec, bufferSize, null));
-            }
+        // no more ranges, so we are done
+        if (range == null) {
+          break;
+        }
+        int column = stream.getColumn();
+        if (stream.hasKind() && range.getOffset() <= offset) {
+          switch (stream.getKind()) {
+            case ROW_INDEX:
+              if (included == null || included[column]) {
+                ByteBuffer bb = range.getData().duplicate();
+                bb.position((int) (bb.position() + offset - range.getOffset()));
+                bb.limit((int) (bb.position() + stream.getLength()));
+                indexes[column] = OrcProto.RowIndex.parseFrom(
+                  InStream.createCodedInputStream("index",
+                    singleton(new BufferChunk(bb, 0)),
+                    stream.getLength(), codec, bufferSize));
+              }
+              break;
+            case BLOOM_FILTER:
+            case BLOOM_FILTER_UTF8:
+              if (sargColumns != null && sargColumns[column]) {
+                ByteBuffer bb = range.getData().duplicate();
+                bb.position((int) (bb.position() + offset - range.getOffset()));
+                bb.limit((int) (bb.position() + stream.getLength()));
+                bloomFilterIndices[column] = OrcProto.BloomFilterIndex.parseFrom
+                  (InStream.createCodedInputStream("bloom_filter",
+                    singleton(new BufferChunk(bb, 0)),
+                    stream.getLength(), codec, bufferSize));
+              }
+              break;
+            default:
+              break;
           }
         }
-        offset += len;
+        offset += stream.getLength();
       }
-
-      OrcIndex index = new OrcIndex(indexes, bloomFilterIndices);
-      return index;
+      return new OrcIndex(indexes, bloomFilterKinds, bloomFilterIndices);
     }
 
-    /**
-     * This function is a copy of original implementation from hive-private repository
-     */
     @Override
     public OrcProto.StripeFooter readStripeFooter(StripeInformation stripe) throws IOException {
       if (file == null) {
@@ -215,15 +316,14 @@ public class DremioORCRecordUtils {
       // read the footer
       ByteBuffer tailBuf = ByteBuffer.allocate(tailLength);
       file.readFully(offset, tailBuf.array(), tailBuf.arrayOffset(), tailLength);
-      return OrcProto.StripeFooter.parseFrom(InStream.createCodedInputStream("footer",
-        Lists.<DiskRange>newArrayList(new BufferChunk(tailBuf, 0)),
-        tailLength, codec, bufferSize));
+      return OrcProto.StripeFooter.parseFrom(
+        InStream.createCodedInputStream("footer", singleton(
+          new BufferChunk(tailBuf, 0)), tailLength, codec, bufferSize));
     }
 
     @Override
     public DiskRangeList readFileData(
       DiskRangeList range, long baseOffset, boolean doForceDirect) throws IOException {
-
       // if zero copy is set, then try reading using zero copy first
       if (zcr != null) {
         try {
@@ -251,6 +351,7 @@ public class DremioORCRecordUtils {
 
     @Override
     public void close() throws IOException {
+
       for (ByteBuffer buffer : buffersToRelease) {
         releaseBufferWithoutTracking(buffer);
       }
@@ -261,13 +362,20 @@ public class DremioORCRecordUtils {
       }
       directBuffersToRelease.clear();
 
+      if (codec != null) {
+        OrcCodecPool.returnCodec(compressionKind, codec);
+        codec = null;
+      }
       if (pool != null) {
         pool.clear();
+        pool = null;
       }
       // close both zcr and file
       try (HadoopShims.ZeroCopyReaderShim myZcr = zcr) {
         if (file != null) {
           file.close();
+          file = null;
+          zcr = null;
         }
       }
     }
@@ -296,30 +404,48 @@ public class DremioORCRecordUtils {
     }
 
     @Override
-    public ByteBufferPool getBufferPool() {
+    public HadoopShims.ByteBufferPoolShim getBufferPool() {
       return pool;
     }
 
     @Override
     public DataReader clone() {
-      return new DefaultDataReader(this);
+      if (this.file != null) {
+        // We should really throw here, but that will cause failures in Hive.
+        // While Hive uses clone, just log a warning.
+        LOG.warn("Cloning an opened DataReader; the stream will be reused and closed twice");
+      }
+      try {
+        DefaultDataReader clone = (DefaultDataReader) super.clone();
+        if (codec != null) {
+          // Make sure we don't share the same codec between two readers.
+          clone.codec = OrcCodecPool.getCodec(clone.compressionKind);
+        }
+        return clone;
+      } catch (CloneNotSupportedException e) {
+        throw new UnsupportedOperationException("uncloneable", e);
+      }
     }
 
+    @Override
+    public CompressionCodec getCompressionCodec() {
+      return codec;
+    }
 
     private DiskRangeList readDiskRangesUsingZCR(FileSystem fs, FSDataInputStream file,
-                                                Path path, HadoopShims.ZeroCopyReaderShim zcr,
-                                                ByteBufferAllocatorPool pool, long base, DiskRangeList range) throws IOException {
+                                                 Path path, HadoopShims.ZeroCopyReaderShim zcr,
+                                                 ByteBufferAllocatorPool pool, long base, DiskRangeList range) throws IOException {
       return readDiskRanges(fs, file, path, zcr, pool, true, base, range);
     }
 
 
     private DiskRangeList readDiskRangesUsingDirectMemory(FileSystem fs, FSDataInputStream file,
-                                                         Path path, ByteBufferAllocatorPool pool, long base, DiskRangeList range) throws IOException {
+                                                          Path path, ByteBufferAllocatorPool pool, long base, DiskRangeList range) throws IOException {
       return readDiskRanges(fs, file, path, null, pool, true, base, range);
     }
 
     private DiskRangeList readDiskRangesUsingHeapMemory(FileSystem fs, FSDataInputStream file,
-                                                       Path path, long base, DiskRangeList range
+                                                        Path path, long base, DiskRangeList range
     ) throws IOException {
       return readDiskRanges(fs, file, path, null, null, false, base, range);
     }
@@ -377,7 +503,7 @@ public class DremioORCRecordUtils {
      * @throws IOException
      */
     private  DiskRangeList readDiskRanges(FileSystem fs, FSDataInputStream file,
-                                        Path path, HadoopShims.ZeroCopyReaderShim zcr, ByteBufferAllocatorPool pool, boolean useDirectMemory, long base, DiskRangeList range) throws IOException {
+                                          Path path, HadoopShims.ZeroCopyReaderShim zcr, ByteBufferAllocatorPool pool, boolean useDirectMemory, long base, DiskRangeList range) throws IOException {
       if (range == null) {
         return null;
       }
@@ -451,14 +577,11 @@ public class DremioORCRecordUtils {
     public boolean isRemoteRead() {
       return this.remoteRead;
     }
-
   }
 
-
-
-  public static DremioORCRecordUtils.DefaultDataReader createDefaultDataReader(BufferAllocator allocator, DataReaderProperties properties,
+  public static DefaultDataReader createDefaultDataReader(BufferAllocator allocator, DataReaderProperties properties,
                                                                                boolean useDirectMemory, final boolean doComputeLocality) {
-    return new DremioORCRecordUtils.DefaultDataReader(allocator, properties, useDirectMemory, doComputeLocality);
+    return new DefaultDataReader(allocator, properties, useDirectMemory, doComputeLocality);
   }
 
   /*
@@ -473,7 +596,7 @@ public class DremioORCRecordUtils {
   }
 
   static HadoopShims.ZeroCopyReaderShim createZeroCopyShim(FSDataInputStream file,
-                                                           CompressionCodec codec, DremioORCRecordUtils.ByteBufferAllocatorPool pool) throws IOException {
+                                                           CompressionCodec codec, ByteBufferAllocatorPool pool) throws IOException {
     if (directReadAllowed(codec)) {
       /* codec is null or is available */
       return SHIMS.getZeroCopyReader(file, pool);
@@ -488,7 +611,7 @@ public class DremioORCRecordUtils {
     ByteBufferAllocatorPool(BufferAllocator allocator) {
       this.allocator = allocator;
     }
-    private static final class Key implements Comparable<DremioORCRecordUtils.ByteBufferAllocatorPool.Key> {
+    private static final class Key implements Comparable<Key> {
       private final int capacity;
       private final long insertionGeneration;
 
@@ -498,7 +621,7 @@ public class DremioORCRecordUtils {
       }
 
       @Override
-      public int compareTo(DremioORCRecordUtils.ByteBufferAllocatorPool.Key other) {
+      public int compareTo(Key other) {
         if (capacity != other.capacity) {
           return capacity - other.capacity;
         } else {
@@ -512,7 +635,7 @@ public class DremioORCRecordUtils {
           return false;
         }
         try {
-          DremioORCRecordUtils.ByteBufferAllocatorPool.Key o = (DremioORCRecordUtils.ByteBufferAllocatorPool.Key) rhs;
+          Key o = (Key) rhs;
           return (compareTo(o) == 0);
         } catch (ClassCastException e) {
           return false;
@@ -544,11 +667,11 @@ public class DremioORCRecordUtils {
       }
     }
     private final Map<ByteBufferWrapper, ArrowBuf> directBufMap = new HashMap<>();
-    private final TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> buffers = new TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer>();
+    private final NavigableMap<Key, ByteBuffer> buffers = new TreeMap<>();
 
     private long currentGeneration = 0;
 
-    private final TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> getBufferTree() {
+    private NavigableMap<Key, ByteBuffer> getBufferTree() {
       return buffers;
     }
 
@@ -568,8 +691,8 @@ public class DremioORCRecordUtils {
         directBufMap.put(new ByteBufferWrapper(retBuf), buf);
         return retBuf;
       } else {
-        TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> tree = getBufferTree();
-        Map.Entry<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> entry = tree.ceilingEntry(new DremioORCRecordUtils.ByteBufferAllocatorPool.Key(length, 0));
+        NavigableMap<Key, ByteBuffer> tree = getBufferTree();
+        Map.Entry<Key, ByteBuffer> entry = tree.ceilingEntry(new Key(length, 0));
         if (entry == null) {
           return ByteBuffer.allocate(length);
         }
@@ -586,9 +709,9 @@ public class DremioORCRecordUtils {
           buf.close();
         }
       } else {
-        TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> tree = getBufferTree();
+        NavigableMap<Key, ByteBuffer> tree = getBufferTree();
         while (true) {
-          DremioORCRecordUtils.ByteBufferAllocatorPool.Key key = new DremioORCRecordUtils.ByteBufferAllocatorPool.Key(buffer.capacity(), currentGeneration++);
+          Key key = new Key(buffer.capacity(), currentGeneration++);
           if (!tree.containsKey(key)) {
             tree.put(key, buffer);
             return;

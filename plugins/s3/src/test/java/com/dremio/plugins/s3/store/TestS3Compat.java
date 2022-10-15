@@ -80,6 +80,7 @@ public class TestS3Compat extends BaseTestQuery {
       s3.credentialType = AWSAuthenticationType.ACCESS_KEY;
       s3.accessKey = "foo";
       s3.accessSecret = "bar";
+      s3.secure = false;
       s3.propertyList = ImmutableList.of(
           new Property("fs.s3a.endpoint", "localhost:" + port),
           new Property("fs.s3a.path.style.access", "true")

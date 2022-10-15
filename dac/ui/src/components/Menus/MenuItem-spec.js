@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow, mount } from "enzyme";
-import MenuItemMaterial from "@material-ui/core/MenuItem";
+import MenuItemMaterial from "@mui/material/MenuItem";
 import MenuItem from "./MenuItem";
 
 describe("MenuItem", () => {

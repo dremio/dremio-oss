@@ -34,8 +34,8 @@ public class AllocatorUtil {
       // nothing to do in this case.
       return;
     }
-
-    // do a dummy allocation so that we get the allocation states as part of the exception.
-    try (ArrowBuf buffer = allocator.buffer(headRoom)) {}
+    try (ArrowBuf buffer = allocator.buffer(headRoom)) {
+      // do a dummy allocation so that we get the allocation states as part of the exception.
+    }
   }
 }

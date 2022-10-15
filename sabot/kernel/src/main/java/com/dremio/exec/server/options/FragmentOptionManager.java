@@ -30,7 +30,6 @@ import com.google.common.collect.TreeMultimap;
  * {@link OptionManager} that holds options within a fragment.
  */
 public class FragmentOptionManager extends BaseOptionManager {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentOptionManager.class);
 
   private final TreeMultimap<String, OptionValue> optionMap;
 

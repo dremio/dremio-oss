@@ -23,7 +23,6 @@ import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.sabot.exec.rpc.AckSender;
 
 public class RawFragmentBatch implements AutoCloseable {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RawFragmentBatch.class);
 
   private final FragmentRecordBatch header;
   private final ArrowBuf body;

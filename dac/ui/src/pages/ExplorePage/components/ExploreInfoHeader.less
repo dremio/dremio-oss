@@ -135,7 +135,11 @@
     .title-wrap {
       .flexbox-truncate-text-fix;
       .copy-button {
-        margin: 0 0 0 5px;
+        dremio-icon {
+          inline-size: 20px;
+          block-size: 20px;
+        }
+        padding: 0 var(--dremio--spacing--05);
         opacity: 0;
       }
       &:hover {

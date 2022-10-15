@@ -15,30 +15,25 @@
  */
 package com.dremio.service.autocomplete.statements.grammar;
 
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
+import com.dremio.service.autocomplete.AutocompleteEngineContext;
+import com.dremio.service.autocomplete.completions.Completions;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
 import com.google.common.collect.ImmutableList;
 
 /**
- * Statement of Unknown kind.
+ * IntelliSenseElement of Unknown kind.
  */
-public final class UnknownStatement extends Statement {
-  public static final UnknownStatement EMPTY = new UnknownStatement(ImmutableList.of());
+public final class UnknownStatement extends LeafStatement {
+  public static final UnknownStatement INSTANCE = new UnknownStatement(ImmutableList.of());
 
   private UnknownStatement(ImmutableList<DremioToken> tokens) {
-    super(tokens, ImmutableList.of());
+    super(tokens);
   }
 
   @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
+  public Completions getCompletions(AutocompleteEngineContext autocompleteEngineContext) {
+    return Completions.EMPTY;
   }
 
   public static UnknownStatement parse(TokenBuffer tokenBuffer) {

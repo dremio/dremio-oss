@@ -56,13 +56,13 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 
+import com.dremio.common.VM;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.OpenFileTracker;
 import com.dremio.exec.store.dfs.SimpleFileBlockLocation;
 import com.dremio.exec.store.hive.exec.DremioFileSystem;
-import com.dremio.exec.util.AssertionUtil;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
@@ -87,7 +87,7 @@ import com.google.common.collect.Maps;
 public class DremioHadoopFileSystemWrapper
   implements com.dremio.io.file.FileSystem, OpenFileTracker {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioHadoopFileSystemWrapper.class);
-  private static final boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
+  private static final boolean TRACKING_ENABLED = VM.areAssertsEnabled();
 
   private static final DremioFileSystemCache DREMIO_FS_CACHE = new DremioFileSystemCache();
 
@@ -126,6 +126,7 @@ public class DremioHadoopFileSystemWrapper
     try {
       return MAPRFS_SCHEME.equals(fs.getScheme().toLowerCase());
     } catch (UnsupportedOperationException e) {
+      // part of the check
     }
     return false;
   }
@@ -134,6 +135,7 @@ public class DremioHadoopFileSystemWrapper
     try {
       return fs instanceof LocalSyncableFileSystem || FILE_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
     } catch (UnsupportedOperationException e) {
+      // part of the check
     }
     return false;
   }
@@ -143,6 +145,7 @@ public class DremioHadoopFileSystemWrapper
     try {
       return HDFS_SCHEME.equals(scheme) || WEBHDFS_SCHEME.equals(scheme);
     } catch (UnsupportedOperationException e) {
+      // part of the check
     }
     return false;
   }
@@ -156,6 +159,7 @@ public class DremioHadoopFileSystemWrapper
     org.apache.hadoop.fs.Path nonExistentFile = f.suffix(NON_EXISTENT_FILE_SUFFIX + NON_EXISTENT_FILE_COUNTER++);
 
     try (FSDataInputStream is = underlyingFs.open(nonExistentFile)) {
+      // trigger an exception
     } catch (FileNotFoundException fileNotFoundException) {
       return;
     } catch (AccessControlException accessControlException) {

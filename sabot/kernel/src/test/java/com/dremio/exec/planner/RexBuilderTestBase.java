@@ -27,7 +27,6 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
-import org.mockito.Mock;
 
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 
@@ -36,7 +35,6 @@ public class RexBuilderTestBase {
   protected final RexBuilder builder = new DremioRexBuilder(typeFactory);
   protected RelDataType rowType;
 
-  @Mock
   protected RelNode input = mock(RelNode.class);
 
   @Before

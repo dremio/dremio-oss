@@ -278,7 +278,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel,
           schemaBuilder.addField(field);
         }
         BatchSchema expectedInputSchema = schemaBuilder.build();
-        if (!inputSchema.equalsIgnoreCase(expectedInputSchema)) {
+        if (!inputSchema.equalsTypesWithoutPositions(expectedInputSchema)) {
           throw UserException.validationError().message("Table schema %s doesn't match with query schema %s.",
             expectedInputSchema, inputSchema).buildSilently();
         }

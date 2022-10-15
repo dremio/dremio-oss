@@ -17,11 +17,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePromise } from "react-smart-promise";
 
-import {
-  DefaultApi,
-  FetchOption,
-  Reference,
-} from "@app/services/nessie/client";
+import { DefaultApi, FetchOption } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 
 export type RepoViewContextType = {
   defaultRef: Reference;
@@ -39,12 +36,12 @@ export function useRepoViewContext(api: DefaultApi): RepoViewContextType {
 
   const [defaultRef, setDefaultRef] = useState({} as Reference);
 
-  const [allRefs, setAllRefs] = useState(
-    allBranches ? allBranches.references : []
-  );
+  const refs = allBranches ? allBranches.references : [];
+  const [allRefs, setAllRefs] = useState(refs as Reference[]);
 
   useEffect(() => {
-    setAllRefs(allBranches ? allBranches.references.reverse() : []);
+    const resultRefs = allBranches ? allBranches.references.reverse() : [];
+    setAllRefs(resultRefs as Reference[]);
   }, [allBranches]);
 
   return {

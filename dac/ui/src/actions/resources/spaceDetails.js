@@ -41,7 +41,7 @@ export const addNewFolderForSpace = (name) => (dispatch, getState) => {
   const parentType = getEntityType(state);
   const parentPath = getNormalizedEntityPath(state);
 
-  const sourceName = parentPath.replace("/source/", "");
+  const [sourceName] = parentPath.replace("/source/", "").split("/");
   const params = getRefQueryParams(state.nessie, sourceName);
 
   const resourcePath =

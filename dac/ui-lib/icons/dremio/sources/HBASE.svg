@@ -1,0 +1,20 @@
+<svg id='sources/HBASE' viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <g id="Source.2f.S3">
+      <circle id="Oval" cx="24" cy="24" r="23.5" style="fill:#fff;stroke:#e5e5e5;stroke-width:1.02px;"/>
+    </g>
+    <g id="Elements" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Elements/Data-Sources" transform="translate(-30.000000, -562.000000)">
+            <g id="Icons" transform="translate(30.000000, 82.000000)">
+                <g id="Source/HBASE" transform="translate(0.000000, 480.000000)">
+                    <g>
+                        <g id="Logo/Hbase" transform="translate(9.000000, 11.500000)" fill="#BA160C">
+                            <g id="Source/Hbase">
+                                <path d="M27.0716505,0 L27.1068932,9.12714286 L27.8000971,9.13 L27.0716505,9.13 L26.3938835,9.13 L24.1893204,9.13857143 L24.1893204,9.13 L21.7264078,9.13 L5.66970874,9.13 L5.66970874,0 L0,0 L0,23.8677143 L5.66970874,23.8677143 L5.66970874,14.6914286 L24.1893204,14.6914286 L24.1893204,23.8677143 L27.0716505,23.8677143 L27.0719417,23.8677143 L29.9536893,23.8677143 L29.9536893,9.13 L29.9420388,9.13 L29.9536893,0 L27.0716505,0 Z M24.1893204,0 L24.1893204,9.13 L24.1896117,9.13 L26.3938835,9.13 L27.1068932,9.12714286 L27.0716505,0 L24.1893204,0 Z" id="Page-1"></path>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

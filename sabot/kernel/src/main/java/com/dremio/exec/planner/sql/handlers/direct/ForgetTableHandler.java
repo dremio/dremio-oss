@@ -46,7 +46,7 @@ public class ForgetTableHandler extends SimpleDirectHandler {
 
     String root = path.getRoot();
     if(root.startsWith("@") || root.equalsIgnoreCase("sys") || root.equalsIgnoreCase("INFORMATION_SCHEMA")) {
-      throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
+      throw UserException.parseError().message("FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.").build(logger);
     }
 
     catalog.forgetTable(path);

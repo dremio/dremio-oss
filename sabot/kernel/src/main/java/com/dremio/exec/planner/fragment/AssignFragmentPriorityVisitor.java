@@ -18,6 +18,8 @@ package com.dremio.exec.planner.fragment;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.Exchange;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -40,6 +42,7 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
  * </p>
  */
 public class AssignFragmentPriorityVisitor extends AbstractPhysicalVisitor<Void, Void, ForemanSetupException> {
+  private static final Logger logger = org.slf4j.LoggerFactory.getLogger(AssignFragmentPriorityVisitor.class);
   private final Map<Integer, Integer> majorFragmentToPriorityMap;
 
   private int currentPriority;
@@ -55,6 +58,7 @@ public class AssignFragmentPriorityVisitor extends AbstractPhysicalVisitor<Void,
   public Void visitExchange(Exchange exchange, Void value) throws ForemanSetupException {
     // put the current priority and then move down
     majorFragmentToPriorityMap.putIfAbsent(exchange.getChild().getProps().getMajorFragmentId(), currentPriority);
+    majorFragmentToPriorityMap.putIfAbsent(exchange.getProps().getMajorFragmentId(), currentPriority);
     this.maxPrioritySeenAtExchange = Math.max(currentPriority, maxPrioritySeenAtExchange);
     exchange.getChild().accept(this, null);
     if (this.currentPriority > this.maxPrioritySeenAtExchange) {
@@ -117,6 +121,14 @@ public class AssignFragmentPriorityVisitor extends AbstractPhysicalVisitor<Void,
    */
   public int getFragmentWeight(int majorFragmentId) {
     final int maxAssignPriority = Math.max(maxPrioritySeenAtExchange, 1);
-    return (maxAssignPriority - majorFragmentToPriorityMap.getOrDefault(majorFragmentId, 1)) + 1;
+    Integer prio = majorFragmentToPriorityMap.get(majorFragmentId);
+    if (prio == null) {
+      // this should not happen, but let us not make it fatal if it does
+      logger.warn("Assigned Priority not found for major fragment {}. Defaulting to {}", majorFragmentId,
+        maxAssignPriority);
+      return maxAssignPriority;
+    } else {
+      return maxAssignPriority - prio + 1;
+    }
   }
 }

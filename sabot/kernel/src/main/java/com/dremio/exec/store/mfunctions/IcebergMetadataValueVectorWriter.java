@@ -18,9 +18,12 @@ package com.dremio.exec.store.mfunctions;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
@@ -49,7 +52,7 @@ final class IcebergMetadataValueVectorWriter {
   private final CloseableIterator<FileScanTask> iterator;
   private final int targetBatchSize;
   private final List<SchemaPath> projectedColumns;
-  private final Schema icebergSchema;
+  private final Map<String, Function<StructLike, Object>> accessors;
   private final ArrowBuf tmpBuf;
   private CloseableIterator<StructLike> recordsIterator;
 
@@ -59,10 +62,17 @@ final class IcebergMetadataValueVectorWriter {
     this.output = output;
     this.targetBatchSize = targetBatchSize;
     this.projectedColumns = columns;
-    this.icebergSchema = icebergSchema;
     this.tmpBuf = tmpBuf;
     this.iterator = iterator;
     this.recordsIterator = null;
+
+    accessors = new HashMap<>();
+    int pos = 0;
+    for (Types.NestedField field : icebergSchema.asStruct().fields()) {
+      String key = lower(field.name());
+      accessors.put(key, accessor(pos, field));
+      pos++;
+    }
   }
 
   public int write() {
@@ -216,17 +226,26 @@ final class IcebergMetadataValueVectorWriter {
   }
 
   private Object getValue(StructLike structLike, String column) {
-    Types.NestedField nestedField = icebergSchema.caseInsensitiveFindField(column);
-    if (nestedField.type().isListType()) {
-      return structLike.get(nestedField.fieldId()-1, List.class);
-    }
-    if (nestedField.type().isMapType()) {
-      return structLike.get(nestedField.fieldId()-1, Map.class);
-    }
-    if (nestedField.type().isStructType()) {
-      return structLike.get(nestedField.fieldId()-1, Map.class);
-    }
-    return structLike.get(nestedField.fieldId()-1, nestedField.type().typeId().javaClass());
+    Function<StructLike, Object> accessor = accessors.get(lower(column));
+    return accessor.apply(structLike);
   }
 
+  private static Function<StructLike, Object> accessor(int pos, Types.NestedField field) {
+    Class<?> javaClass;
+    if (field.type().isListType()) {
+      javaClass = List.class;
+    } else if (field.type().isMapType()) {
+      javaClass = Map.class;
+    } else if (field.type().isStructType()) {
+      javaClass = Map.class;
+    } else {
+      javaClass = field.type().typeId().javaClass();
+    }
+
+    return struct -> struct.get(pos, javaClass);
+  }
+
+  private static String lower(String name) {
+    return name.toLowerCase(Locale.ROOT); // compatible with Schema.caseInsensitiveFindField(name)
+  }
 }

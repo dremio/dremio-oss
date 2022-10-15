@@ -24,7 +24,7 @@ import {
   SectionTitle,
   getIconButtonConfig,
 } from "@app/pages/ExplorePage/components/Wiki/SectionTitle";
-import { WikiEmptyState } from "@app/components/WikiEmptyState";
+import WikiEmptyState from "@app/components/WikiEmptyState";
 import { WikiModal } from "@app/pages/ExplorePage/components/Wiki/WikiModal";
 import { wikiSaved as wikiSavedAction } from "@app/actions/home";
 import {
@@ -138,9 +138,9 @@ export default class WikiView extends Component {
     const buttonList = [
       getIconButtonConfig({
         key: "expand",
-        icon: "ExpandWiki",
+        icon: "interface/expand-wiki",
         dataQa: "expand-wiki",
-        altText: la("expand wiki text"),
+        altText: this.props.intl.formatMessage({ id: "Common.ExpandWiki" }),
         onClick: this.expandWiki,
       }),
     ];
@@ -154,10 +154,15 @@ export default class WikiView extends Component {
   getEditButton() {
     return getIconButtonConfig({
       key: "edit",
-      icon: "Edit",
+      icon: "interface/edit",
       dataQa: "edit-wiki",
       altText: this.props.intl.formatMessage({ id: "Common.Edit" }),
       onClick: this.editWiki,
+      styles: {
+        width: 17,
+        height: 18,
+        color: "var(--dremio--color--neutral--600)",
+      },
     });
   }
 

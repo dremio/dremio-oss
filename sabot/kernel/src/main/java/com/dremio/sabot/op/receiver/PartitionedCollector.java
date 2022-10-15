@@ -21,6 +21,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
@@ -28,9 +29,9 @@ import com.dremio.service.spill.SpillService;
 
 public class PartitionedCollector extends AbstractDataCollector {
 
-  public PartitionedCollector(SharedResourceGroup resourceGroup, Collector collector, BufferAllocator allocator, SabotConfig config, FragmentHandle handle,
+  public PartitionedCollector(SharedResourceGroup resourceGroup, Collector collector, BufferAllocator allocator, SabotConfig config, OptionManager options, FragmentHandle handle,
                               FragmentWorkQueue workQueue, TunnelProvider tunnelProvider, SpillService spillService, EndpointsIndex endpointsIndex) {
-    super(resourceGroup, true, collector, 1, allocator, config, handle, workQueue, tunnelProvider, spillService, endpointsIndex);
+    super(resourceGroup, true, collector, 1, allocator, config, options, handle, workQueue, tunnelProvider, spillService, endpointsIndex);
   }
 
   @Override

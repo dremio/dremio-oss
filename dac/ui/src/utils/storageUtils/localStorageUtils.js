@@ -32,6 +32,10 @@ const emptyApp = {
   SSOLogin: "SSO",
 };
 
+export function getProjectContext() {
+  return null;
+}
+
 export function useProjectContext() {
   return null;
 }
@@ -278,6 +282,10 @@ export class LocalStorageUtils {
   }
 
   isDataPlaneOnly() {
+    return false;
+  }
+
+  isQueryEngine() {
     return false;
   }
 }

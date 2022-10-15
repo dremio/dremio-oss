@@ -130,7 +130,7 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
         .optionSettingQueriesForTestQuery("alter session set \"planner.enable_hashjoin\" = true")
         .unOrdered()
         .baselineColumns("bigint_col")
-        .baselineValues(1l)
+        .baselineValues(1L)
         .go();
 
     query = "select count(*) col1 from " +
@@ -141,7 +141,7 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("col1")
-        .baselineValues(4l)
+        .baselineValues(4L)
         .go();
   }
 
@@ -164,7 +164,7 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
       Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
       // Just test the join key
-      long colA[] = {1, 1, 2, 2, 1, 1};
+      long[] colA = {1, 1, 2, 2, 1, 1};
 
       // Check the output of decimal9
       ValueVector intValueVector = itr.next().getValueVector();
@@ -200,8 +200,8 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
       final Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
       // Just test the join key
-      final long colA[] = { 1, 2, 1 };
-      final long colC[] = { 100, 200, 500 };
+      final long[] colA = { 1, 2, 1 };
+      final long[] colC = { 100, 200, 500 };
 
       // Check the output of decimal9
       final ValueVector intValueVector1 = itr.next().getValueVector();

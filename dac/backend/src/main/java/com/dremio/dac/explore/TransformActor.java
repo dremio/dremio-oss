@@ -486,6 +486,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
         case INTEGER:
         case LIST:
         case MAP:
+        case STRUCT:
         case MIXED:
         case OTHER:
           throw new IllegalArgumentException("Can't convert without parameters to type " + toType.getDataType());
@@ -512,6 +513,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
         case DECIMAL:
         case GEO:
         case LIST:
+        case STRUCT:
         case MAP:
         case MIXED:
         case OTHER:

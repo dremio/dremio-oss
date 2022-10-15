@@ -15,7 +15,6 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import Art from "components/Art";
 import { actionBtn, actionIcon } from "./actionButtons.less";
 
 export class DeleteButton extends Component {
@@ -40,7 +39,11 @@ export class DeleteButton extends Component {
         title={title}
         data-qa={dataQa}
       >
-        <Art className={actionIcon} alt={title} src="Delete.svg" />
+        <dremio-icon
+          class={actionIcon}
+          alt={title}
+          name="interface/ce-delete"
+        />
       </button>
     );
   }

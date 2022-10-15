@@ -1,0 +1,488 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "ROW"
+  input: "SELECT ROW"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - "("
+ -
+  description: "ROW CONSTRUCTOR"
+  input: "SELECT ROW("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "ROW"
+     - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
+ -
+  description: "ROW CONSTRUCTOR"
+  input: "SELECT ROW(1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - ","
+     - "AND"
+     - "+"
+     - "*"
+ -
+  description: "ROW CONSTRUCTOR"
+  input: "SELECT ROW(1)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "ROW CONSTRUCTOR"
+  input: "SELECT ROW(1,"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "ROW INDEX"
+  input: "SELECT ROW(1)["
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "ROW INDEX + INT"
+  input: "SELECT ROW(1)[1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "AND"
+     - "+"
+     - "*"
+     - "="
+     - "OR"
+ -
+  description: "ROW INDEX + INT"
+  input: "SELECT ROW(1)[1]"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "ROW INDEX + STRING"
+  input: "SELECT ROW(1)['name'"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "!="
+     - "%"
+     - "*"
+     - "+"
+     - "-"
+ -
+  description: "ROW INDEX + STRING"
+  input: "SELECT ROW(1)['name']"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "ARRAY"
+  input: "SELECT ARRAY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - "("
+     - "["
+ -
+  description: "ARRAY CONSTRUCTOR PARENS"
+  input: "SELECT ARRAY("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "("
+     - "MULTISET"
+ -
+  description: "ARRAY CONSTRUCTOR PARENS"
+  input: "SELECT ARRAY(SELECT * FROM T"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "WHERE"
+     - "."
+     - "MATCH_RECOGNIZE"
+     - "JOIN"
+ -
+  description: "ARRAY CONSTRUCTOR PARENS"
+  input: "SELECT ARRAY(SELECT * FROM T)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "ARRAY CONSTRUCTOR PARENS"
+  input: "SELECT ARRAY(SELECT * FROM T,"
+  output:
+    hasIdentifier: true
+    hasMoreResults: false
+    tokens:
+     - "LATERAL"
+     - "("
+     - "UNNEST"
+     - "TABLE"
+ -
+  description: "ARRAY PARENS INDEX"
+  input: "SELECT ARRAY(SELECT * FROM T)["
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "ARRAY PARENS INDEX"
+  input: "SELECT ARRAY(SELECT * FROM T)[1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "AND"
+     - "+"
+     - "*"
+     - "="
+     - "OR"
+ -
+  description: "ARRAY PARENS INDEX"
+  input: "SELECT ARRAY(SELECT * FROM T)[1]"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "ARRAY CONSTRUCTOR BRACKET"
+  input: "SELECT ARRAY["
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "ARRAY CONSTRUCTOR BRACKET"
+  input: "SELECT ARRAY[1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "AND"
+     - "+"
+     - "*"
+     - "="
+ -
+  description: "ARRAY CONSTRUCTOR BRACKET"
+  input: "SELECT ARRAY[1]"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "ARRAY CONSTRUCTOR BRACKET"
+  input: "SELECT ARRAY[1,"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "ARRAY BRACKET INDEX"
+  input: "SELECT ARRAY[1, 2, 3]["
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "ARRAY BRACKET INDEX"
+  input: "SELECT ARRAY[1, 2, 3][1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "AND"
+     - "+"
+     - "*"
+     - "="
+     - "OR"
+ -
+  description: "ARRAY BRACKET INDEX"
+  input: "SELECT ARRAY[1, 2, 3][1]"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "MAP "
+  input: "SELECT MAP"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+     - "FROM"
+ -
+  description: "MAP CONSTRUCTOR PARENS"
+  input: "SELECT MAP("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "("
+     - "MULTISET"
+ -
+  description: "MAP CONSTRUCTOR PARENS"
+  input: "SELECT MAP(SELECT * FROM T"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "WHERE"
+     - "."
+     - "MATCH_RECOGNIZE"
+     - "JOIN"
+ -
+  description: "MAP CONSTRUCTOR PARENS"
+  input: "SELECT MAP(SELECT * FROM T,"
+  output:
+    hasIdentifier: true
+    hasMoreResults: false
+    tokens:
+     - "LATERAL"
+     - "("
+     - "UNNEST"
+     - "TABLE"
+ -
+  description: "MAP CONSTRUCTOR PARENS"
+  input: "SELECT MAP(SELECT * FROM T)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "MAP PARENS INDEX"
+  input: "SELECT MAP(SELECT * FROM T)["
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "MAP PARENS INDEX"
+  input: "SELECT MAP(SELECT * FROM T)['key'"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "!="
+     - "%"
+     - "*"
+     - "+"
+     - "-"
+ -
+  description: "MAP PARENS INDEX"
+  input: "SELECT MAP(SELECT * FROM T)['key']"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "MAP CONSTRUCTOR BRACKET"
+  input: "SELECT MAP["
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "MAP CONSTRUCTOR BRACKET"
+  input: "SELECT MAP['key'"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "!="
+     - "%"
+     - "*"
+     - "+"
+ -
+  description: "MAP CONSTRUCTOR BRACKET"
+  input: "SELECT MAP['key', 1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "+"
+     - "AND"
+     - "*"
+     - "="
+ -
+  description: "MAP CONSTRUCTOR BRACKET"
+  input: "SELECT MAP['key', 1]"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "MAP BRACKET INDEX"
+  input: "SELECT MAP['key', 1]["
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "MAP BRACKET INDEX"
+  input: "SELECT MAP['key', 1]['key'"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "!="
+     - "%"
+     - "*"
+     - "+"
+     - "-"
+ -
+  description: "MAP BRACKET INDEX"
+  input: "SELECT MAP['key', 1]['key']"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"

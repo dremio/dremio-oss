@@ -159,7 +159,7 @@ public class DatasetVersionMutator {
 
   public void put(VirtualDatasetUI ds, NamespaceAttribute... attributes) throws DatasetNotFoundException, NamespaceException {
     DatasetPath path = new DatasetPath(ds.getFullPathList());
-    validatePath(path);
+    validatePaths(path, null);
     validate(path, ds);
     DatasetConfig datasetConfig = toVirtualDatasetVersion(ds).getDataset();
     namespaceService.addOrUpdateDataset(path.toNamespaceKey(), datasetConfig, attributes);
@@ -228,16 +228,21 @@ public class DatasetVersionMutator {
     return optionManager.getOption(VERSIONED_VIEW_ENABLED);
   }
 
-  private void validatePath(DatasetPath path) {
-    if (path.getRoot().getRootType() == RootType.TEMP) {
+  private void validatePaths(DatasetPath toPath, DatasetPath fromPath) {
+    if (toPath.getRoot().getRootType() == RootType.TEMP) {
       throw new IllegalArgumentException("can not save dataset in tmp space");
+    }
+
+    if (fromPath != null && fromPath.equals(toPath)) {
+      throw new IllegalArgumentException(format(
+        "A dataset named '%s' already exists in [%s]", fromPath.getLeaf(), toPath.toParentPath()));
     }
   }
 
   public VirtualDatasetUI renameDataset(final DatasetPath oldPath, final DatasetPath newPath)
       throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
     try {
-      validatePath(newPath);
+      validatePaths(newPath, oldPath);
       VirtualDatasetVersion latestVersion = null; // the one that matches in the namespace
       final DatasetConfig datasetConfig =
           namespaceService.renameDataset(oldPath.toNamespaceKey(), newPath.toNamespaceKey());

@@ -16,12 +16,15 @@
 package com.dremio.exec.store.iceberg;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
 
 import org.apache.iceberg.Table;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.ExecConstants;
@@ -32,6 +35,7 @@ import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.dfs.FileCountTooLargeException;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSelectionProcessor;
@@ -50,19 +54,25 @@ import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.base.Predicates;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Iterables;
 
 public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergFormatPlugin.class);
 
   private static final String DEFAULT_NAME = "iceberg";
   private static final boolean IS_COMPRESSIBLE = true;
+  private static final String NOT_SUPPORT_METASTORE_TABLE_MSG =
+    "This folder does not contain a filesystem-based Iceberg table. If the table in this folder is managed via a catalog " +
+    "such as Hive, Glue, or Nessie, please use a data source configured for that catalog to connect to this table.";
 
   private final SabotContext context;
   private final IcebergFormatMatcher formatMatcher;
@@ -219,5 +229,55 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   @Override
   public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException {
     throw new UnsupportedOperationException("Deprecated path");
+  }
+
+  private static final class DelegateDirectoryStream implements DirectoryStream<FileAttributes> {
+    private final Iterable<FileAttributes> delegate;
+
+    private DelegateDirectoryStream(Iterable<FileAttributes> fileAttributesIterable) {
+      delegate = fileAttributesIterable;
+    }
+
+    @Override
+    public Iterator<FileAttributes> iterator() {
+      return delegate.iterator();
+    }
+
+    @Override
+    public void close() throws IOException {
+    }
+  }
+
+  @Override
+  public DirectoryStream<FileAttributes> getFilesForSamples(
+    FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path) throws IOException, FileCountTooLargeException {
+    if (!formatMatcher.isFileSystemSupportedIcebergTable(fs, path.toString())) {
+      throw UserException.unsupportedError()
+        .message(NOT_SUPPORT_METASTORE_TABLE_MSG)
+        .buildSilently();
+    }
+
+    final IcebergModel icebergModel = fsPlugin.getIcebergModel();
+    final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(
+      icebergModel.getTableIdentifier(path.toString()));
+    Table table = icebergTableLoader.getIcebergTable();
+
+    // Transform to lazy iteration and retrieve file attributes on demand
+    final int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
+    Iterable<FileAttributes> fileAttributesIterable = Iterables.filter(
+      Iterables.transform(
+        Iterables.limit(table.newScan().planFiles(), maxFilesLimit),
+        scanTask -> {
+          String dataFilePath = Path.getContainerSpecificRelativePath(Path.of(String.valueOf(scanTask.file().path())));
+          try {
+            return fs.getFileAttributes(Path.of(dataFilePath));
+          } catch (Exception e) {
+            logger.info("Failed to read file attributes: {}", dataFilePath, e);
+          }
+          return null;
+        }),
+      Predicates.notNull()
+    );
+    return new DelegateDirectoryStream(fileAttributesIterable);
   }
 }

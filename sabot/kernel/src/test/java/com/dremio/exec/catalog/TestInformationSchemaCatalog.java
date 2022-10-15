@@ -88,7 +88,7 @@ public class TestInformationSchemaCatalog {
     final String vds2 = "space.folder.subfolder.vds2";
     NamespaceTestUtils.addDS(namespaceService, vds2, "select * from space.folder.vds1");
 
-    this.catalog = new InformationSchemaCatalogImpl(namespaceService);
+    this.catalog = new InformationSchemaCatalogImpl(namespaceService, null);
   }
 
   @After

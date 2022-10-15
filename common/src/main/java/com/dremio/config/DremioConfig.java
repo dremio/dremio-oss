@@ -44,6 +44,7 @@ import com.typesafe.config.ConfigValueFactory;
 /**
  * A configuration object that is merged with and validated against the dremio-reference.conf configuration.
  */
+@SuppressWarnings("checkstyle:FinalClass")
 public class DremioConfig extends NestedConfig {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioConfig.class);
 
@@ -139,6 +140,9 @@ public class DremioConfig extends NestedConfig {
   public static final String ZK_CONNECTION_HANDLE_ENABLED = "zk.client.connection_handle.enabled";
   public static final String ZK_CLIENT_RETRY_LIMIT = "zk.client.retry.limit";
   public static final String ZK_CLIENT_INITIAL_TIMEOUT_MS = "zk.client.retry.initial_timeout_ms";
+  public static final String ZK_SUPERVISOR_INTERVAL_MS = "zk.client.supervisor.interval_ms";
+  public static final String ZK_SUPERVISOR_READ_TIMEOUT_MS = "zk.client.supervisor.read_timeout_ms";
+  public static final String ZK_SUPERVISOR_MAX_FAILURES = "zk.client.supervisor.max_failures";
 
   // Provisioning options
   public static final String YARN_ENABLED_BOOL = "provisioning.yarn.enabled";

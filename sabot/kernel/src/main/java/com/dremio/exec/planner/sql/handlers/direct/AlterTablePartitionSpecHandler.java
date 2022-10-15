@@ -18,7 +18,6 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -38,6 +37,7 @@ import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
 
 public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
 

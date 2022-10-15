@@ -137,7 +137,7 @@ describe("TransformView", () => {
 
     expect(wrapper.find(Tabs).at(0).prop("activeTab")).to.eql("extract");
     expect(wrapper.find(Tabs).at(1).prop("activeTab")).to.eql(MAP);
-    expect(wrapper.find(ExtractMapForm)).to.have.length(1);
+    expect(wrapper.find(ExtractMapForm)).to.have.length(2);
   });
 
   describe("filterSubtitles", () => {

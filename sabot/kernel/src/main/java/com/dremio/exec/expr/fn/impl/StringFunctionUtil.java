@@ -238,6 +238,22 @@ public class StringFunctionUtil {
     return end - start;
   }
 
+  // This function separates and returns a string containing only the alphabetic characters of the input in uppercase.
+  public static String soundexCleanUtf8(NullableVarCharHolder in, final FunctionErrorContext errCtx){
+    int len = in.end - in.start;
+    char[] chars = new char[len];
+    int count = 0;
+    int bytePerChar = 0;
+    for (int id = in.start; id < in.end; id += bytePerChar) {
+      bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(
+        io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), id, errCtx);
+      if (bytePerChar == 1 && Character.isLetter(in.buffer.getByte(id))) {
+        chars[count++] = (char) in.buffer.getByte(id);
+      }
+    }
+    return new String(chars, 0, count).toUpperCase(java.util.Locale.ENGLISH);
+  }
+
   static void copyNullableVarCharHolder(NullableVarCharHolder dst, NullableVarCharHolder src) {
     int length = src.end - src.start;
     dst.buffer.setBytes(dst.end, src.buffer, src.start, length);

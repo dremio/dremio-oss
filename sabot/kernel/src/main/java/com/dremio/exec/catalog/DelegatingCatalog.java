@@ -192,6 +192,11 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public Catalog resolveCatalog(Map<String, VersionContext> sourceVersionMapping) {
+    return delegate.resolveCatalog(sourceVersionMapping);
+  }
+
+  @Override
   public MetadataStatsCollector getMetadataStatsCollector() {
     return delegate.getMetadataStatsCollector();
   }

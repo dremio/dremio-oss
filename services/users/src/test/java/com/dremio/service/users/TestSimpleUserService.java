@@ -431,4 +431,16 @@ public class TestSimpleUserService {
         .isInstanceOf(ConcurrentModificationException.class);
     }
   }
+
+  @Test
+  public void testGetSystemUser() throws Exception {
+    try(final LegacyKVStoreProvider kvstore =
+          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userService = new SimpleUserService(() -> kvstore);
+
+      assertEquals(SystemUser.SYSTEM_USER, userService.getUser(SystemUser.SYSTEM_USERNAME));
+      assertEquals(SystemUser.SYSTEM_USER, userService.getUser(SystemUser.SYSTEM_USER.getUID()));
+    }
+  }
 }

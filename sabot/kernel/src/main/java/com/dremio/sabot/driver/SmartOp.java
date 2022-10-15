@@ -46,8 +46,6 @@ import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 
-import io.netty.util.internal.OutOfDirectMemoryError;
-
 /**
  * A set of utility classes that allows us to centralize operator management without using inheritance and confusing state trees.
  *
@@ -91,6 +89,24 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
   @Override
   public void workOnOOB(OutOfBandMessage message) {
     inner.workOnOOB(message);
+  }
+
+  @Override
+  public boolean shrinkMemory(long memoryUsed) throws Exception {
+    checkState(inner instanceof ShrinkableOperator,
+      "A message to shrinkMemory has been sent to an Operator that cannot shrinkMemory");
+    ShrinkableOperator shrinkableOperator = (ShrinkableOperator) inner;
+    long currentMemoryUsed = shrinkableOperator.shrinkableMemory();
+    boolean doneSpilling = false;
+    try {
+      doneSpilling = shrinkableOperator.shrinkMemory(memoryUsed);
+      return doneSpilling;
+    } finally {
+      logger.debug("Operator {} reduced memory usage by {} bytes", shrinkableOperator.getOperatorId(), currentMemoryUsed - shrinkableOperator.shrinkableMemory());
+      if (doneSpilling) {
+        logger.info("Operator {} spilled {} bytes", shrinkableOperator.getOperatorId(), (memoryUsed - shrinkableOperator.shrinkableMemory()));
+      }
+    }
   }
 
   public T getInner(){
@@ -138,7 +154,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
     if (oom != null) {
       context.getNodeDebugContextProvider().addMemoryContext(builder, oom);
-    } else if (ErrorHelper.findWrappedCause(e, OutOfDirectMemoryError.class) != null) {
+    } else if (ErrorHelper.isDirectMemoryException(e)) {
       context.getNodeDebugContextProvider().addMemoryContext(builder);
     }
 
@@ -190,7 +206,9 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     public int outputData() throws Exception {
       stats.startProcessing();
       try {
-        return verify(initialSchema, outgoing, inner.outputData());
+        int outputRecords = inner.outputData();
+        stats.recordBatchOutput(outputRecords, VectorUtil.getSize(outgoing));
+        return verify(initialSchema, outgoing, outputRecords);
       } catch (Exception | AssertionError | AbstractMethodError e) {
         logger.error("Unexpected exception occurred", e);
         throw contextualize(e);
@@ -335,6 +353,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       try {
         stats.batchReceived(0, records, VectorUtil.getSize(incoming));
         inner.consumeData(records);
+        stats.recordBatchOutput(records, VectorUtil.getSize(incoming));
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
@@ -394,7 +413,9 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     public int outputData() throws Exception {
       stats.startProcessing();
       try {
-        return verify(initialSchema, outgoing, inner.outputData());
+        int outputRecords = inner.outputData();
+        stats.recordBatchOutput(outputRecords, VectorUtil.getSize(outgoing));
+        return verify(initialSchema, outgoing, outputRecords);
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {
@@ -524,7 +545,9 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     public int outputData() throws Exception {
       stats.startProcessing();
       try {
-        return verify(initialSchema, outgoing, inner.outputData());
+        int outputRecords = inner.outputData();
+        stats.recordBatchOutput(outputRecords, VectorUtil.getSize(outgoing));
+        return verify(initialSchema, outgoing, outputRecords);
       } catch (Exception | AssertionError | AbstractMethodError e) {
         throw contextualize(e);
       } finally {

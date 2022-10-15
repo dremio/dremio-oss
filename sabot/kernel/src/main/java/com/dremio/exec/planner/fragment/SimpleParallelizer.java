@@ -325,6 +325,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
 
     final ExecutionPlanningResources executionPlanningResources = new ExecutionPlanningResources(planningSet, executorSelectionHandle, groupResourceInformation);
     final Collection<NodeEndpoint> selectedEndpoints = executorSelectionHandle.getExecutors();
+    logger.debug("endpoints {}", EndpointHelper.getMinimalString(selectedEndpoints) );
     stopWatch.stop();
     observer.executorsSelected(stopWatch.elapsed(TimeUnit.MILLISECONDS),
       idealNumFragments, idealNumNodes, selectedEndpoints.size(),
@@ -640,7 +641,6 @@ public class SimpleParallelizer implements ParallelizationParameters {
 
         final NodeEndpoint assignment = wrapper.getAssignedEndpoint(minorFragmentId);
         final NodeEndpoint endpoint = builder.getMinimalEndpoint(assignment);
-
         List<MinorAttr> attrList = MinorDataCollector.collect(handle,
           endpoint,
           root,

@@ -72,7 +72,7 @@ public class TestDecimalQueries extends DecimalCompleteTest {
     testBuilder().sqlQuery(query)
       .unOrdered()
       .baselineColumns("EXPR$0")
-      .baselineValues(0l)
+      .baselineValues(0L)
       .go();
 
     // DX-35078
@@ -80,7 +80,7 @@ public class TestDecimalQueries extends DecimalCompleteTest {
       testBuilder().sqlQuery(query)
         .unOrdered()
         .baselineColumns("EXPR$0")
-        .baselineValues(0l)
+        .baselineValues(0L)
         .go();
     }
   }

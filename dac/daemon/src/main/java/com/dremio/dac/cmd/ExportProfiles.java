@@ -23,11 +23,16 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
+import javax.inject.Provider;
+
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.resource.ExportProfilesParams;
 import com.dremio.dac.resource.ExportProfilesParams.ExportFormatType;
 import com.dremio.dac.resource.ExportProfilesParams.WriteFileMode;
@@ -37,6 +42,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.admin.profile.ProfilesExporter;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.services.credentials.CredentialsService;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -165,7 +171,15 @@ public class ExportProfiles {
           char[] pwd = System.console().readPassword("password: ");
           options.password = new String(pwd);
         }
-        exportOnline(options, options.userName, options.password, options.acceptAll, dacConfig);
+        if (!options.acceptAll) {
+          final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
+          final ScanResult scanResult = ClassPathScanner.fromPrescan(sabotConfig);
+          try (CredentialsService credentialsService = CredentialsService.newInstance(dacConfig.getConfig(), scanResult)) {
+            exportOnline(options, options.userName, options.password, options.acceptAll, dacConfig, () -> credentialsService);
+          }
+        } else {
+          exportOnline(options, options.userName, options.password, options.acceptAll, dacConfig, () -> null);
+        }
       }
     }
   }
@@ -183,9 +197,16 @@ public class ExportProfiles {
       options.chunkSize);
   }
 
-  private static void exportOnline(ExportProfilesOptions options, String userName, String password, boolean acceptAll, DACConfig dacConfig)
+  private static void exportOnline(
+    ExportProfilesOptions options,
+    String userName,
+    String password,
+    boolean acceptAll,
+    DACConfig dacConfig,
+    Provider<CredentialsService> credentialsServiceProvider
+  )
     throws IOException, GeneralSecurityException {
-    final WebClient client = new WebClient(dacConfig, userName, password, !acceptAll);
+    final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password, !acceptAll);
 
     AdminLogger.log(client.buildPost(ExportProfilesStats.class, "/export-profiles", getAPIExportParams(options))
       .retrieveStats(options.fromDate, options.toDate, isTimeSet));

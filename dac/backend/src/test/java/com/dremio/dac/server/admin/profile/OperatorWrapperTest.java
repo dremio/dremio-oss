@@ -41,7 +41,10 @@ public class OperatorWrapperTest {
 
   @Test
   public void testGetMetricsTableHandlesNotRegisteredMetrics() throws IOException {
+    int operatorType = UserBitShared.CoreOperatorType.PARQUET_ROW_GROUP_SCAN.getNumber();
+    int numMetrics = OperatorMetricRegistry.getMetricNames(operatorType).length;
 
+    // find the number of registered metrics for parquet scan.
     OperatorProfile op = OperatorProfile
       .newBuilder().addMetric(
         UserBitShared.MetricValue.newBuilder()
@@ -49,9 +52,10 @@ public class OperatorWrapperTest {
           .setDoubleValue(200))
       .addMetric(
         UserBitShared.MetricValue.newBuilder()
-          .setMetricId(3)
+          .setMetricId(numMetrics + 5)  // add an unregistered metric
           .setDoubleValue(21))
-      .setOperatorId(UserBitShared.CoreOperatorType.PARQUET_ROW_GROUP_SCAN.getNumber())
+      .setOperatorId(0)
+      .setOperatorType(operatorType)
       .build();
 
     ImmutablePair<OperatorProfile, Integer> pair = new ImmutablePair<>(op, 1);
@@ -71,7 +75,7 @@ public class OperatorWrapperTest {
 
     final JsonElement element = new JsonParser().parse(outputStream.toString());
     final int size = element.getAsJsonObject().get("metrics").getAsJsonObject().get("data").getAsJsonArray().get(0).getAsJsonArray().size();
-    assertEquals(2, size);
+    assertEquals(numMetrics + 1, size); // operatorID is always added to the metrics
   }
 
 }

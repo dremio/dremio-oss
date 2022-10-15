@@ -32,7 +32,7 @@ describe("Status-spec", () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it("should have alt text as message", () => {
+  it("should have title text as message", () => {
     const props = {
       ...minimalProps,
       reflection: Immutable.fromJS({
@@ -40,8 +40,7 @@ describe("Status-spec", () => {
       }),
     };
     const wrapper = shallow(<Status {...props} />);
-    const result = wrapper.find("Art");
-    expect(result.props().alt).to.equal("Reflection is disabled.");
+    expect(wrapper.props().title).to.equal("Reflection is disabled.");
   });
 
   it("should have message for manual reflections with failures", () => {
@@ -57,8 +56,7 @@ describe("Status-spec", () => {
       }),
     };
     const wrapper = shallow(<Status {...props} />);
-    const result = wrapper.find("Art");
-    expect(result.props().alt).to.equal(
+    expect(wrapper.props().title).to.equal(
       "Reflection can accelerate.\n\n2 refresh job attempts failed, will not reattempt."
     );
   });
@@ -76,8 +74,7 @@ describe("Status-spec", () => {
       }),
     };
     const wrapper = shallow(<Status {...props} />);
-    const result = wrapper.find("Art");
-    expect(result.props().alt).to.equal(
+    expect(wrapper.props().title).to.equal(
       "Reflection can accelerate.\n\n2 refresh job attempts failed, will reattempt."
     );
   });

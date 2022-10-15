@@ -45,9 +45,12 @@ public class ReflectionServiceHelper {
     this.reflectionAdministrationServiceFactory = reflectionAdministrationServiceFactory;
     this.reflectionStatusService = reflectionStatusService;
   }
-
-  protected ReflectionAdministrationService getReflectionAdministrationService() {
+  public ReflectionAdministrationService getReflectionAdministrationService() {
     return reflectionAdministrationServiceFactory.get(ReflectionContext.SYSTEM_USER_CONTEXT);
+  }
+
+  public ReflectionStatusService getReflectionStatusService() {
+    return reflectionStatusService;
   }
 
   public Optional<ReflectionGoal> getReflectionById(String id) {
@@ -109,7 +112,7 @@ public class ReflectionServiceHelper {
 
     final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
-    if (reflectionAdministrationService.doesReflectionHaveAnyMaterializationDone(reflectionId)) {
+    if (reflectionAdministrationService.getLastDoneMaterialization(reflectionId).isPresent()) {
       size = reflectionAdministrationService.getReflectionSize(reflectionId);
     }
 
@@ -121,7 +124,7 @@ public class ReflectionServiceHelper {
 
     final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
-    if (reflectionAdministrationService.doesReflectionHaveAnyMaterializationDone(reflectionId)) {
+    if (reflectionAdministrationService.getLastDoneMaterialization(reflectionId).isPresent()) {
       total = reflectionAdministrationService.getTotalReflectionSize(reflectionId);
     }
 

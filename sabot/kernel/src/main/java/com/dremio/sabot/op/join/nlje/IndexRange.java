@@ -25,7 +25,7 @@ import com.google.common.base.MoreObjects;
 class IndexRange extends DualRange {
 
   private final int probeBatchSize;
-  private final int buildBatchSizes[];
+  private final int[] buildBatchSizes;
   private final int buildBatchIndex;
 
   private final IntRange totalProbeRange;

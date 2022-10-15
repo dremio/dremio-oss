@@ -31,7 +31,7 @@ import org.apache.arrow.memory.RootAllocator;
  * The root allocator for using direct memory inside a Dremio process.
  * Tracks all top-level allocators
  */
-public class DremioRootAllocator extends RootAllocator {
+public final class DremioRootAllocator extends RootAllocator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioRootAllocator.class);
 
   private final ConcurrentMap<String, BufferAllocator> children;
@@ -69,7 +69,7 @@ public class DremioRootAllocator extends RootAllocator {
     throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
   }
 
-  private static class RootAllocatorListener implements AllocationListener {
+  private static final class RootAllocatorListener implements AllocationListener {
 
     /*
      * Count of available buffers. Since this is optimistically changed, it can go be negative but it would be wrong for it stay negative for an
@@ -77,7 +77,7 @@ public class DremioRootAllocator extends RootAllocator {
      */
     private final AtomicLong availBuffers;
 
-    DremioRootAllocator rootAllocator;
+    private DremioRootAllocator rootAllocator;
 
     public RootAllocatorListener(long maxCount) {
       availBuffers = new AtomicLong(maxCount);

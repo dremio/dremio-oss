@@ -24,8 +24,10 @@ import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.InputReference;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
@@ -66,6 +68,8 @@ public interface ExprVisitor<T, VAL, EXCEP extends Exception> {
   T visitCastExpression(CastExpression e, VAL value) throws EXCEP;
   T visitConvertExpression(ConvertExpression e, VAL value) throws EXCEP;
   T visitInputReference(InputReference e, VAL value) throws EXCEP;
+  T visitOrdering(Ordering e, VAL value) throws EXCEP;
+  T visitListAggExpression(ListAggExpression e, VAL value) throws EXCEP;
   default T visitInExpression(InExpression e, VAL value) throws EXCEP {
     return visitUnknown(e, value);
   }

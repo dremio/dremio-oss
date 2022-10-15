@@ -180,14 +180,11 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
       String filterA = getAliasFilter(alias);
       if (filter == null) {
         filter = filterA;
-      } else if (filter.equals(filterA)) {
-        // the filters match.
-      } else {
+      } else if (!filter.equals(filterA)) {
         //filter don't match, fail for now.
         throw UserException.validationError().message("Unable to access a collection of aliases with differing filters.").build(logger);
       }
     }
-
     return filter;
   }
 

@@ -279,7 +279,7 @@ class DatasetStateMutator {
     if (sameColumn && !dropSourceColumn) {
       // you can only set the same name if you also drop the old column
       throw UserException.validationError()
-        .message("You cannot use a column name that already exists in the table", newCol)
+        .message("You cannot use a column name that already exists in the table: %s", newCol)
         .build(logger);
     }
     // if preview we just mark the column as deleted

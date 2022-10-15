@@ -40,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -235,8 +236,10 @@ public class TestRocksDBStore {
     store.delete(randomKey);
 
     Path blobDir = Paths.get(rocksDBResource.getDbDir(), "blob", "test");
-    List<Path> remainingBlobFiles = Files.list(blobDir).collect(Collectors.toList());
-    assertEquals("Expected zero remaining files.", Collections.EMPTY_LIST, remainingBlobFiles);
+    try (Stream<Path> stream = Files.list(blobDir)) {
+      List<Path> remainingBlobFiles = stream.collect(Collectors.toList());
+      assertEquals("Expected zero remaining files.", Collections.EMPTY_LIST, remainingBlobFiles);
+    }
 
     // do empty gets and make sure things work correctly.
     assertEquals(null, store.get(randomKey));

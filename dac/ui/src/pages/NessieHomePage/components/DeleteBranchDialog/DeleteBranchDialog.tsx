@@ -16,22 +16,23 @@
 
 import { useState } from "react";
 import { FormattedMessage } from "react-intl";
+import { Button } from "dremio-ui-lib/dist-esm";
 
 import {
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
-} from "@material-ui/core";
+} from "@mui/material";
 import { connect } from "react-redux";
 
 import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
-import { Reference } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 import { CustomDialogTitle } from "../NewBranchDialog/utils";
 import { useNessieContext } from "../../utils/context";
 
 import "./DeleteBranchDialog.less";
+import { ReferenceType } from "@app/services/nessie/client";
 
 type DeleteBranchDialogProps = {
   open: boolean;
@@ -67,8 +68,9 @@ function DeleteBranchDialog({
     setIsSending(true);
 
     try {
-      await api.deleteBranch({
-        branchName: referenceToDelete.name,
+      await api.deleteReference({
+        referenceName: referenceToDelete.name,
+        referenceType: ReferenceType.Branch,
         expectedHash: referenceToDelete.hash,
       });
 
@@ -127,17 +129,13 @@ function DeleteBranchDialog({
         </DialogContent>
         <DialogActions className="delete-branch-dialog-actions">
           <Button
+            variant="secondary"
             onClick={closeDialog}
             disabled={isSending}
-            className="cancel-button"
           >
             <FormattedMessage id="Common.Cancel" />
           </Button>
-          <Button
-            onClick={onDelete}
-            disabled={isSending}
-            className="delete-button"
-          >
+          <Button variant="primary" onClick={onDelete} disabled={isSending}>
             <FormattedMessage id="Common.Delete" />
           </Button>
         </DialogActions>

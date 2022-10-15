@@ -20,6 +20,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
@@ -39,6 +40,7 @@ import org.apache.calcite.sql.SqlExplainLevel;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -263,8 +265,12 @@ public abstract class ScanRelBase extends TableScan {
     }
   }
 
+  public StoragePluginId getIcebergStatisticsPluginId(OptimizerRulesContext context) {
+    return null;
+  }
+
   public static RelDataType getRowTypeFromProjectedColumns(List<SchemaPath> projectedColumns, BatchSchema schema, RelOptCluster cluster) {
-    LinkedHashSet<String> firstLevelPaths = new LinkedHashSet<>();
+    Set<String> firstLevelPaths = new LinkedHashSet<>();
     for(SchemaPath p : projectedColumns){
       firstLevelPaths.add(p.getRootSegment().getNameSegment().getPath());
     }

@@ -332,6 +332,10 @@ public class Foreman {
     }
   }
 
+  public synchronized boolean canCancelByHeapMonitor() {
+      return attemptManager.canCancelByHeapMonitor();
+  }
+
   public synchronized void resume() {
     if (attemptManager != null) {
       attemptManager.resume();

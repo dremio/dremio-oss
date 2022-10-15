@@ -16,9 +16,9 @@
 package com.dremio.exec.store.dfs;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-import static junit.framework.TestCase.assertTrue;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 

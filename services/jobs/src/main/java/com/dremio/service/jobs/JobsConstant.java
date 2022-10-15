@@ -41,7 +41,7 @@ public interface JobsConstant {
   String EMPTY_DATASET_FIELD= "";
   String RECORDS = " Records";
   String FORWARD_SLASH = " / ";
-  String DATASET_GRAPH_ERROR = "Something went wrong while accessing one or more components of Dataset Graph. Please check your privileges.";
+  String DATASET_GRAPH_ERROR = "Could not access dataset, please check privileges or existence of ";
   String DOT= ".";
   String SCANNED_DATASET = "ScannedDataset";
   String ACCELERATOR = "ACCELERATOR";

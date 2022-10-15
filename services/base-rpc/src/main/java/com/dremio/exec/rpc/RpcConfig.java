@@ -26,7 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 
-public class RpcConfig {
+public final class RpcConfig {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcConfig.class);
 
   private final String name;
@@ -168,7 +168,7 @@ public class RpcConfig {
     return new RpcConfigBuilder();
   }
 
-  public static class RpcConfigBuilder {
+  public static final class RpcConfigBuilder {
     private String name;
     private int timeout = -1;
     private Executor executor;

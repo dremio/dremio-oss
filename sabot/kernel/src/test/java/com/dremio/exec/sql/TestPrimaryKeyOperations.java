@@ -16,9 +16,9 @@
 package com.dremio.exec.sql;
 
 import static com.dremio.exec.store.dfs.PrimaryKeyOperations.DREMIO_PRIMARY_KEY;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.util.List;
@@ -102,12 +102,8 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
         final String addPrimaryKeySql = String.format("" +
             "alter table %s.%s add primary key (%s)",
           testSchema, tableName, primaryKey);
-        try {
-          runSQL(addPrimaryKeySql);
-          fail(String.format("There should have been no primary key \"%s\" to add", primaryKey));
-        } catch (Exception ex) {
-          assertTrue(ex.getMessage().contains(String.format("Column %s not found", primaryKey)));
-        }
+        assertThatThrownBy(() -> runSQL(addPrimaryKeySql))
+          .hasMessageContaining(String.format("Column %s not found", primaryKey));
 
         dropTable(testSchema, tableName);
       } finally {
@@ -127,12 +123,8 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
         final String dropPrimaryKeySql = String.format("" +
             "alter table %s.%s drop primary key",
           testSchema, tableName);
-        try {
-          runSQL(dropPrimaryKeySql);
-          fail("There should be no primary key to drop.");
-        } catch (Exception ex) {
-          assertTrue(ex.getMessage().contains("No primary key to drop"));
-        }
+        assertThatThrownBy(() -> runSQL(dropPrimaryKeySql))
+          .hasMessageContaining("No primary key to drop");
 
         dropTable(testSchema, tableName);
       } finally {

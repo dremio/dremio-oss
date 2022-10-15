@@ -13,95 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FontIcon from "@app/components/Icon/FontIcon";
-import CommitBrowser from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/CommitBrowser";
-import { LogEntry, LogResponse } from "@app/services/nessie/client";
 import { parseNamespaceUrl } from "@app/utils/nessieUtils";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useIntl } from "react-intl";
-import { useNessieContext } from "../../utils/context";
-import CommitDetails from "../CommitDetails/CommitDetails";
-import { NamespaceIcon } from "../NamespaceItem/NamespaceItem";
+import { useMemo } from "react";
+import { WithRouterProps } from "react-router";
 import PageBreadcrumbHeader from "../PageBreadcrumbHeader/PageBreadcrumbHeader";
+import TableHistoryContent from "./components/TableHistoryContent/TableHistoryContent";
+import TableHistoryHeader from "./components/TableHistoryHeader/TableHistoryHeader";
 
 import "./TableDetailsPage.less";
 
-function TableDetailsPage({ location }: { location: any }) {
-  const {
-    state: { reference },
-    api,
-  } = useNessieContext();
-  const intl = useIntl();
+function TableDetailsPage({
+  location,
+}: {
+  location: WithRouterProps["location"];
+}) {
+  const isTable = location.pathname.startsWith("/table/");
   const [path, namespace, tableName] = useMemo(() => {
-    const split = parseNamespaceUrl(location.pathname, "table") || [];
+    const split =
+      parseNamespaceUrl(location.pathname, isTable ? "table" : "view") || [];
     const tName = split.pop() || "";
     return [split, split.map((c) => decodeURIComponent(c)).join("."), tName];
-  }, [location]);
-
-  const [commit, setCommit] = useState<LogEntry>();
-  const [list, setList] = useState<LogResponse | undefined>();
-  const count = useRef(0);
-
-  useEffect(() => {
-    const entries = list?.logEntries || [];
-    if (count.current !== 1 || !entries.length) return;
-    setCommit(entries[0]); // Set current commit to first in list on load
-  }, [list]);
-
-  const onDataChange = useCallback(function (arg) {
-    count.current++;
-    setList(arg);
-  }, []);
-
-  const commitMeta = commit?.commitMeta;
+  }, [location, isTable]);
 
   return (
     <div className="tableDetailsPage">
       <PageBreadcrumbHeader />
-      <div className="tableDetailsPage-header">
-        <span className="tableDetailsPage-tableHeader">
-          <NamespaceIcon type="ICEBERG_TABLE" />
-          <div className="tableDetailsPage-tableFullName">
-            <div
-              className="tableDetailsPage-tableName text-ellipsis"
-              title={tableName}
-            >
-              {tableName}
-            </div>
-            <div
-              className="tableDetailsPage-tableNamespace text-ellipsis"
-              title={namespace}
-            >
-              {namespace}
-            </div>
-          </div>
-        </span>
-        <span className="tableDetailsPage-tabs">
-          <span className="tableDetailsPage-historyTab">
-            <FontIcon type="Clock" />
-            {intl.formatMessage({ id: "Common.History" })}
-          </span>
-        </span>
-      </div>
-      <div className="tableDetailsPage-content">
-        <span className="tableDetailsPage-commits">
-          {!!reference && (
-            <CommitBrowser
-              pageSize={25}
-              path={path}
-              hasSearch={false}
-              branch={reference}
-              onDataChange={onDataChange}
-              selectedHash={commit?.commitMeta?.hash}
-              onClick={setCommit}
-              api={api}
-            />
-          )}
-        </span>
-        {commitMeta && reference && (
-          <CommitDetails branch={reference.name} commitMeta={commitMeta} />
-        )}
-      </div>
+      <TableHistoryHeader
+        type={isTable ? "ICEBERG_TABLE" : "ICEBERG_VIEW"}
+        namespace={namespace}
+        tableName={tableName}
+      />
+      <TableHistoryContent path={path} />
     </div>
   );
 }

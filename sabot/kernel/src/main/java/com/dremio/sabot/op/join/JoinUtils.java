@@ -87,7 +87,7 @@ public class JoinUtils {
     }
 
     throw UserException.unsupportedError()
-        .message("Invalid comparator supplied to this join: ", condition.getRelationship())
+        .message("Invalid comparator supplied to this join: %s", condition.getRelationship())
         .build(logger);
   }
 

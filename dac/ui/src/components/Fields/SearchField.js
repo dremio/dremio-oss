@@ -99,7 +99,8 @@ class SearchField extends Component {
           placeholder={this.props.placeholder}
           style={{
             ...this.props.inputStyle,
-            ...(this.props.showIcon && { paddingLeft: 27 }),
+            ...(this.props.showIcon && { paddingLeft: 32 }),
+            ...(this.props.showCloseIcon && { paddingRight: 24 }),
           }}
           value={val}
           onChange={(e) => this.onChange(e.target.value)}
@@ -126,7 +127,7 @@ const styles = {
     },
     Container: {
       position: "absolute",
-      marginLeft: "2px",
+      marginLeft: "6px",
       width: 24,
       height: 24,
     },

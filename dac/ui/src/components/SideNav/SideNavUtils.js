@@ -23,7 +23,7 @@ export const isActive = ({
   admin = false,
   jobs = false,
   sql = false,
-  isDDPOnly = false,
+  isArctic = false,
 }) => {
   const active = "--active";
   if (loc === name) {
@@ -31,11 +31,12 @@ export const isActive = ({
   }
 
   if (
-    isDDPOnly &&
+    isArctic &&
     (loc.startsWith("/commit") ||
       loc.startsWith("/namespace") ||
       loc.startsWith("/branches") ||
-      loc.startsWith("/table"))
+      loc.startsWith("/table") ||
+      loc.startsWith("/view"))
   ) {
     return active;
   }

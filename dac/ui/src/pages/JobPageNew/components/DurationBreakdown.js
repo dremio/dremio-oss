@@ -53,6 +53,7 @@ const DurationBreakdown = ({
           time={pending}
           timePercentage={getPercentage(pending, 100)}
           progressPercentage={getPercentage(pending, durationPercent)}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
         />
       )}
@@ -62,6 +63,7 @@ const DurationBreakdown = ({
             id: "DurationBreakdown.Metadata_Retrival",
           })}
           time={metadataRetrival}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
           timePercentage={getPercentage(metadataRetrival, 100)}
           progressPercentage={getPercentage(metadataRetrival, durationPercent)}
@@ -72,6 +74,7 @@ const DurationBreakdown = ({
         <DurationProgress
           title={intl.formatMessage({ id: "DurationBreakdown.Planning" })}
           time={planning}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
           timePercentage={getPercentage(planning, 100)}
           progressPercentage={getPercentage(planning, durationPercent)}
@@ -85,6 +88,7 @@ const DurationBreakdown = ({
         <DurationProgress
           title={intl.formatMessage({ id: "DurationBreakdown.Engine_Start" })}
           time={engineStart}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
           timePercentage={getPercentage(engineStart, 100)}
           progressPercentage={getPercentage(engineStart, durationPercent)}
@@ -98,6 +102,7 @@ const DurationBreakdown = ({
         <DurationProgress
           title={intl.formatMessage({ id: "DurationBreakdown.Queued" })}
           time={queued}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
           timePercentage={getPercentage(queued, 100)}
           progressPercentage={getPercentage(queued, durationPercent)}
@@ -113,6 +118,7 @@ const DurationBreakdown = ({
             id: "DurationBreakdown.Execution_Planning",
           })}
           time={executionPlanning}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
           timePercentage={getPercentage(executionPlanning, 100)}
           progressPercentage={getPercentage(executionPlanning, durationPercent)}
@@ -126,6 +132,7 @@ const DurationBreakdown = ({
         <DurationProgress
           title={intl.formatMessage({ id: "DurationBreakdown.Starting" })}
           time={starting}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
           timePercentage={getPercentage(starting, 100)}
           progressPercentage={getPercentage(starting, durationPercent)}
@@ -144,6 +151,7 @@ const DurationBreakdown = ({
         <DurationProgress
           title={intl.formatMessage({ id: "DurationBreakdown.Running" })}
           time={running}
+          isTotalExecution
           durationTitleClass={durationTitleClass}
           timePercentage={getPercentage(running, 100)}
           progressPercentage={getPercentage(running, durationPercent)}

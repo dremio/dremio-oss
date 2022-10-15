@@ -243,6 +243,143 @@ public class MergeTests {
     }
   }
 
+  public static void testMergeUpdateWithStar(BufferAllocator allocator, String source) throws Exception {
+    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,2, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        testDmlQuery(allocator, "MERGE INTO %s USING (select id, concat(column_0, '_updated') from %s) as s ON (%s.id = s.id)"
+            + " WHEN MATCHED THEN UPDATE SET *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, 3,
+          new Object[][]{
+            new Object[]{0, sourceTable.originalData[0][1] + "_updated"},
+            new Object[]{1, sourceTable.originalData[1][1] + "_updated"},
+            new Object[]{2, sourceTable.originalData[2][1] + "_updated"},
+            new Object[]{3, targetTable.originalData[3][1]},
+            new Object[]{4, targetTable.originalData[4][1]}});
+      }
+    }
+  }
+
+  public static void testMergeUpdateWithStarColumnCountNotMatch1(BufferAllocator allocator, String source) throws Exception {
+    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,3, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        assertThatThrownBy(()
+          -> testDmlQuery(allocator, "MERGE INTO %s USING %s as s ON %s.id = s.id"
+            + " WHEN MATCHED THEN UPDATE SET *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, -1))
+          .isInstanceOf(Exception.class)
+          .hasMessageContaining("VALIDATION ERROR");
+      }
+    }
+  }
+
+  public static void testMergeUpdateWithStarColumnCountNotMatch2(BufferAllocator allocator, String source) throws Exception {
+    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,2, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,3, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        assertThatThrownBy(()
+          -> testDmlQuery(allocator, "MERGE INTO %s USING %s as s ON %s.id = s.id"
+            + " WHEN MATCHED THEN UPDATE SET *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, -1))
+          .isInstanceOf(Exception.class)
+          .hasMessageContaining("VALIDATION ERROR");
+      }
+    }
+  }
+
+  public static void testMergeUpdateWithStarSchemaNotMatchUpdateOnly(BufferAllocator allocator, String source) throws Exception {
+    try (
+      Table sourceTable = createTable(source, createRandomId(), new ColumnInfo[]{
+          new ColumnInfo("id", SqlTypeName.INTEGER, false),
+          new ColumnInfo("data1", SqlTypeName.DATE, false),
+          new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+        },
+        new Object[][]{
+          new Object[]{10, "2001-01-01", "source 1.2"},
+          new Object[]{20, "2001-01-01", "source 2.2"},
+          new Object[]{30, "2001-01-01", "source 3.2"}
+        });
+      Table targetTable = createTable(source, createRandomId(), new ColumnInfo[]{
+          new ColumnInfo("id", SqlTypeName.INTEGER, false),
+          new ColumnInfo("data1", SqlTypeName.FLOAT, false),
+          new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+        },
+        new Object[][]{
+          new Object[]{10, 1.0, "target 1.1"},
+          new Object[]{20, 2.0, "target 2.1"},
+          new Object[]{30, 3.0, "target 3.1"}
+        })) {
+      assertThatThrownBy(()
+        -> testDmlQuery(allocator,
+        "MERGE INTO %s\n" +
+          "USING %s source\n" +
+          "ON source.id = %s.id\n" +
+          "WHEN MATCHED THEN\n" +
+          "UPDATE SET * ",
+        new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("VALIDATION ERROR");
+    }
+  }
+
+  public static void testMergeUpdateWithStarSchemaNotMatch(BufferAllocator allocator, String source) throws Exception {
+    try (
+      Table sourceTable = createTable(source, createRandomId(), new ColumnInfo[]{
+          new ColumnInfo("id", SqlTypeName.INTEGER, false),
+          new ColumnInfo("data1", SqlTypeName.VARCHAR, false),
+          new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+        },
+        new Object[][]{
+          new Object[]{10, "insert-1", "source 1.1"},
+          new Object[]{20, "insert-1 dupe key", "source 1.2"},
+          new Object[]{30, "second insert-1", "source 2.1"}
+        });
+      Table targetTable = createTable(source, createRandomId(), new ColumnInfo[]{
+          new ColumnInfo("id", SqlTypeName.INTEGER, false),
+          new ColumnInfo("data1", SqlTypeName.FLOAT, false),
+          new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+        },
+        new Object[][]{
+          new Object[]{10, 1.0, "target 1.1"},
+          new Object[]{20, 2.0, "target 2.1"},
+          new Object[]{30, 3.0, "target 3.1"}
+        })) {
+      assertThatThrownBy(()
+        -> testDmlQuery(allocator,
+        "MERGE INTO %s\n" +
+          "USING %s source\n" +
+          "ON source.id = %s.id\n" +
+          "WHEN MATCHED THEN\n" +
+          "UPDATE SET * " +
+          "WHEN NOT MATCHED THEN\n" +
+          "INSERT VALUES(source.id, source.data1, 'Inserted from src on merge')",
+        new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("VALIDATION ERROR");
+    }
+  }
+
+  public static void testMergeUpdateInsertWithStar(BufferAllocator allocator, String source) throws Exception {
+    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 3, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        testDmlQuery(allocator, "MERGE INTO %s USING %s as s ON (%s.id = s.id)"
+            + " WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, 5,
+          ArrayUtils.subarray(sourceTable.originalData, 0, sourceTable.originalData.length));
+      }
+    }
+  }
+
   public static void testMergeInsertWithScalar(BufferAllocator allocator, String source) throws Exception {
     try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
          Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
@@ -281,6 +418,22 @@ public class MergeTests {
     }
   }
 
+  public static void testMergeInsertWithStar(BufferAllocator allocator, String source) throws Exception {
+    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        testDmlQuery(allocator, "MERGE INTO %s USING %s ON (%s.id = %s.id)"
+            + " WHEN NOT MATCHED THEN INSERT *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn, sourceTable.fqn}, targetTable, 5,
+          ArrayUtils.addAll(
+            ArrayUtils.subarray(sourceTable.originalData, 5, sourceTable.originalData.length),
+            ArrayUtils.subarray(targetTable.originalData, 0, targetTable.originalData.length)));
+      }
+    }
+  }
+
   public static void testMergeUpdateInsertWithLiteral(BufferAllocator allocator, String source) throws Exception {
     try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
          Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
@@ -292,6 +445,22 @@ public class MergeTests {
             + " WHEN NOT MATCHED THEN INSERT VALUES(%s, '%s')",
           new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn, sourceTable.fqn, "777", 777, "777"}, targetTable, 10,
           ArrayUtils.addAll(COLUMN_ALL_777S, COLUMN_AND_ID_ALL_777S));
+      }
+    }
+  }
+
+  public static void testMergeInsertWithStarColumnCountNotMatch(BufferAllocator allocator, String source) throws Exception {
+    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,3, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        assertThatThrownBy(()
+          -> testDmlQuery(allocator, "MERGE INTO %s USING %s as s ON %s.id = s.id"
+            + " WHEN NOT MATCHED THEN INSERT *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, -1))
+          .isInstanceOf(Exception.class)
+          .hasMessageContaining("VALIDATION ERROR");
       }
     }
   }
@@ -350,6 +519,29 @@ public class MergeTests {
               new Object[]{3, sourceTable.originalData[3][2]},
               new Object[]{4, sourceTable.originalData[3][2]}},
             COLUMN_AND_ID_ALL_777S));
+      }
+    }
+  }
+
+  public static void testMergeUpdateInsertStarWithSubQuery(BufferAllocator allocator, String source) throws Exception {
+    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        testDmlQuery(allocator, "MERGE INTO %s USING %s ON (%s.id = %s.id and %s.column_0 = %s.column_0)"
+            + " WHEN MATCHED THEN UPDATE SET column_0 = (SELECT column_0 FROM %s WHERE id = %s)"
+            + " WHEN NOT MATCHED THEN INSERT *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn, sourceTable.fqn, targetTable.fqn, sourceTable.fqn,
+            sourceTable.fqn, sourceTable.originalData[2][0]}, targetTable, 10,
+          ArrayUtils.addAll(
+            new Object[][]{
+              new Object[]{0, sourceTable.originalData[2][1]},
+              new Object[]{1, sourceTable.originalData[2][1]},
+              new Object[]{2, sourceTable.originalData[2][1]},
+              new Object[]{3, sourceTable.originalData[2][1]},
+              new Object[]{4, sourceTable.originalData[2][1]}},
+            ArrayUtils.subarray(sourceTable.originalData, 5, sourceTable.originalData.length)));
       }
     }
   }

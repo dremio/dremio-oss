@@ -124,7 +124,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
     final RelNode datasetPlan = removeUpdateColumn(relNode);
     final DatasetConfig dataset = namespace.findDatasetByUUID(goal.getDatasetId());
     if (dataset == null) {
-      throw new IllegalStateException(String.format("reflection %s has no corresponding dataset", ReflectionUtils.getId(goal)));
+      throw new IllegalStateException(String.format("Dataset %s not found for %s", goal.getDatasetId(), ReflectionUtils.getId(goal)));
     }
     final ReflectionExpander expander = new ReflectionExpander(datasetPlan, dataset);
     final RelNode plan = expander.expand(goal);

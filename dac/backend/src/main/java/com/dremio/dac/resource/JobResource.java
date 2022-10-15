@@ -69,7 +69,6 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.SessionId;
-import com.dremio.service.jobs.JobCancelException;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -138,13 +137,15 @@ public class JobResource extends BaseResourceWithAllocator {
           .setReason(String.format("Query cancelled by user '%s'", username))
           .build());
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
-    } catch (JobCancelException e) {
-      throw new ConflictException(String.format("Job %s may have completed and cannot be canceled.", jobId.getId()));
     } catch (JobNotFoundException e) {
-      throw JobResourceNotFoundException.fromJobNotFoundException(e);
+      if (e.getErrorType() == JobNotFoundException.causeOfFailure.CANCEL_FAILED) {
+        throw new ConflictException(String.format("Job %s may have completed and cannot be canceled.", jobId.getId()));
+      } else {
+        throw JobResourceNotFoundException.fromJobNotFoundException(e);
+      }
     } catch (JobWarningException e) {
       return new NotificationResponse(ResponseType.WARN, e.getMessage());
-    } catch(JobException e) {
+    } catch (JobException e) {
       return new NotificationResponse(ResponseType.ERROR, e.getMessage());
     }
   }

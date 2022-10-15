@@ -35,7 +35,7 @@ import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 public class BaseTestTableFunction extends BaseTestOperator {
 
   protected void validateOutputBufferNotReused(
-      TableFunctionPOP pop, Fixtures.Table input, int batchSize)
+      TableFunctionPOP pop, Generator.Creator input, int batchSize)
       throws Exception {
     final List<RecordBatchData> data = new ArrayList<>();
 

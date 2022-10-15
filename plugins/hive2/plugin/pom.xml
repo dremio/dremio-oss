@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -53,7 +53,7 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
-      <version>hadoop2-2.2.2-dremio-202108161113150127-7bb5f20</version>
+      <version>hadoop2-${gcs-connector-version}</version>
       <classifier>shaded</classifier>
         <exclusions>
           <exclusion>
@@ -803,6 +803,12 @@
       <groupId>xalan</groupId>
       <artifactId>xalan</artifactId>
       <version>2.7.2</version>
+      <exclusions>
+        <exclusion>
+          <groupId>xml-apis</groupId>
+          <artifactId>xml-apis</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <!-- Most dependencies should only be provided or for tests-only -->
     <dependency>
@@ -898,6 +904,10 @@
           <artifactId>log4j-slf4j-impl</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>mapr-log4j-slf4j-impl</artifactId>
+        </exclusion>
+        <exclusion>
           <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
         </exclusion>
@@ -939,13 +949,11 @@
     <dependency>
       <groupId>org.pf4j</groupId>
       <artifactId>pf4j</artifactId>
-      <version>${pf4j.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>${slf4j.version}</version>
       <scope>provided</scope>
     </dependency>
     <!-- Needed to run metastore -->
@@ -1044,11 +1052,6 @@
       <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -1517,27 +1520,12 @@
             </exclusion>
           </exclusions>
         </dependency>
+        <dependency>
+          <groupId>com.jolbox</groupId>
+          <artifactId>bonecp</artifactId>
+          <scope>test</scope>
+        </dependency>
       </dependencies>
-    </profile>
-
-    <profile>
-      <id>jdk9-or-higher</id>
-      <activation>
-        <jdk>[9,)</jdk>
-      </activation>
-
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <configuration>
-              <jdkToolchain>
-                <version>1.8</version>
-              </jdkToolchain>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
   </profiles>
 </project>

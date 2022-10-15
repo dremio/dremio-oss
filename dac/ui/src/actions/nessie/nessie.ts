@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DefaultApi, Reference } from "@app/services/nessie/client";
-import { push } from "react-router-redux";
+import { Branch, DefaultApi } from "@app/services/nessie/client";
 import { fetchDefaultBranchMemo } from "@app/services/nessie/impl/utils";
-import { intl } from "@app/utils/intl";
-import { NessieRootState } from "@app/reducers/nessie/nessie";
+import { NessieRootState, Reference } from "@app/types/nessie";
 
 export const INIT_REFS = "NESSIE_INIT_REFS";
 type InitRefsAction = {
@@ -42,7 +40,9 @@ export type NessieRootActionTypes = InitRefsAction | SetRefsAction;
 type SourceType = { source: string; meta?: any };
 
 export const SET_REF = "NESSIE_SET_REF";
-type SetReferenceAction = SourceType & {
+export const SET_REF_REQUEST = "NESSIE_SET_REF_REQUEST";
+export const SET_REF_REQUEST_FAILURE = "NESSIE_SET_REF_REQUEST_FAILURE";
+export type SetReferenceAction = SourceType & {
   type: typeof SET_REF;
   payload: {
     reference: Reference | null;
@@ -50,6 +50,9 @@ type SetReferenceAction = SourceType & {
     date?: Date | null;
   };
 };
+type SetReferenceFailureAction = {
+  type: typeof SET_REF_REQUEST_FAILURE;
+} & SourceType;
 export function setReference(
   payload: SetReferenceAction["payload"],
   source: string
@@ -94,6 +97,7 @@ type FetchCommitBeforeTimeFailureAction = {
 
 export type NessieActionTypes =
   | SetReferenceAction
+  | SetReferenceFailureAction
   | FetchDefaultBranchAction
   | FetchDefaultBranchSuccessAction
   | FetchDefaultBranchFailureAction
@@ -103,6 +107,7 @@ export type NessieActionTypes =
 
 export function fetchDefaultReference(source: string, api: DefaultApi) {
   return async (dispatch: any) => {
+    if (!source) return;
     dispatch({ type: DEFAULT_REF_REQUEST, source });
     try {
       const reference = await fetchDefaultBranchMemo(api);
@@ -111,23 +116,69 @@ export function fetchDefaultReference(source: string, api: DefaultApi) {
         payload: reference,
         source,
       });
-    } catch (e) {
+    } catch (e: any) {
       dispatch({
         type: DEFAULT_REF_REQUEST_FAILURE,
         source,
+        payload: "There was an error fetching the arctic entity.",
       });
     }
   };
 }
+
+export function fetchBranchReference(
+  source: string,
+  api: DefaultApi,
+  initialRef?: Branch
+) {
+  return async (dispatch: any) => {
+    dispatch({ type: SET_REF_REQUEST, source });
+    try {
+      let curReference;
+      if (initialRef?.name) {
+        curReference = (await api.getReferenceByName({
+          ref: initialRef?.name,
+        })) as Reference;
+
+        dispatch({
+          type: SET_REF,
+          payload: {
+            reference: {
+              ...curReference,
+              hash: initialRef?.hash ?? null,
+            },
+            hash: initialRef?.hash ?? null,
+          },
+          source,
+        });
+      }
+    } catch (e) {
+      dispatch({
+        type: SET_REF_REQUEST_FAILURE,
+        payload: `There was an error fetching the reference: ${initialRef?.name}.`,
+        source,
+        meta: {
+          notification: {
+            message: la(
+              `There was an error fetching the reference: ${initialRef?.name}.`
+            ),
+            level: "error",
+          },
+        },
+      });
+    }
+  };
+}
+
 export function fetchCommitBeforeTime(
   reference: Reference | null,
   date: Date,
   source: string,
-  api: DefaultApi,
-  redirectUrl: string
+  api: DefaultApi
 ) {
   return async (dispatch: any) => {
-    if (!reference) return;
+    let result = null;
+    if (!reference) return result;
     dispatch({ type: COMMIT_BEFORE_TIME_REQUEST, source });
     try {
       const timestampISO = date.toISOString();
@@ -139,8 +190,7 @@ export function fetchCommitBeforeTime(
       const hash = log?.logEntries?.[0]?.commitMeta?.hash || "";
       if (hash) {
         dispatch({ type: COMMIT_BEFORE_TIME_REQUEST_SUCCESS, source });
-        dispatch({ type: SET_REF, payload: { reference, hash, date }, source });
-        if (redirectUrl) dispatch(push(redirectUrl));
+        result = { reference, hash, date };
       } else {
         dispatch({
           type: COMMIT_BEFORE_TIME_REQUEST_FAILURE,
@@ -166,5 +216,7 @@ export function fetchCommitBeforeTime(
         },
       });
     }
+
+    return result;
   };
 }

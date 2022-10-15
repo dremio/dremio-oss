@@ -53,7 +53,7 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
    * used so that tests may also be taken from other locations -- more variety
    * is better as far as this test goes.
    */
-  private static final String queryFile[] = {
+  private static final String[] queryFile = {
     "queries/tpch/01.sql",
     "queries/tpch/03.sql",
     "queries/tpch/04.sql",

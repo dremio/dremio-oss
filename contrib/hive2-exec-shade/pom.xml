@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>
@@ -150,6 +150,14 @@
           <groupId>log4j</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-web</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>mapr-log4j-slf4j-impl</artifactId>
+        </exclusion>
+        <exclusion>
           <artifactId>servlet-api</artifactId>
           <groupId>javax.servlet</groupId>
         </exclusion>
@@ -215,7 +223,6 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <scope>provided</scope>
     </dependency>
   </dependencies>
 
@@ -248,10 +255,10 @@
                   <include>org.apache.avro:avro</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
+                  <include>com.google.guava:guava</include>
                 </includes>
                 <excludes>
                   <exclude>com.google.protobuf:protobuf-java</exclude>
-                  <exclude>com.google.guava:guava</exclude>
                   <exclude>com.fasterxml.jackson.*:*</exclude>
                 </excludes>
               </artifactSet>
@@ -266,9 +273,12 @@
                     <exclude>*-log4j.properties</exclude>
                     <!-- also expressed as a dependency -->
                     <exclude>templates/**</exclude>
-                    <exclude>org/apache/hadoop/hive/llap/**</exclude>
+                    <!-- We need classes in llap/security package to load get_splits(GenericUDTFGetSplits) UDF -->
+                    <exclude>%regex[org/apache/hadoop/hive/llap/(?!security/).*]</exclude>
                     <!-- Exclude Thrift version packaged inside hive-exec -->
                     <exclude>org/apache/thrift/**</exclude>
+                    <exclude>org/apache/calcite/**</exclude>
+                    <exclude>org/slf4j/**</exclude>
                   </excludes>
                 </filter>
               </filters>

@@ -17,7 +17,6 @@ import { PureComponent } from "react";
 import { Cell } from "fixed-data-table-2";
 import { SelectView } from "@app/components/Fields/SelectView";
 
-import Radium from "radium";
 import PropTypes from "prop-types";
 
 import DragSource from "components/DragComponents/DragSource";
@@ -25,8 +24,6 @@ import ColumnActionMenu from "components/Menus/ExplorePage/ColumnActionMenu";
 import ColumnTypeMenu from "components/Menus/ExplorePage/ColumnTypeMenu";
 import FontIcon from "components/Icon/FontIcon";
 import { overlay } from "@app/uiTheme/radium/overlay";
-
-import { EXPLORE_HOVER_COLOR } from "uiTheme/radium/colors";
 
 import { typeToIconType, BINARY, MIXED } from "@app/constants/DataTypes";
 import Keys from "@app/constants/Keys.json";
@@ -54,6 +51,11 @@ export class ColumnHeader extends PureComponent {
     makeTransform: PropTypes.func.isRequired,
     openDetailsWizard: PropTypes.func,
     preconfirmTransform: PropTypes.func.isRequired,
+  };
+
+  state = {
+    openType: false,
+    anchorElType: null,
   };
 
   forceFocus = false; // eslint-disable-line react/sort-comp
@@ -356,16 +358,5 @@ const styles = {
     cursor: "pointer",
     opacity: 0.7,
   },
-  arrowDown: {
-    Container: {
-      position: "static",
-      float: "right",
-      height: 25,
-      cursor: "pointer",
-      ":hover": {
-        backgroundColor: EXPLORE_HOVER_COLOR,
-      },
-    },
-  },
 };
-export default Radium(ColumnHeader);
+export default ColumnHeader;

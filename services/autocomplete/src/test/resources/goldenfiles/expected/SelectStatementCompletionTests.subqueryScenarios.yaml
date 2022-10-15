@@ -21,35 +21,25 @@
   output:
     completions:
      -
-      data: "$HISTOGRAM"
-      detail: "$HISTOGRAM"
-      insertText: "$HISTOGRAM()"
+      insertText: "$HISTOGRAM(${1:NUMERIC})"
       kind: "Function"
-      label: "$HISTOGRAM"
+      label: "$HISTOGRAM(???)"
      -
-      data: "$HISTOGRAM_FIRST_VALUE"
-      detail: "$HISTOGRAM_FIRST_VALUE"
-      insertText: "$HISTOGRAM_FIRST_VALUE()"
+      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE"
+      label: "$HISTOGRAM_FIRST_VALUE(???)"
      -
-      data: "$HISTOGRAM_LAST_VALUE"
-      detail: "$HISTOGRAM_LAST_VALUE"
-      insertText: "$HISTOGRAM_LAST_VALUE()"
+      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE"
+      label: "$HISTOGRAM_LAST_VALUE(???)"
      -
-      data: "$HISTOGRAM_MAX"
-      detail: "$HISTOGRAM_MAX"
-      insertText: "$HISTOGRAM_MAX()"
+      insertText: "$HISTOGRAM_MAX(${1:BYTES})"
       kind: "Function"
-      label: "$HISTOGRAM_MAX"
+      label: "$HISTOGRAM_MAX(???)"
      -
-      data: "$HISTOGRAM_MIN"
-      detail: "$HISTOGRAM_MIN"
-      insertText: "$HISTOGRAM_MIN()"
+      insertText: "$HISTOGRAM_MIN(${1:BYTES})"
       kind: "Function"
-      label: "$HISTOGRAM_MIN"
+      label: "$HISTOGRAM_MIN(???)"
     functionContext: null
     hasMoreResults: true
  -
@@ -61,7 +51,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -69,7 +58,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -77,7 +65,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -85,7 +72,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -93,7 +79,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"
@@ -115,7 +100,7 @@
           name: "DEPTNO"
           type: "INTEGER"
         tableAlias: "DEPT"
-      detail: "Some Column"
+      detail: "column (INTEGER) in DEPT"
       insertText: "DEPT.DEPTNO"
       kind: "Column"
       label: "DEPTNO"
@@ -125,7 +110,7 @@
           name: "NAME"
           type: "VARCHAR"
         tableAlias: "DEPT"
-      detail: "Some Column"
+      detail: "column (VARCHAR) in DEPT"
       insertText: "DEPT.NAME"
       kind: "Column"
       label: "NAME"
@@ -135,7 +120,7 @@
           name: "COMM"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
+      detail: "column (INTEGER) in EMP"
       insertText: "EMP.COMM"
       kind: "Column"
       label: "COMM"
@@ -145,7 +130,7 @@
           name: "DEPTNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
+      detail: "column (INTEGER) in EMP"
       insertText: "EMP.DEPTNO"
       kind: "Column"
       label: "DEPTNO"
@@ -155,7 +140,7 @@
           name: "EMPNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
+      detail: "column (INTEGER) in EMP"
       insertText: "EMP.EMPNO"
       kind: "Column"
       label: "EMPNO"
@@ -177,7 +162,7 @@
           name: "DEPTNO"
           type: "INTEGER"
         tableAlias: "DEPT"
-      detail: "Some Column"
+      detail: "column (INTEGER) in DEPT"
       insertText: "DEPT.DEPTNO"
       kind: "Column"
       label: "DEPTNO"
@@ -187,28 +172,22 @@
           name: "NAME"
           type: "VARCHAR"
         tableAlias: "DEPT"
-      detail: "Some Column"
+      detail: "column (VARCHAR) in DEPT"
       insertText: "DEPT.NAME"
       kind: "Column"
       label: "NAME"
      -
-      data: "$HISTOGRAM"
-      detail: "$HISTOGRAM"
-      insertText: "$HISTOGRAM()"
+      insertText: "$HISTOGRAM(${1:NUMERIC})"
       kind: "Function"
-      label: "$HISTOGRAM"
+      label: "$HISTOGRAM(???)"
      -
-      data: "$HISTOGRAM_FIRST_VALUE"
-      detail: "$HISTOGRAM_FIRST_VALUE"
-      insertText: "$HISTOGRAM_FIRST_VALUE()"
+      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE"
+      label: "$HISTOGRAM_FIRST_VALUE(???)"
      -
-      data: "$HISTOGRAM_LAST_VALUE"
-      detail: "$HISTOGRAM_LAST_VALUE"
-      insertText: "$HISTOGRAM_LAST_VALUE()"
+      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE"
+      label: "$HISTOGRAM_LAST_VALUE(???)"
     functionContext: null
     hasMoreResults: true
  -
@@ -224,7 +203,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -232,7 +210,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -240,7 +217,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -248,7 +224,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -256,7 +231,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"
@@ -276,7 +250,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -284,7 +257,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -292,7 +264,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -300,7 +271,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -308,7 +278,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"

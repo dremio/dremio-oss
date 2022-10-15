@@ -50,6 +50,7 @@ import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.parser.ParserUtil;
 import com.dremio.exec.planner.sql.parser.SqlCreateView;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
 import com.dremio.exec.record.BatchSchema;
@@ -76,14 +77,18 @@ public class CreateViewHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-      SqlCreateView createView = SqlNodeUtil.unwrap(sqlNode, SqlCreateView.class);
-      final NamespaceKey path = catalog.resolveSingle(createView.getPath());
+    SqlCreateView createView = SqlNodeUtil.unwrap(sqlNode, SqlCreateView.class);
+    if(config.getContext().getOptions().getOption(VERSIONED_VIEW_ENABLED)) {
+      ParserUtil.validateParsedViewQuery(createView.getQuery());
+    }
 
-      if (isVersioned(path)){
-        return createVersionedView(createView);
-      } else {
-        return createView(createView);
-      }
+    final NamespaceKey path = catalog.resolveSingle(createView.getPath());
+
+    if (isVersioned(path)) {
+      return createVersionedView(createView);
+    } else {
+      return createView(createView);
+    }
   }
 
   private List<SimpleCommandResult> createVersionedView(SqlCreateView createView) throws IOException, ValidationException {
@@ -144,7 +149,7 @@ public class CreateViewHandler extends SimpleDirectHandler {
 
   protected View getView(SqlCreateView createView, boolean allowRenaming) throws ValidationException {
     final String newViewName = createView.getName();
-    final String viewSql = createView.getQuery().toSqlString(CalciteSqlDialect.DEFAULT).getSql();
+    final String viewSql = createView.getQuery().toSqlString(CalciteSqlDialect.DEFAULT, true).getSql();
     final RelNode newViewRelNode = getViewRelNode(createView, allowRenaming);
 
     NamespaceKey defaultSchema = catalog.getDefaultSchema();

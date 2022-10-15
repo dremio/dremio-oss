@@ -17,58 +17,63 @@
 ---
  -
   description: "NO FUNCTION"
-  input: "SELECT "
+  input: "SELECT ^"
  -
   description: "COMPLETED FUNCTION"
-  input: "ZERO_ARG_FUNCTION()"
- -
-  description: "NO PARAMETER FUNCTION"
-  input: "ZERO_ARG_FUNCTION("
+  input: "ZERO_ARG_FUNCTION(^)"
   output:
     columns: []
     functionContext:
       function:
-        description: null
         name: "ZERO_ARG_FUNCTION"
         signatures:
-         -
-          operandTypes: []
-          returnType: "DOUBLE"
-          template: null
-        syntax: ""
+         - "() -> DOUBLE"
+      missingTypes: []
       signaturesMatched: []
-      typesUsedSoFar: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    functions: []
+ -
+  description: "NO PARAMETER FUNCTION"
+  input: "ZERO_ARG_FUNCTION(^"
+  output:
+    columns: []
+    functionContext:
+      function:
+        name: "ZERO_ARG_FUNCTION"
+        signatures:
+         - "() -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     functions: []
  -
   description: "ONE PARAMETER FUNCTION AND ONE SIGNATURE"
-  input: "ONE_ARG_BOOLEAN_FUNCTION("
+  input: "ONE_ARG_BOOLEAN_FUNCTION(^"
   output:
     columns:
      - "ANY_COLUMN"
      - "BOOLEAN_COLUMN"
     functionContext:
       function:
-        description: null
         name: "ONE_ARG_BOOLEAN_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "BOOLEAN"
-          returnType: "BOOLEAN"
-          template: null
-        syntax: "<BOOLEAN>"
+         - "(BOOLEAN) -> BOOLEAN"
+      missingTypes:
+       - "BOOLEAN"
       signaturesMatched:
-       -
-        operandTypes:
-         - "BOOLEAN"
-        returnType: "BOOLEAN"
-        template: null
-      typesUsedSoFar: []
+       - "(BOOLEAN) -> BOOLEAN"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     functions:
      - "ONE_ARG_BOOLEAN_FUNCTION"
  -
   description: "ONE PARAMETER BUT MULTIPLE SIGNATURES"
-  input: "ONE_ARG_NUMERIC_FUNCTION("
+  input: "ONE_ARG_NUMERIC_FUNCTION(^"
   output:
     columns:
      - "ANY_COLUMN"
@@ -78,54 +83,19 @@
      - "INTEGER_COLUMN"
     functionContext:
       function:
-        description: null
         name: "ONE_ARG_NUMERIC_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-          returnType: "INTEGER"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-          returnType: "INTEGER"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>"
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
       signaturesMatched:
-       -
-        operandTypes:
-         - "INTEGER"
-        returnType: "INTEGER"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-        returnType: "INTEGER"
-        template: null
-       -
-        operandTypes:
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar: []
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     functions:
      - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
      - "OVERLOADED_FUNCTION"
      - "TWO_ARG_NUMERIC_FUNCTION"
      - "UNSTABLE_RETURN_TYPE_FUNCTION"
@@ -133,77 +103,7 @@
      - "ZERO_ARG_FUNCTION"
  -
   description: "ONE PARAMETER FUNCTION WITH PARAMETER FILLED IN"
-  input: "ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN"
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "ONE_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-          returnType: "INTEGER"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-          returnType: "INTEGER"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "INTEGER"
-    functions: []
- -
-  description: "ONE PARAMETER FUNCTION WITH LITERAL"
-  input: "ONE_ARG_NUMERIC_FUNCTION(42"
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "ONE_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-          returnType: "INTEGER"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-          returnType: "INTEGER"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "DECIMAL"
-    functions: []
- -
-  description: "TWO PARAMETER FUNCTION"
-  input: "TWO_ARG_NUMERIC_FUNCTION("
+  input: "ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN^"
   output:
     columns:
      - "ANY_COLUMN"
@@ -213,206 +113,79 @@
      - "INTEGER_COLUMN"
     functionContext:
       function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
+        name: "ONE_ARG_NUMERIC_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
       signaturesMatched:
-       -
-        operandTypes:
-         - "INTEGER"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "FLOAT"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "FLOAT"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "FLOAT"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "FLOAT"
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DOUBLE"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DOUBLE"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DOUBLE"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DOUBLE"
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar: []
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     functions:
      - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "ONE PARAMETER FUNCTION WITH LITERAL"
+  input: "ONE_ARG_NUMERIC_FUNCTION(42^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "ONE_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "TWO PARAMETER FUNCTION"
+  input: "TWO_ARG_NUMERIC_FUNCTION(^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
      - "OVERLOADED_FUNCTION"
      - "TWO_ARG_NUMERIC_FUNCTION"
      - "UNSTABLE_RETURN_TYPE_FUNCTION"
@@ -420,7 +193,7 @@
      - "ZERO_ARG_FUNCTION"
  -
   description: "TWO PARAMETER FUNCTION WITH ONE PARAMETER FILLED IN"
-  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, "
+  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, ^"
   output:
     columns:
      - "ANY_COLUMN"
@@ -430,135 +203,20 @@
      - "INTEGER_COLUMN"
     functionContext:
       function:
-        description: null
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
       signaturesMatched:
-       -
-        operandTypes:
-         - "INTEGER"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "INTEGER"
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "INT"
     functions:
      - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
      - "OVERLOADED_FUNCTION"
      - "TWO_ARG_NUMERIC_FUNCTION"
      - "UNSTABLE_RETURN_TYPE_FUNCTION"
@@ -566,7 +224,7 @@
      - "ZERO_ARG_FUNCTION"
  -
   description: "TWO PARAMETER FUNCTION WITH ONE LITERAL IN"
-  input: "TWO_ARG_NUMERIC_FUNCTION(42, "
+  input: "TWO_ARG_NUMERIC_FUNCTION(42, ^"
   output:
     columns:
      - "ANY_COLUMN"
@@ -576,135 +234,20 @@
      - "INTEGER_COLUMN"
     functionContext:
       function:
-        description: null
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
       signaturesMatched:
-       -
-        operandTypes:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
          - "DECIMAL"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "DECIMAL"
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "DECIMAL"
     functions:
      - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
      - "OVERLOADED_FUNCTION"
      - "TWO_ARG_NUMERIC_FUNCTION"
      - "UNSTABLE_RETURN_TYPE_FUNCTION"
@@ -712,482 +255,7 @@
      - "ZERO_ARG_FUNCTION"
  -
   description: "TWO PARAMETER FUNCTION WITH TWO PARAMETER FILLED IN"
-  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, INTEGER_COLUMN"
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "INTEGER"
-       - "INTEGER"
-    functions: []
- -
-  description: "TWO PARAMETER FUNCTION WITH TWO LITERAL FILLED IN"
-  input: "TWO_ARG_NUMERIC_FUNCTION(42, 1337"
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "DECIMAL"
-       - "DECIMAL"
-    functions: []
- -
-  description: "TWO PARAMETER FUNCTION WITH PARAMETER THEN LITERAL FILLED IN"
-  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, 1337"
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "INTEGER"
-       - "DECIMAL"
-    functions: []
- -
-  description: "TWO PARAMETER FUNCTION WITH LITERAL THEN PARAMETER FILLED IN"
-  input: "TWO_ARG_NUMERIC_FUNCTION(1337, INTEGER_COLUMN"
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "DECIMAL"
-       - "INTEGER"
-    functions: []
- -
-  description: "NESTED FUNCTION WITH INCOMPLETE FUNCTION"
-  input: "ONE_ARG_BOOLEAN_FUNCTION(ONE_ARG_BOOLEAN_FUNCTION("
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "BOOLEAN_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "ONE_ARG_BOOLEAN_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "BOOLEAN"
-          returnType: "BOOLEAN"
-          template: null
-        syntax: "<BOOLEAN>"
-      signaturesMatched:
-       -
-        operandTypes:
-         - "BOOLEAN"
-        returnType: "BOOLEAN"
-        template: null
-      typesUsedSoFar: []
-    functions:
-     - "ONE_ARG_BOOLEAN_FUNCTION"
- -
-  description: "NESTED FUNCTION WITH COMPLETE FUNCTION"
-  input: "TWO_ARG_NUMERIC_FUNCTION(ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN), "
+  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, INTEGER_COLUMN^"
   output:
     columns:
      - "ANY_COLUMN"
@@ -1197,135 +265,165 @@
      - "INTEGER_COLUMN"
     functionContext:
       function:
-        description: null
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
       signaturesMatched:
-       -
-        operandTypes:
-         - "INTEGER"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "INTEGER"
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "INT"
     functions:
      - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "TWO PARAMETER FUNCTION WITH TWO LITERAL FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(42, 1337^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "DECIMAL"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "TWO PARAMETER FUNCTION WITH PARAMETER THEN LITERAL FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, 1337^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "INT"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "TWO PARAMETER FUNCTION WITH LITERAL THEN PARAMETER FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(1337, INTEGER_COLUMN^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "DECIMAL"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "NESTED FUNCTION WITH INCOMPLETE FUNCTION"
+  input: "ONE_ARG_BOOLEAN_FUNCTION(ONE_ARG_BOOLEAN_FUNCTION(^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "BOOLEAN_COLUMN"
+    functionContext:
+      function:
+        name: "ONE_ARG_BOOLEAN_FUNCTION"
+        signatures:
+         - "(BOOLEAN) -> BOOLEAN"
+      missingTypes:
+       - "BOOLEAN"
+      signaturesMatched:
+       - "(BOOLEAN) -> BOOLEAN"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    functions:
+     - "ONE_ARG_BOOLEAN_FUNCTION"
+ -
+  description: "NESTED FUNCTION WITH COMPLETE FUNCTION"
+  input: "TWO_ARG_NUMERIC_FUNCTION(ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN), ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "DOUBLE"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
      - "OVERLOADED_FUNCTION"
      - "TWO_ARG_NUMERIC_FUNCTION"
      - "UNSTABLE_RETURN_TYPE_FUNCTION"
@@ -1333,719 +431,7 @@
      - "ZERO_ARG_FUNCTION"
  -
   description: "NESTED FUNCTION WITH COMPLETE FUNCTION 2"
-  input: "TWO_ARG_NUMERIC_FUNCTION(ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN), INTEGER_COLUMN "
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "INTEGER"
-       - "INTEGER"
-    functions: []
- -
-  description: "NESTED FUNCTION WITH UNSTABLE RETURN TYPE 1"
-  input: "TWO_ARG_NUMERIC_FUNCTION(UNSTABLE_RETURN_TYPE_FUNCTION(INTEGER_COLUMN), INTEGER_COLUMN "
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "INTEGER"
-       - "INTEGER"
-    functions: []
- -
-  description: "NESTED FUNCTION WITH UNSTABLE RETURN TYPE 2"
-  input: "TWO_ARG_NUMERIC_FUNCTION(UNSTABLE_RETURN_TYPE_FUNCTION(DOUBLE_COLUMN), INTEGER_COLUMN "
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "TWO_ARG_NUMERIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "DECIMAL"
-       - "INTEGER"
-    functions: []
- -
-  description: "VARADIC FUNCTION NO PARAMETERS"
-  input: "VARADIC_FUNCTION("
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "VARCHAR_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "VARADIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "VARCHAR"
-         - "VARCHAR"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "VARCHAR"
-         - "VARCHAR"
-         - "VARCHAR"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar: []
-    functions: []
- -
-  description: "VARADIC FUNCTION ONE PARAMETER"
-  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, "
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "VARCHAR_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "VARADIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "VARCHAR"
-         - "VARCHAR"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "VARCHAR"
-         - "VARCHAR"
-         - "VARCHAR"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "VARCHAR"
-    functions: []
- -
-  description: "VARADIC FUNCTION TWO PARAMETER BUT 3RD IS OPTIONAL"
-  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN"
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "VARCHAR_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "VARADIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "VARCHAR"
-         - "VARCHAR"
-         - "VARCHAR"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "VARCHAR"
-       - "VARCHAR"
-    functions: []
- -
-  description: "VARADIC FUNCTION TWO PARAMETER BUT 3RD IS REQUIRED"
-  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN, "
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "VARCHAR_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "VARADIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "VARCHAR"
-         - "VARCHAR"
-         - "VARCHAR"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "VARCHAR"
-       - "VARCHAR"
-    functions: []
- -
-  description: "VARADIC FUNCTION WITH MORE THAN MIN NUMBER OF PARAMETERS"
-  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN, VARCHAR_COLUMN, "
-  output:
-    columns: []
-    functionContext:
-      function:
-        description: null
-        name: "VARADIC_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "VARCHAR"
-           - "VARCHAR"
-           - "VARCHAR"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched: []
-      typesUsedSoFar:
-       - "VARCHAR"
-       - "VARCHAR"
-       - "VARCHAR"
-    functions: []
- -
-  description: "OVERLOADED FUNCTION WITH NO PARAMETERS"
-  input: "OVERLOADED_FUNCTION( "
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "BINARY_COLUMN"
-     - "BOOLEAN_COLUMN"
-     - "DATE_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "OVERLOADED_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BINARY"
-           - "BOOLEAN"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BOOLEAN"
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "DATE"
-         - "BINARY"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "BINARY"
-         - "BOOLEAN"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "BOOLEAN"
-         - "DATE"
-         - "BINARY"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar: []
-    functions:
-     - "ONE_ARG_BOOLEAN_FUNCTION"
- -
-  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 1"
-  input: "OVERLOADED_FUNCTION(BINARY_COLUMN, "
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "BOOLEAN_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "OVERLOADED_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BINARY"
-           - "BOOLEAN"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BOOLEAN"
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "BINARY"
-         - "BOOLEAN"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "BINARY"
-    functions:
-     - "ONE_ARG_BOOLEAN_FUNCTION"
- -
-  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 2"
-  input: "OVERLOADED_FUNCTION(DATE_COLUMN, "
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "BINARY_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "OVERLOADED_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BINARY"
-           - "BOOLEAN"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BOOLEAN"
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "DATE"
-         - "BINARY"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "DATE"
-    functions: []
- -
-  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 3"
-  input: "OVERLOADED_FUNCTION(BOOLEAN_COLUMN, "
-  output:
-    columns:
-     - "ANY_COLUMN"
-     - "DATE_COLUMN"
-    functionContext:
-      function:
-        description: null
-        name: "OVERLOADED_FUNCTION"
-        signatures:
-         -
-          operandTypes:
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BINARY"
-           - "BOOLEAN"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "BOOLEAN"
-           - "DATE"
-           - "BINARY"
-          returnType: "DOUBLE"
-          template: null
-        syntax: null
-      signaturesMatched:
-       -
-        operandTypes:
-         - "BOOLEAN"
-         - "DATE"
-         - "BINARY"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "BOOLEAN"
-    functions: []
- -
-  description: "COMPLEX CALL 1"
-  input: "TWO_ARG_NUMERIC_FUNCTION(2 + 2, "
+  input: "TWO_ARG_NUMERIC_FUNCTION(ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN), INTEGER_COLUMN^"
   output:
     columns:
      - "ANY_COLUMN"
@@ -2055,135 +441,327 @@
      - "INTEGER_COLUMN"
     functionContext:
       function:
-        description: null
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
       signaturesMatched:
-       -
-        operandTypes:
-         - "INTEGER"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
          - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "INTEGER"
     functions:
      - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "NESTED FUNCTION WITH UNSTABLE RETURN TYPE 1"
+  input: "TWO_ARG_NUMERIC_FUNCTION(UNSTABLE_RETURN_TYPE_FUNCTION(INTEGER_COLUMN), INTEGER_COLUMN^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "INT"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "NESTED FUNCTION WITH UNSTABLE RETURN TYPE 2"
+  input: "TWO_ARG_NUMERIC_FUNCTION(UNSTABLE_RETURN_TYPE_FUNCTION(DOUBLE_COLUMN), INTEGER_COLUMN^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "DECIMAL"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+ -
+  description: "VARADIC FUNCTION NO PARAMETERS"
+  input: "VARADIC_FUNCTION(^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "VARCHAR_COLUMN"
+    functionContext:
+      function:
+        name: "VARADIC_FUNCTION"
+        signatures:
+         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      missingTypes:
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    functions: []
+ -
+  description: "VARADIC FUNCTION ONE PARAMETER"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "VARCHAR_COLUMN"
+    functionContext:
+      function:
+        name: "VARADIC_FUNCTION"
+        signatures:
+         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      missingTypes:
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    functions: []
+ -
+  description: "VARADIC FUNCTION TWO PARAMETER BUT 3RD IS OPTIONAL"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "VARCHAR_COLUMN"
+    functionContext:
+      function:
+        name: "VARADIC_FUNCTION"
+        signatures:
+         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      missingTypes:
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    functions: []
+ -
+  description: "VARADIC FUNCTION TWO PARAMETER BUT 3RD IS REQUIRED"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN, ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "VARCHAR_COLUMN"
+    functionContext:
+      function:
+        name: "VARADIC_FUNCTION"
+        signatures:
+         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      missingTypes:
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+         - "CHARACTERS"
+    functions: []
+ -
+  description: "VARADIC FUNCTION WITH MORE THAN MIN NUMBER OF PARAMETERS"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN, VARCHAR_COLUMN, ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "VARCHAR_COLUMN"
+    functionContext:
+      function:
+        name: "VARADIC_FUNCTION"
+        signatures:
+         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      missingTypes:
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+         - "CHARACTERS"
+         - "CHARACTERS"
+    functions: []
+ -
+  description: "OVERLOADED FUNCTION WITH NO PARAMETERS"
+  input: "OVERLOADED_FUNCTION(^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "BINARY_COLUMN"
+     - "BOOLEAN_COLUMN"
+     - "DATE_COLUMN"
+    functionContext:
+      function:
+        name: "OVERLOADED_FUNCTION"
+        signatures:
+         - "(BYTES, BOOLEAN) -> DOUBLE"
+         - "(DATE, BYTES) -> DOUBLE"
+         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      missingTypes:
+       - "BYTES"
+       - "DATE"
+       - "BOOLEAN"
+      signaturesMatched:
+       - "(BYTES, BOOLEAN) -> DOUBLE"
+       - "(DATE, BYTES) -> DOUBLE"
+       - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+       - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    functions:
+     - "ONE_ARG_BOOLEAN_FUNCTION"
+ -
+  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 1"
+  input: "OVERLOADED_FUNCTION(BINARY_COLUMN, ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "BOOLEAN_COLUMN"
+    functionContext:
+      function:
+        name: "OVERLOADED_FUNCTION"
+        signatures:
+         - "(BYTES, BOOLEAN) -> DOUBLE"
+         - "(DATE, BYTES) -> DOUBLE"
+         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      missingTypes:
+       - "BOOLEAN"
+      signaturesMatched:
+       - "(BYTES, BOOLEAN) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "BYTES"
+    functions:
+     - "ONE_ARG_BOOLEAN_FUNCTION"
+ -
+  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 2"
+  input: "OVERLOADED_FUNCTION(DATE_COLUMN, ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "BINARY_COLUMN"
+    functionContext:
+      function:
+        name: "OVERLOADED_FUNCTION"
+        signatures:
+         - "(BYTES, BOOLEAN) -> DOUBLE"
+         - "(DATE, BYTES) -> DOUBLE"
+         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      missingTypes:
+       - "BYTES"
+      signaturesMatched:
+       - "(DATE, BYTES) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "DATE"
+    functions: []
+ -
+  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 3"
+  input: "OVERLOADED_FUNCTION(BOOLEAN_COLUMN, ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "BINARY_COLUMN"
+     - "DATE_COLUMN"
+    functionContext:
+      function:
+        name: "OVERLOADED_FUNCTION"
+        signatures:
+         - "(BYTES, BOOLEAN) -> DOUBLE"
+         - "(DATE, BYTES) -> DOUBLE"
+         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      missingTypes:
+       - "BYTES"
+       - "DATE"
+      signaturesMatched:
+       - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+       - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "BOOLEAN"
+    functions: []
+ -
+  description: "COMPLEX CALL 1"
+  input: "TWO_ARG_NUMERIC_FUNCTION(2 + 2, ^"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functionContext:
+      function:
+        name: "TWO_ARG_NUMERIC_FUNCTION"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "INT"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
      - "OVERLOADED_FUNCTION"
      - "TWO_ARG_NUMERIC_FUNCTION"
      - "UNSTABLE_RETURN_TYPE_FUNCTION"
@@ -2191,7 +769,7 @@
      - "ZERO_ARG_FUNCTION"
  -
   description: "COMPLEX CALL 2"
-  input: "TWO_ARG_NUMERIC_FUNCTION(2 + ONE_ARG_NUMERIC_FUNCTION(2), "
+  input: "TWO_ARG_NUMERIC_FUNCTION(2 + ONE_ARG_NUMERIC_FUNCTION(2), ^"
   output:
     columns:
      - "ANY_COLUMN"
@@ -2201,137 +779,96 @@
      - "INTEGER_COLUMN"
     functionContext:
       function:
-        description: null
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         -
-          operandTypes:
-           - "INTEGER"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "INTEGER"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DECIMAL"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "FLOAT"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "INTEGER"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DECIMAL"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "FLOAT"
-          returnType: "DOUBLE"
-          template: null
-         -
-          operandTypes:
-           - "DOUBLE"
-           - "DOUBLE"
-          returnType: "DOUBLE"
-          template: null
-        syntax: "<NUMERIC>, <NUMERIC>"
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
       signaturesMatched:
-       -
-        operandTypes:
-         - "INTEGER"
-         - "INTEGER"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "DECIMAL"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
-         - "FLOAT"
-        returnType: "DOUBLE"
-        template: null
-       -
-        operandTypes:
-         - "INTEGER"
+       - "(NUMERIC, NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
          - "DOUBLE"
-        returnType: "DOUBLE"
-        template: null
-      typesUsedSoFar:
-       - "INTEGER"
     functions:
      - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OPTIONAL_ARGUMENT_FUNCTION"
      - "OVERLOADED_FUNCTION"
      - "TWO_ARG_NUMERIC_FUNCTION"
      - "UNSTABLE_RETURN_TYPE_FUNCTION"
      - "VARADIC_FUNCTION"
      - "ZERO_ARG_FUNCTION"
+ -
+  description: "MIDDLE OF A FUNCTION"
+  input: "OVERLOADED_FUNCTION(BOOLEAN_COLUMN, ^, BINARY_COLUMN)"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "DATE_COLUMN"
+    functionContext:
+      function:
+        name: "OVERLOADED_FUNCTION"
+        signatures:
+         - "(BYTES, BOOLEAN) -> DOUBLE"
+         - "(DATE, BYTES) -> DOUBLE"
+         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      missingTypes:
+       - "DATE"
+      signaturesMatched:
+       - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor:
+         - "BYTES"
+        beforeCursor:
+         - "BOOLEAN"
+    functions: []
+ -
+  description: "MIDDLE OF A FUNCTION 2"
+  input: "OVERLOADED_FUNCTION(BOOLEAN_COLUMN, ^, DATE_COLUMN)"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "BINARY_COLUMN"
+    functionContext:
+      function:
+        name: "OVERLOADED_FUNCTION"
+        signatures:
+         - "(BYTES, BOOLEAN) -> DOUBLE"
+         - "(DATE, BYTES) -> DOUBLE"
+         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+      missingTypes:
+       - "BYTES"
+      signaturesMatched:
+       - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor:
+         - "DATE"
+        beforeCursor:
+         - "BOOLEAN"
+    functions: []
+ -
+  description: "FUNCTION WITH OPTIONAL ARGUMENT"
+  input: "OPTIONAL_ARGUMENT_FUNCTION(BINARY_COLUMN, BOOLEAN_COLUMN, ^)"
+  output:
+    columns:
+     - "ANY_COLUMN"
+     - "VARCHAR_COLUMN"
+    functionContext:
+      function:
+        name: "OPTIONAL_ARGUMENT_FUNCTION"
+        signatures:
+         - "(BYTES, BOOLEAN?) -> DOUBLE"
+         - "(BOOLEAN, CHARACTERS, BYTES) -> DOUBLE"
+         - "(BYTES, BOOLEAN, CHARACTERS?) -> DOUBLE"
+      missingTypes:
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(BYTES, BOOLEAN, CHARACTERS?) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "BYTES"
+         - "BOOLEAN"
+    functions: []

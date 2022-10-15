@@ -28,7 +28,7 @@ import {
 import { CELL_EXPANSION_HEADER, WHITE, BLUE } from "uiTheme/radium/colors";
 import { fixedWidthSmall } from "uiTheme/radium/typography";
 import EllipsedText from "components/EllipsedText";
-import { MAP, TEXT, LIST } from "@app/constants/DataTypes";
+import { MAP, TEXT, LIST, STRUCT } from "@app/constants/DataTypes";
 import exploreUtils from "utils/explore/exploreUtils";
 import FontIcon from "components/Icon/FontIcon";
 import dataFormatUtils from "utils/dataFormatUtils";
@@ -77,6 +77,7 @@ export class ExploreCellLargeOverlayView extends Component {
     selectAll: PropTypes.func,
     isDumbTable: PropTypes.bool,
     location: PropTypes.object,
+    style: PropTypes.object,
   };
 
   static contextTypes = {
@@ -197,7 +198,7 @@ export class ExploreCellLargeOverlayView extends Component {
     const { columnType, columnName, location, hide } = this.props;
     const cellValue = this.getCellValue(this.props);
 
-    if (columnType === MAP || columnType === LIST) {
+    if (columnType === MAP || columnType === LIST || columnType === STRUCT) {
       return (
         <CellPopover
           availibleActions={["extract"]}
@@ -229,7 +230,7 @@ export class ExploreCellLargeOverlayView extends Component {
   }
 
   render() {
-    const { columnType, fullCell, anchor, valueUrl } = this.props;
+    const { columnType, fullCell, anchor, valueUrl, style } = this.props;
     return (
       <Fragment>
         <KeyChangeTrigger keyValue={valueUrl} onChange={this.loadCellData} />
@@ -240,7 +241,9 @@ export class ExploreCellLargeOverlayView extends Component {
           onHide={this.props.hide}
           container={document.body}
           placement="top"
-          rootClose={columnType !== MAP && columnType !== LIST}
+          rootClose={
+            columnType !== MAP && columnType !== LIST && columnType !== STRUCT
+          }
         >
           {({ props: overlayProps, arrowProps, placement }) => {
             const pointerStyle =
@@ -270,7 +273,7 @@ export class ExploreCellLargeOverlayView extends Component {
                   <div className="pointer-top"></div>
                 </div>
                 {this.renderHeader()}
-                <ViewStateWrapper viewState={fullCell}>
+                <ViewStateWrapper viewState={fullCell} style={style}>
                   {this.renderContent()}
                 </ViewStateWrapper>
               </div>
@@ -282,17 +285,20 @@ export class ExploreCellLargeOverlayView extends Component {
   }
 
   renderHeader() {
-    const { columnType, onSelect, hide, isTruncatedValue } = this.props;
+    const { columnType, onSelect, hide, isTruncatedValue, style } = this.props;
 
     return (
-      <div style={styles.header}>
+      <div style={{ ...styles.header, ...style }}>
         {isTruncatedValue && (
           <span style={styles.infoMessage}>
             Values are truncated for preview
           </span>
         )}
         <div style={styles.path}>
-          {onSelect && columnType !== MAP && columnType !== LIST ? (
+          {onSelect &&
+          columnType !== MAP &&
+          columnType !== LIST &&
+          columnType !== STRUCT ? (
             <span onClick={this.handleSelectAll} style={{ cursor: "pointer" }}>
               {la("Select all")}
             </span>

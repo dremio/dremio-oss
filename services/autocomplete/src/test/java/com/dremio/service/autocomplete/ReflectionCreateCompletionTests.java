@@ -100,7 +100,6 @@ public final class ReflectionCreateCompletionTests extends AutocompleteEngineTes
           "DIMENSIONS(EMPNO)\n" +
           "MEASURES(EMPNO (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT), ^)"))
       .add(
-
         "EVERYTHING",
         GoldenFileTestBuilder.MultiLineString.create("ALTER TABLE EMP CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+

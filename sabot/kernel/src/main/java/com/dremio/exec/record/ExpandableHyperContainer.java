@@ -144,7 +144,7 @@ public class ExpandableHyperContainer extends VectorContainer {
     } else {
       // empty hyper-container. Create empty batches.
       for (int i = 0; i < size; ++i) {
-        VectorContainer empty = VectorContainer.create(allocator, getSchema());
+        VectorContainer empty = VectorContainer.create(getAllocator(), getSchema());
         containerList.add(empty);
       }
     }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Fragment } from "react";
+import { cloneElement, Fragment } from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 
@@ -21,11 +21,10 @@ import { SelectView } from "@app/components/Fields/SelectView";
 
 import { triangleTop } from "uiTheme/radium/overlay";
 import Spinner from "@app/components/Spinner";
-import { Divider } from "@material-ui/core";
-import { Button } from "dremio-ui-lib";
+import { Divider } from "@mui/material";
+import { Button, Tooltip } from "dremio-ui-lib";
 
 import "./DropdownMenu.less";
-import Art from "../Art";
 
 const DropdownMenu = (props) => {
   const {
@@ -53,6 +52,7 @@ const DropdownMenu = (props) => {
     groupDropdownProps,
     selectClass,
     closeOnSelect,
+    disabledHandledByParent,
   } = props;
 
   const togglerStyle = isButton
@@ -71,12 +71,13 @@ const DropdownMenu = (props) => {
 
       {iconType && (
         <div className="dropdownMenu__iconWrap">
-          <Art
-            src="Download.svg"
-            alt=""
-            title="Download"
-            className="dropdownMenu__icon"
-          />
+          <Tooltip title="Download.Download">
+            <dremio-icon
+              name="sql-editor/download"
+              class="dropdownMenu__icon"
+              data-qa="sql-editor/download"
+            />
+          </Tooltip>
         </div>
       )}
 
@@ -147,7 +148,7 @@ const DropdownMenu = (props) => {
           listStyle={menuListStyle}
           listRightAligned
           dataQa={dataQa}
-          disabled={disabled}
+          disabled={disabledHandledByParent ? false : disabled}
           listClass={listClass}
           closeOnSelect={closeOnSelect}
         >
@@ -155,7 +156,7 @@ const DropdownMenu = (props) => {
             return (
               <Fragment>
                 {!hideTopArrow && <div style={styles.triangle} />}
-                {React.cloneElement(menu, { closeMenu: closeDD })}
+                {cloneElement(menu, { closeMenu: closeDD })}
               </Fragment>
             );
           }}
@@ -228,6 +229,7 @@ DropdownMenu.propTypes = {
   groupDropdownProps: PropTypes.object,
   closeOnSelect: PropTypes.bool,
   selectClass: PropTypes.string,
+  disabledHandledByParent: PropTypes.bool,
 };
 
 export default DropdownMenu;

@@ -17,7 +17,6 @@ package com.dremio.exec.store;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -30,7 +29,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.VectorContainer;
@@ -43,7 +41,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<?>>, AutoCloseable {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestOutputMutator.class);
 
   private final VectorContainer container = new VectorContainer();
   private final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
@@ -67,20 +64,6 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
   public void addField(ValueVector vector) {
     container.add(vector);
     fieldVectorMap.put(vector.getField().getName().toLowerCase(), vector);
-  }
-
-  private void replace(ValueVector newVector, SchemaPath schemaPath) {
-    List<ValueVector> vectors = Lists.newArrayList();
-    for (VectorWrapper w : container) {
-      ValueVector vector = w.getValueVector();
-      if (vector.getField().getName().equals(schemaPath.getLastSegment().getNameSegment().getNameSegment())) {
-        vectors.add(newVector);
-      } else {
-        vectors.add(w.getValueVector());
-      }
-      container.remove(vector);
-    }
-    container.addCollection(vectors);
   }
 
   public void finalizeContainer(int recordCount){

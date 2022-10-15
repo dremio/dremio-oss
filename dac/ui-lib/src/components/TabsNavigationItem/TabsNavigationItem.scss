@@ -25,13 +25,25 @@
   color: $FIGMA_TEXT_MAIN;
   text-align: center;
 
+  dremio-icon {
+    color: var(--dremio--color--icon--main);
+  }
+
   &:hover {
     color: $FIGMA_TEXT_LINK;
+
+    dremio-icon {
+      color: var(--dremio--color--link);
+    }
   }
 
   &.-active {
     color: $FIGMA_TEXT_LINK;
     border-bottom: 2px solid $FIGMA_TEXT_LINK;
     font-weight: 600;
+
+    dremio-icon {
+      color: var(--dremio--color--link);
+    }
   }
 }

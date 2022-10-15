@@ -16,7 +16,7 @@
 
 import "./ExplorePageContentWrapper.less";
 
-import React, { PureComponent } from "react";
+import { createRef, PureComponent } from "react";
 import Immutable, { Map } from "immutable";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
@@ -58,7 +58,9 @@ import {
   setSelectedSql,
 } from "@app/actions/explore/view";
 
-import { HomePageTop } from "@inject/pages/HomePage/HomePageTop";
+import NavCrumbs, {
+  showNavCrumbs,
+} from "@inject/components/NavCrumbs/NavCrumbs";
 import { addNotification } from "@app/actions/notification";
 import { handleOnTabRouting } from "@app/pages/ExplorePage/components/SqlEditor/SqlQueryTabs/utils.tsx";
 import {
@@ -66,7 +68,10 @@ import {
   setQueryTabNumber,
 } from "actions/explore/view";
 import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
-import { SqlStringUtils } from "@app/utils/SqlStringUtils/SqlStringUtils";
+import {
+  extractQueries,
+  extractSelections,
+} from "@app/utils/statements/statementParser";
 import { memoOne } from "@app/utils/memoUtils";
 import HistoryLineController from "../components/Timeline/HistoryLineController";
 import DatasetsPanel from "../components/SqlEditor/Sidebar/DatasetsPanel";
@@ -86,12 +91,21 @@ import { fetchSupportFlags } from "@app/actions/supportFlags";
 import config from "@inject/utils/config";
 import { isEnterprise, isCommunity } from "dyn-load/utils/versionUtils";
 import exploreUtils from "@app/utils/explore/exploreUtils";
+import HistoryPage from "./HistoryPage/HistoryPage";
+import { HomePageTop } from "@inject/pages/HomePage/HomePageTop";
 import {
   fetchFilteredJobsList,
   resetFilteredJobsList,
   JOB_PAGE_NEW_VIEW_ID,
 } from "@app/actions/joblist/jobList";
+import { newQuery } from "@app/exports/paths";
+import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
+import { intl } from "@app/utils/intl";
+import { getSortedSources } from "@app/selectors/home";
+import { isVersionedSource } from "@app/utils/sourceUtils";
 
+const newQueryLink = newQuery();
+const DATASET_PATH_FROM_OVERLAY = "datasetPathFromOverlay";
 const EXPLORE_DRAG_TYPE = "explorePage";
 const EXPLORE_HEADER_HEIGHT = 54;
 const HISTORY_BAR_WIDTH = 34;
@@ -100,9 +114,7 @@ const COLLAPSED_SIDEBAR_WIDTH = 36;
 const SQL_EDITOR_PADDING = 20;
 const EXTRA_PAGE_WIDTH = HISTORY_BAR_WIDTH + SQL_EDITOR_PADDING;
 
-// Update initial query template once confirmed from PM
-// const CREATE_VIEW_QUERY = "CREATE VIEW {INSERT VIEW NAME}\nAS {QUERY}";
-// const CREATE_TABLE_QUERY = "CREATE TABLE {INSERT TABLE NAME}";
+const CREATE_NEW_QUERY = "SELECT * FROM /* Insert dataset here */";
 
 const getHeightOfPage = memoOne((offsetHeight, windowHeight) => {
   // FIX THIS LATER
@@ -182,6 +194,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     supportFlagsObj: PropTypes.object,
     fetchSupportFlags: PropTypes.func,
     jobDetails: PropTypes.any,
+    isNessieOrArcticSource: PropTypes.bool,
     fetchFilteredJobsList: PropTypes.func,
     resetFilteredJobsList: PropTypes.func,
   };
@@ -227,12 +240,12 @@ export class ExplorePageContentWrapper extends PureComponent {
       editorWidth: null,
     };
 
-    this.editorRef = React.createRef();
-    this.headerRef = React.createRef();
-    this.dremioSideBarRef = React.createRef();
-    this.dremioSideBarDrag = React.createRef();
+    this.editorRef = createRef();
+    this.headerRef = createRef();
+    this.dremioSideBarRef = createRef();
+    this.dremioSideBarDrag = createRef();
 
-    this.explorePageRef = React.createRef();
+    this.explorePageRef = createRef();
   }
 
   componentDidMount() {
@@ -261,14 +274,20 @@ export class ExplorePageContentWrapper extends PureComponent {
     // Observing content column
     resizeColumn.observe(document.querySelector(".dremioContent__content"));
 
-    // const { state: { createView = "", createTable = "" } = {} } =
-    //   this.props.location || {};
+    const { location, setPreviousAndCurrentSql } = this.props;
+    if (location.query?.create) {
+      setPreviousAndCurrentSql({ sql: CREATE_NEW_QUERY });
+    }
 
-    // if (createView) {
-    //   this.props.setPreviousAndCurrentSql({ sql: CREATE_VIEW_QUERY });
-    // } else if (createTable) {
-    //   this.props.setPreviousAndCurrentSql({ sql: CREATE_TABLE_QUERY });
-    // }
+    // updates the sql when coming from a dataset's overlay query button
+    if (sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)) {
+      setPreviousAndCurrentSql({
+        sql: exploreUtils.createNewQueryFromDatasetOverlay(
+          sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)
+        ),
+      });
+      sessionStorage.removeItem(DATASET_PATH_FROM_OVERLAY);
+    }
   }
 
   componentWillUnmount() {
@@ -305,7 +324,22 @@ export class ExplorePageContentWrapper extends PureComponent {
       setQuerySelections: newQuerySelections,
       isMultiQueryRunning,
       jobDetails,
+      location,
     } = this.props;
+
+    // This is specific to using the overlay query button from the dataset page.
+    if (
+      location.pathname === newQueryLink &&
+      sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY) &&
+      this.getMonacoEditorInstance()
+    ) {
+      this.insertFullPathAtCursor(
+        exploreUtils.createNewQueryFromDatasetOverlay(
+          sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)
+        )
+      );
+      sessionStorage.removeItem(DATASET_PATH_FROM_OVERLAY);
+    }
 
     // if a single job, force the explore table to be in view
     if (
@@ -345,7 +379,8 @@ export class ExplorePageContentWrapper extends PureComponent {
         // Reset the currentSql to the statement that was executed
         if (datasetSql !== currentSql && !isDifferentTab) {
           if (queryStatuses && queryStatuses.length < 2) {
-            const [currentSqlQueries] = SqlStringUtils(currentSql);
+            const currentSqlQueries = extractQueries(currentSql ?? datasetSql);
+
             if (
               currentSqlQueries &&
               currentSqlQueries.length < 2 &&
@@ -353,8 +388,8 @@ export class ExplorePageContentWrapper extends PureComponent {
             ) {
               newPreviousAndCurrentSql({ sql: datasetSql });
 
-              // upon initialization, cause queryStatuses is empty
-              if (!queryStatuses.length) {
+              // upon initialization (from job listing page), add a query status
+              if (!queryStatuses.length && !!location?.query?.openResults) {
                 newQueryStatuses({
                   statuses: [
                     {
@@ -384,7 +419,7 @@ export class ExplorePageContentWrapper extends PureComponent {
               newCurrentSql += status.sqlStatement + ";\n";
             }
             newPreviousAndCurrentSql({ sql: newCurrentSql });
-            const [, newSelections] = SqlStringUtils(newCurrentSql);
+            const newSelections = extractSelections(newCurrentSql);
             newQuerySelections({ selections: newSelections });
           }
         }
@@ -465,7 +500,7 @@ export class ExplorePageContentWrapper extends PureComponent {
 
   handleSqlSelection(tabIndex) {
     const { querySelections, currentSql, previousMultiSql } = this.props;
-    const [editorQueries] = SqlStringUtils(currentSql);
+    const editorQueries = extractQueries(currentSql);
     const isNotEdited = !!previousMultiSql && currentSql === previousMultiSql;
     const isConsistent = editorQueries.length === querySelections.length;
     if (
@@ -518,9 +553,9 @@ export class ExplorePageContentWrapper extends PureComponent {
 
   getMonacoEditorInstance() {
     // TODO: Refactor this `ref` to use Context
-    return this.editorRef.current.explorePageMainContentRef
-      .topSplitterContentRef.sqlEditorControllerRef.sqlAutoCompleteRef
-      .monacoEditorComponent.editor;
+    return this.editorRef.current?.explorePageMainContentRef
+      ?.topSplitterContentRef?.sqlEditorControllerRef?.sqlAutoCompleteRef
+      ?.monacoEditorComponent?.editor;
   }
 
   getUserOperatingSystem() {
@@ -579,6 +614,10 @@ export class ExplorePageContentWrapper extends PureComponent {
   }
 
   getSelectedSql = () => {
+    if (this.getMonacoEditorInstance() === undefined) {
+      return "";
+    }
+
     const selection = this.getMonacoEditorInstance().getSelection();
     const range = {
       endColumn: selection.endColumn,
@@ -629,6 +668,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       statusesArray,
       cancelJob,
       setQueryStatuses: newQueryStatuses,
+      isNessieOrArcticSource,
     } = this.props;
 
     const { showJobsTable } = this.state;
@@ -684,6 +724,9 @@ export class ExplorePageContentWrapper extends PureComponent {
             entityId={entityId}
             isEditAllowed={isWikiEditAllowed}
             className="bottomContent"
+            showTags={!isNessieOrArcticSource}
+            showWikiContent={!isNessieOrArcticSource}
+            dataset={dataset}
           />
         );
       }
@@ -709,8 +752,11 @@ export class ExplorePageContentWrapper extends PureComponent {
             cancelPendingSql={this.cancelPendingSql}
             tabStatusArr={tabStatusArr}
             queryTabNumber={queryTabNumber}
+            shouldRenderInvisibles
           />
         );
+      case PageTypes.history:
+        return <HistoryPage />;
       default:
         throw new Error(`Not supported page type: '${pageType}'`);
     }
@@ -743,6 +789,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       case PageTypes.details:
       case PageTypes.reflections:
       case PageTypes.wiki:
+      case PageTypes.history:
         return;
       case PageTypes.default:
         return (
@@ -761,7 +808,8 @@ export class ExplorePageContentWrapper extends PureComponent {
               currentSql !== previousMultiSql ||
               statusesArray[queryTabNumber - 1] === "FAILED" ||
               statusesArray[queryTabNumber - 1] === "CANCELED" ||
-              statusesArray[queryTabNumber - 1] === "REMOVED"
+              statusesArray[queryTabNumber - 1] === "REMOVED" ||
+              queryStatuses.length === 0
             }
             approximate={approximate}
             version={version}
@@ -815,6 +863,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       case PageTypes.details:
       case PageTypes.reflections:
       case PageTypes.wiki:
+      case PageTypes.history:
         return;
       case PageTypes.default:
         return (
@@ -886,6 +935,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       case PageTypes.details:
       case PageTypes.reflections:
       case PageTypes.wiki:
+      case PageTypes.history:
         return;
       case PageTypes.default:
         return (
@@ -955,6 +1005,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       case PageTypes.reflections:
       case PageTypes.graph:
       case PageTypes.wiki:
+      case PageTypes.history:
         return (
           <ExplorePageMainContent
             dataset={dataset}
@@ -1004,6 +1055,7 @@ export class ExplorePageContentWrapper extends PureComponent {
   }
 
   // Disabled Run and Preview buttons if SQL statement is empty
+  // TODO: revisit, might be able to simplify this logic
   isButtonDisabled = () => {
     const { currentSqlEdited, currentSqlIsEmpty, datasetSqlIsEmpty } =
       this.state;
@@ -1040,7 +1092,9 @@ export class ExplorePageContentWrapper extends PureComponent {
   render() {
     return (
       <>
-        <HomePageTop />
+        {/* <ExplorePage /> always assumes there are two HTML elements (grid-template-rows: auto 1fr)
+      so if the NavCrumbs don't render we need a dummy <div> in the DOM */}
+        {showNavCrumbs ? <NavCrumbs /> : <HomePageTop />}
         <div
           className={classNames(
             "explorePage",
@@ -1079,7 +1133,18 @@ export class ExplorePageContentWrapper extends PureComponent {
               >
                 {this.getContentHeader()}
 
-                {this.getUpperContent()}
+                <ErrorBoundary
+                  title={intl.formatMessage(
+                    { id: "Support.error.section" },
+                    {
+                      section: intl.formatMessage({
+                        id: "SectionLabel.sql.editor",
+                      }),
+                    }
+                  )}
+                >
+                  {this.getUpperContent()}
+                </ErrorBoundary>
 
                 {this.getTabsBlock()}
 
@@ -1105,6 +1170,18 @@ export class ExplorePageContentWrapper extends PureComponent {
 function mapStateToProps(state, ownProps) {
   const { location, dataset } = ownProps;
   const version = location.query && location.query.version;
+  const isSource = location.pathname.startsWith("/source/");
+  const sources = getSortedSources(state);
+  let isNessieOrArcticSource = false;
+  if (isSource && sources?.size > 0) {
+    const sourceId = location.pathname.split("/")[2];
+    const source = (sources || []).find(
+      (item) => item.get("name") === sourceId
+    );
+    if (source && isVersionedSource(source.get("type"))) {
+      isNessieOrArcticSource = true;
+    }
+  }
   const entityId = getDatasetEntityId(state, location);
   const exploreViewState = getExploreViewState(state);
   const explorePageState = getExploreState(state);
@@ -1182,6 +1259,7 @@ function mapStateToProps(state, ownProps) {
     queryTabNumber: explorePageState.view.queryTabNumber,
     supportFlagsObj,
     jobDetails,
+    isNessieOrArcticSource,
   };
 }
 

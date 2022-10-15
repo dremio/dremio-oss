@@ -38,7 +38,6 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr
  * so if the sharing files across different endian-ness machines is not supported.
  */
 public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig> {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowFormatPlugin.class);
 
   public static final String ARROW_DEFAULT_NAME = "arrow";
 

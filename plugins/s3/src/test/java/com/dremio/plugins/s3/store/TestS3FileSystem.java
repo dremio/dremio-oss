@@ -18,8 +18,9 @@ package com.dremio.plugins.s3.store;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -29,11 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AccessControlList;
@@ -58,9 +55,6 @@ import software.amazon.awssdk.services.sts.model.StsException;
 /**
  * Test the S3FileSystem class.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(StsClient.class)
-@PowerMockIgnore({"org.apache.commons.*", "org.apache.xerces.*", "org.slf4j.*", "org.xml.*", "javax.xml.*"})
 public class TestS3FileSystem {
   @Test
   public void testValidRegionFromEndpoint() {
@@ -151,13 +145,11 @@ public class TestS3FileSystem {
 
   @Test
   public void testVerifyCredentialsRetry() {
-    PowerMockito.mockStatic(StsClient.class);
     StsClient mockedClient = mock(StsClient.class);
     StsClientBuilder mockedClientBuilder = mock(StsClientBuilder.class);
     when(mockedClientBuilder.credentialsProvider(any(AwsCredentialsProvider.class))).thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.region(any(Region.class))).thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.build()).thenReturn(mockedClient);
-    when(StsClient.builder()).thenReturn(mockedClientBuilder);
 
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AtomicInteger retryAttemptNo = new AtomicInteger(1);
@@ -168,19 +160,21 @@ public class TestS3FileSystem {
       return null;
     });
 
-    fs.verifyCredentials(new Configuration());
+    try (MockedStatic<StsClient> mocked = mockStatic(StsClient.class)) {
+      mocked.when(() -> StsClient.builder()).thenReturn(mockedClientBuilder);
+      fs.verifyCredentials(new Configuration());
+    }
     assertEquals(10, retryAttemptNo.get());
   }
 
   @Test(expected = RuntimeException.class)
   public void testVerifyCredentialsNoRetryOnAuthnError() {
-    PowerMockito.mockStatic(StsClient.class);
+
     StsClient mockedClient = mock(StsClient.class);
     StsClientBuilder mockedClientBuilder = mock(StsClientBuilder.class);
     when(mockedClientBuilder.credentialsProvider(any(AwsCredentialsProvider.class))).thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.region(any(Region.class))).thenReturn(mockedClientBuilder);
     when(mockedClientBuilder.build()).thenReturn(mockedClient);
-    when(StsClient.builder()).thenReturn(mockedClientBuilder);
 
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AtomicInteger retryAttemptNo = new AtomicInteger(0);
@@ -188,7 +182,11 @@ public class TestS3FileSystem {
       retryAttemptNo.incrementAndGet();
       throw StsException.builder().message("The security token included in the request is invalid. (Service: Sts, Status Code: 403, Request ID: a7e2e92e-5ebb-4343-87a1-21e4d64edcd4)").build();
     });
-    fs.verifyCredentials(new Configuration());
+
+    try (MockedStatic<StsClient> mocked = mockStatic(StsClient.class)) {
+      mocked.when(() -> StsClient.builder()).thenReturn(mockedClientBuilder);
+      fs.verifyCredentials(new Configuration());
+    }
     assertEquals(1, retryAttemptNo.get());
   }
 

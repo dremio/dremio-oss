@@ -24,7 +24,7 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 
-public class SerializedFieldHelper {
+public final class SerializedFieldHelper {
   public static SerializedField.Builder getAsBuilder(MajorType type){
     return SerializedField.newBuilder()
             .setMajorType(type);
@@ -51,5 +51,9 @@ public class SerializedFieldHelper {
   public static boolean matches(Field mField, SerializedField field){
     Field f = create(field);
     return f.equals(mField);
+  }
+
+  private SerializedFieldHelper() {
+    // Utility class
   }
 }

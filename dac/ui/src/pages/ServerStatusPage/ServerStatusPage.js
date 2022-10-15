@@ -18,6 +18,8 @@ import Immutable from "immutable";
 import { connect } from "react-redux";
 import { replace } from "react-router-redux";
 import urlParse from "url-parse";
+import clsx from "clsx";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import moment from "@app/utils/dayjs";
 
 import PropTypes from "prop-types";
@@ -117,6 +119,10 @@ export class ServerStatusPage extends PureComponent {
           <SimpleButton
             disabled={this.props.checkViewState.get("isInProgress")}
             buttonStyle="primary"
+            className={clsx({
+              [classes["primaryButtonPsuedoClasses"]]:
+                !this.props.checkViewState.get("isInProgress"),
+            })}
             onClick={this.onUpdateClick}
           >
             Check Now

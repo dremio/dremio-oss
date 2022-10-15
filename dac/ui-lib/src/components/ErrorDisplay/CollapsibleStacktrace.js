@@ -16,18 +16,19 @@
 /* eslint-disable react/prop-types */
 import * as React from "react";
 import { useCollapsed } from "./useCollapsed";
-import { IconButton } from "../IconButton";
+import { IconButton } from "../IconButton/IconButton.tsx";
 
 export const CollapsibleStacktrace = (props) => {
   const [collapsed, toggleCollapsed] = useCollapsed(true);
 
   return (
     <React.Fragment>
-      <p>
+      <p className="dremio-error-display__collapsible-stacktrace">
         <IconButton
           aria-expanded={!collapsed}
           onClick={toggleCollapsed}
-          tooltip={collapsed ? "Show" : "Hide"}
+          aria-label={collapsed ? "Show" : "Hide"}
+          className="dremio-error-display__collapsible-stacktrace-icon"
         >
           <dremio-icon
             name={collapsed ? "interface/caret-right" : "interface/caret-down"}

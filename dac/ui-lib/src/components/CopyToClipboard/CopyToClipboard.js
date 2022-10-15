@@ -18,15 +18,16 @@ import PropTypes from "prop-types";
 import clsx from "clsx";
 
 import { CopyToClipboard } from "react-copy-to-clipboard";
-import Tooltip from "@material-ui/core/Tooltip";
-import SvgIcon from "@material-ui/core/SvgIcon";
+import Tooltip from "@mui/material/Tooltip";
+import SvgIcon from "@mui/material/SvgIcon";
 
 import { ReactComponent as CopyIcon } from "../../art/copy.svg";
 
 import "./CopyToClipboard.scss";
 
 const CopyText = (props) => {
-  const { className, placement, value, onCopy, tooltipText } = props;
+  const { className, placement, value, onCopy, tooltipClasses, tooltipText } =
+    props;
 
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [tooltipTitle, setTooltipTitle] = useState("");
@@ -50,6 +51,10 @@ const CopyText = (props) => {
       open={tooltipOpen}
       title={tooltipTitle}
       placement={placement}
+      classes={{
+        ...tooltipClasses,
+        tooltip: "copy__content",
+      }}
     >
       <span className={iconClass}>
         <CopyToClipboard text={value} onCopy={handleCopySuccess}>
@@ -71,6 +76,7 @@ CopyText.propTypes = {
   value: PropTypes.string.isRequired,
   onCopy: PropTypes.func,
   tooltipText: PropTypes.string,
+  tooltipClasses: PropTypes.object,
 };
 
 export default CopyText;

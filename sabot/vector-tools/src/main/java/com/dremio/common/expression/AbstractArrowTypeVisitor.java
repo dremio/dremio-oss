@@ -148,7 +148,7 @@ public abstract class AbstractArrowTypeVisitor<T> implements ArrowTypeVisitor<T>
 
   @Override
   public T visit(ArrowType.Map type) {
-    throw new UnsupportedOperationException("Dremio does not support map yet.");
+    return visitGeneric(type);
   }
 
 }

@@ -16,6 +16,7 @@
 package com.dremio.service.reflection;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,12 +32,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
 
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.DirectProvider;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.EntityId;
@@ -98,6 +100,7 @@ public class TestReflectionStatusService {
     final ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
     final ReflectionValidator validator = mock(ReflectionValidator.class);
     final CatalogService catalogService = mock(CatalogService.class);
+    final Catalog entityExplorer = mock(Catalog.class);
 
     statusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
@@ -107,7 +110,6 @@ public class TestReflectionStatusService {
       entriesStore,
       materializationStore,
       externalReflectionStore,
-      reflectionSettings,
       validator,
       DirectProvider.wrap(catalogService)
     );
@@ -119,26 +121,28 @@ public class TestReflectionStatusService {
     final DatasetConfig dataset = new DatasetConfig()
       .setId(new EntityId(datasetId))
       .setFullPathList(dataPath);
-    when(namespaceService.findDatasetByUUID(datasetId)).thenReturn(dataset);
-
-    final AccelerationSettings settings = new AccelerationSettings()
-      .setRefreshPeriod(1000L)
-      .setNeverRefresh(manualRefresh);
-    when(reflectionSettings.getReflectionSettings(new NamespaceKey(dataPath))).thenReturn(settings);
+    final DremioTable table = mock(DremioTable.class);
+    when(table.getDatasetConfig()).thenReturn(dataset);
+    when(entityExplorer.getTable(datasetId)).thenReturn(table);
+    when(catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(entityExplorer);
 
     final ReflectionGoal goal = new ReflectionGoal()
       .setId(reflectionId)
       .setDatasetId(datasetId)
-      .setState(enabled ? ReflectionGoalState.ENABLED : ReflectionGoalState.DISABLED);
+      .setState(enabled ? ReflectionGoalState.ENABLED : ReflectionGoalState.DISABLED)
+      .setCreatedAt("reflection manager down".equals(name) ? 0 : System.currentTimeMillis());
     when(goalsStore.get(reflectionId)).thenReturn(goal);
 
-    entry.setId(reflectionId);
-    when(entriesStore.get(reflectionId)).thenReturn(entry);
+    if (entry != null) {
+      entry.setId(reflectionId);
+      entry.setDontGiveUp(manualRefresh);
+      when(entriesStore.get(reflectionId)).thenReturn(entry);
+    }
 
     when(materializationStore.getLastMaterializationDone(reflectionId)).thenReturn(lastMaterialization);
     when(materializationStore.getAllDone(eq(reflectionId), Mockito.anyLong())).thenReturn(Collections.singleton(lastMaterialization));
 
-    when(validator.isValid(goal)).thenReturn(isValid);
+    when(validator.isValid(goal, table)).thenReturn(isValid);
     this.expected = expected;
   }
 
@@ -156,19 +160,6 @@ public class TestReflectionStatusService {
   }
 
   private static Object[] newTestCase(
-    String name,
-    COMBINED_STATUS expected,
-    boolean enabled,
-    boolean manualRefresh,
-    boolean invalid,
-    ReflectionState entryState,
-    int numFailures,
-    MATERIALIZATION_STATE materializationState,
-    boolean hasCachedMaterialization) {
-    return newTestCase(name, expected, enabled, manualRefresh, invalid, entryState, numFailures, materializationState, hasCachedMaterialization, 1L);
-  }
-
-  private static Object[] newTestCase(
       String name,
       COMBINED_STATUS expected,
       boolean enabled,
@@ -177,8 +168,7 @@ public class TestReflectionStatusService {
       ReflectionState entryState,
       int numFailures,
       MATERIALIZATION_STATE materializationState,
-      boolean hasCachedMaterialization,
-      Long expiration) {
+      boolean hasCachedMaterialization) {
 
     // expected, enabled, manualRefresh, isValid, entry, lastMaterialization, isMaterializationCached
     ReflectionEntry entry = null;
@@ -191,10 +181,10 @@ public class TestReflectionStatusService {
     Materialization materialization = new Materialization()
       .setLastRefreshFromPds(0L);
 
-    if (expiration == null) {
+    if ("null materialization expiration".equals(name)) {
       materialization.setExpiration(null);
     } else {
-      materialization.setExpiration(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(expiration));
+      materialization.setExpiration(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1L));
     }
 
     switch (materializationState) {
@@ -236,9 +226,14 @@ public class TestReflectionStatusService {
       newTestCase("can accelerate, with failures", COMBINED_STATUS.CAN_ACCELERATE_WITH_FAILURES, true, false, false, ReflectionState.ACTIVE, 2, MATERIALIZATION_STATE.VALID, true),
       newTestCase("can accelerate, manual refresh", COMBINED_STATUS.CAN_ACCELERATE, true, true, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.VALID, true),
       newTestCase("cannot accelerate, not cached", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.VALID, false),
-      newTestCase("cannot accelerate", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
-      newTestCase("cannot accelerate manual", COMBINED_STATUS.CANNOT_ACCELERATE_MANUAL, true, true, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
-      newTestCase("null materialization expiration", COMBINED_STATUS.EXPIRED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.VALID, false, null)
+      newTestCase("cannot accelerate, with failures", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, false, false, ReflectionState.ACTIVE, 1, MATERIALIZATION_STATE.NOT_FOUND, false),
+      newTestCase("cannot accelerate manual, no failures", COMBINED_STATUS.CANNOT_ACCELERATE_MANUAL, true, true, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
+      newTestCase("cannot accelerate manual, failures", COMBINED_STATUS.CANNOT_ACCELERATE_MANUAL, true, true, false, ReflectionState.ACTIVE, 1, MATERIALIZATION_STATE.NOT_FOUND, false),
+      newTestCase("new goal, no entry", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, false, false, null, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
+      newTestCase("new goal, no entry, manual refresh", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, true, false, null, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
+      // These test cases will also parameterize something based on the testcase name
+      newTestCase("null materialization expiration", COMBINED_STATUS.EXPIRED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.VALID, false),
+      newTestCase("reflection manager down", COMBINED_STATUS.FAILED, true, false, false, null, 0, MATERIALIZATION_STATE.NOT_FOUND, false)
     );
   }
 
@@ -262,7 +257,6 @@ public class TestReflectionStatusService {
       entriesStore,
       materializationStore,
       externalReflectionStore,
-      reflectionSettings,
       validator,
       DirectProvider.wrap(catalogService)
     );

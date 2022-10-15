@@ -138,7 +138,7 @@ public class DeltaMetadataFetchJobManager {
     }
     catch (IOException e) {
       throw UserException.dataReadError()
-        .message("Failed to read _last_checkpoint file for delta dataset {}. Error {}", fileSelection.getSelectionRoot(), e.getMessage())
+        .message("Failed to read _last_checkpoint file for delta dataset %s. Error %s", fileSelection.getSelectionRoot(), e.getMessage())
         .build(logger);
     }
     return lastCheckpointVersionSubpartsPair;
@@ -234,7 +234,7 @@ public class DeltaMetadataFetchJobManager {
           logger.error("Unexpected error occurred in DeltaMetadataFetchJob. Error", exp);
 
           throw UserException.dataReadError()
-            .message("Failed to read metadata for delta dataset {}", fileSelection.getSelectionRoot())
+            .message("Failed to read metadata for delta dataset %s", fileSelection.getSelectionRoot())
             .build(logger);
         }
 

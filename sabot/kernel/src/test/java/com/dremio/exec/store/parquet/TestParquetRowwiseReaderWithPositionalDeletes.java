@@ -88,7 +88,7 @@ public class TestParquetRowwiseReaderWithPositionalDeletes extends BaseTestUnifi
     PositionalDeleteIterator source0 = createDeleteIteratorFromFile(MULTI_ROWGROUP_DELETE_FILE_0);
     PositionalDeleteIterator source1 = createDeleteIteratorFromFile(MULTI_ROWGROUP_DELETE_FILE_1);
     PositionalDeleteIterator iterator = MergingPositionalDeleteIterator.merge(ImmutableList.of(source0, source1));
-    PositionalDeleteFilter positionalDeleteFilter = new PositionalDeleteFilter(() -> iterator, 2);
+    PositionalDeleteFilter positionalDeleteFilter = new PositionalDeleteFilter(() -> iterator, 2, context.getStats());
     testCloseables.add(iterator);
 
     readAndValidateOrderIdConditionAndRowCount(
@@ -111,7 +111,7 @@ public class TestParquetRowwiseReaderWithPositionalDeletes extends BaseTestUnifi
 
     int recordCount = readAndValidate(
         DATA_FILE_2,
-        new ParquetFilters(createPositionalDeleteFilter(iterator, 2)),
+        new ParquetFilters(null, createPositionalDeleteFilter(iterator, 2), null),
         ImmutableList.of(),
         ROWWISE_READER_OPTIONS,
         validator);

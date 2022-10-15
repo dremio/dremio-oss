@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg.deletes;
 
+import static com.dremio.sabot.op.tablefunction.TableFunctionOperator.Metric.NUM_POS_DELETED_ROWS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -35,6 +36,8 @@ import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
+import com.dremio.sabot.exec.context.OpProfileDef;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.collect.ImmutableList;
 
 public class TestPositionalDeleteFilter extends ExecTest {
@@ -43,12 +46,14 @@ public class TestPositionalDeleteFilter extends ExecTest {
 
   private final List<AutoCloseable> closeables = new ArrayList<>();
   private SimpleIntVector deltas;
+  private OperatorStats stats;
 
   @Before
   public void setup() {
     deltas = new SimpleIntVector("pos", getAllocator());
     closeables.add(deltas);
     deltas.allocateNew(BATCH_SIZE);
+    stats = new OperatorStats(new OpProfileDef(0, 0, 0, 0), getAllocator());
   }
 
   @After
@@ -63,14 +68,14 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .limit(0)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0, 0, 0));
-    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0));
-    verifyBatch(filter, 13, ImmutableList.of(0, 0, 0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0));
+    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0, 0, 0), 0);
+    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0), 0);
+    verifyBatch(filter, 13, ImmutableList.of(0, 0, 0, 0, 0), 0);
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0), 0);
   }
 
   @Test
@@ -80,13 +85,13 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .limit(100)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 72, ImmutableList.of());
-    verifyBatch(filter, ImmutableList.of(28, 0, 0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0));
+    verifyBatch(filter, 72, ImmutableList.of(), 72);
+    verifyBatch(filter, ImmutableList.of(28, 0, 0, 0, 0), 100);
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0), 100);
   }
 
   @Test
@@ -96,13 +101,13 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .limit(100)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 72, ImmutableList.of(0, 0, 0, 0, 0));
-    verifyBatch(filter, 72, ImmutableList.of(0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(36, 0, 0, 0, 0));
+    verifyBatch(filter, 72, ImmutableList.of(0, 0, 0, 0, 0), 0);
+    verifyBatch(filter, 72, ImmutableList.of(0, 0, 0), 64);
+    verifyBatch(filter, ImmutableList.of(36, 0, 0, 0, 0), 100);
   }
 
   @Test
@@ -113,13 +118,13 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .filter(i -> i % 2 == 0)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 8, ImmutableList.of(1, 1, 1, 1));
-    verifyBatch(filter, 11, ImmutableList.of(1));
-    verifyBatch(filter, ImmutableList.of(0, 1, 1, 0, 0));
+    verifyBatch(filter, 8, ImmutableList.of(1, 1, 1, 1), 4);
+    verifyBatch(filter, 11, ImmutableList.of(1), 6);
+    verifyBatch(filter, ImmutableList.of(0, 1, 1, 0, 0), 8);
   }
 
   @Test
@@ -130,13 +135,13 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .filter(i -> i % 2 == 1)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 1, 1));
-    verifyBatch(filter, ImmutableList.of(1, 1, 1, 1, 1));
-    verifyBatch(filter, ImmutableList.of(1, 0, 0, 0, 0));
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 1, 1), 2);
+    verifyBatch(filter, ImmutableList.of(1, 1, 1, 1, 1), 7);
+    verifyBatch(filter, ImmutableList.of(1, 0, 0, 0, 0), 8);
   }
 
 
@@ -148,12 +153,12 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .filter(i -> i % 4 < 2)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 9, ImmutableList.of(2, 0, 2, 0));
-    verifyBatch(filter, ImmutableList.of(1, 0, 2, 0, 0));
+    verifyBatch(filter, 9, ImmutableList.of(2, 0, 2, 0), 5);
+    verifyBatch(filter, ImmutableList.of(1, 0, 2, 0, 0), 8);
   }
 
   @Test
@@ -164,16 +169,16 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .filter(i -> i % 14 < 7)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 29, ImmutableList.of(7, 0, 0, 0, 0));
-    verifyBatch(filter, 29, ImmutableList.of(0, 0, 7, 0, 0));
-    verifyBatch(filter, 29, ImmutableList.of(0, 0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(6, 0, 0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 7, 0, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0));
+    verifyBatch(filter, 29, ImmutableList.of(7, 0, 0, 0, 0), 7);
+    verifyBatch(filter, 29, ImmutableList.of(0, 0, 7, 0, 0), 14);
+    verifyBatch(filter, 29, ImmutableList.of(0, 0, 0, 0), 15);
+    verifyBatch(filter, ImmutableList.of(6, 0, 0, 0, 0), 21);
+    verifyBatch(filter, ImmutableList.of(0, 0, 7, 0, 0), 28);
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0), 28);
   }
 
   @Test
@@ -183,16 +188,16 @@ public class TestPositionalDeleteFilter extends ExecTest {
       .limit(3)
       .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 1, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(1, 0, 0, 0, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 1, 0, 0));
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0));
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0), 0);
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 1, 0), 1);
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0), 1);
+    verifyBatch(filter, ImmutableList.of(1, 0, 0, 0, 0), 2);
+    verifyBatch(filter, ImmutableList.of(0, 0, 1, 0, 0), 3);
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0), 3);
   }
 
   @Test
@@ -200,12 +205,12 @@ public class TestPositionalDeleteFilter extends ExecTest {
     List<Long> input = ImmutableList.of(1L, 3L, 3L, 5L, 7L, 7L, 9L);
     PositionalDeleteIterator iterator = fromIterator(input.iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(iterator);
+    PositionalDeleteFilter filter = createFilter(iterator);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, ImmutableList.of(0, 1, 1, 1, 1));
-    verifyBatch(filter, ImmutableList.of(1, 0, 0, 0, 0));
+    verifyBatch(filter, ImmutableList.of(0, 1, 1, 1, 1), 4);
+    verifyBatch(filter, ImmutableList.of(1, 0, 0, 0, 0), 5);
   }
 
   @Test
@@ -213,7 +218,7 @@ public class TestPositionalDeleteFilter extends ExecTest {
     List<Long> input = ImmutableList.of(1L, 3L, 2L, 4L);
     PositionalDeleteIterator iterator = fromIterator(input.iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(iterator);
+    PositionalDeleteFilter filter = createFilter(iterator);
     closeables.add(filter);
     filter.seek(0);
 
@@ -229,12 +234,12 @@ public class TestPositionalDeleteFilter extends ExecTest {
         .limit(0)
         .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0, 0, 0));
-    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0));
+    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0, 0, 0), 0);
+    verifyBatch(filter, 8, ImmutableList.of(0, 0, 0), 0);
   }
 
   @Test
@@ -244,11 +249,11 @@ public class TestPositionalDeleteFilter extends ExecTest {
         .limit(100)
         .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(50);
 
-    verifyBatch(filter, ImmutableList.of(50, 0, 0, 0, 0));
+    verifyBatch(filter, ImmutableList.of(50, 0, 0, 0, 0), 50);
   }
 
   @Test
@@ -257,13 +262,13 @@ public class TestPositionalDeleteFilter extends ExecTest {
     when(supplier.get()).thenReturn(fromIterator(ImmutableList.of(0L, 1L, 2L, 3L).iterator()));
 
     // [ 0 .. 3 ]
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(supplier, 1);
+    PositionalDeleteFilter filter = new PositionalDeleteFilter(supplier, 1, stats);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 8, ImmutableList.of(4, 0, 0, 0));
+    verifyBatch(filter, 8, ImmutableList.of(4, 0, 0, 0), 4);
     filter.seek(11);
-    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0));
+    verifyBatch(filter, ImmutableList.of(0, 0, 0, 0, 0), 4);
 
     // supplier.get() should only be called once
     verify(supplier, times(1)).get();
@@ -277,20 +282,21 @@ public class TestPositionalDeleteFilter extends ExecTest {
         .filter(i -> i % 2 == 0)
         .iterator());
 
-    PositionalDeleteFilter filter = new PositionalDeleteFilter(input);
+    PositionalDeleteFilter filter = createFilter(input);
     closeables.add(filter);
     filter.seek(0);
 
-    verifyBatch(filter, 8, ImmutableList.of(1, 1, 1, 1));
+    verifyBatch(filter, 8, ImmutableList.of(1, 1, 1, 1), 4);
     filter.seek(11);
-    verifyBatch(filter, ImmutableList.of(0, 1, 1, 0, 0));
+    verifyBatch(filter, ImmutableList.of(0, 1, 1, 0, 0), 6);
   }
 
-  private void verifyBatch(PositionalDeleteFilter filter, List<Integer> expected) {
-    verifyBatch(filter, Integer.MAX_VALUE, expected);
+  private void verifyBatch(PositionalDeleteFilter filter, List<Integer> expected, long expectedDeleteCount) {
+    verifyBatch(filter, Integer.MAX_VALUE, expected, expectedDeleteCount);
   }
 
-  private void verifyBatch(PositionalDeleteFilter filter, long endRowPos, List<Integer> expected) {
+  private void verifyBatch(PositionalDeleteFilter filter, long endRowPos, List<Integer> expected,
+      long expectedDeleteCount) {
     filter.applyToDeltas(endRowPos, BATCH_SIZE, deltas);
 
     List<Integer> actual = new ArrayList<>();
@@ -299,6 +305,11 @@ public class TestPositionalDeleteFilter extends ExecTest {
     }
 
     assertThat(actual).isEqualTo(expected);
+    assertThat(stats.getLongStat(NUM_POS_DELETED_ROWS)).isEqualTo(expectedDeleteCount);
+  }
+
+  private PositionalDeleteFilter createFilter(PositionalDeleteIterator iterator) {
+    return new PositionalDeleteFilter(() -> iterator, 1, stats);
   }
 
   private PositionalDeleteIterator fromIterator(Iterator<Long> iterator) {

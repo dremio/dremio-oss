@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.testing;
 
-import com.dremio.exec.util.AssertionUtil;
+import com.dremio.common.VM;
 
 public class ControlsInjectorFactory {
 
@@ -27,7 +27,7 @@ public class ControlsInjectorFactory {
    * @return the newly created injector
    */
   public static ControlsInjector getInjector(final Class<?> clazz) {
-    if (AssertionUtil.isAssertionsEnabled()) {
+    if (VM.areAssertsEnabled()) {
       return new ExecutionControlsInjector(clazz);
     } else {
       return new NoOpControlsInjector(clazz);

@@ -33,7 +33,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
 
-public class FieldIdUtil2 {
+public final class FieldIdUtil2 {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldIdUtil2.class);
 
@@ -279,8 +279,9 @@ public class FieldIdUtil2 {
       this.field = field;
       this.ordinal = ordinal;
     }
-
   }
 
-
+  private FieldIdUtil2() {
+    // Utility class
+  }
 }

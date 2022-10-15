@@ -21,6 +21,7 @@ import Radio from "components/Fields/Radio";
 import { FieldWithError, TextField } from "components/Fields";
 import NewFieldSection from "components/Forms/NewFieldSection";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
+import { intl } from "@app/utils/intl";
 
 import { formLabel } from "uiTheme/radium/typography";
 
@@ -79,7 +80,7 @@ export class TextToDateForm extends Component {
     const { fields, toType, hideNotMatchingOptions } = this.props;
 
     const formats = TextToDateForm.getFormats(toType);
-
+    const { formatMessage } = intl;
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
@@ -87,7 +88,7 @@ export class TextToDateForm extends Component {
       >
         <div className={base}>
           <div>
-            <div style={formLabel}>{la("Format")}</div>
+            <div style={formLabel}>{formatMessage({ id: "File.Format" })}</div>
             {formats.values.map((format) => (
               <Radio
                 key={uuid()}
@@ -99,7 +100,7 @@ export class TextToDateForm extends Component {
             ))}
             <Radio
               {...fields.format}
-              label={la("Custom:")}
+              label={formatMessage({ id: "Custom.Label" })}
               radioValue="CUSTOM"
               className={radioStacked}
             />
@@ -117,18 +118,24 @@ export class TextToDateForm extends Component {
             {!hideNotMatchingOptions && (
               <div>
                 <div className={sectionTitle}>
-                  {la("Action for Non-matching Values")}
+                  {formatMessage({
+                    id: "Action.ForNonMatchingValues",
+                  })}
                 </div>
                 <div>
                   <Radio
                     {...fields.actionForNonMatchingValue}
-                    label={la("Replace values with null")}
+                    label={formatMessage({
+                      id: "Replace.ValuesWithNull",
+                    })}
                     radioValue="REPLACE_WITH_NULL"
                     className={radioStacked}
                   />
                   <Radio
                     {...fields.actionForNonMatchingValue}
-                    label={la("Delete records")}
+                    label={formatMessage({
+                      id: "Delete.Rows",
+                    })}
                     radioValue="DELETE_RECORDS"
                     className={radioStacked}
                   />
@@ -138,7 +145,9 @@ export class TextToDateForm extends Component {
             <NewFieldSection fields={fields} className={newField} />
           </div>
           <div className={docArea}>
-            <div style={formLabel}>{la("Formatting Options")}</div>
+            <div style={formLabel}>
+              {formatMessage({ id: "Formatting.Options" })}
+            </div>
 
             {formats.examples.map((example, index) => (
               <div key={index} className={rowMargin}>
@@ -152,7 +161,7 @@ export class TextToDateForm extends Component {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {la("Learn more…")}
+                {formatMessage({ id: "Common.LearnMore" })}
               </a>
             </div>
           </div>

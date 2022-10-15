@@ -17,18 +17,21 @@ package com.dremio.exec.planner.sql;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
+import static com.dremio.exec.tablefunctions.DremioCalciteResource.DREMIO_CALCITE_RESOURCE;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.DynamicRecordType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.JoinConditionType;
 import org.apache.calcite.sql.JoinType;
@@ -59,6 +62,7 @@ import org.apache.calcite.sql.fun.SqlNtileAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.validate.DremioEmptyScope;
@@ -78,6 +82,8 @@ import org.apache.calcite.util.Util;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
@@ -219,6 +225,16 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     return DremioEmptyScope.createBaseScope(this);
   }
 
+  private void checkFieldCount(SqlNode node,
+                               RelDataType logicalSourceRowType,
+                               RelDataType logicalTargetRowType) {
+    final int sourceFieldCount = logicalSourceRowType.getFieldCount();
+    final int targetFieldCount = logicalTargetRowType.getFieldCount();
+    if (sourceFieldCount != targetFieldCount) {
+      throw newValidationError(node,
+        DREMIO_CALCITE_RESOURCE.unmatchColumn(targetFieldCount, sourceFieldCount));
+    }
+  }
 
   /**
    * Based on Calcite's validateUpdate:
@@ -239,7 +255,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     final SqlValidatorTable table = relOptTable == null
       ? targetNamespace.getTable()
       : relOptTable.unwrap(SqlValidatorTable.class);
-    final RelDataType targetRowType =
+    RelDataType targetRowType =
       createTargetRowType(
         table,
         call.getTargetColumnList(),
@@ -248,6 +264,24 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     final SqlSelect select = call.getSourceSelect();
     validateSelect(select, targetRowType);
 
+    SqlNode sourceNode = ((SqlUpdateTable) call).getSourceTableRef() == null ? call : call.getSourceSelect();
+    final RelDataType sourceRowType = getNamespace(sourceNode).getRowType();
+
+    // Handling Update * in Merge query
+    if (isSqlDmlOperatorWithStar(call)) {
+      // set sourceExpressionList
+      call.setOperand(2, select.getSelectList());
+
+      // set targetColumnList
+      SqlNodeList targetColumnList = new SqlNodeList(
+        table.getRowType().getFieldNames().stream().map(field -> new SqlIdentifier(field, SqlParserPos.ZERO)).collect(Collectors.toList()),
+        SqlParserPos.ZERO);
+      call.setOperand(1, targetColumnList);
+
+      // validate the field count match
+      checkFieldCount(call.getTargetTable(), sourceRowType, targetRowType);
+    }
+
     // validate "condition".
     // "condition" is one of the operators of SqlUpdate. replaceSubQueries in convertUpdate needs check all operators for In clause.
     // We need validate "condition" and register it to namespace.
@@ -255,8 +289,55 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       validateScopedExpression(call.getCondition(), getWhereScope(select));
     }
 
-    final RelDataType sourceRowType = getNamespace(call).getRowType();
-    checkTypeAssignment(sourceRowType, targetRowType, call);
+    if (((SqlUpdateTable) call).getSourceTableRef() == null) {
+      checkTypeAssignment(sourceRowType, targetRowType, call);
+    } else {
+      checkTypeAssignmentForUpdateWithSource(sourceRowType, targetRowType, call);
+    }
+  }
+
+  /**
+   * The layout of targetRowType is: original target table columns + dml system columns (filePath, rowIndex) + target columns
+   * The layout of sourceRowType for Update query with source is: dml system columns (filePath, rowIndex) + target columns
+   * This function is to compare the type assignment for target columns only, in a backwards direction
+   */
+  private void checkTypeAssignmentForUpdateWithSource(
+    RelDataType sourceRowType,
+    RelDataType targetRowType,
+    final SqlNode query) {
+    Preconditions.checkArgument(query instanceof SqlUpdate);
+
+    List<RelDataTypeField> sourceFields = sourceRowType.getFieldList();
+    List<RelDataTypeField> targetFields = targetRowType.getFieldList();
+    final int sourceCount = sourceFields.size();
+    final int targetCount = targetFields.size();
+    final int targetColumnCount = ((SqlUpdate)query).getTargetColumnList().size();
+
+    // compare target columns between source table and target table, in a backwards direction
+    for (int i = 0; i < targetColumnCount; ++i) {
+      RelDataTypeField sourceField = sourceFields.get(sourceCount - i - 1);
+      RelDataTypeField targetField = targetFields.get(targetCount - i - 1);
+      RelDataType sourceType = sourceField.getType();
+      RelDataType targetType = targetField.getType();
+      if (!MoreRelOptUtil.checkFieldTypesCompatibility(sourceType, targetType, false, false)) {
+        SqlNode node = ((SqlUpdate)query).getTargetColumnList().get(targetColumnCount - i - 1);
+        String targetTypeString;
+        String sourceTypeString;
+        if (SqlTypeUtil.areCharacterSetsMismatched(
+          sourceType,
+          targetType)) {
+          sourceTypeString = sourceType.getFullTypeString();
+          targetTypeString = targetType.getFullTypeString();
+        } else {
+          sourceTypeString = sourceType.toString();
+          targetTypeString = targetType.toString();
+        }
+        throw newValidationError(node,
+          RESOURCE.typeNotAssignable(
+            targetField.getName(), targetTypeString,
+            sourceField.getName(), sourceTypeString));
+      }
+    }
   }
 
   /**
@@ -286,8 +367,15 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     SqlSelect sqlSelect = call.getSourceSelect();
     validateSelect(sqlSelect, unknownType);
 
-    if (call.getUpdateCall() != null) {
-      validateUpdate(call.getUpdateCall());
+    SqlUpdate updateCall = call.getUpdateCall();
+    if (updateCall != null) {
+      validateUpdate(updateCall);
+
+      if(isSqlDmlOperatorWithStar(updateCall)) {
+        // Above validateUpdate will expand * into concrete select items in Update * clause.
+        // Those concrete select items need to be added to the end of Merge call's select list
+        updateCall.getSourceSelect().getSelectList().getList().stream().forEach(s -> sqlSelect.getSelectList().add(s));
+      }
     }
     if (call.getInsertCall() != null) {
       validateInsert(call.getInsertCall());
@@ -423,6 +511,67 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     return selectList;
   }
 
+  private SqlNode joinSourceAndTargetTable(SqlNode targetTable, SqlNode sourceTable, SqlNode condition, JoinType joinType) {
+    final SqlNode sourceTableCopy = DeepCopier.copy(sourceTable);
+    return new SqlJoin(SqlParserPos.ZERO,
+      sourceTableCopy,
+      SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+      joinType.symbol(SqlParserPos.ZERO),
+      targetTable,
+      condition == null ? JoinConditionType.NONE.symbol(SqlParserPos.ZERO) : JoinConditionType.ON.symbol(SqlParserPos.ZERO),
+      condition);
+  }
+
+  /**
+   * Create selects by joining target table with source table
+   */
+  private SqlSelect createSourceSelectForSqlDmlOperator(SqlCall call) {
+    Preconditions.checkState(call instanceof SqlDmlOperator);
+
+    // only keep filePath and rowIndex system columns
+    final SqlNodeList selectList = getExtendedColumns(call);
+    if (selectList == null) {
+      return null;
+    }
+
+    SqlDmlOperator sqlDmlOperatorCall = (SqlDmlOperator) call;
+
+    SqlNode targetTable = sqlDmlOperatorCall.getTargetTable();
+    if (sqlDmlOperatorCall.getAlias() != null) {
+      targetTable =
+        SqlValidatorUtil.addAlias(
+          targetTable,
+          sqlDmlOperatorCall.getAlias().getSimple());
+    }
+
+    SqlNode from = targetTable;
+    SqlNode condition = sqlDmlOperatorCall.getCondition();
+
+    SqlNode sourceTable = sqlDmlOperatorCall.getSourceTableRef();
+    // TODO: remove feature flag ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE
+    if (sourceTable != null && !optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE)) {
+      throw UserException.unsupportedError()
+        .message(String.format("Using joined tables is not supported in the %s statement.",
+          sqlDmlOperatorCall instanceof SqlDeleteFromTable ? " DELETE":"UPDATE"))
+        .buildSilently();
+    }
+
+    // join the source table with target table
+    if (sourceTable != null) {
+      SqlNode join = joinSourceAndTargetTable(targetTable,  sourceTable, condition, condition == null ? JoinType.CROSS : JoinType.INNER);
+      from = join;
+      condition = null;
+    }
+
+    return new SqlSelect(
+      SqlParserPos.ZERO,
+      null,
+      selectList,
+      from,
+      condition,
+      null, null, null, null, null, null, null);
+  }
+
   /**
    * Special treatment for SqlUpdateTable .
    * SqlUpdateTable is used by DML Update query to represent updated rows
@@ -435,18 +584,12 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
    */
   @Override
   protected SqlSelect createSourceSelectForUpdate(SqlUpdate call) {
-    SqlSelect select = super.createSourceSelectForUpdate(call);
-    if (!(call instanceof SqlUpdateTable)) {
-      return select;
+    SqlSelect select = createSourceSelectForSqlDmlOperator(call);
+    if (select == null) {
+      return super.createSourceSelectForUpdate(call);
     }
 
-    // only keep filePath and rowIndex system columns
-    final SqlNodeList selectList = getExtendedColumns(call);
-
-    if (selectList == null) {
-      return select;
-    }
-
+    SqlNodeList selectList = select.getSelectList();
     // Add updated columns to the list
     int ordinal = 0;
     for (SqlNode exp : call.getSourceExpressionList()) {
@@ -484,30 +627,8 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
    */
   @Override
   protected SqlSelect createSourceSelectForDelete(SqlDelete call) {
-    SqlSelect select = super.createSourceSelectForDelete(call);
-    if (!(call instanceof SqlDeleteFromTable)) {
-      return select;
-    }
-    // only keep filePath and rowIndex system columns
-    final SqlNodeList selectList = getExtendedColumns(call);
-    if (selectList == null) {
-      return select;
-    }
-
-    return new SqlSelect(
-      SqlParserPos.ZERO,
-      null,
-      selectList,
-      select.getFrom(),
-      select.getWhere(),
-      select.getGroup(),
-      select.getHaving(),
-      select.getWindowList(),
-      select.getOrderList(),
-      select.getOffset(),
-      select.getFetch(),
-      select.getHints()
-    );
+    SqlSelect select = createSourceSelectForSqlDmlOperator(call);
+    return select != null ? select : super.createSourceSelectForDelete(call);
   }
 
   private void rewriteUpdate(SqlUpdate call) {
@@ -515,6 +636,16 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     call.setSourceSelect(select);
   }
 
+  public static boolean isSqlDmlOperatorWithStar(SqlCall call) {
+    if (call == null) {
+      return false;
+    }
+
+    Preconditions.checkState(call instanceof SqlDmlOperator);
+    SqlDmlOperator sqlDmlOperatorCall = (SqlDmlOperator)call;
+
+    return sqlDmlOperatorCall.getSourceTableRef() instanceof SqlIdentifier && ((SqlIdentifier)sqlDmlOperatorCall.getSourceTableRef()).isStar();
+  }
   /**
    * Implementation of rewriteMerge based on Calcite's, with changes to ensure no nodes are reused between
    * SqlMerge and it's child SqlUpdate/SqlInsert nodes.  Having a single node such as a SqlSelect in multiple
@@ -554,19 +685,20 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     SqlInsert insertCall = call.getInsertCall();
     JoinType joinType = (insertCall == null) ? JoinType.INNER : JoinType.LEFT;
 
-    final SqlNode leftJoinTerm = DeepCopier.copy(sourceTableRef);
-    SqlNode outerJoin =
-        new SqlJoin(SqlParserPos.ZERO,
-            leftJoinTerm,
-            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
-            joinType.symbol(SqlParserPos.ZERO),
-            targetTable,
-            JoinConditionType.ON.symbol(SqlParserPos.ZERO),
-            call.getCondition());
+    SqlNode outerJoin = joinSourceAndTargetTable(targetTable, sourceTableRef, call.getCondition(), joinType);
     SqlSelect select =
         new SqlSelect(SqlParserPos.ZERO, null, selectList, outerJoin, null,
             null, null, null, null, null, null, null);
     call.setSourceSelect(select);
+
+    if (isSqlDmlOperatorWithStar(updateStmt)) {
+      // Set Update's source select based on Merge's source. Thus, validateUpdate would expand Merge's source into concrete select items which
+      // will be added to both Update's sourceExpressionList and Merge's source select
+      SqlSelect updateSourceSelect =
+        new SqlSelect(SqlParserPos.ZERO, null, selectList, call.getSourceTableRef(), null,
+          null, null, null, null, null, null, null);
+      updateStmt.setSourceSelect((SqlSelect)DeepCopier.copy(updateSourceSelect));
+    }
 
     // Source for the insert call is a select of the source table
     // reference with the select list being the value expressions;
@@ -574,12 +706,27 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     // select on the values row constructor; so we need to extract
     // that via the from clause on the select
     if (insertCall != null) {
-      SqlCall valuesCall = (SqlCall) insertCall.getSource();
-      SqlCall rowCall = valuesCall.operand(0);
-      selectList =
+      if (isSqlDmlOperatorWithStar(insertCall)) {
+        // INSERT *,
+        if (!optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR)) {
+          throw UserException.unsupportedError()
+            .message(String.format("Using INSERT * is not supported in the MERGE statement."))
+            .buildSilently();
+        }
+        // use Merge's source select as Insert's source
+        insertCall.setSource(select);
+        // use * as Insert's select
+        selectList = new SqlNodeList(SqlParserPos.ZERO);
+        selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
+      } else {
+        // insert values
+        SqlCall valuesCall = (SqlCall) insertCall.getSource();
+        SqlCall rowCall = valuesCall.operand(0);
+        selectList =
           new SqlNodeList(
-              rowCall.getOperandList(),
-              SqlParserPos.ZERO);
+            rowCall.getOperandList(),
+            SqlParserPos.ZERO);
+      }
 
       final SqlNode insertSource = DeepCopier.copy(sourceTableRef);
       select =

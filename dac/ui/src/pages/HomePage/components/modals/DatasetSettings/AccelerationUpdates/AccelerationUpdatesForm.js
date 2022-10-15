@@ -26,7 +26,8 @@ import {
 import { label, section } from "uiTheme/radium/forms";
 import { FieldSelect, Radio } from "components/Fields";
 import DataFreshnessSection from "components/Forms/DataFreshnessSection";
-import HoverHelp from "components/HoverHelp";
+import { intl } from "@app/utils/intl";
+import { HoverHelp } from "dremio-ui-lib";
 
 const SECTIONS = [DataFreshnessSection];
 
@@ -116,18 +117,19 @@ export class AccelerationUpdatesForm extends Component {
 
   renderContent() {
     const { fields, values, entity } = this.props;
-    const helpContent = la(
-      "Refresh method for Reflections using data from this dataset."
-    );
+    const { formatMessage } = intl;
+    const helpContent = formatMessage({
+      id: "Refresh.Method.ForReflectionsUsingDataFromThisMethod",
+    });
     const incrementalLabel =
       this.props.entityType === "folder"
-        ? la("Incremental update based on new files")
-        : la("Incremental update");
+        ? formatMessage({ id: "Incremental.Update.NewFiles" })
+        : formatMessage({ id: "Incremental.Update" });
     return (
       <div>
         <div style={section}>
           <span style={styles.label}>
-            {la("Refresh Method")}
+            {formatMessage({ id: "Refresh.Method" })}
             <HoverHelp content={helpContent} />
           </span>
           <div style={styles.items}>
@@ -135,7 +137,7 @@ export class AccelerationUpdatesForm extends Component {
               {...fields.method}
               radioValue={FULL}
               style={styles.margin}
-              label={la("Full update")}
+              label={formatMessage({ id: "Full.Update" })}
             />
             <Radio
               {...fields.method}
@@ -148,7 +150,9 @@ export class AccelerationUpdatesForm extends Component {
             {this.requiresIncrementalFieldSelection(values) ? (
               <label style={styles.fieldSelectWrap}>
                 <span style={label}>
-                  {la("Identify new records using the field:")}
+                  {formatMessage({
+                    id: "Identify.NewRows.UsingTheField",
+                  })}
                 </span>
                 <FieldSelect
                   formField={fields.refreshField}
@@ -171,6 +175,7 @@ export class AccelerationUpdatesForm extends Component {
 
   render() {
     const { handleSubmit, onCancel } = this.props;
+    const { formatMessage } = intl;
     return (
       <ModalForm
         {...modalFormProps(this.props)}
@@ -178,7 +183,9 @@ export class AccelerationUpdatesForm extends Component {
         onCancel={onCancel}
       >
         <FormBody>
-          <FormTitle>{la("Reflection Refresh")}</FormTitle>
+          <FormTitle>
+            {formatMessage({ id: "Acceleration.RefreshPolicy" })}
+          </FormTitle>
           {this.renderContent()}
         </FormBody>
       </ModalForm>

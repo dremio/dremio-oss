@@ -301,6 +301,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     case INTERVALYEAR:
     case STRUCT:
     case LIST:
+    case MAP:
       // do nothing else.
       break;
     case VAR16CHAR:
@@ -403,6 +404,44 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   @Override
   public Void visitUnknown(LogicalExpression e, StringBuilder sb) {
     sb.append(e.toString());
+    return null;
+  }
+
+  @Override
+  public Void visitListAggExpression(ListAggExpression e, StringBuilder sb) throws RuntimeException {
+    sb.append("LIST_AGG(");
+    visitFunctionCall((FunctionCall) e, sb);
+    sb.append(",");
+    sb.append(e.isDistinct ? "'true'" : "'false'");
+    sb.append(",(");
+    for (int i = 0; i < e.getOrderings().size(); i++) {
+      if (i != 0) {
+        sb.append(",");
+      }
+      e.getOrderings().get(i).accept(this, sb);
+    }
+    sb.append(")");
+    sb.append(",(");
+    for (int i = 0; i < e.getExtraExpressions().size(); i++) {
+      if (i != 0) {
+        sb.append(",");
+      }
+      e.getExtraExpressions().get(i).accept(this, sb);
+    }
+    sb.append(")");
+    sb.append(")");
+    return null;
+  }
+
+  @Override
+  public Void visitOrdering(Ordering e, StringBuilder sb) throws RuntimeException {
+    sb.append("ORDERING(");
+    e.getField().accept(this, sb);
+    sb.append(",'");
+    sb.append(e.getDirection());
+    sb.append("','");
+    sb.append(e.getNullDirection());
+    sb.append("')");
     return null;
   }
 }

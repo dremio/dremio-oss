@@ -17,8 +17,9 @@ package com.dremio.service.autocomplete.columns;
 
 import java.util.Objects;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.type.SqlTypeName;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Column datatype.

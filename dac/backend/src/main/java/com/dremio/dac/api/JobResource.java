@@ -80,17 +80,36 @@ public class JobResource extends BaseResourceWithAllocator {
   @GET
   @Path("/{id}")
   public JobStatus getJobStatus(@PathParam("id") String id) {
-    try {
-      JobDetailsRequest request = JobDetailsRequest.newBuilder()
-        .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(id).build())
-        .setUserName(securityContext.getUserPrincipal().getName())
-        .build();
-      JobDetails jobDetails = jobs.getJobDetails(request);
+    int retryCount = 4;
+    int i = 0;
 
-      return JobStatus.fromJob(jobDetails);
-    } catch (JobNotFoundException e) {
-      throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
+    while (i++ < retryCount) {
+      try {
+        JobDetailsRequest request = JobDetailsRequest.newBuilder()
+          .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(id).build())
+          .setUserName(securityContext.getUserPrincipal().getName())
+          .build();
+        JobDetails jobDetails = jobs.getJobDetails(request);
+        return JobStatus.fromJob(jobDetails);
+      } catch (JobNotFoundException e) {
+        throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
+      } catch (io.grpc.StatusRuntimeException runtimeException) {
+        // Retry if we hit runTimeException
+        if (i == retryCount) {
+          // Throw Exception, if retry count is exceeded.
+          throw new javax.ws.rs.InternalServerErrorException(
+            String.format("Getting job Status for job [%s] failed with an internal exception, please retry", id));
+        }
+        try {
+          // hardcoding the sleep here, 3*50 = > 150ms is enough sleep time.
+          Thread.sleep(50);
+        } catch (InterruptedException interruptedException) {
+          //ignore.
+        }
+      }
     }
+    // We will never reach here.
+    return null;
   }
 
   @GET

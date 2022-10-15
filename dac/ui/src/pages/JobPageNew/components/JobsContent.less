@@ -85,6 +85,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
+      width: 100%;
       &__accelerationIconWrapper {
         flex-basis: 12%;
       }
@@ -96,7 +97,7 @@
         top: 0;
       }
       &__dataset {
-        flex-basis: 15%;
+        margin-right: 6px;
       }
       &__name {
         flex-basis: 72%;
@@ -152,5 +153,11 @@
       opacity: 1;
     }
     opacity: 1;
+  }
+  .sql-tooltip-content-container {
+    padding-right: 16px;
+    padding-left: 16px;
+    max-height: 76px;
+    overflow-y: auto;
   }
 }

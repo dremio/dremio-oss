@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.view.ViewVersionMetadata;
 import org.projectnessie.model.IcebergView;
 
@@ -108,7 +107,7 @@ public interface NessieClient {
   /**
    * Create a namespace by the given path for the given version.
    *
-   * @param namespacePath the namespace we are going to create.
+   * @param namespacePathList the namespace we are going to create.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
    *
    * @throws NessieNamespaceAlreadyExistsException If the namespace already exists.
@@ -116,7 +115,7 @@ public interface NessieClient {
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
-  void createNamespace(String namespacePath, VersionContext version);
+  void createNamespace(List<String> namespacePathList, VersionContext version);
 
   /**
    * Create a branch from the given source reference.
@@ -191,6 +190,17 @@ public interface NessieClient {
   String getMetadataLocation(List<String> catalogKey, ResolvedVersionContext version);
 
   /**
+   * Gets the metadata location for the given reference. JobId param is only used in Executor to fetch the userId
+   *
+   * @param catalogKey The catalog key
+   * @param version The source reference name
+   * @param jobId The JobId of the query
+   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
+   * @throws ReferenceNotFoundException If the given tag or source reference cannot be found
+   */
+  String getMetadataLocation(List<String> catalogKey, ResolvedVersionContext version, String jobId);
+
+  /**
    * Return the dialect for the given view.
    *
    * @param catalogKey The path for the given view
@@ -200,10 +210,29 @@ public interface NessieClient {
   Optional<String> getViewDialect(List<String> catalogKey, ResolvedVersionContext version);
 
   void commitTable(
+    List<String> catalogKey,
+    String newMetadataLocation,
+    NessieClientTableMetadata nessieClientTableMetadata,
+    ResolvedVersionContext version);
+
+  /**
+   * Commits to the table. JobId param is only used in Executor to fetch the userId
+   *
+   * @param catalogKey The catalog key
+   * @param newMetadataLocation The new metadata location for the give catalog key
+   * @param nessieClientTableMetadata The table metadata
+   * @param version The source reference name
+   * @param jobId The JobId of the query
+   *
+   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
+   * @throws ReferenceNotFoundException If the given tag or source reference cannot be found
+   */
+  void commitTable(
       List<String> catalogKey,
       String newMetadataLocation,
-      TableMetadata metadata,
-      ResolvedVersionContext version);
+      NessieClientTableMetadata nessieClientTableMetadata,
+      ResolvedVersionContext version,
+      String jobId);
 
   void commitView(
       List<String> catalogKey,
@@ -222,4 +251,6 @@ public interface NessieClient {
    * @return Optional<IcebergTable>
    */
   VersionedPlugin.EntityType getVersionedEntityType(List<String> tableKey, ResolvedVersionContext version);
+
+  String getContentId(List<String> catalogKey);
 }

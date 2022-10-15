@@ -41,7 +41,8 @@ public final class CatalogOptions {
       new BooleanValidator("store.plugin.keep_metadata_on_replace", false);
 
   // Maximum number of leaf columns allowed for metadata
-  public static final LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 800);
+  public static final LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 6400);
+  public static final LongValidator METADATA_LEAF_COLUMN_SCANNED_MAX = new PositiveLongValidator("store.plugin.max_leaf_columns_scanned", Integer.MAX_VALUE, 800);
 
   // Maximum nested levels allowed for a column
   public static final LongValidator MAX_NESTED_LEVELS = new PositiveLongValidator("store.plugin.max_nested_levels", 64, 16);
@@ -59,6 +60,9 @@ public final class CatalogOptions {
   public static final BooleanValidator DISABLE_CROSS_SOURCE_SELECT = new BooleanValidator("planner.cross_source_select.disable", false);
   // Disable inline refresh
   public static final BooleanValidator SHOW_METADATA_VALIDITY_CHECKBOX = new BooleanValidator("store.plugin.show_metadata_validity_checkbox", false);
+  // Enable secrets field look up/resolution on sources
+  public static final TypeValidators.BooleanValidator SOURCE_SECRETS_RESOLUTION_ENABLED =
+    new TypeValidators.BooleanValidator("auth.source-secrets-resolution.enabled", false);
 
   // Do not instantiate
   private CatalogOptions() {

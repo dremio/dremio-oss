@@ -30,7 +30,6 @@ import JobsContentMixin, {
 import { additionalColumnName } from "@inject/pages/JobPageNew/AdditionalJobPageColumns";
 // import JobTable from '@app/pages/JobPage/components/JobsTable/JobTable';
 import JobsFilters from "@app/pages/JobPage/components/JobsFilters/JobsFilters";
-import SideNav from "@app/components/SideNav/SideNav";
 import timeUtils from "utils/timeUtils";
 import jobsUtils, { getFilteredSqlJobList } from "utils/jobsUtils";
 import { renderJobStatus } from "utils/jobsUtils";
@@ -42,7 +41,11 @@ import SQLCell from "./SQLCell";
 import DurationCell from "./DurationCell";
 import ColumnCell from "./ColumnCell";
 import ReflectionIcon, { getReflectionIcon } from "./ReflectionIcon";
+import { SortDirection } from "@app/components/Table/TableUtils";
+import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
+
 import "react-virtualized/styles.css";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 
 // export this for calculate min width of table tr in JobTable.js
 export { SEPARATOR_WIDTH, MIN_LEFT_PANEL_WIDTH };
@@ -109,15 +112,6 @@ export class JobsContent extends PureComponent {
   getDefaultColumns = () => {
     const columnsObject = {};
     let selectedColumnsData = [];
-    // if old columns config is set in local storage then clear them
-    const checkColumns = localStorageUtils.getJobColumns();
-    if (checkColumns && checkColumns.length > 0) {
-      checkColumns.forEach((item, index) => {
-        if (index === 0 && !item.minWidth) {
-          localStorageUtils.setJobColumns(null);
-        }
-      });
-    }
     const localStorageColumns = localStorageUtils.getJobColumns() || [];
     localStorageColumns.forEach((item) => (columnsObject[item.key] = 1));
     TableColumns.forEach(
@@ -174,7 +168,7 @@ export class JobsContent extends PureComponent {
       ...location,
       query: { ...location.query, sort: name, order: direction },
     });
-    return direction === "ASCENDING" ? "DESC" : "ASC";
+    return direction === "ASCENDING" ? SortDirection.ASC : SortDirection.DESC;
   };
 
   componentDidMount() {
@@ -183,17 +177,11 @@ export class JobsContent extends PureComponent {
   }
 
   componentWillReceiveProps(nextProps) {
-    const { isFromExplorePage, jobs, jobId } = this.props;
+    const { jobs, jobId } = this.props;
     if (nextProps.jobs !== jobs) {
       this.runActionForJobs(nextProps.jobs, false, (jobIdForCallback) =>
         socket.startListenToQVJobProgress(jobIdForCallback)
       );
-
-      // if we don't have an active job id highlight the first job
-      // Also, don't set an active job when it shows in SQL Editor page
-      if (!nextProps.jobId && !isFromExplorePage) {
-        this.setActiveJob(nextProps.jobs.get(0), true);
-      }
     }
     if (nextProps.jobId !== jobId) {
       this.setState({
@@ -234,7 +222,9 @@ export class JobsContent extends PureComponent {
     const renderColumn = (data, isNumeric) => (
       <ColumnCell data={data} isNumeric={isNumeric} />
     );
-    const renderSQL = (sql) => <SQLCell sql={sql} />;
+    const renderSQL = (sql) => (
+      <SQLCell sql={sql} isFromExplorePage={isFromExplorePage} />
+    );
     const renderDataset = (job) => <DatasetCell job={job} />;
     const renderIcon = (isAcceleration) => {
       return isAcceleration ? (
@@ -382,6 +372,7 @@ export class JobsContent extends PureComponent {
       jobsColumns,
       isFromExplorePage,
     } = this.props;
+
     const { getColumns } = this.state;
     const columnCheckedItems = localStorageUtils.getJobColumns()
       ? localStorageUtils
@@ -404,8 +395,9 @@ export class JobsContent extends PureComponent {
       <div style={{ height: "100%" }}>
         <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
         <div className={"jobsPageBody"}>
-          {showSideNavAndTopNav && <SideNav />}
+          {showSideNavAndTopNav && <SonarSideNav />}
           <div className={"jobPageContentDiv"}>
+            {showSideNavAndTopNav && <NavCrumbs />}
             <div
               className={classNames(
                 "jobs-content",
@@ -449,6 +441,9 @@ export class JobsContent extends PureComponent {
                 noDataText={intl.formatMessage({ id: "Job.NoJobs" })}
                 showIconHeaders={{ acceleration: { node: getReflectionIcon } }}
                 disableZebraStripes
+                defaultSortBy={"st"}
+                defaultSortDirection={SortDirection.DESC}
+                defaultDescending
               />
             </div>
           </div>

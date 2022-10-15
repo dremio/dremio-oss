@@ -26,8 +26,9 @@ import timeUtils from "utils/timeUtils";
 import { fixedWidthSmall } from "uiTheme/radium/typography";
 import { PALE_ORANGE } from "uiTheme/radium/colors";
 
-import Art from "components/Art";
+import { getIconPath } from "@app/utils/getIconPath";
 import JobStateIcon from "../JobStateIcon";
+import { Tooltip } from "dremio-ui-lib";
 
 const DATASET_HEIGHT = 14;
 
@@ -83,8 +84,8 @@ class JobTr extends PureComponent {
     let flameAlt = "";
     if (job.get("accelerated")) {
       flame = job.get("snowflakeAccelerated")
-        ? "FlameSnowflake.svg"
-        : "Flame.svg";
+        ? "interface/flame-snowflake"
+        : "interface/flame";
       flameAlt = job.get("snowflakeAccelerated")
         ? formatMessage("Job.AcceleratedHoverSnowFlake")
         : formatMessage("Job.AcceleratedHover");
@@ -115,20 +116,21 @@ class JobTr extends PureComponent {
             <div style={styles.durationStyle} className="duration">
               {jobDuration}
               {job.get("accelerated") && (
-                <Art
-                  src={flame}
-                  alt={flameAlt}
-                  style={styles.smallIcon}
-                  title
-                />
+                <Tooltip title={flameAlt}>
+                  <img
+                    src={getIconPath(flame)}
+                    alt={flameAlt}
+                    style={styles.smallIcon}
+                  />
+                </Tooltip>
               )}
               {job.get("spilled") && (
-                <Art
-                  src="DiskSpill.svg"
-                  alt={formatMessage("Job.SpilledHover")}
-                  style={styles.smallIcon}
-                  title
-                />
+                <Tooltip title={formatMessage("Job.SpilledHover")}>
+                  <dremio-icon
+                    name="interface/disk-spill"
+                    style={styles.smallIcon}
+                  />
+                </Tooltip>
               )}
             </div>
             <div style={styles.dateTimeStyle} className="endTime">
@@ -196,6 +198,7 @@ const styles = {
   smallIcon: {
     paddingLeft: 5,
     height: 20,
+    inlineSize: 24,
   },
 };
 export default JobTr;

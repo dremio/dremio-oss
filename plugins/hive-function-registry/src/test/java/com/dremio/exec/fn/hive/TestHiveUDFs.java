@@ -61,7 +61,7 @@ public class TestHiveUDFs extends BaseTestQuery {
       VarCharVector upperStr1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 1).getValueVector();
       VarCharVector concatV = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 2).getValueVector();
       Float4Vector flt1V = (Float4Vector) batchLoader.getValueAccessorById(Float4Vector.class, 3).getValueVector();
-      VarCharVector format_numberV = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 4).getValueVector();
+      VarCharVector formatNumberV = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 4).getValueVector();
       VarCharVector nullableStr1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 5).getValueVector();
       VarCharVector upperNullableStr1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 6).getValueVector();
 
@@ -71,15 +71,13 @@ public class TestHiveUDFs extends BaseTestQuery {
         }
         String in = new String(str1V.get(i), Charsets.UTF_8);
         String upper = new String(upperStr1V.get(i), Charsets.UTF_8);
-        assertTrue(in.toUpperCase().equals(upper));
-
+        assertEquals(in.toUpperCase(), upper);
 
         String concat = new String(concatV.get(i), Charsets.UTF_8);
-        assertTrue(concat.equals(in+"-"+in));
+        assertEquals(in + "-" + in, concat);
 
         float flt1 = flt1V.get(i);
-        String format_number = new String(format_numberV.get(i), Charsets.UTF_8);
-
+        String formatNumber = new String(formatNumberV.get(i), Charsets.UTF_8);
 
         String nullableStr1 = null;
         if (!nullableStr1V.isNull(i)) {

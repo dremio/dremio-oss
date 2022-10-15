@@ -20,14 +20,12 @@ import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.util.AssertionUtil;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.BaseTestFunction;
@@ -54,7 +52,7 @@ public class TestMultiOrOptimization extends BaseTestFunction {
   public void dateMatch(){
     // match needs to be on a day boundary. 1521849600000 is Mar 28, 2018 at Midnight.
     check(true, 1, "booleanOr(c0 = cast(1l as DATE), c0 = cast(1521849600000l as DATE), c0 = cast(3l as DATE), c0 = cast(4l as DATE), c0 = cast(5l as DATE), c0 = cast(6l as DATE), c0 = cast(7l as DATE), c0 = cast(8l as DATE), c0 = cast(9l as DATE))"
-        , new LocalDate(1521849600000l, DateTimeZone.UTC));
+        , new LocalDate(1521849600000L, DateTimeZone.UTC));
   }
 
   @Test
@@ -93,17 +91,17 @@ public class TestMultiOrOptimization extends BaseTestFunction {
 
   @Test
   public void bigIntSimpleNoMatch(){
-    check(false, 1, "booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 = 8l, c0 = 9l)", 10l);
+    check(false, 1, "booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 = 8l, c0 = 9l)", 10L);
   }
 
   @Test
   public void bigIntComplexNoMatch(){
-    check(false, 1, "booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 10l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 = 8l, c0 = 9l)", 10l);
+    check(false, 1, "booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 10l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 = 8l, c0 = 9l)", 10L);
   }
 
   @Test
   public void bigIntComplexMatch(){
-    check(true, 1, "booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 14, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 = 8l, c0 = 9l)", 9l);
+    check(true, 1, "booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 14, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 = 8l, c0 = 9l)", 9L);
   }
 
   @Test
@@ -160,8 +158,6 @@ public class TestMultiOrOptimization extends BaseTestFunction {
    * @param objects Field values.
    */
   private void check(Object result, int count, String expr, Object...objects) {
-    Assume.assumeTrue(AssertionUtil.ASSERT_ENABLED);
-
     // now test the base case
     try {
       testContext.getOptions().setOption(OptionValue.createBoolean(OptionType.SYSTEM, ExecConstants.FAST_OR_ENABLE.getOptionName(), false));

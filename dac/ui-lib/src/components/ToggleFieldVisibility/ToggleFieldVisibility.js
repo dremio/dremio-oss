@@ -17,7 +17,7 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import clsx from "clsx";
 
-import SvgIcon from "@material-ui/core/SvgIcon";
+import SvgIcon from "@mui/material/SvgIcon";
 import { ReactComponent as EyeIcon } from "../../art/Eye.svg";
 import { ReactComponent as HideEyeIcon } from "../../art/HideEye.svg";
 

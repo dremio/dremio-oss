@@ -20,9 +20,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 
 public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
@@ -42,7 +42,7 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
   }
 
   private AtomicLong queueMonitor = new AtomicLong(0);
-  protected final SabotConfig config;
+  protected final OptionManager options;
   protected final BufferAllocator allocator;
   protected final FragmentHandle handle;
   protected BufferQueue<T> bufferQueue;
@@ -52,9 +52,9 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
   private final int fragmentCount;
   private final SharedResource resource;
 
-  public BaseRawBatchBuffer(SharedResource resource, SabotConfig config, FragmentHandle handle, BufferAllocator allocator, final int fragmentCount) {
-    bufferSizePerSocket = config.getInt(ExecConstants.INCOMING_BUFFER_SIZE);
-    this.config = config;
+  public BaseRawBatchBuffer(SharedResource resource, OptionManager options, FragmentHandle handle, BufferAllocator allocator, final int fragmentCount) {
+    bufferSizePerSocket = (int) options.getOption(ExecConstants.INCOMING_BUFFER_SIZE);
+    this.options = options;
     this.fragmentCount = fragmentCount;
     this.remainingStreams = new AtomicLong(fragmentCount);
     this.allocator = allocator;
@@ -173,7 +173,7 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
       logger.debug("Streams finished");
       resource.markAvailable();
       state = BufferState.CLOSED;
-    };
+    }
   }
 
   /**

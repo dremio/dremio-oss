@@ -754,4 +754,12 @@ public class TestServer extends BaseTestServer {
     assertEquals(headersV2.getFirst(HttpHeaders.CACHE_CONTROL), "no-cache, no-store");
 
   }
+
+  @Test
+  public void testErrorResponse() throws Exception {
+    final Response response = getBuilder(getPublicAPI(2).path("catalog")).buildGet().invoke();
+    assertNull(response.getHeaders().get("Server"));
+    assertEquals(404, response.getStatus());
+  }
+
 }

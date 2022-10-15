@@ -30,6 +30,7 @@ public class Reallocators {
     long ensure(int size);
     long max();
     void setCount(int count);
+    void ensureValidityAndOffsets(int count);
   }
 
   private static class VarBinaryReallocator implements Reallocator {
@@ -62,6 +63,12 @@ public class Reallocators {
       varbinary.setLastSet(count);
     }
 
+    @Override
+    public void ensureValidityAndOffsets(int count) {
+      while (varbinary.getValueCapacity() < count) {
+        varbinary.reallocValidityAndOffsetBuffers();
+      }
+    }
   }
 
   private static class VarCharReallocator implements Reallocator {
@@ -89,10 +96,16 @@ public class Reallocators {
       return addr() + varchar.getByteCapacity();
     }
 
-
     @Override
     public void setCount(int count) {
       varchar.setLastSet(count);
+    }
+
+    @Override
+    public void ensureValidityAndOffsets(int count) {
+      while (varchar.getValueCapacity() < count) {
+        varchar.reallocValidityAndOffsetBuffers();
+      }
     }
   }
 

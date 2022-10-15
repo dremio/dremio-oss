@@ -22,11 +22,10 @@ import org.junit.rules.TestName;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
-public class TestTools {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTools.class);
+import com.dremio.common.VM;
 
-  static final boolean IS_DEBUG = java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments()
-      .toString().indexOf("-agentlib:jdwp") > 0;
+public class TestTools {
+
   static final String WORKING_PATH = Paths.get("").toAbsolutePath().toString();
 
   public static TestRule getTimeoutRule() {
@@ -34,14 +33,14 @@ public class TestTools {
   }
 
   public static TestRule getTimeoutRule(int timeout, TimeUnit unit) {
-    return IS_DEBUG ? new TestName() : Timeout.builder().withTimeout(timeout, unit).build();
+    return VM.isDebugEnabled() ? new TestName() : Timeout.builder().withTimeout(timeout, unit).build();
   }
 
   /**
    * If not enforced, the repeat rule applies only if the test is run in non-debug mode.
    */
   public static TestRule getRepeatRule(final boolean enforce) {
-    return enforce || !IS_DEBUG ? new RepeatTestRule() : new TestName();
+    return enforce || !VM.isDebugEnabled() ? new RepeatTestRule() : new TestName();
   }
 
   public static String getWorkingPath() {

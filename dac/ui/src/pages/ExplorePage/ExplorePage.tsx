@@ -82,7 +82,8 @@ export class ExplorePageView extends PureComponent<
       case PageTypes.wiki:
       case PageTypes.reflections:
       case PageTypes.default:
-      case PageTypes.graph: {
+      case PageTypes.graph:
+      case PageTypes.history: {
         const newSize =
           (hashHeightTopSplitter as any)[location.query.type] ||
           this.locationIncludesNewQuery(location)

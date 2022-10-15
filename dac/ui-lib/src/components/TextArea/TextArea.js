@@ -17,7 +17,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import clsx from "clsx";
 import { get } from "lodash";
-import TextareaAutosize from "@material-ui/core/TextareaAutosize";
+import TextareaAutosize from "@mui/material/TextareaAutosize";
 
 import Label from "../Label";
 import CopyToClipboard from "../CopyToClipboard";
@@ -42,6 +42,9 @@ const TextArea = (props) => {
     onChange,
     onCopy,
     value,
+    tooltipText,
+    tooltipClasses,
+    tooltipPlacement,
     form: { errors, touched },
     ...otherProps
   } = props;
@@ -88,7 +91,15 @@ const TextArea = (props) => {
             helpText={helpText}
             id={`textbox-label-${name}`}
           />
-          {enableCopy && <CopyToClipboard value={value} onCopy={onCopy} />}
+          {enableCopy && (
+            <CopyToClipboard
+              value={value}
+              onCopy={onCopy}
+              placement={tooltipPlacement}
+              tooltipClasses={tooltipClasses}
+              tooltipText={tooltipText}
+            />
+          )}
         </div>
       )}
 
@@ -98,8 +109,8 @@ const TextArea = (props) => {
           value={value}
           disabled={disabled}
           className={textClass}
-          rowsMin={minLines}
-          rowsMax={minLines > maxLines ? minLines : maxLines}
+          minRows={minLines}
+          maxRows={minLines > maxLines ? minLines : maxLines}
           aria-labelledby={`textbox-label-${name}`}
           onChange={onChange}
           name={name}
@@ -115,6 +126,9 @@ const TextArea = (props) => {
             value={value}
             onCopy={onCopy}
             className="textAreaRoot__icon"
+            placement={tooltipPlacement}
+            tooltipClasses={tooltipClasses}
+            tooltipText={tooltipText}
           />
         )}
       </div>
@@ -146,6 +160,9 @@ TextArea.propTypes = {
   onCopy: PropTypes.func,
   defaultValue: PropTypes.string,
   helpText: PropTypes.string,
+  tooltipText: PropTypes.string,
+  tooltipClasses: PropTypes.object,
+  tooltipPlacement: PropTypes.string,
 };
 
 TextArea.defaultProps = {
@@ -157,6 +174,7 @@ TextArea.defaultProps = {
   enableCopy: false,
   label: null,
   noResize: false,
+  tooltipPlacement: "bottom",
 };
 
 export default TextArea;

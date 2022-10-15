@@ -24,18 +24,25 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.errorprone.annotations.FormatMethod;
 
 public class ErrorCollectorImpl implements ErrorCollector, AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ErrorCollectorImpl.class);
-  List<ExpressionValidationError> errors;
+  private final List<ExpressionValidationError> errors;
 
   public ErrorCollectorImpl() {
     errors = Lists.newArrayList();
   }
 
   @Override
-  public void addGeneralError(String s, Object... args) {
-    errors.add(new ExpressionValidationError(s, args));
+  public void addGeneralError(String error) {
+    errors.add(new ExpressionValidationError(error));
+  }
+
+  @FormatMethod
+  @Override
+  public void addGeneralError(String format, Object... args) {
+    errors.add(new ExpressionValidationError(format, args));
   }
 
   @Override

@@ -15,14 +15,15 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import { Link } from "react-router";
 import Immutable from "immutable";
+import { withRouter } from "react-router";
 import classNames from "classnames";
 import { IconButton } from "dremio-ui-lib";
+import FinderNavSection from "./FinderNavSection";
+import LinkWithRef from "./LinkWithRef/LinkWithRef";
+import { stopPropagation } from "@app/utils/reactEventUtils";
 
 import "./FinderNav.less";
-
-import FinderNavSection from "./FinderNavSection";
 
 const MAX_TO_SHOW = Infinity;
 
@@ -42,6 +43,7 @@ export class FinderNav extends Component {
     children: PropTypes.node,
     renderExtra: PropTypes.func,
     noMarginTop: PropTypes.bool,
+    router: PropTypes.any,
   };
 
   state = {
@@ -67,6 +69,7 @@ export class FinderNav extends Component {
       isCollapsible,
       isCollapsed,
       noMarginTop,
+      router,
     } = this.props;
 
     const wrapClass = classNames(
@@ -85,15 +88,16 @@ export class FinderNav extends Component {
           data-qa={title}
         >
           {listHref ? (
-            <Link className="pointer" activeClassName="active" to={listHref}>
+            <LinkWithRef
+              className="pointer"
+              activeClassName="active"
+              to={listHref}
+            >
               {isCollapsible ? (
                 <>
                   <span
                     className="icon-container"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
+                    onClick={(e) => stopPropagation(e)}
                   >
                     <dremio-icon
                       name={
@@ -117,8 +121,10 @@ export class FinderNav extends Component {
               {addHref && (
                 <IconButton
                   tooltip={addTooltip}
-                  as={Link}
-                  to={addHref}
+                  onClick={(e) => {
+                    stopPropagation(e);
+                    router.push(addHref);
+                  }}
                   className="pull-right"
                   data-qa={`add-${title.toLowerCase()}`}
                 >
@@ -128,7 +134,7 @@ export class FinderNav extends Component {
                   />
                 </IconButton>
               )}
-            </Link>
+            </LinkWithRef>
           ) : (
             `${title} (${navItems.size})`
           )}
@@ -151,4 +157,4 @@ export class FinderNav extends Component {
   }
 }
 
-export default FinderNav;
+export default withRouter(FinderNav);

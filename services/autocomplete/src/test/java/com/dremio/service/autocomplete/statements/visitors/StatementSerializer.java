@@ -15,29 +15,25 @@
  */
 package com.dremio.service.autocomplete.statements.visitors;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.service.autocomplete.statements.grammar.AggregateReflectionCreateStatement;
 import com.dremio.service.autocomplete.statements.grammar.AlterStatement;
-import com.dremio.service.autocomplete.statements.grammar.CatalogPath;
-import com.dremio.service.autocomplete.statements.grammar.DeleteStatement;
+import com.dremio.service.autocomplete.statements.grammar.Column;
 import com.dremio.service.autocomplete.statements.grammar.DropStatement;
+import com.dremio.service.autocomplete.statements.grammar.Expression;
 import com.dremio.service.autocomplete.statements.grammar.ExternalReflectionCreateStatement;
 import com.dremio.service.autocomplete.statements.grammar.FieldList;
-import com.dremio.service.autocomplete.statements.grammar.FromClause;
-import com.dremio.service.autocomplete.statements.grammar.JoinCondition;
+import com.dremio.service.autocomplete.statements.grammar.NessieVersion;
 import com.dremio.service.autocomplete.statements.grammar.RawReflectionCreateStatement;
-import com.dremio.service.autocomplete.statements.grammar.SelectQueryStatement;
 import com.dremio.service.autocomplete.statements.grammar.SetQueryStatement;
 import com.dremio.service.autocomplete.statements.grammar.Statement;
 import com.dremio.service.autocomplete.statements.grammar.StatementList;
-import com.dremio.service.autocomplete.statements.grammar.UnknownStatement;
-import com.dremio.service.autocomplete.statements.grammar.UpdateStatement;
+import com.dremio.service.autocomplete.statements.grammar.TableReference;
 import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-public final class StatementSerializer implements StatementVisitor {
+public final class StatementSerializer {
   private final StringBuilder stringBuilder;
   private int level;
 
@@ -48,204 +44,123 @@ public final class StatementSerializer implements StatementVisitor {
     this.level = 0;
   }
 
-  @Override
-  public void visit(StatementList statementList) {
+  public void visit(Statement statement) {
+    Preconditions.checkNotNull(statement);
+
+    if (statement instanceof StatementList) {
+      visit((StatementList) statement);
+    } else if (statement instanceof SetQueryStatement) {
+      visit((SetQueryStatement) statement);
+    } else if (statement instanceof DropStatement) {
+      visit((DropStatement) statement);
+    } else if (statement instanceof AlterStatement) {
+      visit((AlterStatement) statement);
+    } else if (statement instanceof RawReflectionCreateStatement) {
+      visit((RawReflectionCreateStatement) statement);
+    } else if (statement instanceof AggregateReflectionCreateStatement) {
+      visit((AggregateReflectionCreateStatement) statement);
+    } else if (statement instanceof ExternalReflectionCreateStatement) {
+      visit((ExternalReflectionCreateStatement) statement);
+    } else if (statement instanceof FieldList) {
+      visit((FieldList) statement);
+    } else if (statement instanceof Expression) {
+      visit((Expression) statement);
+    } else if (statement instanceof NessieVersion) {
+      visit((NessieVersion) statement);
+    } else if (statement instanceof Column) {
+      visit((Column) statement);
+    } else if (statement instanceof TableReference) {
+      visit((TableReference) statement);
+    } else {
+      visitImplementation(statement.getClass().getSimpleName(), statement);
+    }
+  }
+
+  private void visit(StatementList statementList) {
     if (statementList.getChildren().size() == 1) {
-      statementList.getChildren().get(0).accept(this);
+      visit(statementList.getChildren().get(0));
     } else {
       visitImplementation("LIST", statementList);
     }
   }
 
-  @Override
-  public void visit(UnknownStatement unknownStatement) {
-    visitImplementation("UNKNOWN", unknownStatement);
+  private void visit(AlterStatement alterStatement) {
+    visitImplementation("ALTER", alterStatement);
+    writeSubline(() -> {
+      stringBuilder.append("TYPE: ").append(alterStatement.getType());
+    });
   }
 
-  @Override
-  public void visit(SelectQueryStatement selectQueryStatement) {
-    visitImplementation("SELECT QUERY", selectQueryStatement);
-    FromClause fromClause = selectQueryStatement.getFromClause();
-    if (fromClause != null) {
-      writeSubline(() -> {
-        stringBuilder.append("FROM: ");
-        writeTokens(fromClause.getTokens());
-        stringBuilder.append("\n");
-
-        writeSubline(() -> {
-          stringBuilder.append("CATALOG PATHS: [");
-          for (CatalogPath catalogPath : fromClause.getCatalogPaths()) {
-            writeTokens(catalogPath.getTokens());
-            stringBuilder.append(",");
-            stringBuilder.append(",");
-          }
-          stringBuilder.append("]");
-        });
-
-        writeSubline(() -> {
-          stringBuilder.append("JOIN CONDITIONS: [");
-          for (JoinCondition joinCondition : fromClause.getJoinConditions()) {
-            writeTokens(joinCondition.getTokens());
-            stringBuilder.append(",");
-          }
-          stringBuilder.append("]");
-        });
-      });
-    }
-  }
-
-  @Override
-  public void visit(SetQueryStatement setQueryStatement) {
+  private void visit(SetQueryStatement setQueryStatement) {
     if (setQueryStatement.getChildren().size() == 1) {
-      setQueryStatement.getChildren().get(0).accept(this);
+      visit(setQueryStatement.getChildren().get(0));
     } else {
       visitImplementation("SET QUERY", setQueryStatement);
     }
   }
 
-  @Override
-  public void visit(DropStatement dropStatement) {
+  private void visit(DropStatement dropStatement) {
     visitImplementation("DROP", dropStatement);
     if (dropStatement.getDropType() != null) {
       writeSubline(() -> stringBuilder
         .append("TYPE: ")
         .append(dropStatement.getDropType()));
     }
-
-    if (dropStatement.getCatalogPath() != null) {
-      writeCatalogPath(dropStatement.getCatalogPath());
-    }
   }
 
-  @Override
-  public void visit(DeleteStatement deleteStatement) {
-    visitImplementation("DELETE", deleteStatement);
-    if (deleteStatement.getCatalogPath() != null) {
-      writeCatalogPath(deleteStatement.getCatalogPath());
-    }
-
-    if (deleteStatement.getCondition() != null) {
-      writeSubline(() -> {
-        stringBuilder.append("BOOLEAN EXPRESSION: ");
-        writeTokens(deleteStatement.getCondition());
-      });
-    }
-  }
-
-  @Override
-  public void visit(UpdateStatement updateStatement) {
-    visitImplementation("UPDATE", updateStatement);
-    if (updateStatement.getTablePrimary() != null) {
-      writeSubline(() -> {
-        stringBuilder.append("TABLE PRIMARY: ");
-        writeTokens(updateStatement.getTablePrimary().getTokens());
-      });
-    }
-
-    if (updateStatement.getAssignTokens() != null) {
-      writeSubline(() -> {
-        stringBuilder.append("ASSIGN TOKENS: ");
-        writeTokens(updateStatement.getAssignTokens());
-      });
-    }
-
-    if (updateStatement.getCondition() != null) {
-      writeSubline(() -> {
-        stringBuilder.append("BOOLEAN EXPRESSION: ");
-        writeTokens(updateStatement.getCondition());
-      });
-    }
-  }
-
-  @Override
-  public void visit(RawReflectionCreateStatement rawReflectionCreateStatement) {
+  private void visit(RawReflectionCreateStatement rawReflectionCreateStatement) {
     visitImplementation("RAW REFLECTION CREATE", rawReflectionCreateStatement);
-    writeCatalogPath(rawReflectionCreateStatement.getCatalogPath());
     writeSubline(() -> stringBuilder.append("NAME: ").append(rawReflectionCreateStatement.getReflectionName()));
-
-    if (rawReflectionCreateStatement.getDisplayFields() != null) {
-      writeFieldList(rawReflectionCreateStatement.getDisplayFields(), "DISPLAY");
-    }
-
-    if (rawReflectionCreateStatement.getFieldLists() != null) {
-      if (rawReflectionCreateStatement.getFieldLists().getDistributeFields() != null) {
-        writeFieldList(rawReflectionCreateStatement.getFieldLists().getDistributeFields(), "DISTRIBUTE");
-      }
-
-      if (rawReflectionCreateStatement.getFieldLists().getPartitionFields() != null) {
-        writeFieldList(rawReflectionCreateStatement.getFieldLists().getPartitionFields(), "PARTITION");
-      }
-
-      if (rawReflectionCreateStatement.getFieldLists().getLocalSortFields() != null) {
-        writeFieldList(rawReflectionCreateStatement.getFieldLists().getLocalSortFields(), "LOCALSORT");
-      }
-    }
   }
 
-  @Override
-  public void visit(AlterStatement alterStatement) {
-    visitImplementation("ALTER", alterStatement);
-
-    writeSubline(() -> {
-      stringBuilder.append("TYPE: ").append(alterStatement.getType());
-    });
-
-    if (alterStatement.getCatalogPath() != null) {
-      writeCatalogPath(alterStatement.getCatalogPath());
-    }
-  }
-
-  @Override
-  public void visit(AggregateReflectionCreateStatement aggregateReflectionCreateStatement) {
+  private void visit(AggregateReflectionCreateStatement aggregateReflectionCreateStatement) {
     visitImplementation("AGGREGATE REFLECTION CREATE", aggregateReflectionCreateStatement);
-    writeCatalogPath(aggregateReflectionCreateStatement.getCatalogPath());
     writeSubline(() -> stringBuilder.append("NAME: ").append(aggregateReflectionCreateStatement.getName()));
-
-    if (aggregateReflectionCreateStatement.getDimensions() != null) {
-      writeFieldList(aggregateReflectionCreateStatement.getDimensions(), "DIMENSIONS");
-    }
-
-    if (aggregateReflectionCreateStatement.getMeasures() != null) {
-      writeFieldList(aggregateReflectionCreateStatement.getMeasures(), "MEASURES");
-    }
-
-    if (aggregateReflectionCreateStatement.getFieldLists() != null && aggregateReflectionCreateStatement.getFieldLists().getDistributeFields() != null) {
-      writeFieldList(aggregateReflectionCreateStatement.getFieldLists().getDistributeFields(), "DISTRIBUTE");
-    }
-
-    if (aggregateReflectionCreateStatement.getFieldLists() != null && aggregateReflectionCreateStatement.getFieldLists().getPartitionFields() != null) {
-      writeFieldList(aggregateReflectionCreateStatement.getFieldLists().getPartitionFields(), "PARTITION");
-    }
-
-    if (aggregateReflectionCreateStatement.getFieldLists() != null && aggregateReflectionCreateStatement.getFieldLists().getLocalSortFields() != null) {
-      writeFieldList(aggregateReflectionCreateStatement.getFieldLists().getLocalSortFields(), "LOCALSORT");
-    }
   }
 
-  @Override
-  public void visit(ExternalReflectionCreateStatement externalReflectionCreateStatement) {
+  private void visit(ExternalReflectionCreateStatement externalReflectionCreateStatement) {
     visitImplementation("EXTERNAL REFLECTION CREATE", externalReflectionCreateStatement);
-    writeCatalogPath(externalReflectionCreateStatement.getSourcePath());
     writeSubline(() -> stringBuilder.append("NAME: ").append(externalReflectionCreateStatement.getName()));
-
-    writeCatalogPath(externalReflectionCreateStatement.getTargetPath());
   }
 
-  private void writeCatalogPath(CatalogPath catalogPath) {
-    writeSubline(() -> {
-      stringBuilder.append("CATALOG PATH: ");
-      for (String pathToken : catalogPath.getPathTokens()) {
-        writeToken(pathToken);
-        stringBuilder.append(".");
-      }
-    });
+  private void visit(Column column) {
+    visitImplementation("COLUMN", column);
+    level++;
+    visit(column.getTableReference());
+    level--;
   }
 
-  private void writeFieldList(FieldList fieldList, String name) {
-    writeSubline(() -> {
-      stringBuilder.append(name).append(": ");
-      writeTokens(fieldList.getTokens());
-    });
+  private void visit(Expression expression) {
+    visitImplementation("EXPRESSION", expression);
+    level++;
+    for (TableReference tableReference : expression.getTableReferences()) {
+      visit(tableReference);
+    }
+    level--;
+  }
+
+  private void visit(NessieVersion nessieVersion) {
+    visitImplementation("NESSIE VERSION", nessieVersion);
+    if (nessieVersion.getType().isPresent()) {
+      writeSubline(() -> stringBuilder.append("TYPE: ").append(nessieVersion.getType().get()));
+    }
+  }
+
+  private void visit(FieldList fieldList) {
+    visitImplementation("FIELD LIST", fieldList);
+    level++;
+    for (String field : fieldList.getFields()) {
+      writeLine(() -> {
+        stringBuilder.append("FIELD: ").append(field);
+      });
+    }
+
+    visit(fieldList.getTableReference());
+    level--;
+  }
+
+  private void visit(TableReference tableReference) {
+    visitImplementation("TABLE REFERENCE", tableReference);
   }
 
   private void visitImplementation(String type, Statement statement) {
@@ -256,7 +171,7 @@ public final class StatementSerializer implements StatementVisitor {
 
     level++;
     for (Statement child : statement.getChildren()) {
-      child.accept(this);
+      visit(child);
     }
     level--;
   }
@@ -283,11 +198,10 @@ public final class StatementSerializer implements StatementVisitor {
 
   private void writeTokens(ImmutableList<DremioToken> tokens) {
     for (DremioToken token : tokens) {
-       writeToken(token);
-       stringBuilder.append(" ");
+      writeToken(token);
+      stringBuilder.append(" ");
     }
   }
-
 
   private void writeToken(DremioToken token) {
     writeToken(token.getImage());

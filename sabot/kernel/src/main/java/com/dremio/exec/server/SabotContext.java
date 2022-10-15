@@ -41,7 +41,6 @@ import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ExpressionSplitCache;
-import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.maestro.GlobalKeysService;
 import com.dremio.exec.planner.PhysicalPlanReader;
@@ -92,7 +91,7 @@ public class SabotContext implements AutoCloseable {
   private final ClusterCoordinator coord;
   private final NodeEndpoint endpoint;
   private final FunctionImplementationRegistry functionRegistry;
-  private final DecimalFunctionImplementationRegistry decimalFunctionImplementationRegistry;
+  private final FunctionImplementationRegistry decimalFunctionImplementationRegistry;
   private final OptionManager optionManager;
   private final SystemOptionManager systemOptionManager;
   private final Provider<WorkStats> workStatsProvider;
@@ -139,6 +138,10 @@ public class SabotContext implements AutoCloseable {
   private final Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider;
   private final Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider;
 
+  private final Provider<SourceVerifier> sourceVerifierProvider;
+
+
+
   public SabotContext(
       DremioConfig dremioConfig,
       NodeEndpoint endpoint,
@@ -184,7 +187,8 @@ public class SabotContext implements AutoCloseable {
       Provider<GlobalKeysService> globalCredentailsServiceProvider,
       Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
       Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
-      Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
+      Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
+      Provider<SourceVerifier> sourceVerifierProvider
   ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -204,8 +208,8 @@ public class SabotContext implements AutoCloseable {
     this.reader = new PhysicalPlanReader(config, classpathScan, lpPersistence, endpoint, catalogService, this);
     this.optionManager = optionManager;
     this.systemOptionManager = systemOptionManager;
-    this.functionRegistry = new FunctionImplementationRegistry(config, classpathScan, this.optionManager);
-    this.decimalFunctionImplementationRegistry = new DecimalFunctionImplementationRegistry(config, classpathScan, this.optionManager);
+    this.functionRegistry = FunctionImplementationRegistry.create(config, classpathScan, this.optionManager, false);
+    this.decimalFunctionImplementationRegistry = FunctionImplementationRegistry.create(config, classpathScan, this.optionManager, true);
     this.compiler = new CodeCompiler(config, this.optionManager);
     this.kvStoreProvider = kvStoreProvider;
     this.namespaceServiceFactory = namespaceServiceFactory;
@@ -247,6 +251,7 @@ public class SabotContext implements AutoCloseable {
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
     this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
+    this.sourceVerifierProvider = sourceVerifierProvider;
     expressionSplitCache = new ExpressionSplitCache(optionManager, config);
   }
 
@@ -294,7 +299,7 @@ public class SabotContext implements AutoCloseable {
     OptionManager optionManager,
     SystemOptionManager systemOptionManager,
     FunctionImplementationRegistry functionImplementationRegistry,
-    DecimalFunctionImplementationRegistry decimalFunctionImplementationRegistry,
+    FunctionImplementationRegistry decimalFunctionImplementationRegistry,
     CodeCompiler codeCompiler,
     GroupResourceInformation clusterInfo,
     FileSystemWrapper fileSystemWrapper,
@@ -312,7 +317,8 @@ public class SabotContext implements AutoCloseable {
     Provider<GlobalKeysService> globalCredentailsServiceProvider,
     Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
     Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
-    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
+    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
+    Provider<SourceVerifier> sourceVerifierProvider
     ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -369,6 +375,7 @@ public class SabotContext implements AutoCloseable {
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
     this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
+    this.sourceVerifierProvider = sourceVerifierProvider;
     expressionSplitCache = new ExpressionSplitCache(optionManager, config);
   }
 
@@ -429,7 +436,7 @@ public class SabotContext implements AutoCloseable {
     return functionRegistry;
   }
 
-  public DecimalFunctionImplementationRegistry getDecimalFunctionImplementationRegistry() {
+  public FunctionImplementationRegistry getDecimalFunctionImplementationRegistry() {
     return decimalFunctionImplementationRegistry;
   }
 
@@ -680,6 +687,10 @@ public class SabotContext implements AutoCloseable {
 
   public Provider<SysFlightChannelProvider> getSysFlightChannelProviderProvider() {
     return sysFlightChannelProviderProvider;
+  }
+
+  public Provider<SourceVerifier> getSourceVerifierProvider() {
+    return sourceVerifierProvider;
   }
 
   public ExpressionSplitCache getExpressionSplitCache() {

@@ -676,6 +676,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
       try (BufferAllocator alloc = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
           OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), alloc, optionManager, 1000, context.getExpressionSplitCache());
           final VectorizedHashAggOperator op = new VectorizedHashAggOperator(agg, operatorContext)) {
+        // test for no exceptions
       }
     }
   }

@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from "react";
-import classnames from "classnames";
+import { cloneElement, Children, Component } from "react";
 import spring from "react-motion/lib/spring";
-import Radium from "radium";
 import { injectIntl } from "react-intl";
 
 import PropTypes from "prop-types";
 
-import Art from "components/Art";
 import { formatMessage } from "../../utils/locale";
 import { IconButton } from "dremio-ui-lib";
+
+import * as classes from "./FieldList.module.less";
+
 export class AddButton extends Component {
   static propTypes = {
     addItem: PropTypes.func,
@@ -31,40 +31,34 @@ export class AddButton extends Component {
     children: PropTypes.node,
     addIcon: PropTypes.bool,
     intl: PropTypes.object.isRequired,
-    className: PropTypes.string,
   };
 
   render() {
-    const { addIcon, addItem, style, children, className } = this.props;
-    const combinedStyle = { ":hover": {}, ...styles.addButton, ...style }; // need Radium fakeout
-    const icon = addIcon ? "Add.svg" : "AddHover.svg";
-    const btnClass = classnames("add-item", className);
+    const { addItem, children } = this.props;
     return (
-      <a
+      <div
+        aria-label="Add"
         key="addItem"
-        className={btnClass}
+        data-qa="add-engine-button"
+        className={classes["addField__action"]}
         onClick={addItem}
-        style={combinedStyle}
       >
-        <Art
-          src={icon}
-          alt={this.props.intl.formatMessage({ id: "Common.Add" })}
-          style={styles.addIcon}
-        />
+        <dremio-icon name="interface/add" alt="+" class="margin-right--half" />
         {children}
-      </a>
+      </div>
     );
   }
 }
-AddButton = injectIntl(Radium(AddButton));
+AddButton = injectIntl(AddButton);
 
 RemoveButton.propTypes = {
   onClick: PropTypes.func,
   style: PropTypes.object,
   className: PropTypes.string,
+  iconStyle: PropTypes.object,
 };
 
-export function RemoveButton({ onClick, style, className }) {
+export function RemoveButton({ onClick, style, className, iconStyle }) {
   return (
     <span data-qa="remove-button" className={className}>
       <IconButton
@@ -74,7 +68,7 @@ export function RemoveButton({ onClick, style, className }) {
       >
         <dremio-icon
           name="interface/close-small"
-          style={{ margin: "-10px" }}
+          style={{ ...iconStyle }}
         ></dremio-icon>
       </IconButton>
     </span>
@@ -159,7 +153,7 @@ export default class FieldList extends Component {
 
     if (this.props.items) {
       childNodes = this.props.items.map((data, index) => {
-        return React.cloneElement(React.Children.only(children), {
+        return cloneElement(Children.only(children), {
           key: index,
           item: data,
           onRemove: this.canRemove()
@@ -170,7 +164,7 @@ export default class FieldList extends Component {
     }
 
     if (listContainer) {
-      childNodes = React.cloneElement(listContainer, {}, childNodes);
+      childNodes = cloneElement(listContainer, {}, childNodes);
     }
 
     return (
@@ -189,20 +183,6 @@ export default class FieldList extends Component {
 }
 
 const styles = {
-  addButton: {
-    paddingTop: 10,
-    marginBottom: 10,
-    display: "flex",
-    cursor: "pointer",
-    fontWeight: 400,
-    fontSize: "13px",
-    lineHeight: "22px",
-    color: "#333",
-  },
-  addIcon: {
-    width: 24,
-    height: 24,
-  },
   empty: {
     color: "#ccc",
     fontSize: 14,

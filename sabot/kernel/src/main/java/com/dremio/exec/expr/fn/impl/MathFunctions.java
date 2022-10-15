@@ -19,7 +19,10 @@ import java.text.DecimalFormat;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
+import org.apache.arrow.vector.holders.DecimalHolder;
+import org.apache.arrow.vector.holders.Float4Holder;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -36,6 +39,7 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.OutputDerivation;
 
 public class MathFunctions{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MathFunctions.class);
@@ -53,6 +57,81 @@ public class MathFunctions{
     public void eval(){
       out.value = -input.value;
       return;
+    }
+
+  }
+
+  @FunctionTemplate(names = {"negative", "u-", "-"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class NegativeFloat8 implements SimpleFunction{
+
+    @Param Float8Holder input;
+    @Output Float8Holder out;
+
+    public void setup(){}
+
+    public void eval(){
+      out.value = -input.value;
+      return;
+    }
+
+  }
+
+  @FunctionTemplate(names = {"negative", "u-", "-"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class NegativeFloat4 implements SimpleFunction{
+
+    @Param Float4Holder input;
+    @Output Float4Holder out;
+
+    public void setup(){}
+
+    public void eval(){
+      out.value = -input.value;
+      return;
+    }
+
+  }
+
+  @FunctionTemplate(names = {"negative", "u-", "-"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalNegativeScale.class)
+  public static class NegativeDecimal implements SimpleFunction{
+
+    @Param
+    DecimalHolder in;
+    @Output
+    DecimalHolder out;
+    @Inject
+    FunctionErrorContext errorContext;
+
+    @Inject
+    ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+
+      out.precision = in.precision;
+      out.scale = in.scale;
+
+      java.math.BigDecimal result = input.negate();
+      result = result.setScale(in.scale);
+
+      if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result, in.precision)) {
+        result = new java.math.BigDecimal("0.0");
+      }
+
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+          .build();
+      }
+
+      out.buffer = buffer;
     }
 
   }

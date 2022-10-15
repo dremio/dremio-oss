@@ -241,7 +241,7 @@ public class TestRuntimeFilterEvaluator {
       String partitionCol2 = "longcol";
 
       Integer partitionValue1 = 1234;
-      Long partitionValue2 = 5678l;
+      Long partitionValue2 = 5678L;
 
       NameValuePair<?> pair1 = new ConstantColumnPopulators.IntNameValuePair(partitionCol1, partitionValue1);
       NameValuePair<?> pair2 = new ConstantColumnPopulators.BigIntNameValuePair(partitionCol2, partitionValue2);

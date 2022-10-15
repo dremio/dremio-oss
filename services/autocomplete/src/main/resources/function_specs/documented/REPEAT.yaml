@@ -1,0 +1,42 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "REPEAT"
+signatures:
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "expression"
+    description: "The input string from which the output string is built."
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "nTimes"
+    description: "The number of TIMEs the input expression should be repeated."
+  description: "Returns the constructed string."
+  sampleCodes:
+   -
+    call: "SELECT REPEAT('abc', 3)"
+    result: "abcabcabc"
+dremioVersion: "1.0+"
+functionCategories:
+ - "CHARACTER"
+ - "BINARY"
+description: "Builds a string by repeating the input for the specified number of times"

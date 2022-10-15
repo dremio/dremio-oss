@@ -154,6 +154,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "orc_part_test")
         .baselineValues("hive.default", "complex_types_map_support_parquet")
         .baselineValues("hive.default", "empty_float_field")
+        .baselineValues("hive.default", "parquet_with_map_column")
       .go();
 
     testBuilder()

@@ -19,7 +19,7 @@ const fs = require("fs");
 const path = require("path");
 const webpack = require("webpack");
 const webpackDevMiddleware = require("webpack-dev-middleware");
-const proxy = require("http-proxy-middleware");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 
 // -- Probably a better treatment without new
 const express = require("express");
@@ -47,6 +47,7 @@ const readServerSettings = () => {
 };
 
 const settings = readServerSettings();
+console.log(`API requests => ` + "\x1b[36m" + settings.apiOrigin + "\x1b[0m");
 
 const getApiOrigin = (pattern) => {
   return settings[pattern.origin || "apiOrigin"] + (pattern.subDomain || "");
@@ -69,13 +70,26 @@ settings.proxyPatterns.forEach((p) => {
   const target = p.target || getApiOrigin(p);
   app.use(
     p.patterns,
-    proxy({
+    createProxyMiddleware({
       ...p,
       target,
       changeOrigin: true,
-      logLevel: "debug",
-      onProxyRes(proxyRes) {
+      logLevel: "warn",
+      onProxyRes(proxyRes, _req, res) {
+        if (res.writableEnded) {
+          return;
+        }
         proxyRes.headers["x-proxied-from"] = target; // useful for HAR reports
+      },
+      onError(err, req, res) {
+        console.error(req.path);
+        console.error(err);
+
+        if (res.writableEnded) {
+          return;
+        }
+
+        res.end(`Error occurred while trying to proxy`);
       },
     })
   );
@@ -87,8 +101,6 @@ app.use(function (req, res, next) {
   devMiddleware(req, res, next);
 });
 
-console.log("Building…");
-
 app.listen(port, function (error) {
   if (error) {
     console.error(error);
@@ -96,9 +108,14 @@ app.listen(port, function (error) {
 });
 
 devMiddleware.waitUntilValid(function () {
-  console.info(
-    "==> 🌎  Listening on port %s. Open up http://localhost:%s/ in your browser.",
-    port,
-    port
+  console.log(
+    "\n" +
+      "\x1b[36m" +
+      `Listening on port ${port}` +
+      "\x1b[0m" +
+      (process.env.ENABLE_MSW
+        ? "\x1b[35m" + "\n[MSW] Mocking enabled" + "\x1b[0m"
+        : "") +
+      `\nOpen http://localhost:${port} in your browser`
   );
 });

@@ -55,6 +55,60 @@ public class TestSlicer extends ExecTest {
     assertTrue(check(TpchTable.CUSTOMER, 0.1, 512_000, 200) < .5);
   }
 
+  /**
+   * Test allocation of many pages per batch of list vectors.
+   * @throws Exception
+   */
+  @Test
+  public void testManyPagesPerBatchForListVectors() throws Exception {
+    assertTrue(check(TpchTable.TEMPERATURE, 0.1, 64_000, 4095) > 5);
+  }
+
+  /**
+   * Test allocation of one page for multiple batches of list vector
+   * @throws Exception
+   */
+  @Test
+  public void testManyBatchesPerPageForListVectors() throws Exception {
+    assertTrue(check(TpchTable.TEMPERATURE, 0.1, 512_000, 200) < .5);
+  }
+
+  /**
+   * Test allocation of many pages per batch of varchar list vectors.
+   * @throws Exception
+   */
+  @Test
+  public void testManyPagesPerBatchForVarcharListVectors() throws Exception {
+    assertTrue(check(TpchTable.WORD_GROUPS, 0.1, 64_000, 4095) > 5);
+  }
+
+  /**
+   * Test allocation of one page for multiple batches of varchar list vector
+   * @throws Exception
+   */
+  @Test
+  public void testManyBatchesPerPageForVarcharListVectors() throws Exception {
+    assertTrue(check(TpchTable.WORD_GROUPS, 0.1, 512_000, 200) < .5);
+  }
+
+  /**
+   * Test allocation of many pages per batch of struct vectors.
+   * @throws Exception
+   */
+  @Test
+  public void testManyPagesPerBatchForStructVectors() throws Exception {
+    assertTrue(check(TpchTable.MIXED_GROUPS, 0.1, 64_000, 4095) > 5);
+  }
+
+  /**
+   * Test allocation of one page for multiple batches of struct vector
+   * @throws Exception
+   */
+  @Test
+  public void testManyBatchesPerPageForStructVectors() throws Exception {
+    assertTrue(check(TpchTable.MIXED_GROUPS, 0.1, 512_000, 200) < .5);
+  }
+
   private double check(TpchTable table, double scale, int pageSize, int batchSize, String... columns) throws Exception {
     Table expected = TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
     return check(expected, pageSize, batchSize,
@@ -64,7 +118,7 @@ public class TestSlicer extends ExecTest {
   private double check(Table expected, int pageSize, int batchSize, Generator generator) throws Exception {
     try (final PagePool pages = new PagePool(getAllocator(), pageSize, 0);
          final ArrowBuf sv2Buf = getFilledSV2(getAllocator(), batchSize)) {
-      PageBatchSlicer slicer = new PageBatchSlicer(pages, sv2Buf.memoryAddress(),
+      PageBatchSlicer slicer = new PageBatchSlicer(pages, sv2Buf,
         generator.getOutput(), ImmutableBitSet.range(0, generator.getOutput().getSchema().getFieldCount()));
       List<RecordBatchData> actual = new ArrayList<>();
       int inputBatches = 0;
@@ -81,8 +135,8 @@ public class TestSlicer extends ExecTest {
         actual.addAll(data);
       }
       expected.checkValid(actual);
-      AutoCloseables.close(actual);
       int poolSize = pages.getPageCount();
+      AutoCloseables.close(actual);
       if (PageBatchSlicer.TRACE) {
         System.out.println("Pages: " + poolSize + ", Input Batches: " + inputBatches);
       }

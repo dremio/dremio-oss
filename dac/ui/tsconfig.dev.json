@@ -1,4 +1,0 @@
-{
-  "extends": "./tsconfig.base.json"
-  // no extra settings for oss version for now
-}

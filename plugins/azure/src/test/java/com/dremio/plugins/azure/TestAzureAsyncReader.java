@@ -226,7 +226,15 @@ public class TestAzureAsyncReader {
   }
 
   AzureAsyncReader getReader(String version, boolean isSecure, AsyncHttpClient client) {
-    AsyncReadWithRetry asyncReadWithRetry = spy(new AsyncReadWithRetry());
+    AsyncReadWithRetry asyncReadWithRetry = spy(new AsyncReadWithRetry(throwable -> {
+      if (throwable.getMessage().contains("ConditionNotMet")) {
+        return AsyncReadWithRetry.Error.PRECONDITION_NOT_MET;
+      } else if (throwable.getMessage().contains("PathNotFound")) {
+        return AsyncReadWithRetry.Error.PATH_NOT_FOUND;
+      } else {
+        return AsyncReadWithRetry.Error.UNKNOWN;
+      }
+    }));
     return spy(new AzureAsyncReader(AZURE_ENDPOINT,
       "account", new Path("container/directory/file_00.parquet"),
       getMockAuthTokenProvider(), version, isSecure, client, asyncReadWithRetry

@@ -16,16 +16,21 @@
 
 package com.dremio.sabot.op.common.ht2;
 
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.util.CloseableIterator;
 import com.google.common.base.Preconditions;
 import com.koloboke.collect.hash.HashConfig;
 
 public interface HashTable {
+  Logger logger = LoggerFactory.getLogger(HashTable.class);
+
   String NATIVE_HASHTABLE_CLASS = "dremio.joust.NativeHashTable.class";
   String LBLOCK_HASHTABLE_CLASS = "dremio.ht2.LBlockHashTable.class";
 
@@ -38,23 +43,24 @@ public interface HashTable {
     }
   }
 
-  void computeHash(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashOutAddr8B);
+  void computeHash(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashOut8B);
 
-  int add(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long ordinalOutAddr);
+  int add(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals);
 
-  void find(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long ordinalOutAddr);
+  void find(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals);
 
-  int addSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr4B, long ordinalOutAddr);
+  int addSv2(ArrowBuf sv2, int pivotShift, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash4B, ArrowBuf outOrdinals);
 
-  void findSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr4B, long ordinalOutAddr);
+  void findSv2(ArrowBuf sv2, int pivotShift, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash4B, ArrowBuf outOrdinals);
 
-  void copyKeysToBuffer(long keyOffsetAddr, int numRecords, long keyFixedAddr, long keyVarAddr);
+  void copyKeysToBuffer(ArrowBuf ordinals, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar);
 
-  int getCumulativeVarKeyLength(long offsetVectorAddr, int numRecords);
+  int getCumulativeVarKeyLength(ArrowBuf ordinals, int numRecords);
 
-  void getVarKeyLengths(long keyOffsetAddr, int numRecords, long outAddr);
+  void getVarKeyLengths(ArrowBuf ordinals, int numRecords, ArrowBuf outLengths);
 
-  /* Size, for historical reasons, is the current ordinal (i.e total number of records + gaps) */
+  int getMaxOrdinal();
+
   int size();
 
   int capacity();
@@ -81,7 +87,7 @@ public interface HashTable {
       }
   }
 
-  CloseableIterator<HashTableKeyAddress> keyIterator();
+  Iterator<HashTableKeyAddress> keyIterator();
 
   /* Used in API testing */
   long[] getDataPageAddresses();
@@ -115,6 +121,7 @@ public interface HashTable {
     private final boolean enforceVarWidthBufferLimit;
     private final int maxHashTableBatchSize;
     private final NullComparator nullComparator;
+    private final boolean runtimeFilterEnabled;
 
     public HashTableCreateArgs(HashConfig hashConfig,
                                PivotDef pivot,
@@ -123,7 +130,8 @@ public interface HashTable {
                                int defaultVarLengthSize,
                                boolean enforceVarWidthBufferLimit,
                                int maxHashTableBatchSize,
-                               NullComparator nullComparator) {
+                               NullComparator nullComparator,
+                               boolean runtimeFilterEnabled) {
       this.hashConfig = hashConfig;
       this.pivot = pivot;
       this.allocator = allocator;
@@ -132,6 +140,7 @@ public interface HashTable {
       this.enforceVarWidthBufferLimit = enforceVarWidthBufferLimit;
       this.maxHashTableBatchSize = maxHashTableBatchSize;
       this.nullComparator = nullComparator;
+      this.runtimeFilterEnabled = runtimeFilterEnabled;
     }
 
     public HashConfig getHashConfig() {
@@ -164,6 +173,10 @@ public interface HashTable {
 
     public NullComparator getNullComparator() {
       return nullComparator;
+    }
+
+    public boolean isRuntimeFilterEnabled() {
+      return runtimeFilterEnabled;
     }
   }
 }

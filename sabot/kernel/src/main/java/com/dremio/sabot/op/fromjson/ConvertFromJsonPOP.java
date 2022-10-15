@@ -38,8 +38,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("convert-from-json")
 public class ConvertFromJsonPOP extends AbstractSingle {
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConvertFromJsonPOP.class);
-
   private List<ConversionColumn> columns;
 
   @JsonCreator

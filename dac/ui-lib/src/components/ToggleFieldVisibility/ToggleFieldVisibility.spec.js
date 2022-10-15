@@ -16,7 +16,7 @@
 import React from "react";
 
 import { shallow } from "enzyme";
-import SvgIcon from "@material-ui/core/SvgIcon";
+import SvgIcon from "@mui/material/SvgIcon";
 
 import ToggleFieldVisibility from "./ToggleFieldVisibility";
 

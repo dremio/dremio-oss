@@ -124,6 +124,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider;
   private final Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider;
   private final Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider;
+  private final Provider<SourceVerifier> sourceVerifierProvider;
 
   private SabotContext context;
 
@@ -170,7 +171,8 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<GlobalKeysService> globalCredentailsServiceProvider,
     Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
     Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
-    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
+    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
+    Provider<SourceVerifier> sourceVerifierProvider
     ) {
     this(bootstrapContext, coord, resourceInformationProvider, workStats,
       kvStoreProvider, fabric, conduitServer, userServer,
@@ -182,7 +184,8 @@ public class ContextService implements Service, Provider<SabotContext> {
       nessieClientProvider,
       statisticsService, statisticsAdministrationServiceFactory, statisticsListManagerProvider, userDefinedFunctionListManagerProvider,
       relMetadataQuerySupplier, jobsRunnerProvider, datasetCatalogStub,
-      globalCredentailsServiceProvider, credentialsServiceProvider, conduitInProcessChannelProviderProvider, sysFlightChannelProviderProvider);
+      globalCredentailsServiceProvider, credentialsServiceProvider, conduitInProcessChannelProviderProvider,
+      sysFlightChannelProviderProvider, sourceVerifierProvider);
   }
 
   public ContextService(
@@ -228,7 +231,8 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<GlobalKeysService> globalCredentailsServiceProvider,
     Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
     Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
-    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
+    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
+    Provider<SourceVerifier> sourceVerifierProvider
   ) {
     this.bootstrapContext = bootstrapContext;
     this.workStats = workStats;
@@ -273,6 +277,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
     this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
+    this.sourceVerifierProvider = sourceVerifierProvider;
   }
 
   @Override
@@ -287,7 +292,10 @@ public class ContextService implements Service, Provider<SabotContext> {
     }
 
     final FabricService fabric = this.fabric.get();
-    final int conduitPort = conduitServer.get().getPort();
+    int conduitPort = -1 ;
+    if (conduitServer.get() != null) {
+      conduitPort = conduitServer.get().getPort();
+    }
     int userport = -1;
     try {
       userport = userServer.get().getPort();
@@ -375,7 +383,8 @@ public class ContextService implements Service, Provider<SabotContext> {
       globalCredentailsServiceProvider,
       credentialsServiceProvider,
       conduitInProcessChannelProviderProvider,
-      sysFlightChannelProviderProvider
+      sysFlightChannelProviderProvider,
+      sourceVerifierProvider
     );
   }
 

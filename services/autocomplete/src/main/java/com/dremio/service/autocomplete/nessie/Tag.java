@@ -15,7 +15,7 @@
  */
 package com.dremio.service.autocomplete.nessie;
 
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  * A ref under refs/tags/ namespace that points to an object of an arbitrary type (typically a tag points to either a tag or a commit object).

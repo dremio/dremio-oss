@@ -377,7 +377,7 @@ public class CoordExecService implements Service {
     }
 
     @Override
-    public void dataArrived(JobResultsRequestWrapper request, ResponseSender sender) throws RpcException {
+    public boolean dataArrived(JobResultsRequestWrapper request, ResponseSender sender) throws RpcException {
       throw new RpcException("This daemon doesn't support coordination operations.");
     }
   }

@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 import FontIcon from "./Icon/FontIcon";
 
@@ -71,4 +70,4 @@ const styles = {
   },
 };
 
-export default Radium(Spinner);
+export default Spinner;

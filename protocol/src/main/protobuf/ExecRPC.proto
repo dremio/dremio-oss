@@ -41,6 +41,10 @@ message FragmentRecordBatch {
   optional int32 sending_major_fragment_id = 4;
   optional int32 sending_minor_fragment_id = 5;
   optional bytes arrow_record_batch = 6;
+
+  // for perf tracking
+  optional int64 send_epoch_timestamp = 11;
+  optional int64 recv_epoch_timestamp = 12;
 }
 
 message FragmentStreamComplete {
@@ -67,4 +71,5 @@ message OOBMessage {
   optional bool isOptional = 8 [default = true]; //whether this message may be ignored by the receiver
   optional int32 sending_major_fragment_id = 9 [default = -1];
   optional int32 sending_operator_id = 10 [default = -1];
+  optional bool shrink_memory_request = 11; // this is a shrink memory request to the operator
 }

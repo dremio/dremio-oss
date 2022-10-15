@@ -17,8 +17,6 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { FormattedMessage } from "react-intl";
 
-import Art from "components/Art";
-
 import "./settingHeader.less";
 
 class SettingHeader extends PureComponent {
@@ -33,15 +31,9 @@ class SettingHeader extends PureComponent {
     const { title, endChildren, icon, children } = this.props;
 
     return (
-      <div className="settingHeader__root">
+      <div className="settingHeader__root gutter-left--double gutter-right--double">
         <div className="settingHeader__title">
-          {icon && (
-            <Art
-              src={icon}
-              alt=">"
-              className="settingHeader__icon margin-right"
-            />
-          )}
+          {icon && <dremio-icon name={icon} class="settingHeader__icon" />}
           {title && <FormattedMessage id={title} defaultMessage={title} />}
           {children}
         </div>

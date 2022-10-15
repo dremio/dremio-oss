@@ -13,10 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { intl } from "@app/utils/intl";
+
 export const accountSection = {
   title: "Account.Title", //todo loc
-  icon: "Users.svg",
+  icon: "settings/users",
   items: [
     { name: "Account.GeneralInformation", url: "/account/info" }, //todo loc
   ],
 };
+
+export const accountSectionNavItems = [
+  [
+    "General Information",
+    intl.formatMessage({ id: "Account.GeneralInformation" }),
+  ],
+];

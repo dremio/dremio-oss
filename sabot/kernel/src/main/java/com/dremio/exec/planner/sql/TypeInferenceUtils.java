@@ -113,9 +113,9 @@ public class TypeInferenceUtils {
 
       // (3) Calcite types currently not supported by Dremio, nor defined in the Dremio type list:
       //      - SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
-      // .put(SqlTypeName.MAP, TypeProtos.MinorType.STRUCT)
-       .put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
-       .put(SqlTypeName.ROW, TypeProtos.MinorType.STRUCT)
+     .put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
+     .put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
+     .put(SqlTypeName.ROW, TypeProtos.MinorType.STRUCT)
       .build();
 
   private static final ImmutableMap<String, SqlReturnTypeInference> funcNameToInference = ImmutableMap.<String, SqlReturnTypeInference> builder()

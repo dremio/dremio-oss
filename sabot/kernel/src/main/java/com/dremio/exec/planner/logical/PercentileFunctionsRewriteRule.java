@@ -22,9 +22,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -56,6 +56,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -187,7 +188,8 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
     relBuilder.push(origInput);
     final List<AggregateCall> totCntAggCalls = new ArrayList<>();
     int totCntSuffix = 0;
-    for (Integer index : orderByCollationIndices.keySet()) {
+    for (Entry<Integer, String> entry : orderByCollationIndices.entrySet()) {
+      Integer index = entry.getKey();
       String name = TOTAL_COUNT + totCntSuffix++;
       AggregateCall newCall = AggregateCall.create(
         SqlStdOperatorTable.COUNT,
@@ -203,7 +205,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
       totCntAggCalls.add(newCall);
 
       // Update the name of "tot_cnt" agg function for this index. Will be needed by the case expressions at the top
-      orderByCollationIndices.put(index, name);
+      entry.setValue(name);
     }
 
     for (int groupIndex : aggregate.getGroupSet()) {

@@ -51,6 +51,4 @@ public class RecordBatchPage extends RecordBatchData {
       throw new RuntimeException(e);
     }
   }
-
-
 }

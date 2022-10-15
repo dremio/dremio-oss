@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { createRef, PureComponent } from "react";
+import { cloneElement, createRef, PureComponent } from "react";
 import classNames from "classnames";
 import PropTypes from "prop-types";
-import Popover from "@material-ui/core/Popover";
-import Radium from "radium";
+import Popover from "@mui/material/Popover";
+import { Tooltip } from "dremio-ui-lib";
 
 import FontIcon from "../Icon/FontIcon";
 import "./SettingsBtn.less";
@@ -36,11 +36,13 @@ class SettingsBtn extends PureComponent {
     style: PropTypes.object,
     stopPropagation: PropTypes.bool,
     disabled: PropTypes.bool,
+    tooltip: PropTypes.string,
+    "aria-label": PropTypes.string,
   };
 
   static defaultProps = {
     hasDropdown: true,
-    children: <FontIcon type="Settings" />,
+    children: <dremio-icon name="interface/settings" class="settings-icon" />,
     classStr: "main-settings-btn min-btn",
   };
 
@@ -77,6 +79,16 @@ class SettingsBtn extends PureComponent {
     });
   }
 
+  wrapComponent(button) {
+    const { tooltip } = this.props;
+
+    return tooltip ? (
+      <Tooltip title={tooltip}>{button}</Tooltip>
+    ) : (
+      <>{button}</>
+    );
+  }
+
   render() {
     const {
       hasDropdown,
@@ -88,22 +100,26 @@ class SettingsBtn extends PureComponent {
       disabled,
     } = this.props;
     const wrapClasses = classNames(classStr, { active: this.state.open });
+
     return (
       <span className={wrapClasses} ref={this.settingsWrapRef}>
-        <button
-          className="settings-button"
-          data-qa={this.props.dataQa || "settings-button"}
-          onClick={this.handleTouchTap}
-          style={[styles.button, style]}
-        >
-          {children}
-          {hasDropdown && !disabled && !hideArrowIcon && (
-            <FontIcon
-              type="Arrow-Down-Small"
-              theme={{ Icon: { width: 12, backgroundPosition: "-7px 2px" } }}
-            />
-          )}
-        </button>
+        {this.wrapComponent(
+          <button
+            className="settings-button"
+            data-qa={this.props.dataQa || "settings-button"}
+            onClick={this.handleTouchTap}
+            style={{ ...styles.button, ...(style || {}) }}
+            aria-label={this.props["aria-label"]}
+          >
+            {children}
+            {hasDropdown && !disabled && !hideArrowIcon && (
+              <FontIcon
+                type="Arrow-Down-Small"
+                theme={{ Icon: { width: 12, backgroundPosition: "-7px 2px" } }}
+              />
+            )}
+          </button>
+        )}
         {hasDropdown && !disabled && (
           <Popover
             open={this.state.open}
@@ -118,7 +134,7 @@ class SettingsBtn extends PureComponent {
             }}
             onClose={this.handleRequestClose}
           >
-            {React.cloneElement(this.props.menu, {
+            {cloneElement(this.props.menu, {
               closeMenu: this.handleRequestClose,
             })}
           </Popover>
@@ -137,4 +153,4 @@ const styles = {
     display: "flex",
   },
 };
-export default Radium(SettingsBtn);
+export default SettingsBtn;

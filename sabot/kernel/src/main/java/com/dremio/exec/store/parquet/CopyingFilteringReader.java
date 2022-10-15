@@ -169,6 +169,7 @@ public class CopyingFilteringReader implements RecordReader {
 
       // filter excluded all rows, we need to call the delegate reader again
       readerOutput.allocateNew();
+      delegate.allocate(fieldVectorMap);
     }
 
     copyOutput.allocateNew();

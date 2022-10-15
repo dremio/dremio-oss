@@ -16,6 +16,7 @@
 package com.dremio.exec.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
@@ -34,7 +35,7 @@ public class TestBitSetHelper {
       // Ensure elements in setBits are in sorted order
       int prevBitPosition = -1;
       for (int bitPosition : setBits) {
-        assert bitPosition > prevBitPosition: "Bits positions are not in sorted order";
+        assertTrue("Bits positions are not in sorted order", bitPosition > prevBitPosition);
         byteValConstructedFromSetBits += Math.pow(2, bitPosition);
         prevBitPosition = bitPosition;
       }
@@ -54,7 +55,7 @@ public class TestBitSetHelper {
       // Ensure elements in setBits are in sorted order
       int prevBitPosition = -1;
       for (int bitPosition : unSetBits) {
-        assert bitPosition > prevBitPosition: "Bits positions are not in sorted order";
+        assertTrue("Bits positions are not in sorted order", bitPosition > prevBitPosition);
         byteValConstructedFromUnSetBits -= Math.pow(2, bitPosition);
         prevBitPosition = bitPosition;
       }

@@ -327,7 +327,7 @@ public class ElasticConnectionPool implements AutoCloseable {
       target = clients.get(host);
       if(target == null){
         throw UserException.connectionError()
-          .message("Unable to find defined host [%s] in cluster. Available hosts: \n", host, getAvailableHosts())
+          .message("Unable to find defined host [%s] in cluster. Available hosts:\n%s", host, getAvailableHosts())
           .build(logger);
       }
     }

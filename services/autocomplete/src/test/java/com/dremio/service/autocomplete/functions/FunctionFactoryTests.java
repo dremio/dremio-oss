@@ -15,47 +15,65 @@
  */
 package com.dremio.service.autocomplete.functions;
 
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 
+import com.dremio.service.autocomplete.OperatorTableFactory;
 import com.dremio.test.GoldenFileTestBuilder;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Tests for FunctionFactory that creates a Function from a SqlFunction and serializes the result for golden file testing.
  */
 public final class FunctionFactoryTests {
-  private static final FunctionDictionary functionDictionary = FunctionDictionaryFactory.createWithProductionFunctions(ParameterResolverTests.FUNCTIONS);
+  private static final SqlOperatorTable OPERATOR_TABLE = OperatorTableFactory.createWithProductionFunctions(ParameterResolverTests.FUNCTIONS);
 
   @Test
   public void tests() {
-    GoldenFileTestBuilder<String, Function> builder = new GoldenFileTestBuilder<>(FunctionFactoryTests::executeTest);
-    Set<String> functionNames = new TreeSet<>();
-    for (SqlOperator sqlFunction : ParameterResolverTests.FUNCTIONS) {
-      functionNames.add(sqlFunction.getName());
-    }
+    List<String> names = ParameterResolverTests.FUNCTIONS
+      .stream()
+      .map(sqlOperator -> sqlOperator.getName().toUpperCase())
+      .distinct()
+      .sorted()
+      .collect(Collectors.toList());
 
-    for (String functionName : functionNames) {
-      builder.add(functionName, functionName);
-    }
-
-    builder.runTests();
+    new GoldenFileTestBuilder<>(FunctionFactoryTests::executeTest)
+      .addListByRule(names, (name) -> Pair.of(name,name))
+      .runTests();
   }
 
   @Test
   public void production() {
-    GoldenFileTestBuilder<String, Function> builder = new GoldenFileTestBuilder<>(FunctionFactoryTests::executeTest);
-    for (String name : functionDictionary.getKeys().stream().sorted().collect(Collectors.toList())) {
-      builder.add(name, name);
-    }
+    List<String> names = OperatorTableFactory.createWithProductionFunctions(ImmutableList.of())
+      .getOperatorList()
+      .stream()
+      .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
+      .map(sqlOperator -> sqlOperator.getName().toUpperCase())
+      .distinct()
+      .sorted()
+      .collect(Collectors.toList());
 
-    builder.runTests();
+    new GoldenFileTestBuilder<>(FunctionFactoryTests::executeTest)
+      .addListByRule(names, (name) -> Pair.of(name,name))
+      .runTests();
   }
 
   private static Function executeTest(String functionName) {
-    return functionDictionary.tryGetValue(functionName).get();
+    return FunctionDictionary
+      .create(OPERATOR_TABLE
+        .getOperatorList()
+        .stream()
+        .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
+        .map(sqlOperator -> (SqlFunction) sqlOperator)
+        .filter(sqlFunction -> sqlFunction.getName().equalsIgnoreCase(functionName))
+        .map(sqlFunction -> FunctionFactory.create(sqlFunction))
+        .collect(Collectors.toList()))
+      .tryGetValue(functionName)
+      .get();
   }
 }

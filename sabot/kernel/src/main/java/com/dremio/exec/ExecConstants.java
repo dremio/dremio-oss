@@ -48,13 +48,17 @@ public interface ExecConstants {
   String ZK_CONNECTION_HANDLE_ENABLED = "dremio.exec.zk.connection_handle.enabled";
   String ZK_RETRY_LIMIT = "dremio.exec.zk.retry.limit";
   String ZK_INITIAL_TIMEOUT_MS = "dremio.exec.zk.retry.initial_timeout_ms";
+  String ZK_SUPERVISOR_INTERVAL_MS = "dremio.exec.zk.supervisor.interval_ms";
+  String ZK_SUPERVISOR_READ_TIMEOUT_MS = "dremio.exec.zk.supervisor.read_timeout_ms";
+  String ZK_SUPERVISOR_MAX_FAILURES = "dremio.exec.zk.supervisor.max_failures";
 
   String BIT_SERVER_RPC_THREADS = "dremio.exec.rpc.bit.server.threads";
   String USER_SERVER_RPC_THREADS = "dremio.exec.rpc.user.server.threads";
   String REGISTRATION_ADDRESS = "dremio.exec.rpc.publishedhost";
 
   /* incoming buffer size (number of batches) */
-  String INCOMING_BUFFER_SIZE = "dremio.exec.buffer.size";
+  RangeLongValidator INCOMING_BUFFER_SIZE = new RangeLongValidator("exec.buffer.size", 0, Integer.MAX_VALUE, 6);
+
   String SPOOLING_BUFFER_DELETE = "dremio.exec.buffer.spooling.delete";
   String SPOOLING_BUFFER_SIZE = "dremio.exec.buffer.spooling.size";
   String BATCH_PURGE_THRESHOLD = "dremio.exec.sort.purge.threshold";
@@ -254,12 +258,6 @@ public interface ExecConstants {
   BooleanValidator JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR = new BooleanValidator(JSON_READ_NUMBERS_AS_DOUBLE, false);
 
   /* Mongo configurations */
-  String MONGO_ALL_TEXT_MODE = "store.mongo.all_text_mode";
-  OptionValidator MONGO_READER_ALL_TEXT_MODE_VALIDATOR = new BooleanValidator(MONGO_ALL_TEXT_MODE, false);
-  String MONGO_READER_READ_NUMBERS_AS_DOUBLE = "store.mongo.read_numbers_as_double";
-  OptionValidator MONGO_READER_READ_NUMBERS_AS_DOUBLE_VALIDATOR = new BooleanValidator(MONGO_READER_READ_NUMBERS_AS_DOUBLE, false);
-  String MONGO_BSON_RECORD_READER = "store.mongo.bson.record.reader";
-  OptionValidator MONGO_BSON_RECORD_READER_VALIDATOR = new BooleanValidator(MONGO_BSON_RECORD_READER, true);
   // option used to enable/disable conversions of complex types or incompatible data types to varchar
   BooleanValidator ENABLE_MONGO_VARCHAR_COERCION = new BooleanValidator("store.mongo.enable_incompatible_to_varchar_coercion", true);
 
@@ -311,6 +309,9 @@ public interface ExecConstants {
   DoubleValidator LOAD_REDUCTION = new RangeDoubleValidator("load.reduction", 0.01, 1, .1);
 
   BooleanValidator ENABLE_REATTEMPTS = new BooleanValidator("exec.reattempt.enable", true);
+
+  // To re-attempt a query on OOM, this one and ENABLE_REATTEMPTS should both be set to true.
+  BooleanValidator ENABLE_REATTEMPTS_ON_OOM = new BooleanValidator("exec.reattempt.on_oom.enable", false);
 
   /**
    * The maximum level or parallelization any stage of the query can do. Note that while this
@@ -490,7 +491,7 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
   BooleanValidator ENABLE_NDV_REDUCE_HEAP = new BooleanValidator("exec.operator.ndv_reduce_heap", true);
-  BooleanValidator ENABLE_VECTORIZED_SPILL_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.ndv", false);
+  BooleanValidator ENABLE_VECTORIZED_SPILL_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.ndv", true);
 
   BooleanValidator ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.varchar", true);
 
@@ -510,6 +511,8 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", true);
   BooleanValidator ENABLE_ICEBERG_ADVANCED_DML = new BooleanValidator("dremio.iceberg.advanced_dml.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE = new BooleanValidator("dremio.iceberg.advanced_dml.joined_table.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR = new BooleanValidator("dremio.iceberg.advanced_dml.merge_star.enabled", true);
   BooleanValidator ENABLE_ICEBERG_DML = new BooleanValidator("dremio.iceberg.dml.enabled", true);
   BooleanValidator ENABLE_ICEBERG_MIN_MAX = new BooleanValidator("dremio.iceberg.min_max.enabled", true);
   BooleanValidator CTAS_CAN_USE_ICEBERG = new BooleanValidator("dremio.iceberg.ctas.enabled", true);
@@ -518,9 +521,13 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG_TIME_TRAVEL = new BooleanValidator("dremio.iceberg.time_travel.enabled", true);
   BooleanValidator ENABLE_ICEBERG_PARTITION_TRANSFORMS = new BooleanValidator("dremio.iceberg.partition_transforms.enabled", true);
   BooleanValidator ENABLE_ICEBERG_METADATA_FUNCTIONS = new BooleanValidator("dremio.iceberg.metadata_functions.enabled", true);
-  BooleanValidator ENABLE_ICEBERG_MERGE_ON_READ_SCAN = new BooleanValidator("dremio.iceberg.merge_on_read_scan.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_MERGE_ON_READ_SCAN = new BooleanValidator("dremio.iceberg.merge_on_read_scan.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE =
+    new BooleanValidator("dremio.iceberg.merge_on_read_scan_with_equality_delete.enabled", false);
   BooleanValidator ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES = new BooleanValidator("dremio.iceberg.dml.use_hash_distribution_for_writes.enabled", true);
   BooleanValidator ENABLE_ICEBERG_DML_WITH_NATIVE_ROW_COLUMN_POLICIES = new BooleanValidator("dremio.iceberg.dml.native_row_column_policies.enabled", false);
+
+  BooleanValidator ENABLE_HIVE_DATABASE_LOCATION = new BooleanValidator("dremio.hive.database.location", false);
 
   BooleanValidator ENABLE_USE_VERSION_SYNTAX = new TypeValidators.BooleanValidator("dremio.sql.use_version.enabled", true);
   BooleanValidator VERSIONED_VIEW_ENABLED = new TypeValidators.BooleanValidator("plugins.dataplane.view", false);
@@ -610,7 +617,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK = new BooleanValidator("store.parquet.async.enable_timestamp_check", true);
 
   // option used to determine S3AsyncClient should get used or S3SyncWithAsync wrapper, false value to support prev implementation
-  BooleanValidator S3_NATIVE_ASYNC_CLIENT = new BooleanValidator("dremio.s3.use_native_async_client", false);
+  BooleanValidator S3_NATIVE_ASYNC_CLIENT = new BooleanValidator("dremio.s3.use_native_async_client", true);
 
   // option used to enable/disable internal schema
   BooleanValidator ENABLE_INTERNAL_SCHEMA = new BooleanValidator("dremio.enable_user_managed_schema", true);
@@ -621,6 +628,8 @@ public interface ExecConstants {
   // option used to fallback on name based mapping during iceberg reads when parquet files do not contain IDs
   BooleanValidator ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ = new BooleanValidator("dremio.iceberg.fallback_to_name_based_reader", false);
 
+  // option used to use batch schema to get the field type while resolving the projected column to parquet column names
+  BooleanValidator ENABLE_ICEBERG_USE_BATCH_SCHEMA_FOR_RESOLVING_COLUMN = new BooleanValidator("dremio.iceberg.use_batch_schema_for_resolving_columns", true);
 
   // option used to enable rle and packed stats using ReaderTimer
   BooleanValidator ENABLE_PARQUET_PERF_MONITORING = new BooleanValidator("dremio.exec.parquet_enable_perf_monitoring", false);
@@ -655,4 +664,16 @@ public interface ExecConstants {
   BooleanValidator TABLE_FUNCTION_WIDTH_USE_ENGINE_SIZE = new BooleanValidator("dremio.exec.table_func_width_use_engine_size", true);
 
   PositiveLongValidator TABLE_FUNCTION_WIDTH_EXPAND_UPTO_ENGINE_SIZE = new PositiveLongValidator("dremio.exec.table_func_width_expand_upto_engine_size ", Long.MAX_VALUE, 16);
+
+  //option used to enable pattern based log obfuscation
+  BooleanValidator ENABLE_PATTERN_BASED_LOG_OBFUSCATION = new BooleanValidator("dremio.logging.enable_pattern_obfuscation", false);
+
+  //option used to append message when a log message is obfuscated. this will be used in non prod environments for debugging purposes
+  BooleanValidator APPEND_MESSAGE_TO_OBFUSCATED_LOG = new BooleanValidator("dremio.logging.append_message", false);
+
+  BooleanValidator ENABLE_GANDIVA_PERSISTENT_CACHE = new BooleanValidator("exec.gandiva.enable_persistent_cache", false);
+
+  DoubleValidator EXPR_COMPLEXITY_NO_CACHE_THRESHOLD = new DoubleValidator("exec.expression.complexity.no_cache.threshold", 100.00);
+
+  BooleanValidator ENABLE_MAP_DATA_TYPE = new BooleanValidator("dremio.data_types.map.enabled", true);
 }

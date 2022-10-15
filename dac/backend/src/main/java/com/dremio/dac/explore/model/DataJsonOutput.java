@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Map;
 
+import org.apache.arrow.vector.complex.impl.UnionMapReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.util.Text;
 import org.joda.time.format.DateTimeFormatter;
@@ -199,6 +200,13 @@ public class DataJsonOutput {
             }
           })
           .put(MinorType.STRUCT, new UnionFieldWriter() {
+            @Override
+            public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
+                throws IOException {
+              output.writeStruct(reader, context);
+            }
+          })
+          .put(MinorType.MAP, new UnionFieldWriter() {
             @Override
             public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
                 throws IOException {
@@ -485,7 +493,7 @@ public class DataJsonOutput {
     UNION_FIELD_WRITERS.get(getMinorTypeFromArrowMinorType(reader.getMinorType())).write(this, reader, context);
   }
 
-  public void writeMap(FieldReader reader, JsonOutputContext context) throws IOException {
+  public void writeStruct(FieldReader reader, JsonOutputContext context) throws IOException {
     try (final NumberAsStringDisabler disabler = new NumberAsStringDisabler()) {
       if (reader.isSet()) {
         writeStartObject();
@@ -522,6 +530,60 @@ public class DataJsonOutput {
       } else {
         writeNull(context);
       }
+    }
+  }
+
+  public void writeMap(FieldReader reader, JsonOutputContext context) throws IOException {
+    try (final NumberAsStringDisabler disabler = new NumberAsStringDisabler() ) {
+      if (reader.isSet()) {
+        writeStartObject();
+        UnionMapReader mapReader = (UnionMapReader) reader;
+        while (reader.next()) {
+          if (!context.okToWrite()) {
+            context.setTruncated();
+            break;
+          }
+          writeFieldName(getFieldNameFromMapKey(mapReader.key()));
+          writeUnion(mapReader.value(), context);
+        }
+        writeEndObject();
+      } else {
+        writeNull(context);
+      }
+    }
+  }
+
+  private String getFieldNameFromMapKey(FieldReader keyReader) {
+    final MinorType mt = getMinorTypeFromArrowMinorType(keyReader.getMinorType());
+    switch (mt) {
+      case FLOAT4:
+        return keyReader.readFloat().toString();
+      case FLOAT8:
+        return keyReader.readDouble().toString();
+      case INT:
+        return keyReader.readInteger().toString();
+      case BIGINT:
+        return keyReader.readLong().toString();
+      case BIT:
+        return keyReader.readBoolean().toString();
+      case DATE:
+        return keyReader.readLocalDateTime().toLocalDate().toString();
+      case TIME:
+        return keyReader.readLocalDateTime().toLocalTime().toString();
+      case TIMESTAMP:
+        return keyReader.readLocalDateTime().toString();
+      case DECIMAL:
+        return keyReader.readBigDecimal().toPlainString();
+      case VARBINARY:
+        return keyReader.readObject().toString();
+      case VARCHAR:
+        return keyReader.readText().toString();
+      case LIST:
+      case STRUCT:
+      case MAP:
+      case NULL:
+      default:
+        throw new UnsupportedOperationException("unsupported type for a map key " + mt.name());
     }
   }
 }

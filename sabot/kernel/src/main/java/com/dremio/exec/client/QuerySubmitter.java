@@ -34,7 +34,7 @@ import com.google.common.base.Stopwatch;
 
 public class QuerySubmitter {
 
-  public static void main(String args[]) throws Exception {
+  public static void main(String[] args) throws Exception {
     QuerySubmitter submitter = new QuerySubmitter();
     Options o = new Options();
     JCommander jc = null;

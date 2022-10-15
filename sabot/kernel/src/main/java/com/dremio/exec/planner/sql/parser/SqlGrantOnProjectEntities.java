@@ -63,6 +63,7 @@ public class SqlGrantOnProjectEntities extends SqlCall implements SimpleDirectHa
     CREATE_EXTERNAL_TOKENS_PROVIDER,
     CREATE_IDENTITY_PROVIDER,
     CONFIGURE_SECURITY,
+    CREATE_ARCTIC_CATALOG,
     ALL
   }
 

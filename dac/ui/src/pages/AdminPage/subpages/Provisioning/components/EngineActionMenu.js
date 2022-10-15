@@ -31,17 +31,23 @@ export class EngineActionMenu extends PureComponent {
     closeMenu: PropTypes.func,
   };
 
-  handleEdit = () => {
+  handleEdit = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     const { closeMenu, editHandler, engine } = this.props;
     closeMenu();
     editHandler(engine);
   };
-  handleAddRemove = () => {
+  handleAddRemove = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     const { closeMenu, addRemoveHandler, engine } = this.props;
     closeMenu();
     addRemoveHandler(engine);
   };
-  handleDelete = () => {
+  handleDelete = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     const { closeMenu, deleteHandler, engine } = this.props;
     closeMenu();
     deleteHandler(engine);

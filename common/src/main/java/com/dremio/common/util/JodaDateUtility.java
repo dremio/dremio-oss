@@ -49,9 +49,10 @@ public class JodaDateUtility {
    * reconstruct the timestamp, we use this index to index through the array timezoneList
    * and get the corresponding timezone and pass it to joda-time
    */
-  public static Map<String, Integer> timezoneMap;
+  private static Map<String, Integer> timezoneMap;
 
-  public static String[] timezoneList = {"Africa/Abidjan",
+  private static final String[] timezoneList = {
+    "Africa/Abidjan",
     "Africa/Accra",
     "Africa/Addis_Ababa",
     "Africa/Algiers",
@@ -639,8 +640,8 @@ public class JodaDateUtility {
   public static final DateTimeFormatter formatTimeStampTZ = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS ZZZ");
   public static final DateTimeFormatter formatTime = DateTimeFormat.forPattern("HH:mm:ss.SSS");
 
-  public static DateTimeFormatter dateTimeTZFormat = null;
-  public static DateTimeFormatter timeFormat = null;
+  private static DateTimeFormatter dateTimeTZFormat = null;
+  private static DateTimeFormatter timeFormat = null;
 
   public static final int yearsToMonths = 12;
   public static final int hoursToMillis = 60 * 60 * 1000;
@@ -751,8 +752,7 @@ public class JodaDateUtility {
       Method m = readerClass.getMethod("readDuration");
       retObject = m.invoke(reader);
       return javaDurationToJodaPeriodInDays((java.time.Duration)retObject);
-    }
-    catch (NoSuchMethodException nsme) {
+    } catch (NoSuchMethodException nsme) {
       // readDuration method does not exist
     } catch (IllegalAccessException e) {
       return null;
@@ -764,8 +764,7 @@ public class JodaDateUtility {
       Method m = readerClass.getMethod("readPeriod");
       retObject = m.invoke(reader);
       return (org.joda.time.Period)retObject;
-    }
-    catch (NoSuchMethodException nsme) {
+    } catch (NoSuchMethodException nsme) {
       // readPeriod method does not exist
     } catch (IllegalAccessException e) {
       return null;

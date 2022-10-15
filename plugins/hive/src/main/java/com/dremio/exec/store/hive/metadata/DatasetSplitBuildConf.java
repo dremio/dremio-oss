@@ -23,7 +23,7 @@ import org.apache.hadoop.mapred.JobConf;
 /**
  * Helper class to hold elements needed to construct Dremio DatasetSplit objects.
  */
-public class DatasetSplitBuildConf {
+public final class DatasetSplitBuildConf {
 
   private final JobConf job;
   private final HiveDatasetStats metastoreStats;

@@ -58,7 +58,7 @@ public class TestDeltaLakeSchemaConverter {
          *  |-- dateField: date (nullable = true)
          *  |-- decimalField: decimal(38, 10) (nullable = true)
          */
-        final BatchSchema batchSchema = DeltaLakeSchemaConverter.fromSchemaString(schemaString);
+        final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(false).fromSchemaString(schemaString);
 
         assertEquals(12, batchSchema.getFieldCount()); // Expected 12 when all types are supported
         ArrowType byteType = batchSchema.findField("byteField").getType();
@@ -149,7 +149,7 @@ public class TestDeltaLakeSchemaConverter {
          *  |    |    |-- childL2Long: long (nullable = true)
          *  |    |    |-- childL2Bin: binary (nullable = true)
          */
-        final BatchSchema batchSchema = DeltaLakeSchemaConverter.fromSchemaString(schemaString);
+        final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(true).fromSchemaString(schemaString);
 
         assertEquals(5, batchSchema.getFieldCount());
         Field simpleList = batchSchema.findField("simpleList");
@@ -209,9 +209,10 @@ public class TestDeltaLakeSchemaConverter {
         assertEquals(ArrowType.ArrowTypeID.Binary, nestedListStructChildChild2.getType().getTypeID());
     }
 
-    @Test
-    public void testUnsupportedTypes() throws IOException {
-        // Maps are unsupported, using following variations - simpleMap, mapInList, mapInStruct, mapInStructMixed
+
+  @Test
+    public void testMapTypeSupport() throws IOException {
+        // simpleMap, mapInList, mapInStruct, mapInStructMixed
         /**
          * Spark commands, used for generating this delta table
          * val mapSchema = new StructType().add("simpleMap", MapType(StringType, StringType)).add("mapInList", ArrayType(MapType(StringType, StringType))).add("mapInStruct", new StructType().add("m1", MapType(StringType, StringType)).add("m2", MapType(StringType, StringType))).add("mapInStructMixed", new StructType().add("m1", MapType(StringType, StringType)).add("intField", IntegerType))
@@ -241,15 +242,68 @@ public class TestDeltaLakeSchemaConverter {
          *  |    |    |-- value: string (valueContainsNull = true)
          *  |    |-- intField: integer (nullable = true)
          */
-        final BatchSchema batchSchema = DeltaLakeSchemaConverter.fromSchemaString(schemaString);
-        assertEquals(1, batchSchema.getFieldCount());
+        final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(true).fromSchemaString(schemaString);
+        assertEquals(4, batchSchema.getFieldCount());
 
         Field mapInStructMixed = batchSchema.findField("mapInStructMixed");
         assertEquals(ArrowType.ArrowTypeID.Struct, mapInStructMixed.getType().getTypeID());
-        assertEquals(1, mapInStructMixed.getChildren().size());
+        assertEquals(2, mapInStructMixed.getChildren().size());
 
-        Field intField = mapInStructMixed.getChildren().get(0);
-        assertEquals(ArrowType.ArrowTypeID.Int, intField.getType().getTypeID());
-        assertEquals("intField", intField.getName());
+        Field m1 = mapInStructMixed.getChildren().get(0);
+        assertEquals(ArrowType.ArrowTypeID.Map, m1.getType().getTypeID());
+        assertEquals("m1", m1.getName());
+
+        Field mapInStruct = batchSchema.findField("mapInStruct");
+        assertEquals(2, mapInStruct.getChildren().size());
+        assertEquals(ArrowType.ArrowTypeID.Map, mapInStruct.getChildren().get(0).getType().getTypeID());
+    }
+
+    @Test
+    public void testMapWithComplexValues() throws IOException {
+        // map with key as primitive type and value as Primitive, Struct, Array
+        /**
+         * Spark commands, used for generation are as follows -
+         * val complexSchema = new StructType().add("primitiveValue", MapType(StringType, IntegerType)).add("structValue", MapType(StringType, new StructType().add("child1String", StringType).add("child2Int", IntegerType))).add("arrayValue", MapType(StringType, ArrayType(StringType)))
+         * val df = spark.createDataFrame(sc.emptyRDD[Row], complexSchema)
+         * df.write.format("delta").mode("overwrite").save("/tmp/delta-tests1");
+         */
+      final String schemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"stringValue\",\"type\":{\"type\":\"map\",\"keyType\":\"string\",\"valueType\":\"integer\",\"valueContainsNull\":true},\"nullable\":true,\"metadata\":{}},{\"name\":\"structValue\",\"type\":{\"type\":\"map\",\"keyType\":\"string\",\"valueType\":{\"type\":\"struct\",\"fields\":[{\"name\":\"x\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"y\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}}]},\"valueContainsNull\":true},\"nullable\":true,\"metadata\":{}},{\"name\":\"arrayValue\",\"type\":{\"type\":\"map\",\"keyType\":\"string\",\"valueType\":{\"type\":\"array\",\"elementType\":\"string\",\"containsNull\":true},\"valueContainsNull\":true},\"nullable\":true,\"metadata\":{}},{\"name\":\"intKey\",\"type\":{\"type\":\"map\",\"keyType\":\"integer\",\"valueType\":\"string\",\"valueContainsNull\":true},\"nullable\":true,\"metadata\":{}},{\"name\":\"bothString\",\"type\":{\"type\":\"map\",\"keyType\":\"string\",\"valueType\":\"string\",\"valueContainsNull\":true},\"nullable\":true,\"metadata\":{}}]}";
+        /**
+         * root
+         * |-- stringValue: map (nullable = true)
+         * |    |-- key: string
+         * |    |-- value: integer (valueContainsNull = true)
+         * |-- structValue: map (nullable = true)
+         * |    |-- key: string
+         * |    |-- value: struct (valueContainsNull = true)
+         * |    |    |-- x: integer (nullable = true)
+         * |    |    |-- y: integer (nullable = true)
+         * |-- arrayValue: map (nullable = true)
+         * |    |-- key: string
+         * |    |-- value: array (valueContainsNull = true)
+         * |    |    |-- element: string (containsNull = true)
+         * |-- keyValue: map (nullable = true)
+         * |    |-- key: integer
+         * |    |-- value: string (nullable = true)
+         * |-- bothString: map (nullable = true)
+         * |    |-- key: string
+         * |    |-- value: string (nullable = true)
+         */
+        final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(true).fromSchemaString(schemaString);
+        assertEquals(2, batchSchema.getFieldCount());
+
+        Field stringValue = batchSchema.findField("stringValue");
+        assertEquals(ArrowType.ArrowTypeID.Map, stringValue.getType().getTypeID());
+        assertEquals(ArrowType.ArrowTypeID.Int, stringValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
+        Field bothString = batchSchema.findField("bothString");
+        assertEquals(ArrowType.ArrowTypeID.Map, bothString.getType().getTypeID());
+        assertEquals(ArrowType.ArrowTypeID.Utf8, bothString.getChildren().get(0).getChildren().get(1).getType().getTypeID());
+
+
+//        Field structValue = batchSchema.findField("structValue");
+//        assertEquals(ArrowType.ArrowTypeID.Struct, structValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
+
+//        Field arrayValue = batchSchema.findField("arrayValue");
+//        assertEquals(ArrowType.ArrowTypeID.List, arrayValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
     }
 }

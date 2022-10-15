@@ -16,6 +16,7 @@
 package com.dremio.exec.expr.fn;
 
 import com.dremio.common.exceptions.UserException;
+import com.google.errorprone.annotations.FormatMethod;
 
 /**
  * Implementation of the FunctionErrorContext interface
@@ -68,6 +69,12 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
       b = UserException.functionError(cause);
     }
 
+    public ExceptionBuilder message(final String message) {
+      b.message(message);
+      return this;
+    }
+
+    @FormatMethod
     public ExceptionBuilder message(final String format, final Object... args) {
       b.message(format, args);
       return this;
@@ -78,6 +85,7 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
       return this;
     }
 
+    @FormatMethod
     public ExceptionBuilder addContext(final String value, Object... args) {
       b.addContext(value, args);
       return this;

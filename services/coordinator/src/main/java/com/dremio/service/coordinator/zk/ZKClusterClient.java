@@ -20,8 +20,12 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,30 +33,39 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Provider;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.LeaderLatch.CloseMode;
 import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.curator.framework.recipes.leader.Participant;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.curator.utils.ZookeeperFactory;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.configfeature.ConfigFeatureProvider;
+import com.dremio.configfeature.Features;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
+import com.dremio.telemetry.api.metrics.Counter;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -65,6 +78,9 @@ class ZKClusterClient implements com.dremio.service.Service {
   private static final Pattern ZK_COMPLEX_STRING = Pattern.compile("(^[^/]*?)/(?:(.*)/)?([^/]*)$");
   public static final String ZK_LOST_HANDLER_MODULE_CLASS = "dremio.coordinator_lost_handle.module.class";
 
+  private static final Counter ZK_SUPERVISOR_FAILED_COUNTER = Metrics.newCounter(Metrics.join("ZKClusterClient", "supervisorProbeFailed"), Metrics.ResetType.NEVER);
+  private static final Counter ZK_SUPERVISOR_EXIT_APP_COUNTER = Metrics.newCounter(Metrics.join("ZKClusterClient", "supervisorExitApplication"), Metrics.ResetType.NEVER);
+
   private final String clusterId;
   private final CountDownLatch initialConnection = new CountDownLatch(1);
   private final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(new NamedThreadFactory("zk-curator-")));
@@ -76,7 +92,15 @@ class ZKClusterClient implements com.dremio.service.Service {
   private Provider<Integer> localPortProvider;
   private volatile boolean closed = false;
   private final CoordinatorLostHandle connectionLostHandler;
+  private Boolean isConnected;
+  private final String executorZkSupervisor = "coordinator-zk-supervisor-";
+  private final ScheduledExecutorService scheduleExecutorService = Executors.newScheduledThreadPool(1, new NamedThreadFactory(executorZkSupervisor));
+  private final ExecutorService executorServiceSupervisor = Executors.newSingleThreadExecutor();
 
+  private int currentNumberOfSupervisorProbeFailures = 0;
+  private final String clusterIdPath;
+
+  private final ConfigFeatureProvider configFeatureProvider;
 
   public ZKClusterClient(ZKClusterConfig config, String connect) throws IOException {
     this(config, connect, null);
@@ -87,6 +111,7 @@ class ZKClusterClient implements com.dremio.service.Service {
   }
 
   private ZKClusterClient(ZKClusterConfig config, String connect, Provider<Integer> localPort) throws IOException {
+    this.configFeatureProvider = config.getConfigFeatureProvider();
     this.localPortProvider = localPort;
     this.connect = connect;
     this.config = config;
@@ -99,6 +124,20 @@ class ZKClusterClient implements com.dremio.service.Service {
     }
     this.clusterId = clusterId;
     this.connectionLostHandler = config.isConnectionHandleEnabled() ? config.getConnectionLostHandler() : CoordinatorLostHandle.NO_OP;
+    this.clusterIdPath = "/" + this.clusterId;
+  }
+
+  private synchronized void initializeConnection() {
+    if (isConnected == null) {
+      if (curator != null) {
+        logger.info("Starting ZkSupervisor for ZKClusterClient");
+        isConnected = curator.getState() == CuratorFrameworkState.STARTED;
+        curator.getConnectionStateListenable().addListener((x, newState) -> {
+          isConnected = newState.isConnected();
+          logger.info("ZKClusterClient: new state received[{}] - isConnected: {}", newState, isConnected);
+        });
+      }
+    }
   }
 
   @Override
@@ -112,7 +151,6 @@ class ZKClusterClient implements com.dremio.service.Service {
     }
 
     String zkRoot = config.getRoot();
-
 
     // check if this is a complex zk string.  If so, parse into components.
     if(connectionString != null){
@@ -137,22 +175,110 @@ class ZKClusterClient implements com.dremio.service.Service {
       .maxCloseWaitMs(config.getRetryMaxDelayMilliSecs())
       .retryPolicy(rp)
       .connectString(connectionString)
+      .zookeeperFactory(new ZKClientFactory())
       .build();
     curator.getConnectionStateListenable().addListener(new InitialConnectionListener());
     curator.getConnectionStateListenable().addListener(new ConnectionListener());
     curator.start();
     discovery = newDiscovery(clusterId);
 
-    logger.info("Starting ZKClusterClient, ZK_TIMEOUT: {}, ZK_SESSION_TIMEOUT:{}, ZK_RETRY_MAX_DELAY:{}, ZK_RETRY_UNLIMITED:{}, ZK_RETRY_LIMIT:{}, CONNECTION_HANDLE_ENABLED:{}",
+    logger.info("Starting ZKClusterClient, ZK_TIMEOUT:{}, ZK_SESSION_TIMEOUT:{}, ZK_RETRY_MAX_DELAY:{}, " +
+        "ZK_RETRY_UNLIMITED:{}, ZK_RETRY_LIMIT:{}, CONNECTION_HANDLE_ENABLED:{}, SUPERVISOR_INTERVAL:{}, " +
+        "SUPERVISOR_READ_TIMEOUT:{}, SUPERVISOR_MAX_FAILURES:{}",
       config.getConnectionTimeoutMilliSecs(), config.getSessionTimeoutMilliSecs(), config.getRetryMaxDelayMilliSecs(),
-      config.isRetryUnlimited(), config.getRetryLimit(), config.isConnectionHandleEnabled());
+      config.isRetryUnlimited(), config.getRetryLimit(), config.isConnectionHandleEnabled(),
+      config.getZkSupervisorIntervalMilliSec(), config.getZkSupervisorReadTimeoutMilliSec(),
+      config.getZkSupervisorMaxFailures());
+
     discovery.start();
+
+    this.scheduleExecutorService.scheduleAtFixedRate(
+      () -> {
+        try {
+          runSupervisorCheck();
+        } catch (Exception e) {
+          logger.error("Error in : " + e.getMessage(), e);
+        }
+      },
+      config.getZkSupervisorIntervalMilliSec(),
+      config.getZkSupervisorIntervalMilliSec(),
+      TimeUnit.MILLISECONDS
+    );
 
     if (!config.isRetryUnlimited() && !this.initialConnection.await(config.getInitialTimeoutMilliSecs(), TimeUnit.MILLISECONDS)) {
       logger.info("Failed to get initial connection to ZK");
       connectionLostHandler.handleConnectionState(ConnectionState.LOST);
     } else {
       this.initialConnection.await();
+    }
+  }
+
+  private void runSupervisorCheck() {
+    if (configFeatureProvider != null && configFeatureProvider.isFeatureEnabled(Features.COORDINATOR_ZK_SUPERVISOR.getFeatureName())) {
+      initializeConnection();
+
+      boolean isProbeSucceeded = false;
+      if (isConnected == null || !isConnected) {
+        logger.error("ZKClusterClient: Not connected to ZK.");
+      } else {
+        try {
+          RunnableFuture<Boolean> checkGetServiceNames = new FutureTask<>(
+            () -> (getServiceNames() != null)
+          );
+          executorServiceSupervisor.execute(checkGetServiceNames);
+          if (!checkGetServiceNames.get(config.getZkSupervisorReadTimeoutMilliSec(), TimeUnit.MILLISECONDS)) {
+            logger.error("ZKClusterClient: cluster id path {} not found", this.clusterIdPath);
+          } else {
+            isProbeSucceeded = true;
+            currentNumberOfSupervisorProbeFailures = 0;
+            logger.debug("ZKClusterClient: probe ok to cluster id path {}", this.clusterIdPath);
+          }
+        } catch (TimeoutException e) {
+          logger.error("ZKClusterClient: Timeout while trying to check for zk cluster id path {} ", this.clusterIdPath, e);
+        } catch (Exception e) {
+          logger.error("ZKClusterClient: Exception while trying to check for zk cluster id path {} ", this.clusterIdPath, e);
+        }
+      }
+      if (!isProbeSucceeded) {
+        ZK_SUPERVISOR_FAILED_COUNTER.increment();
+        currentNumberOfSupervisorProbeFailures++;
+        if (currentNumberOfSupervisorProbeFailures >= config.getZkSupervisorMaxFailures()) {
+          ZK_SUPERVISOR_EXIT_APP_COUNTER.increment();
+          logger.error("ZKClusterClient: max number of failures has reached [{}/{}]. Calling probe action for out of service",
+            currentNumberOfSupervisorProbeFailures, config.getZkSupervisorMaxFailures());
+          Runtime.getRuntime().halt(1);
+        } else {
+          logger.warn("ZKClusterClient: probe failed. Attempt[{}] of max[{}]. Next in {} msec",
+            currentNumberOfSupervisorProbeFailures, config.getZkSupervisorMaxFailures(), config.getZkSupervisorIntervalMilliSec());
+        }
+      }
+    }
+  }
+
+  /**
+   * This custom factory is used to ensure that Zookeeper clients in Curator are always created using the hostname, so
+   * it can be resolved to a new IP in the case of a Zookeeper instance restart.
+   */
+  @ThreadSafe
+  static class ZKClientFactory implements ZookeeperFactory {
+    private ZooKeeper client;
+    private String connectString;
+    private int sessionTimeout;
+    private boolean canBeReadOnly;
+
+    @Override
+    public ZooKeeper newZooKeeper(String connectString, int sessionTimeout, Watcher watcher, boolean canBeReadOnly) throws Exception {
+      Preconditions.checkNotNull(connectString);
+      Preconditions.checkArgument(sessionTimeout > 0, "sessionTimeout should be a positive integer");
+      if (client == null) {
+        this.connectString = connectString;
+        this.sessionTimeout = sessionTimeout;
+        this.canBeReadOnly = canBeReadOnly;
+      }
+      logger.info("Creating new Zookeeper client with arguments: {}, {}, {}.", this.connectString, this.sessionTimeout,
+        this.canBeReadOnly);
+      this.client = new ZooKeeper(this.connectString, this.sessionTimeout, watcher, this.canBeReadOnly);
+      return this.client;
     }
   }
 
@@ -181,20 +307,24 @@ class ZKClusterClient implements com.dremio.service.Service {
       // explicitly close serviceCache. Not only that we make sure to close serviceCache before discovery to prevent
       // double releasing and disallowing jvm to spit bothering warnings. simply put, we are great!
       AutoCloseables.close(discovery, curator, CloseableSchedulerThreadPool.of(executorService, logger));
+
+      CloseableSchedulerThreadPool.close(this.scheduleExecutorService, logger);
+      CloseableSchedulerThreadPool.close(this.executorServiceSupervisor, logger);
+
       logger.info("Stopped ZKClusterClient");
     }
   }
 
   public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
     try {
-      return new ZkDistributedSemaphore(curator, "/" + clusterId + "/semaphore/" + name, maximumLeases);
+      return new ZkDistributedSemaphore(curator, clusterIdPath + "/semaphore/" + name, maximumLeases);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
   public Iterable<String> getServiceNames() throws Exception {
-    return curator.getChildren().forPath("/" + clusterId);
+    return curator.getChildren().forPath(clusterIdPath);
   }
 
   public ElectionRegistrationHandle joinElection(final String name, final ElectionListener listener) {
@@ -202,9 +332,9 @@ class ZKClusterClient implements com.dremio.service.Service {
     // In case of multicluster Dremio env. that use the same zookeeper
     // we need a root per Dremio clusterId
     final LeaderLatch leaderLatch =
-      new LeaderLatch(curator, "/" + clusterId + "/leader-latch/" + name, id, CloseMode.SILENT);
+      new LeaderLatch(curator, clusterIdPath + "/leader-latch/" + name, id, CloseMode.SILENT);
 
-    logger.info("joinElection called {}", id);
+    logger.info("joinElection called {} - {}.", id, name);
 
     final AtomicReference<ListenableFuture<?>> newLeaderRef = new AtomicReference<>();
 
@@ -279,7 +409,7 @@ class ZKClusterClient implements com.dremio.service.Service {
             try {
               return newLeader.get(electionTimeoutMs, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-              logger.info("Not able to get election status in {}ms. Cancelling election...", electionTimeoutMs);
+              logger.info("Not able to get election status in {}ms for {}. Cancelling election...", electionTimeoutMs, name);
               newLeader.cancel(true);
               throw e;
             }
@@ -404,6 +534,4 @@ class ZKClusterClient implements com.dremio.service.Service {
       connectionLostHandler.handleConnectionState(newState);
     }
   }
-
-
 }

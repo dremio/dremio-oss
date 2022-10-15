@@ -46,6 +46,7 @@ public class TableModifyRule extends RelOptRule {
       tableModify.getSourceExpressionList(),
       tableModify.isFlattened(),
       tableModify.getCreateTableEntry(),
-      tableModify.getMergeUpdateColumnList()));
+      tableModify.getMergeUpdateColumnList(),
+      tableModify.hasSource()));
   }
 }

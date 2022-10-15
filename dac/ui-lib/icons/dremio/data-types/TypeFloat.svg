@@ -1,0 +1,21 @@
+<svg id='data-types/TypeFloat' viewBox="0 0 24 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Type-Float" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-10" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-16" x="0" y="0" width="24" height="18"></rect>
+                </g>
+                <g id="Pound-Copy-3" transform="translate(5.000000, 5.000000)" fill="#77818F" sketch:type="MSShapeGroup">
+                    <g id="Group">
+                        <path d="M1,4 L1,3 L0,3 L0,2 L1,2 L1,0 L2,0 L2,2 L3,2 L3,0 L4,0 L4,2 L5,2 L5,3 L4,3 L4,4 L5,4 L5,5 L4,5 L4,7 L3,7 L3,5 L2,5 L2,7 L1,7 L1,5 L0,5 L0,4 L1,4 Z M2,4 L2,3 L3,3 L3,4 L2,4 Z" id="Rectangle-202-Copy-3"></path>
+                        <path d="M9,4 L9,3 L8,3 L8,2 L9,2 L9,0 L10,0 L10,2 L11,2 L11,0 L12,0 L12,2 L13,2 L13,3 L12,3 L12,4 L13,4 L13,5 L12,5 L12,7 L11,7 L11,5 L10,5 L10,7 L9,7 L9,5 L8,5 L8,4 L9,4 Z M10,4 L10,3 L11,3 L11,4 L10,4 Z" id="Rectangle-202-Copy-4"></path>
+                        <rect id="Rectangle-214-Copy" x="6" y="6" width="1" height="1"></rect>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

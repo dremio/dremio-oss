@@ -33,8 +33,10 @@ import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.InputReference;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
@@ -166,6 +168,16 @@ public class ConstantExpressionIdentifier implements ExprVisitor<Boolean, Consta
   @Override
   public Boolean visitInputReference(InputReference input, ConstantExtractor value) {
     return input.getReference().accept(this, value);
+  }
+
+  @Override
+  public Boolean visitOrdering(Ordering e, ConstantExtractor value) throws RuntimeException {
+    return false;
+  }
+
+  @Override
+  public Boolean visitListAggExpression(ListAggExpression e, ConstantExtractor value) throws RuntimeException {
+    return false;
   }
 
   @Override
@@ -434,6 +446,22 @@ public class ConstantExpressionIdentifier implements ExprVisitor<Boolean, Consta
     @Override
     public Set<LogicalExpression> visitInputReference(InputReference e, Set<LogicalExpression> constants) throws RuntimeException {
       return e.getReference().accept(this, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitOrdering(Ordering e, Set<LogicalExpression> constants) throws RuntimeException {
+      return e.getField().accept(this, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitListAggExpression(ListAggExpression e, Set<LogicalExpression> constants) throws RuntimeException {
+      for (LogicalExpression arg : e.args) {
+        arg.accept(this, constants);
+      }
+      for (LogicalExpression ex : e.getOrderings()) {
+        ex.accept(this, constants);
+      }
+      return constants;
     }
   }
 

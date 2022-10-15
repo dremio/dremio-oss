@@ -41,7 +41,6 @@ import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestDateFunctions extends PopUnitTestBase {
-//    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestDateFunctions.class);
 
     private void testCommon(String[] expectedResults, String physicalPlan, String resourceFile) throws Exception {
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
@@ -77,7 +76,7 @@ public class TestDateFunctions extends PopUnitTestBase {
     @Test
     @Ignore("relies on particular timezone")
     public void testDateIntervalArithmetic() throws Exception {
-        String expectedResults[] = {"2009-02-23T00:00:00.000-08:00",
+        String[] expectedResults = {"2009-02-23T00:00:00.000-08:00",
                                     "2008-02-24T00:00:00.000-08:00",
                                     "1970-01-01T13:20:33.000-08:00",
                                     "2008-02-24T12:00:00.000-08:00",
@@ -116,7 +115,7 @@ public class TestDateFunctions extends PopUnitTestBase {
     @Ignore
     public void testIntervalArithmetic() throws Exception {
 
-      String expectedResults[] = {"P2Y2M",
+      String[] expectedResults = {"P2Y2M",
           "P2DT3723S",
           "P2M",
           "PT3723S",
@@ -135,7 +134,7 @@ public class TestDateFunctions extends PopUnitTestBase {
     @Test
     public void testToChar() throws Exception {
 
-        String expectedResults[] = {(new LocalDate(2008, 2, 23)).toString("yyyy-MMM-dd"),
+        String[] expectedResults = {(new LocalDate(2008, 2, 23)).toString("yyyy-MMM-dd"),
                                     (new LocalTime(12, 20, 30)).toString("HH mm ss"),
                                     (new LocalDateTime(2008, 2, 23, 12, 0, 0)).toString("yyyy MMM dd HH:mm:ss")};
         testCommon(expectedResults, "/functions/date/to_char.json", "/test_simple_date.json");
@@ -144,7 +143,7 @@ public class TestDateFunctions extends PopUnitTestBase {
     @Test
     @Ignore("relies on particular time zone")
     public void testToDateType() throws Exception {
-        String expectedResults[] = {"2008-02-23T00:00:00.000-08:00",
+        String[] expectedResults = {"2008-02-23T00:00:00.000-08:00",
                                     "1970-01-01T12:20:30.000-08:00",
                                     "2008-02-23T12:00:00.000-08:00",
                                     "2008-02-23T12:00:00.000-08:00"};

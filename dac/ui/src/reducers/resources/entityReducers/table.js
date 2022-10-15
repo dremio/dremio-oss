@@ -99,7 +99,7 @@ export default function table(state, action) {
             status: jobUpdate.state,
             // keep startTime as in INIT until job is done
             startTime: isWorking(jobUpdate.state)
-              ? initJobProgress.startTime
+              ? initJobProgress?.startTime
               : jobUpdate.startTime,
             endTime: jobUpdate.endTime,
             datasetVersion: jobUpdate.datasetVersion,

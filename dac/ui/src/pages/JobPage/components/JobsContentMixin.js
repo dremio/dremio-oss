@@ -82,15 +82,20 @@ export default function (input) {
 
     setActiveJob(jobData, isReplaceUrl) {
       const { location } = this.props;
-      const router = this.context.router[isReplaceUrl ? "replace" : "push"];
-      if (jobData && !jobsUtils.isNewJobsPage()) {
-        router({
+      const routerMethod =
+        this.context.router[isReplaceUrl ? "replace" : "push"];
+
+      const hash = jobData ? `#${jobData.get("id")}` : "";
+
+      if (!jobsUtils.isNewJobsPage()) {
+        routerMethod({
           ...location,
           pathname: "/jobs",
-          hash: `#${jobData.get("id")}`,
+          hash,
         });
       } else {
-        router({ ...location, hash: jobData ? `#${jobData.get("id")}` : "" });
+        if (location.hash === hash) return; // Do not replace hash if it's the same
+        routerMethod({ ...location, hash });
       }
     },
 

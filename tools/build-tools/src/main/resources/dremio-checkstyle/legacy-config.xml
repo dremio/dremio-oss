@@ -95,8 +95,14 @@
       <property name="severity" value="warning"/>
       <property name="format" value="^logger|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
     </module>
+    <module name="LocalFinalVariableName">
+      <property name="severity" value="warning"/>
+    </module>
     <module name="LocalVariableName">
       <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="MemberName">
       <property name="severity" value="warning"/>
     </module>
     <module name="MethodName">
@@ -131,25 +137,75 @@
     </module>
     <!-- module name="RedundantModifier"/ -->
 
+    <!-- Checks for blocks. You know, those {}'s -->
+    <!-- See http://checkstyle.sf.net/config_blocks.html -->
+    <module name="EmptyBlock">
+      <property name="option" value="text"/>
+    </module>
+    <module name="EmptyCatchBlock">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
+    <!-- module name="LeftCurly"/ -->
     <module name="NeedBraces"/>
+    <module name="RightCurly">
+      <property name="severity" value="warning"/>
+    </module>
 
     <!-- Checks for common coding problems -->
     <!-- See http://checkstyle.sf.net/config_coding.html -->
+    <module name="EmptyStatement"/>
+    <module name="EqualsAvoidNull"/>
+    <module name="EqualsHashCode"/>
     <module name="HiddenField">
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>
       <property name="tokens" value="VARIABLE_DEF"/>
     </module>
+    <module name="IllegalInstantiation"/>
+    <module name="IllegalType">
+      <property name="tokens" value="PARAMETER_DEF, METHOD_DEF, VARIABLE_DEF"/>
+    </module>
+    <module name="InnerAssignment"/>
+    <module name="MissingSwitchDefault">
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="MissingOverride"/>
+    <module name="SimplifyBooleanExpression"/>
+    <module name="SimplifyBooleanReturn"/>
     <module name="StringLiteralEquality"/>
 
     <!-- Checks for class design -->
     <!-- See http://checkstyle.sf.net/config_design.html -->
+    <module name="FinalClass"/>
     <module name="HideUtilityClassConstructor">
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>
     </module>
+    <module name="InterfaceIsType">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
+    <module name="VisibilityModifier">
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.Rule" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.ClassRule" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.runners.Parameterized.Parameter" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.jupiter.api.io.TempDir" />
+      <property name="ignoreAnnotationCanonicalNames" value="com.google.common.annotations.VisibleForTesting" />
+      <property name="ignoreAnnotationCanonicalNames" value="io.protostuff.Tag" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.projectnessie.versioned.persist.tests.extension.NessieDbAdapter" />
+      <property name="allowPublicImmutableFields" value="true" />
+      <property name="severity" value="warning"/>
+    </module>
+
+    <!-- Miscellaneous other checks. -->
+    <!-- See http://checkstyle.sf.net/config_misc.html -->
+    <module name="ArrayTypeStyle"/>
+    <module name="UpperEll"/>
 
     <module name="SuppressWarningsHolder"/>
+    <module name="OuterTypeFilename"/>
+    <module name="PackageDeclaration"/>
   </module>
 
   <!-- Different MethodName rules for production and test code -->

@@ -73,7 +73,7 @@ public class TestLargeInClause extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("cnt")
-      .baselineValues(22l)
+      .baselineValues(22L)
       .go();
 
   }

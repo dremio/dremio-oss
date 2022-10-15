@@ -15,30 +15,20 @@
  */
 package com.dremio.sabot.exec;
 
-import static com.dremio.exec.proto.UserBitShared.QueryResult.*;
-
-import java.util.Set;
-
 /**
  * Placeholder to hold cancel related context used for killing queries by
  * heap monitor.
  */
 public class CancelQueryContext {
-  private final Set<QueryState> cancelQueryStates;
   private final String cancelReason;
   private final String cancelContext;
   private final boolean isCancelledByHeapMonitor;
 
-  public CancelQueryContext(Set<QueryState> cancelQueryStates, String cancelReason, String cancelContext,
+  public CancelQueryContext(String cancelReason, String cancelContext,
                             boolean isCancelledByHeapMonitor) {
-    this.cancelQueryStates = cancelQueryStates;
     this.cancelReason = cancelReason;
     this.cancelContext = cancelContext;
     this.isCancelledByHeapMonitor = isCancelledByHeapMonitor;
-  }
-
-  public Set<QueryState> getCancelQueryStates() {
-    return cancelQueryStates;
   }
 
   public String getCancelReason() {

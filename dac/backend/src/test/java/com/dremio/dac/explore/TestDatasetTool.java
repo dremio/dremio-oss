@@ -40,7 +40,9 @@ import com.dremio.dac.proto.model.dataset.TransformType;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
-import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -57,22 +59,80 @@ public class TestDatasetTool {
     DatasetVersion broken = new DatasetVersion("001");
 
     // tip dataset whose previous version points at an non existent history
-    VirtualDatasetUI tipDataset = new VirtualDatasetUI();
-    tipDataset.setCreatedAt(0L);
-    tipDataset.setFullPathList(datasetPath.toPathList());
-    tipDataset.setVersion(tip);
-    tipDataset.setPreviousVersion(new NameDatasetRef()
-      .setDatasetVersion(broken.getVersion())
-      .setDatasetPath(datasetPath.toString()));
-    Transform transform = new Transform(TransformType.updateSQL);
-    transform.setUpdateSQL(new TransformUpdateSQL("sql"));
-    tipDataset.setLastTransform(transform);
+    VirtualDatasetUI tipDataset = buildDataset(datasetPath, tip, broken.getVersion());
 
     DatasetVersionMutator datasetVersionMutator = mock(DatasetVersionMutator.class);
     // the tip history request
     when(datasetVersionMutator.getVersion(datasetPath, tip)).thenReturn(tipDataset);
     when(datasetVersionMutator.get(any())).thenReturn(tipDataset);
-    when(datasetVersionMutator.getVersion(datasetPath, broken)).thenThrow(DatasetNotFoundException.class);
+    when(datasetVersionMutator.getVersion(datasetPath, broken)).thenThrow(DatasetVersionNotFoundException.class);
+
+    final DatasetTool tool = buildDatasetTool(datasetVersionMutator);
+
+    History history = tool.getHistory(datasetPath, current, tip);
+    Assert.assertEquals(1, history.getItems().size());
+  }
+
+  @Test
+  public void testRewriteHistory() throws Exception {
+    DatasetPath datasetPath = new DatasetPath(Arrays.asList("space", "dataset"));
+    DatasetPath newDatasetPath = new DatasetPath(Arrays.asList("space", "dataset-new"));
+    DatasetVersion history1 = new DatasetVersion("234");
+    DatasetVersion history2 = new DatasetVersion("123");
+    DatasetVersion tip = new DatasetVersion("456");
+
+    VirtualDatasetUI tipDataset = buildDataset(datasetPath, tip, history1.getVersion());
+    VirtualDatasetUI history1Dataset = buildDataset(datasetPath, history1, history2.getVersion());
+    VirtualDatasetUI history2Dataset = buildDataset(datasetPath, history2, null);
+
+    VirtualDatasetUI newTipDataset = buildDataset(newDatasetPath, tip, null);
+    // Set previous version to null
+    newTipDataset.setPreviousVersion(tipDataset.getPreviousVersion());
+    VirtualDatasetUI newHistory1Dataset = buildDataset(newDatasetPath, history1, history2.getVersion());
+    VirtualDatasetUI newHistory2Dataset = buildDataset(newDatasetPath, history2, null);
+
+    DatasetVersionMutator datasetVersionMutator = mock(DatasetVersionMutator.class);
+    when(datasetVersionMutator.getVersion(datasetPath, tip)).thenReturn(tipDataset);
+    when(datasetVersionMutator.getVersion(datasetPath, history1)).thenReturn(history1Dataset);
+    when(datasetVersionMutator.getVersion(datasetPath, history2)).thenReturn(history2Dataset);
+    when(datasetVersionMutator.get(datasetPath)).thenReturn(tipDataset);
+
+    when(datasetVersionMutator.getVersion(newDatasetPath, tip)).thenReturn(newTipDataset);
+    when(datasetVersionMutator.getVersion(newDatasetPath, history1)).thenReturn(newHistory1Dataset);
+    when(datasetVersionMutator.getVersion(newDatasetPath, history2)).thenReturn(newHistory2Dataset);
+    when(datasetVersionMutator.get(newDatasetPath)).thenReturn(newTipDataset);
+
+    final DatasetTool tool = buildDatasetTool(datasetVersionMutator);
+
+    tool.rewriteHistory(newTipDataset, newDatasetPath);
+
+    History newHistory = tool.getHistory(newDatasetPath, tip, tip);
+    // Make sure coped VDS has 3 history items.
+    Assert.assertEquals(3, newHistory.getItems().size());
+  }
+
+  @Test
+  public void testSourceVersionMapping() {
+    final DatasetTool datasetTool = new DatasetTool(mock(DatasetVersionMutator.class), mock(JobsService.class),
+      mock(QueryExecutor.class), mock(SecurityContext.class));
+    Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+
+    Map<String, JobsVersionContext> expectedSourceVersionMapping = new HashMap<>();
+    expectedSourceVersionMapping.put("source1", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
+    expectedSourceVersionMapping.put("source2", new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, "tag"));
+    expectedSourceVersionMapping.put("source3", new JobsVersionContext(JobsVersionContext.VersionContextType.BARE_COMMIT,
+      "d0628f078890fec234b98b873f9e1f3cd140988a"));
+
+    assertThat(datasetTool.createSourceVersionMapping(references)).usingRecursiveComparison().isEqualTo(expectedSourceVersionMapping);
+  }
+
+  private DatasetTool buildDatasetTool(DatasetVersionMutator datasetVersionMutator) {
+    final Catalog catalog = mock(Catalog.class);
+    when(datasetVersionMutator.getCatalog()).thenReturn(catalog);
+    when(catalog.getSource(any())).thenReturn(mock(StoragePlugin.class));
 
     JobsService jobsService = mock(JobsService.class);
     when(jobsService.searchJobs(any())).thenReturn(Collections.emptyList());
@@ -105,27 +165,25 @@ public class TestDatasetTool {
       }
     };
 
-    final DatasetTool tool = new DatasetTool(datasetVersionMutator, jobsService, executor, securityContext);
-
-    History history = tool.getHistory(datasetPath, current, tip);
-    Assert.assertEquals(1, history.getItems().size());
+    return new DatasetTool(datasetVersionMutator, jobsService, executor, securityContext);
   }
 
-  @Test
-  public void testSourceVersionMapping() {
-    final DatasetTool datasetTool = new DatasetTool(mock(DatasetVersionMutator.class), mock(JobsService.class),
-      mock(QueryExecutor.class), mock(SecurityContext.class));
-    Map<String, VersionContextReq> references = new HashMap<>();
-    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
-    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
-    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+  private VirtualDatasetUI buildDataset(DatasetPath datasetPath, DatasetVersion version, String previousVersion) {
+    VirtualDatasetUI dataset = new VirtualDatasetUI();
+    dataset.setCreatedAt(0L);
+    dataset.setFullPathList(datasetPath.toPathList());
+    dataset.setVersion(version);
+    if (previousVersion == null) {
+      dataset.setPreviousVersion(null);
+    } else {
+      dataset.setPreviousVersion(new NameDatasetRef()
+        .setDatasetVersion(previousVersion)
+        .setDatasetPath(datasetPath.toString()));
+    }
+    Transform transform = new Transform(TransformType.updateSQL);
+    transform.setUpdateSQL(new TransformUpdateSQL("sql"));
+    dataset.setLastTransform(transform);
 
-    Map<String, JobsVersionContext> expectedSourceVersionMapping = new HashMap<>();
-    expectedSourceVersionMapping.put("source1", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
-    expectedSourceVersionMapping.put("source2", new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, "tag"));
-    expectedSourceVersionMapping.put("source3", new JobsVersionContext(JobsVersionContext.VersionContextType.BARE_COMMIT,
-      "d0628f078890fec234b98b873f9e1f3cd140988a"));
-
-    assertThat(datasetTool.createSourceVersionMapping(references)).usingRecursiveComparison().isEqualTo(expectedSourceVersionMapping);
+    return dataset;
   }
 }

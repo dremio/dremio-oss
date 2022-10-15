@@ -128,7 +128,7 @@ public class Recommenders {
   public List<Card<ExtractMapRule>> recommendExtractMap(MapSelection selection, SqlQuery datasetSql, BufferAllocator allocator)
       throws DatasetVersionNotFoundException {
 
-    List<TransformRuleWrapper<ExtractMapRule>> ruleWrappers = getRuleWrappers(extractMap, selection, DataType.MAP);
+    List<TransformRuleWrapper<ExtractMapRule>> ruleWrappers = getRuleWrappers(extractMap, selection, DataType.STRUCT);
     return cardGenerator.generateCards(datasetSql, selection.getColName(), ruleWrappers,
         Recommenders.<ExtractMapRule>genericComparator(), allocator);
   }

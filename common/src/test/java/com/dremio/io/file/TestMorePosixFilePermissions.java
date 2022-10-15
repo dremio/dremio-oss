@@ -90,6 +90,8 @@ public class TestMorePosixFilePermissions extends DremioTest {
           case OTHERS_EXECUTE:
             mode += 0001;
             break;
+          default:
+            throw new IllegalArgumentException("Unrecognized permission: " + permission);
           }
         }
 

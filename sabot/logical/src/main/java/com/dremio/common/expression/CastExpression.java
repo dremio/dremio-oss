@@ -25,8 +25,6 @@ import com.google.common.collect.Iterators;
 
 public class CastExpression extends LogicalExpressionBase implements Iterable<LogicalExpression>{
 
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CastExpression.class);
-
   private final LogicalExpression input;
   private final MajorType type;
 

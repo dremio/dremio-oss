@@ -28,7 +28,7 @@ import com.google.common.base.Strings;
  * Use the static factory methods, {@link #newBuilderForClient()}, {@link #newBuilderForServer()}
  * or {@link #of}, to create instances.
  */
-public class SSLConfig {
+public final class SSLConfig {
 
   // SSL related connection properties
   public static final String ENABLE_SSL = "ssl";
@@ -124,7 +124,7 @@ public class SSLConfig {
     return useSystemTrustStore;
   }
 
-  public static class Builder {
+  public static final class Builder {
 
     private String keyStoreType = KeyStore.getDefaultType();
     private String keyStorePath = UNSPECIFIED;

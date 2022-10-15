@@ -21,24 +21,23 @@ import datasetPathUtils from "@app/utils/resourcePathUtils/dataset";
 import jobsUtils, { JobState } from "@app/utils/jobsUtils";
 import { getTabs, getIconName } from "dyn-load/utils/jobsUtils";
 import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
-import Button from "@app/components/Buttons/Button";
-import {
-  constructFullPathAndEncode,
-  constructResourcePath,
-} from "@app/utils/pathUtils";
+import { Button } from "dremio-ui-lib";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
-import Art from "@app/components/Art";
 import TopPanelTab from "./TopPanelTab.js";
+import CopyButton from "@app/components/Buttons/CopyButton";
+import { UNSAVED_DATASET_PATH_URL } from "@app/constants/explorePage/paths";
+import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+
 import "./TopPanel.less";
 
 const renderIcon = (iconName, className, selected) => {
   return (
-    <Art
-      src={iconName}
-      alt="icon"
-      className={classNames("topPanel__icons", className, {
+    <dremio-icon
+      name="interface/jobs-arrow-right"
+      alt="Jobs"
+      class={classNames("topPanel__icons", className, {
         "--lightBlue": selected,
       })}
     />
@@ -67,9 +66,10 @@ export const TopPanel = (props) => {
     ) {
       return (
         <Button
-          type={ButtonTypes.CUSTOM}
+          color={ButtonTypes.UI_LIB_SECONDARY}
           text={formatMessage({ id: "Common.Cancel" })}
           onClick={() => cancelJob(jobId)}
+          disableMargin
         />
       );
     }
@@ -83,23 +83,14 @@ export const TopPanel = (props) => {
       return null;
     }
 
-    const QueriedDataset = jobDetails.get("queriedDatasets");
-    const datasetFullPath = QueriedDataset.get(0).get("datasetPathsList");
-    let fullPath;
+    const datasetFullPath = jobDetails.get("datasetPaths");
+    const fullPath =
+      datasetFullPath && datasetFullPath.size > 0
+        ? datasetPathUtils.toHrefV2(datasetFullPath)
+        : UNSAVED_DATASET_PATH_URL;
 
-    if (datasetFullPath && datasetFullPath.size > 0) {
-      fullPath = `${datasetFullPath.get(0)}.${constructFullPathAndEncode(
-        datasetFullPath.slice(1)
-      )}`;
-    } else {
-      fullPath = constructFullPathAndEncode(datasetFullPath);
-    }
-    const resourcePath = constructResourcePath(fullPath);
     const nextLocation = {
-      pathname:
-        datasetFullPath && datasetFullPath.size > 0
-          ? datasetPathUtils.toHref(resourcePath)
-          : "tmp/UNTITLED",
+      pathname: fullPath,
       query: {
         jobId,
         version: jobDetails.get("datasetVersion"),
@@ -107,7 +98,14 @@ export const TopPanel = (props) => {
       },
     };
 
-    if (QueriedDataset.get("datasetPathsList")) {
+    const queriedDataset = jobDetails.get("queriedDatasets").get(0);
+    const isPhysicalType = PHYSICAL_DATASET_TYPES.has(
+      queriedDataset.get("datasetType")
+    );
+    const isUnsavedPath =
+      UNSAVED_DATASET_PATH_URL === datasetFullPath.join("/");
+    // Shouldn't have edit mode for physical datasets
+    if (datasetFullPath && !(isUnsavedPath && isPhysicalType)) {
       nextLocation.query.mode = "edit";
     }
 
@@ -150,7 +148,11 @@ export const TopPanel = (props) => {
     <div className="topPanel">
       <div className="topPanel__navigationWrapper">
         <div className="topPanel__jobDetails">
-          <div className="topPanel__jobs-logo" data-qa="jobs-logo" onClick={changePages}>
+          <div
+            className="topPanel__jobs-logo"
+            data-qa="jobs-logo"
+            onClick={changePages}
+          >
             {renderIcon("Jobs.svg", "topPanel__jobDetails__jobsIcon")}
           </div>
           <div className="gutter-top--half">
@@ -158,6 +160,10 @@ export const TopPanel = (props) => {
           </div>
           <div data-qa="top-panel-jobId" className="topPanel__jobId">
             {jobId}
+            <CopyButton
+              text={jobId}
+              title={formatMessage({ id: "Job.Id.Copy" })}
+            />
           </div>
         </div>
         {tabs.map((tab, index) => {

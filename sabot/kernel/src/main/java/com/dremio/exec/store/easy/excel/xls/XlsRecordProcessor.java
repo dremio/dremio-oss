@@ -17,10 +17,10 @@ package com.dremio.exec.store.easy.excel.xls;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
@@ -101,7 +101,7 @@ public class XlsRecordProcessor implements ExcelParser {
   private Map<Integer, MergedCell> mergeCells;
 
   /* lookup table to find if a particular column is to be projected or not */
-  private final HashSet<String> columnsToProject;
+  private final Set<String> columnsToProject;
 
   /**
    * Extracts the workbook stream for the byte array and instantiates a {@link RecordFactoryInputStream} that will
@@ -118,7 +118,7 @@ public class XlsRecordProcessor implements ExcelParser {
    */
   public XlsRecordProcessor(final XlsInputStream is, final ExcelFormatPluginConfig pluginConfig,
                             final VectorContainerWriter writer, final ArrowBuf managedBuf,
-                            final HashSet<String> columnsToProject, final boolean skipQuery,
+                            final Set<String> columnsToProject, final boolean skipQuery,
                             final int maxCellSize) throws IOException, SheetNotFoundException {
     this.writer = writer.rootAsStruct();
     this.managedBuf = managedBuf;
@@ -508,10 +508,11 @@ public class XlsRecordProcessor implements ExcelParser {
             return value;
           }
         }
+        default:
+          throw UserException.dataReadError()
+            .message("Unexpected cell record at (%d, %d)", cell.getRow(), cell.getColumn())
+            .build(logger);
       }
-      throw UserException.dataReadError()
-              .message("Unexpected cell record at (%d, %d)", cell.getRow(), cell.getColumn())
-              .build(logger);
     }
   }
 

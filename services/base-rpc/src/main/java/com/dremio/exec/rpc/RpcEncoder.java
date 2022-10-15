@@ -22,6 +22,7 @@ import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.exec.proto.GeneralRPCProtos.CompleteRpcMessage;
@@ -99,20 +100,26 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
       // command message instability.
       final ByteBuf withoutRawMessage;
       if(rawBodyLength > 0){
-        try{
+        try {
           withoutRawMessage = ctx.alloc().buffer(fullLength + 5);
-        }catch(OutOfMemoryException ex){
-          msg.release();
-          UserException.Builder uexBuilder = UserException.memoryError(ex)
+        } catch (OutOfMemoryException |OutOfMemoryError ex) {
+          if (ErrorHelper.isDirectMemoryException(ex)) {
+            msg.release();
+            UserException.Builder uexBuilder = UserException.memoryError(ex)
               .message("Out of memory while encoding data.");
 
-          ByteBufAllocator byteBufAllocator = ctx.alloc();
-          if (byteBufAllocator instanceof ArrowByteBufAllocator) {
-            BufferAllocator bufferAllocator = ((ArrowByteBufAllocator) byteBufAllocator).unwrap();
-            uexBuilder.addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(ex, bufferAllocator));
+            ByteBufAllocator byteBufAllocator = ctx.alloc();
+            if (byteBufAllocator instanceof ArrowByteBufAllocator) {
+              BufferAllocator bufferAllocator = ((ArrowByteBufAllocator) byteBufAllocator).unwrap();
+              uexBuilder.addContext(ex instanceof OutOfMemoryException ?
+                MemoryDebugInfo.getDetailsOnAllocationFailure((OutOfMemoryException) ex, bufferAllocator) :
+                MemoryDebugInfo.getSummaryFromRoot(bufferAllocator));
+            }
+            promise.setFailure(uexBuilder.buildSilently());
+            return;
+          } else {
+            throw ex;
           }
-          promise.setFailure(uexBuilder.buildSilently());
-          return;
         }
       } else {
         withoutRawMessage = UnpooledByteBufAllocator.DEFAULT.heapBuffer(fullLength + 5);
@@ -165,6 +172,7 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
         logger.debug("Sent message.  Ending writer index was {}.", withoutRawMessage.writerIndex());
       }
     } finally {
+      // FIXME: why is the finally block commented out?
       // make sure to release Rpc Messages underlying byte buffers.
       //msg.release();
     }

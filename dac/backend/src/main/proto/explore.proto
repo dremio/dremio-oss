@@ -498,6 +498,7 @@ enum DataType {
   MAP = 12;
   GEO = 13;
   OTHER = 14;
+  STRUCT = 15;
 }
 message TransformConvertToSingleType {
   option (extends_class) = "com.dremio.dac.explore.model.TransformBase";

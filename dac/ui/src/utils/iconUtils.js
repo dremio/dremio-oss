@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { DATASET_TYPES_TO_ICON_TYPES } from "@app/constants/datasetTypes";
-import { NESSIE } from "@app/constants/sourceTypes";
+import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { formatMessage } from "./locale";
 
 const FILE_TYPES_TO_ICON_TYPES = {
@@ -23,6 +23,13 @@ const FILE_TYPES_TO_ICON_TYPES = {
   dataset: "VirtualDataset",
   physicalDatasets: "PhysicalDataset",
 };
+
+const ICEBERG_ICON_TYPES = {
+  table: "IcebergTable",
+  dataset: "IcebergView",
+  physicalDatasets: "IcebergTable",
+};
+
 export function getIconDataTypeFromEntity(entity) {
   const fileType = entity.get("fileType");
   if (fileType === "folder") {
@@ -40,6 +47,13 @@ export function getIconDataTypeFromEntity(entity) {
   return FILE_TYPES_TO_ICON_TYPES[fileType] || "FileEmpty";
 }
 
+export function getIcebergIconTypeFromEntity(entity) {
+  const fileType = entity.get("fileType");
+  if (["table", "dataset", "physicalDatasets"].includes(fileType)) {
+    return ICEBERG_ICON_TYPES[fileType];
+  } else return getIconDataTypeFromEntity(entity);
+}
+
 export function getIconDataTypeFromDatasetType(datasetType) {
   return DATASET_TYPES_TO_ICON_TYPES[datasetType];
 }
@@ -51,7 +65,13 @@ const STATUSES_ICON_POSTFIX = {
 };
 
 const getSourceIcon = (sourceType) => {
-  return sourceType === NESSIE ? "Repository" : "Database";
+  if (NESSIE === sourceType) {
+    return "Repository";
+  } else if (ARCTIC === sourceType) {
+    return "ArcticCatalog";
+  } else {
+    return "Database";
+  }
 };
 
 export function getIconStatusDatabase(status, sourceType) {
@@ -114,7 +134,13 @@ export function getFormatMessageIdByEntityIconType(iconType) {
       return "Space.Space";
     case "Database":
       return "Source.Source";
+    case "ArcticCatalog":
+    case "ArcticCatalog-Bad":
+    case "ArcticCatalog-Degraded":
+      return "Source.ArcticSource";
     case "Repository":
+    case "Repository-Bad":
+    case "Repository-Degraded":
       return "Source.NessieSource";
     case "Home":
       return "Common.Home";

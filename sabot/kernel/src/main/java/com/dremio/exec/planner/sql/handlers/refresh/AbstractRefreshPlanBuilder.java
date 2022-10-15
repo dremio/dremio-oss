@@ -25,12 +25,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.Spliterators;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -54,9 +54,13 @@ import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
@@ -81,6 +85,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.CreateParquetTableEntry;
 import com.dremio.exec.store.dfs.FileSelection;
@@ -109,6 +114,7 @@ import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -195,7 +201,10 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
   public abstract boolean updateDatasetConfigWithIcebergMetadataIfNecessary();
 
   protected boolean repairAndSaveDatasetConfigIfNecessary() {
-    RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(datasetConfig, metaStoragePlugin, config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME), catalog.getSource(tableNSKey.getRoot()));
+    RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(datasetConfig, metaStoragePlugin,
+      config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME),
+      catalog.getSource(tableNSKey.getRoot()),
+      config.getContext().getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE));
     return repairOperation.checkAndRepairDatasetWithoutQueryRetry();
   }
 
@@ -328,7 +337,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     }
 
     protected static RelDataType getRowTypeFromProjectedCols(BatchSchema outputSchema, List<SchemaPath> projectedColumns, RelOptCluster cluster) {
-        LinkedHashSet<String> firstLevelPaths = new LinkedHashSet<>();
+        Set<String> firstLevelPaths = new LinkedHashSet<>();
         for(SchemaPath p : projectedColumns){
             firstLevelPaths.add(p.getRootSegment().getNameSegment().getPath());
         }
@@ -492,4 +501,18 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     return optionsBuilder.build();
   }
 
+  protected List<String> getPrimaryKey() {
+    List<String> primaryKey = null;
+    if (plugin instanceof MutablePlugin) {
+      MutablePlugin mutablePlugin = (MutablePlugin) plugin;
+      try {
+        primaryKey = mutablePlugin.getPrimaryKey(tableNSKey, datasetConfig,
+          SchemaConfig.newBuilder(CatalogUser.from(userName)).build(), null,
+          !(mutablePlugin instanceof VersionedPlugin));
+      } catch (Exception ex) {
+        logger.debug("Failed to get primary key", ex);
+      }
+    }
+    return primaryKey;
+  }
 }

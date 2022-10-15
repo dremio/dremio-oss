@@ -33,7 +33,7 @@ import {
 
 import { getJobs, getDataWithItemsForFilters } from "selectors/jobs";
 import { getViewState } from "selectors/resources";
-import SideNav from "@app/components/SideNav/SideNav";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 
 import { parseQueryState } from "utils/jobsQueryState";
 import jobsUtils from "utils/jobsUtils";
@@ -116,7 +116,7 @@ export class JobPage extends PureComponent {
       <div style={style}>
         <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
         <div className={"jobsPageBody"}>
-          <SideNav />
+          <SonarSideNav />
           <div className={"jobPageContentDiv"}>
             <RunningJobsHeader jobCount={runningJobsCount} />
             <JobsContent

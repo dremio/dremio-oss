@@ -23,6 +23,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedListVarcharVector;
 import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -270,12 +271,20 @@ public class HashAggMemoryEstimator {
 
     for (Field field : materializedAggExpressions.getOutputVectorFields()) {
       int accumType = materializedAggExpressions.getAccumulatorTypes()[index++];
-      /* Irrespecive of the minorType, the memory for HLL is fixed size. */
+      /* Irrespecive of the minorType, the memory for HLL and LISTAGG is fixed size. */
       if (accumType == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal() ||
-          accumType == AccumulatorBuilder.AccumulatorType.HLL.ordinal()) {
+        accumType == AccumulatorBuilder.AccumulatorType.HLL.ordinal()) {
         dataSize += (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
         /* Add space for temporary buffer as well */
         dataSize += (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES) / numPartitions;
+        validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
+        continue;
+      } else if (accumType == AccumulatorBuilder.AccumulatorType.LISTAGG.ordinal() ||
+        accumType == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal() ||
+        accumType == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
+        dataSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL;
+        /* Add space for temporary buffer as well */
+        dataSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL / numPartitions;
         validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
         continue;
       }

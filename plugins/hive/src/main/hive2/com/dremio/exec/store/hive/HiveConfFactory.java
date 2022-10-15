@@ -59,6 +59,8 @@ public class HiveConfFactory {
   //Advanced option to set default ctas format
   public static final String HIVE_DEFAULT_CTAS_FORMAT = "hive.default.ctas.format";
 
+  public static final String HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE = "hive.orc.cache.stripe.details.size";
+//  10000, "Max cache size for keeping meta info about orc splits cached in the client.")
 
   // ADL Hadoop file system implementation
   private static final ImmutableMap<String, String> ADL_PROPS = ImmutableMap.of(
@@ -179,7 +181,7 @@ public class HiveConfFactory {
 
     // Check if zero-copy has been set by user
     boolean zeroCopySetByUser = userPropertyNames.contains(OrcConf.USE_ZEROCOPY.getAttribute())
-      || userPropertyNames.contains(HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname);
+      || userPropertyNames.contains(OrcConf.USE_ZEROCOPY.getHiveConfName());
     // Configure zero-copy for ORC reader
     if (!zeroCopySetByUser) {
       if (VM.isWindowsHost() || VM.isMacOSHost()) {
@@ -192,7 +194,7 @@ public class HiveConfFactory {
           logger.debug("MapRFS detected. Not automatically enabling ORC zero-copy feature");
         } else {
           logger.debug("Linux host detected. Enabling ORC zero-copy feature");
-          setConf(hiveConf, HiveConf.ConfVars.HIVE_ORC_ZEROCOPY, true);
+          setConf(hiveConf, OrcConf.USE_ZEROCOPY.getHiveConfName(), true);
         }
       }
     } else {
@@ -205,12 +207,12 @@ public class HiveConfFactory {
     }
 
     // Check if ORC Footer cache has been configured by user
-    boolean orcStripCacheSetByUser = userPropertyNames.contains(HiveConf.ConfVars.HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE.varname);
+    boolean orcStripCacheSetByUser = userPropertyNames.contains(HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE);
     if (orcStripCacheSetByUser) {
       logger.error("ORC stripe details cache has been manually configured. This is not recommended and might cause memory issues");
     } else {
       logger.debug("Disabling ORC stripe details cache.");
-      setConf(hiveConf, HiveConf.ConfVars.HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE, 0);
+      setConf(hiveConf, HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE, 0);
     }
 
     // Check if fs.s3(n).impl has been set by user
@@ -248,11 +250,11 @@ public class HiveConfFactory {
     setConf(configuration, var.varname, Boolean.toString(value));
   }
 
-  private void setConf(HiveConf hiveConf, String intProperty, int intValue) {
+  protected static void setConf(HiveConf hiveConf, String intProperty, int intValue) {
     hiveConf.setInt(intProperty, intValue);
   }
 
-  private void setConf(HiveConf hiveConf, String propertyName, boolean booleanValue) {
+  protected static void setConf(HiveConf hiveConf, String propertyName, boolean booleanValue) {
     hiveConf.setBoolean(propertyName, booleanValue);
   }
 }

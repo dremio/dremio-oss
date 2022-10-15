@@ -32,12 +32,13 @@ public abstract class MFunctionMetadataImpl implements MFunctionMetadata {
   final NamespaceKey canonicalKey;
   final ManagedStoragePlugin plugin;
   final SchemaConfig schemaConfig;
-
-  public MFunctionMetadataImpl(NamespaceKey canonicalKey, DatasetConfig currentConfig, ManagedStoragePlugin plugin, SchemaConfig schemaConfig) {
+  final TableVersionContext context;
+  public MFunctionMetadataImpl(NamespaceKey canonicalKey, DatasetConfig currentConfig, ManagedStoragePlugin plugin, SchemaConfig schemaConfig, TableVersionContext context) {
     this.currentConfig = currentConfig;
     this.plugin = plugin;
     this.schemaConfig = schemaConfig;
     this.canonicalKey = canonicalKey;
+    this.context = context;
   }
 
   @Override

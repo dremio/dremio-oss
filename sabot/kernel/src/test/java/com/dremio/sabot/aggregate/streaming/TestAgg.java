@@ -38,18 +38,18 @@ public class TestAgg extends BaseTestOperator {
 
     Table input = t(
         th("gb", "val", "rare"),
-        tr("bye", 1, 1l),
+        tr("bye", 1, 1L),
         tr("bye", 5, NULL_BIGINT),
         tr("hello", 1, NULL_BIGINT),
-        tr("hello", 2, 1l),
+        tr("hello", 2, 1L),
         tr("what", 10, NULL_BIGINT)
         );
 
     Table output = t(
         th("grouping", "cnt", "sum", "cnt_rare"),
-        tr("bye", 2l, 6l, 1l),
-        tr("hello", 2l, 3l, 1l),
-        tr("what", 1l, 10l, 0l)
+        tr("bye", 2L, 6L, 1L),
+        tr("hello", 2L, 3L, 1L),
+        tr("what", 1L, 10L, 0L)
         );
 
     StreamingAggregate agg = new StreamingAggregate(
@@ -71,20 +71,20 @@ public class TestAgg extends BaseTestOperator {
   public void twoKeyStreamAgg() throws Exception {
     Table input = t(
         th("gb1", "gb2", "val", "rare"),
-        tr("bye", "no", 1, 1l),
+        tr("bye", "no", 1, 1L),
         tr("bye", "yo", 5, NULL_BIGINT),
         tr("hello", "no", 1, NULL_BIGINT),
-        tr("hello", "yo", 2, 1l),
+        tr("hello", "yo", 2, 1L),
         tr("what", NULL_VARCHAR, 10, NULL_BIGINT)
         );
 
     Table output = t(
         th("gb1", "gb2", "cnt", "sum", "cnt_rare"),
-        tr("bye", "no", 1l, 1l, 1l),
-        tr("bye", "yo", 1l, 5l, 0l),
-        tr("hello", "no", 1l, 1l, 0l),
-        tr("hello", "yo", 1l, 2l, 1l),
-        tr("what", NULL_VARCHAR, 1l, 10l, 0l)
+        tr("bye", "no", 1L, 1L, 1L),
+        tr("bye", "yo", 1L, 5L, 0L),
+        tr("hello", "no", 1L, 1L, 0L),
+        tr("hello", "yo", 1L, 2L, 1L),
+        tr("what", NULL_VARCHAR, 1L, 10L, 0L)
         );
 
     StreamingAggregate agg = new StreamingAggregate(

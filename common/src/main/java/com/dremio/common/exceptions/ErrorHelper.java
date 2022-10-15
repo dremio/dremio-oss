@@ -17,8 +17,12 @@ package com.dremio.common.exceptions;
 
 import java.util.regex.Pattern;
 
+import org.apache.arrow.memory.OutOfMemoryException;
+
 import com.dremio.exec.proto.UserBitShared.ExceptionWrapper;
 import com.dremio.exec.proto.UserBitShared.StackTraceElementWrapper;
+
+import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
  * Utility class that handles error message generation.
@@ -180,4 +184,20 @@ public class ErrorHelper {
     return (T) cause;
   }
 
+  public static boolean isDirectMemoryException(Throwable ex) {
+    if (findWrappedCause(ex, OutOfDirectMemoryError.class) != null) {
+      // from netty
+      return true;
+    } else if (findWrappedCause(ex, OutOfMemoryException.class) != null) {
+      // from arrow
+      return true;
+    } else {
+      OutOfMemoryError oom =  findWrappedCause(ex, OutOfMemoryError.class);
+      return oom != null &&
+        // till java-13
+        (oom.getMessage().contains("Direct buffer memory") ||
+          // from java-13 & later
+          oom.getMessage().contains("direct buffer memory"));
+    }
+  }
 }

@@ -17,12 +17,10 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
-import { FormattedMessage, injectIntl } from "react-intl";
+import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
 import { compose } from "redux";
-
-import LinkButton from "@app/components/Buttons/LinkButton";
-import { EmptyStateContainer } from "@app/pages/HomePage/components/EmptyStateContainer";
+import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
 import FinderNav from "@app/components/FinderNav";
 import SpacesLoader from "@app/pages/HomePage/components/SpacesLoader";
 import ViewStateWrapper, {
@@ -37,7 +35,6 @@ import { spacesSourcesListSpinnerStyle } from "@app/pages/HomePage/HomePageConst
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import * as VersionUtils from "@app/utils/versionUtils";
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
-import { emptyContainer } from "./LeftTree.less";
 
 const mapStateToProps = (state) => ({
   spaces: getSortedSpaces(state),
@@ -84,15 +81,14 @@ export class SpacesSection extends PureComponent {
     const addHref = this.getAddSpaceHref();
     return this.props.spaces.size === 0 ? (
       <EmptyStateContainer
-        className={emptyContainer}
-        title={<FormattedMessage id="Space.NoSpaces" />}
-      >
-        {addHref && (
-          <LinkButton buttonStyle="primary" data-qa={"add-spaces"} to={addHref}>
-            <FormattedMessage id="Space.AddSpace" />
-          </LinkButton>
-        )}
-      </EmptyStateContainer>
+        title="Space.NoSpaces"
+        icon="entities/empty-space"
+        linkInfo={{
+          href: addHref,
+          "data-qa": "add-spaces",
+          label: "Space.AddSpace",
+        }}
+      />
     ) : null;
   }
 

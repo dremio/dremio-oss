@@ -19,11 +19,11 @@ package com.dremio.exec.resolver;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.dremio.common.VM;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
-import com.dremio.exec.util.AssertionUtil;
 import com.google.common.collect.Lists;
 
 public class DefaultFunctionResolver implements FunctionResolver {
@@ -70,7 +70,7 @@ public class DefaultFunctionResolver implements FunctionResolver {
       return bestmatch;
     }
 
-    if (AssertionUtil.isAssertionsEnabled()) {
+    if (VM.areAssertsEnabled()) {
       /*
        * There are other alternatives to the best match function which could have been selected
        * Log the possible functions and the chose implementation and raise an exception

@@ -20,7 +20,11 @@ import {
   CLUSTER_STATE_LEGEND_ICON,
   CLUSTER_STATE_ICON,
 } from "@inject/constants/provisioningPage/provisioningConstants";
-import Art from "@app/components/Art";
+import clsx from "clsx";
+import { Tooltip } from "dremio-ui-lib";
+import LottieImages from "@app/components/LottieImages";
+import { getIconPath } from "@app/utils/getIconPath";
+import * as classes from "./EngineStatus.module.less";
 
 const unknownStateIcon = CLUSTER_STATE_ICON[CLUSTER_STATE.unknown];
 const spinnerIcon = {
@@ -30,7 +34,7 @@ const spinnerIcon = {
 };
 
 export function EngineStatusIcon(props) {
-  const { status, isInProgress, style, type } = props;
+  const { status, isInProgress, type, count } = props;
   /*eslint no-nested-ternary: "off"*/
   let icon = isInProgress
     ? spinnerIcon
@@ -43,14 +47,53 @@ export function EngineStatusIcon(props) {
       text: `${unknownStateIcon.text}, currentStatus: ${status}`,
     };
   }
+  if (status === "STARTING" && count > 0) {
+    icon.src = "StartingEngineNew.json";
+  } else if (status === "STARTING" && count === 0) {
+    icon.src = "starting-static";
+  }
+  if (status === "STOPPING" && count > 0) {
+    icon.src = "StoppingEngine.json";
+  } else if (status === "STOPPING" && count === 0) {
+    icon.src = "stopping-static";
+  }
+  if (icon.src.includes(".json")) {
+    return (
+      <Tooltip title={icon.text}>
+        <div className={icon.className}>
+          <LottieImages
+            src={icon.src}
+            imageWidth={24}
+            imageHeight={24}
+            alt={icon.text}
+            title
+            style={{ marginRight: "5px" }}
+          />
+        </div>
+      </Tooltip>
+    );
+  } else if (status === "STARTING" || status === "STOPPING") {
+    return (
+      <Tooltip title={icon.text}>
+        <img
+          src={getIconPath(`engine-state/${icon.src}`)}
+          alt={icon.text}
+          className={classes["engineStatus__svgIcon"]}
+        />
+      </Tooltip>
+    );
+  }
   return (
-    <Art
-      src={icon.src}
-      style={{ height: 24, width: 24, ...style }}
-      alt={icon.text}
-      className={icon.className}
-      title
-    />
+    <Tooltip title={icon.text}>
+      <dremio-icon
+        name={`engine-state/${icon.src}`}
+        alt={icon.text}
+        class={clsx(
+          classes["engineStatus__icon"],
+          classes["engineStatus__svgIcon"]
+        )}
+      />
+    </Tooltip>
   );
 }
 EngineStatusIcon.propTypes = {
@@ -58,6 +101,7 @@ EngineStatusIcon.propTypes = {
   isInProgress: PropTypes.bool,
   style: PropTypes.object,
   type: PropTypes.string,
+  count: PropTypes.number | undefined,
 };
 
 export default function EngineStatus(props) {

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql;
 
 import static com.dremio.BaseTestQuery.test;
 import static com.dremio.BaseTestQuery.testRunAndReturn;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -307,19 +308,27 @@ public class DmlQueryTestUtils {
   }
 
   public static AutoCloseable createView(String source, String name) throws Exception {
+    return createViewFromTable(source, name, "INFORMATION_SCHEMA.CATALOGS");
+  }
+
+  public static AutoCloseable createViewFromTable(String source, String viewName, String tableName) throws Exception {
     PROPERTIES.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
-    test("CREATE VIEW %s.%s AS SELECT * FROM INFORMATION_SCHEMA.CATALOGS", source, name);
+    test("CREATE VIEW %s.%s AS SELECT * FROM %s", source, viewName, tableName);
 
     return () -> {
-      test("DROP VIEW %s.%s", source, name);
+      test("DROP VIEW %s.%s", source, viewName);
       PROPERTIES.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
     };
   }
 
-  public static void testMalformedDmlQueries(Object[] tables, String ...malformedQueries) throws Exception {
+  public static void testMalformedDmlQueries(Object[] tables, String... malformedQueries) {
     for (String malformedQuery : malformedQueries) {
-      UserExceptionAssert.assertThatThrownBy(() -> test(String.format(malformedQuery, tables)))
-        .hasMessageContaining("Failure parsing the query.");
+      String fullQuery = String.format(malformedQuery, tables);
+      UserExceptionAssert.assertThatThrownBy(() -> test(fullQuery))
+        .withFailMessage("Query failed to generate the expected error:\n" + fullQuery)
+        .satisfiesAnyOf(
+          ex -> assertThat(ex).hasMessageContaining("Failure parsing the query."),
+          ex -> assertThat(ex).hasMessageContaining("VALIDATION ERROR:"));
     }
   }
 

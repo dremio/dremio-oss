@@ -16,10 +16,14 @@
 package com.dremio.dac.util;
 
 import static com.dremio.dac.util.QueryProfileConstant.DEFAULT_LONG;
+import static com.dremio.dac.util.QueryProfileConstant.MINIMUM_THREADS_TO_CHECK_FOR_SKEW;
+import static com.dremio.dac.util.QueryProfileConstant.ONE_SEC;
 
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.dremio.dac.model.job.JobProfileOperatorHealth;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobAnalysis.proto.BaseMetrics;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
@@ -51,6 +55,8 @@ public class QueryProfileUtil {
     long tempRunTime = DEFAULT_LONG;
     long totalMemory = 0;
     long tempRecordsProcessed = 0;
+    long tempOutputRecords = 0;
+    long tempOutputBytes = 0;
     for (int threadIndex = 0; threadIndex<threadLevelMetrics.size(); threadIndex++) {
       ThreadData threadData = threadLevelMetrics.get(threadIndex);
       tempProcessTime = threadData.getProcessingTime() > tempProcessTime ? threadData.getProcessingTime() : tempProcessTime;
@@ -63,6 +69,8 @@ public class QueryProfileUtil {
       if(threadData.getRecordsProcessed() != null) {
         tempRecordsProcessed = tempRecordsProcessed + threadData.getRecordsProcessed();
       }
+      tempOutputRecords += threadData.getOutputRecords();
+      tempOutputBytes += threadData.getOutputBytes();
     }
 
     baseMetrics.setNumThreads(-1L);
@@ -73,6 +81,8 @@ public class QueryProfileUtil {
     baseMetrics.setIoWaitTime(tempWaitTime);
     baseMetrics.setRunTime(tempRunTime);
     baseMetrics.setTotalMemory(totalMemory);
+    baseMetrics.setOutputRecords(tempOutputRecords);
+    baseMetrics.setOutputBytes(tempOutputBytes);
   }
 
   /**
@@ -92,7 +102,9 @@ public class QueryProfileUtil {
               operatorProfile.getPeakLocalMemoryAllocated(),
               operatorProfile.getProcessNanos(),
               operatorProfile.getSetupNanos(),
-              maxThreadLevelRecords
+              maxThreadLevelRecords,
+              operatorProfile.hasOutputRecords()?operatorProfile.getOutputRecords():-1,
+              operatorProfile.hasOutputBytes()?operatorProfile.getOutputBytes():-1
             ));
           }
         );
@@ -111,4 +123,41 @@ public class QueryProfileUtil {
     return OperatorName;
   }
 
+  private static  Function <ThreadData, Long> retrieveRecordsProcessed = ThreadData::getRecordsProcessed;
+  private static Function <ThreadData, Long> retrieveProcessingTime = ThreadData::getProcessingTime;
+  private static Function <ThreadData, Long> retrievePeakMemory = ThreadData::getPeakMemory;
+
+  private static long getMaxAcrossThreads(List<ThreadData> threadLevelMetrics, Function <ThreadData, Long> retrieveStatFunction) {
+    return threadLevelMetrics.stream().mapToLong(thread -> retrieveStatFunction.apply(thread)).max().orElse(-1);
+  }
+
+  private static long getMinAcrossThreads(List<ThreadData> threadLevelMetrics, Function <ThreadData, Long> retrieveStatFunction) {
+    return threadLevelMetrics.stream().mapToLong(thread -> retrieveStatFunction.apply(thread)).min().orElse(-1);
+  }
+
+  private static long getAverageAcrossThreads(List<ThreadData> threadLevelMetrics, Function <ThreadData, Long> retrieveStatFunction) {
+    return (threadLevelMetrics.stream().mapToLong(thread -> retrieveStatFunction.apply(thread)).sum()) / (threadLevelMetrics.size()>0?threadLevelMetrics.size():1);
+  }
+
+  //If the skewness logic changes, testcases in TestQueryProfileUtil needs to be reviewed.
+  private static boolean checkOperatorSkewness(List<ThreadData> threadLevelMetrics, Function <ThreadData, Long> retrieveStatFunction) {
+    long average = getAverageAcrossThreads(threadLevelMetrics, retrieveStatFunction);
+    List<ThreadData> statsList = threadLevelMetrics.stream().filter(thread -> retrieveStatFunction.apply(thread) < average ).collect(Collectors.toList());
+    return statsList.size() > (0.75 * threadLevelMetrics.size());
+  }
+
+  public static void isOperatorSkewedAcrossThreads(List<ThreadData> threadLevelMetrics, JobProfileOperatorHealth jpOperatorHealth) {
+    jpOperatorHealth.setIsSkewedOnRecordsProcessed(checkOperatorSkewness(threadLevelMetrics, retrieveRecordsProcessed));
+    jpOperatorHealth.setIsSkewedOnProcessingTime(checkOperatorSkewness(threadLevelMetrics, retrieveProcessingTime));
+    jpOperatorHealth.setIsSkewedOnPeakMemory(checkOperatorSkewness(threadLevelMetrics, retrievePeakMemory));
+  }
+
+  public static void getJobProfileOperatorHealth(List<ThreadData> threadLevelMetrics, JobProfileOperatorHealth jpOperatorHealth, BaseMetrics baseMetrics) {
+    if(threadLevelMetrics.size() > MINIMUM_THREADS_TO_CHECK_FOR_SKEW && baseMetrics.getProcessingTime() > ONE_SEC) {
+      isOperatorSkewedAcrossThreads(threadLevelMetrics, jpOperatorHealth);
+      if (jpOperatorHealth.getIsSkewedOnRecordsProcessed() || jpOperatorHealth.getIsSkewedOnProcessingTime() || jpOperatorHealth.getIsSkewedOnPeakMemory()) {
+        jpOperatorHealth.setOperatorInformationPerThreadList(threadLevelMetrics);
+      }
+    }
+  }
 }

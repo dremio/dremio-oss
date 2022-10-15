@@ -17,6 +17,7 @@
 import { RSAA } from "redux-api-middleware";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import { APIV2Call } from "@app/core/APICall";
+import { clearCachedSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 
 // SUPPORT FLAG CONSTANTS
 export const SUPPORT_FLAG_START = "SUPPORT_FLAG_START";
@@ -50,23 +51,17 @@ export const fetchSupportFlags = (supportKey) => (dispatch) => {
   return apiUtils
     .fetch(`/settings/${supportKey}`, fetchOptions, 2)
     .then((response) => response.json())
-    .then((response) => {
-      dispatch(fetchSupportFlagsSuccess(response));
-      return Promise.resolve(response);
-    })
-    .catch((response) => {
-      return response
-        .json()
-        .then((error) =>
-          dispatch(fetchSupportFlagsFailure({ response: error }))
-        )
-        .catch(() => dispatch(fetchSupportFlagsFailure(response)));
-    });
+    .then((response) => dispatch(fetchSupportFlagsSuccess(response)))
+    .catch((error) => dispatch(fetchSupportFlagsFailure(error)));
 };
 
 export const saveSupportFlag = (supportKey, values) => {
   const apiCall = new APIV2Call().fullpath(`/settings/${supportKey}`);
   const meta = { notification: true };
+
+  //Clear any support flag cached in the getSupportFlag.ts file (new way of fetching support keys)
+  clearCachedSupportFlag(supportKey);
+
   return {
     [RSAA]: {
       types: [

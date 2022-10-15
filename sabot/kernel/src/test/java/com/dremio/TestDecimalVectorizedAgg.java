@@ -46,6 +46,19 @@ import com.dremio.test.UserExceptionAssert;
 public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
 
   @Test
+  public void testDecimalNegative_Parquet() throws Exception {
+
+    final String query = "SELECT negative(cast(val as decimal(3,2))-(cast(val as decimal(3,2))-1.5)) FROM cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" WHERE a = 1 LIMIT 1";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("-1.50"))
+      .go();
+  }
+
+  @Test
   public void testDecimalSumAgg_Parquet() throws Exception {
 
     final String query = "select sum(val) from cp" +

@@ -73,7 +73,7 @@ export function formatQuery(
   if (path?.length) {
     //TODO Check with nessie team on escaping this namespace
     const namespace = path.map((c) => decodeURIComponent(c)).join(".");
-    clauses.push(`operations.exists(op, op.key == '${namespace}')`);
+    clauses.push(`operations.exists(op, op.namespace == '${namespace}')`);
   }
 
   return clauses.join(" || ");

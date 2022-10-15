@@ -21,7 +21,9 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
+import org.apache.commons.collections.CollectionUtils;
 
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.QueryContext;
@@ -146,10 +148,20 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
       };
     }
 
-    context.getCatalogService()
+    NamespaceKey materializationPath = new NamespaceKey(getMaterializationPath(materialization));
+
+    Catalog catalog = context.getCatalogService()
         .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-          .build()))
-        .createDataset(new NamespaceKey(getMaterializationPath(materialization)), datasetMutator);
+          .build()));
+
+    catalog.createDataset(materializationPath, datasetMutator);
+
+    List<String> primaryKey = materialization.getPrimaryKeyList();
+    if (!CollectionUtils.isEmpty(primaryKey)) {
+      catalog.addPrimaryKey(
+        materializationPath,
+        primaryKey);
+    }
   }
 
 }

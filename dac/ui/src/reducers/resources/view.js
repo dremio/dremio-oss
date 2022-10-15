@@ -15,6 +15,7 @@
  */
 import Immutable from "immutable";
 import { get } from "lodash";
+import { intl } from "@app/utils/intl";
 import uuid from "uuid";
 
 import {
@@ -29,8 +30,9 @@ import { CLEAR_ENTITIES } from "actions/resources/entities";
 import { ApiMiddlewareErrors } from "@app/utils/apiUtils/apiUtils";
 import { getNodeBranchId } from "@app/components/Tree/resourceTreeUtils";
 
-export const NO_INTERNET_MESSAGE = "Could not connect to the Dremio server."; // todo: loc
-
+export const NO_INTERNET_MESSAGE = intl.formatMessage({
+  id: "Message.Code.WS_CLOSED.Message",
+});
 function isSuccessAction(action) {
   return !action.error && (action.payload !== undefined || action.meta.success);
 }

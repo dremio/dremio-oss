@@ -34,4 +34,31 @@ public interface FSConstants {
   String MAXIMUM_CONNECTIONS = "fs.s3a.connection.maximum";
   // the maximum number of threads to allow in the pool used by TransferManager
   String MAX_THREADS = "fs.s3a.threads.max";
+
+  // AZURE AAD client ID
+  String AZURE_CLIENT_ID = "dremio.azure.clientId";
+
+
+  // AZURE AAD token endpoint
+  String AZURE_TOKEN_ENDPOINT = "dremio.azure.tokenEndpoint";
+
+
+  // AZURE AAD client secret
+  String AZURE_CLIENT_SECRET = "dremio.azure.clientSecret";
+
+
+  // AZURE Account Name
+  String AZURE_ACCOUNT = "dremio.azure.account";
+
+
+  // AZURE Account Kind
+  String AZURE_MODE = "dremio.azure.mode";
+
+
+  // AZURE secure connection
+  String AZURE_SECURE = "dremio.azure.secure";
+
+
+  // AZURE Shared Access key
+  String AZURE_KEY = "dremio.azure.key";
 }

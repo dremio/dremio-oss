@@ -45,7 +45,7 @@ public class RepeatTestRule implements TestRule {
     int count();
   }
 
-  private static class RepeatStatement extends Statement {
+  private static final class RepeatStatement extends Statement {
     private final Statement statement;
     private final int count;
 

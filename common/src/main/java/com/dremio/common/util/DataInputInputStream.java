@@ -24,7 +24,7 @@ import java.io.InputStream;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 
-public class DataInputInputStream extends InputStream {
+public final class DataInputInputStream extends InputStream {
 
   private final DataInput in;
   private boolean closed = false;

@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -41,6 +40,7 @@ import com.dremio.http.AsyncHttpClientProvider;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.azure.AzureStorageConf.AccountKind;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 
 /**

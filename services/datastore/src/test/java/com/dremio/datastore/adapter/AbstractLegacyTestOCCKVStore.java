@@ -15,11 +15,11 @@
  */
 package com.dremio.datastore.adapter;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,6 +30,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.adapter.extractors.ProtostuffDummyObjVersionExtractor;
@@ -51,17 +52,15 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
   private LegacyKVStore<K ,V> kvStore;
   private LegacyKVStoreProvider provider;
 
-  // CHECKSTYLE:OFF VisibilityModifier
-  @Parameterized.Parameter
+  @Parameter
   public Class<TestLegacyStoreCreationFunction<K ,V>> storeCreationFunction;
 
-  @Parameterized.Parameter(1)
+  @Parameter(1)
   public DataGenerator<K, V> gen;
 
-  @Parameterized.Parameter(2)
+  @Parameter(2)
   public VersionExtractor<V> versionExtractor;
 
-  // CHECKSTYLE:ON VisibilityModifier
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
     return Arrays.asList(new Object[][] {

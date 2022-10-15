@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -46,4 +45,4 @@ const styles = {
     fontWeight: "600",
   },
 };
-export default Radium(MenuLabel);
+export default MenuLabel;

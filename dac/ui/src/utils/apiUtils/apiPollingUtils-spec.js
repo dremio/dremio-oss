@@ -16,7 +16,7 @@
 import ApiPolling from "./apiPollingUtils";
 import ApiUtils from "./apiUtils";
 
-describe("ApiPollingUtils", () => {
+describe.skip("ApiPollingUtils", () => {
   const props = {
     endpoint: "ep",
     options: { method: "GET" },

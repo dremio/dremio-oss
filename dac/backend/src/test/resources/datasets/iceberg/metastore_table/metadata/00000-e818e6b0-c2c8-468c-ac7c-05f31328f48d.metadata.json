@@ -1,0 +1,83 @@
+{
+  "format-version" : 1,
+  "table-uuid" : "49621921-72af-4dbc-8abc-9a1fe249f0d6",
+  "location" : "tmp://dml_testing/table",
+  "last-updated-ms" : 1656093136203,
+  "last-column-id" : 2,
+  "schema" : {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "id",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 2,
+      "name" : "name",
+      "required" : false,
+      "type" : "string"
+    } ]
+  },
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "id",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 2,
+      "name" : "name",
+      "required" : false,
+      "type" : "string"
+    } ]
+  } ],
+  "partition-spec" : [ ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "compatibility.snapshot-id-inheritance.enabled" : "true",
+    "commit.manifest.target-size-bytes" : "153600"
+  },
+  "current-snapshot-id" : 1535587241343797585,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 1535587241343797585,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "snapshot-id" : 1535587241343797585,
+    "timestamp-ms" : 1656093136203,
+    "summary" : {
+      "operation" : "append",
+      "added-data-files" : "1",
+      "added-records" : "3",
+      "total-records" : "3",
+      "total-files-size" : "0",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "tmp://dml_testing/table/metadata/snap-1535587241343797585-1-7022dc7c-578a-49a9-a052-2736fba7e997.avro",
+    "schema-id" : 0
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1656093136203,
+    "snapshot-id" : 1535587241343797585
+  } ],
+  "metadata-log" : [ ]
+}

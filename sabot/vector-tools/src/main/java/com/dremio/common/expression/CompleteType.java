@@ -50,6 +50,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.holders.BigIntHolder;
@@ -158,6 +159,7 @@ public class CompleteType {
   public static final CompleteType VARCHAR = new CompleteType(ArrowType.Utf8.INSTANCE);
   public static final CompleteType LIST = new CompleteType(ArrowType.List.INSTANCE);
   public static final CompleteType STRUCT = new CompleteType(ArrowType.Struct.INSTANCE);
+  public static final CompleteType MAP = new CompleteType(new ArrowType.Map(false));
   public static final CompleteType FIXEDSIZEBINARY = new CompleteType(new ArrowType.FixedSizeBinary(128));
   public static final CompleteType DECIMAL = new CompleteType(new ArrowType.Decimal(MAX_DECIMAL_PRECISION,
     MAX_DECIMAL_PRECISION, 128));
@@ -186,6 +188,10 @@ public class CompleteType {
 
   public Field toField(String name) {
     return new Field(name, new FieldType(true, type, null), children);
+  }
+
+  public Field toField(String name, boolean isNullable) {
+    return new Field(name, new FieldType(isNullable, type, null), children);
   }
 
   public Field toField(ProvidesUnescapedPath ref) {
@@ -235,6 +241,7 @@ public class CompleteType {
     switch(type.getTypeID()) {
       case Struct:
       case List:
+      case Map:
         return false;
       default:
         return true;
@@ -298,6 +305,8 @@ public class CompleteType {
       return LIST;
     case STRUCT:
       return STRUCT;
+    case MAP:
+      return MAP;
     case UNION:
       throw new UnsupportedOperationException("You can't create a complete type from a minor type when working with type of " + type.name());
 
@@ -387,6 +396,10 @@ public class CompleteType {
     return type.getTypeID() == ArrowTypeID.Struct;
   }
 
+  public boolean isMap() {
+    return type.getTypeID() == ArrowTypeID.Map;
+  }
+
   public boolean isList() {
     return type.getTypeID() == ArrowTypeID.List;
   }
@@ -396,13 +409,14 @@ public class CompleteType {
   }
 
   public boolean isComplex() {
-    return isStruct() || isList();
+    return isStruct() || isList() || isMap();
   }
 
   public boolean isScalar() {
     switch(type.getTypeID()){
     case List:
     case Struct:
+    case Map:
     case Union:
       return false;
     default:
@@ -414,6 +428,7 @@ public class CompleteType {
     switch(type.getTypeID()){
     case List:
     case Struct:
+    case Map:
     case Union:
     case Binary:
     case Utf8:
@@ -455,6 +470,8 @@ public class CompleteType {
         return StructVector.class;
     case LIST:
         return ListVector.class;
+    case MAP:
+        return MapVector.class;
     case NULL:
         return ZeroVector.class;
     case TINYINT:
@@ -636,7 +653,7 @@ public class CompleteType {
 
       @Override
       public Class<? extends ValueHolder> visit(ArrowType.Map type) {
-        throw new UnsupportedOperationException("Dremio does not support map yet.");
+        return ComplexHolder.class;
       }
 
     });
@@ -739,7 +756,7 @@ public class CompleteType {
       Field matchingField = secondFieldMap.remove(tableSchemaField.getName().toLowerCase());
       if (matchingField != null) {
         try {
-          mergedList.add(fromField(tableSchemaField).mergeFieldListsWithUpPromotionOrCoercion(fromField(matchingField), coercionRulesSet).toField(tableSchemaField.getName()));
+          mergedList.add(fromField(tableSchemaField).mergeFieldListsWithUpPromotionOrCoercion(fromField(matchingField), coercionRulesSet).toField(tableSchemaField.getName(), tableSchemaField.isNullable()));
         } catch (NoSupportedUpPromotionOrCoercionException e) {
           e.addColumnName(tableSchemaField.getName());
           throw e;
@@ -780,6 +797,8 @@ public class CompleteType {
       } else if(type1.isStruct()) {
         // both are structs.
         return new CompleteType(type1.getType(), mergeFieldLists(type1.getChildren(), type2.getChildren()));
+      } else if (type1.isMap()) {
+          return new CompleteType(type1.getType(), struct(mergeFieldLists(type1.getOnlyChild().getChildren(), type2.getOnlyChild().getChildren())).toField(MapVector.DATA_VECTOR_NAME, false));
       }
     }
 
@@ -847,6 +866,11 @@ public class CompleteType {
 
       if (tableType.isStruct()) {
         return new CompleteType(tableType.getType(), mergeFieldListsWithUpPromotionOrCoercion(tableType.getChildren(), fileType.getChildren(), rules));
+      }
+
+      if (tableType.isMap()) {
+        CompleteType entryStruct = new CompleteType(tableType.getOnlyChildType().getType(), mergeFieldListsWithUpPromotionOrCoercion(tableType.getOnlyChild().getChildren(), fileType.getOnlyChild().getChildren(), rules));
+        return new CompleteType(tableType.getType(), entryStruct.toField(MapVector.DATA_VECTOR_NAME, false));
       }
 
       throw new IllegalStateException("Unsupported type: " + tableType);
@@ -922,7 +946,6 @@ public class CompleteType {
     return typeIds;
   }
 
-  // for now, this returns 3 always
   private static Integer getPrecision(TimeUnit unit) {
     switch (unit) {
     case SECOND:
@@ -933,8 +956,9 @@ public class CompleteType {
       return 6;
     case NANOSECOND:
       return 9;
+    default:
+      throw new IllegalArgumentException("unknown unit: " + unit);
     }
-    throw new IllegalArgumentException("unknown unit: " + unit);
   }
 
   public Integer getPrecision(){
@@ -1129,6 +1153,11 @@ public class CompleteType {
       }
 
       @Override
+      public Boolean visit(ArrowType.Map type) {
+        return false;
+      }
+
+      @Override
       public Boolean visit(org.apache.arrow.vector.types.pojo.ArrowType.List type) {
         return false;
       }
@@ -1195,9 +1224,24 @@ public class CompleteType {
     }
     List<Field> dremioFields = new ArrayList<>();
     for (Field field : arrowFields) {
-      dremioFields.add(new Field(convertFieldName(field.getName()),
-        new FieldType(true, convertToSupportedArrowType(field.getType()), null), convertToDremioFields(field.getChildren())));
+      if (field.getType().getTypeID() == ArrowTypeID.Map) {
+        dremioFields.add(convertMapToDremioField(field));
+      } else {
+        dremioFields.add(new Field(convertFieldName(field.getName()),
+          new FieldType(true, convertToSupportedArrowType(field.getType()), null), convertToDremioFields(field.getChildren())));
+      }
     }
     return dremioFields;
+  }
+
+  public static Field convertMapToDremioField(Field arrowField) {
+    Field entryStruct = arrowField.getChildren().get(0);
+    Field keyField = entryStruct.getChildren().get(0);
+    Field valueField = entryStruct.getChildren().get(1);
+    List<Field> childFields = new ArrayList<>();
+    childFields.add(new Field(keyField.getName(), new FieldType(false, convertToSupportedArrowType(keyField.getType()), null), null));
+    childFields.add(new Field(valueField.getName(), new FieldType(true, convertToSupportedArrowType(valueField.getType()), null), null));
+    Field entries = new Field(entryStruct.getName(), new FieldType(false, convertToSupportedArrowType(entryStruct.getType()), null), childFields);
+    return  new Field(arrowField.getName(), new FieldType(arrowField.isNullable(), convertToSupportedArrowType(arrowField.getType()), null), Collections.singletonList(entries));
   }
 }

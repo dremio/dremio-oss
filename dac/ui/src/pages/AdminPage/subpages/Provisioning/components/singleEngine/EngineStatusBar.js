@@ -34,6 +34,7 @@ export function EngineStatusBar(props) {
             status={item.status}
             style={styles.statusIcon}
             type={type}
+            count={item.count}
           />{" "}
           <div style={styles.statusText}>
             {item.label}: {item.count}{" "}
@@ -59,11 +60,10 @@ const styles = {
     marginRight: 30,
   },
   statusIcon: {
-    margin: "0 5px -8px 0",
+    margin: "5px 5px -8px 0",
   },
   statusText: {
     alignItems: "center",
     display: "flex",
-    marginTop: "5px",
   },
 };

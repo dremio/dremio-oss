@@ -43,7 +43,7 @@ public class DumpCat {
   private static final SabotConfig config = SabotConfig.create();
   private static final BufferAllocator allocator = RootAllocatorFactory.newRoot(config);
 
-  public static void main(String args[]) throws Exception {
+  public static void main(String[] args) throws Exception {
     final DumpCat dumpCat = new DumpCat();
 
     final Options o = new Options();

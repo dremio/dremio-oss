@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -47,7 +46,7 @@ class CustomCondition extends Component {
       fields: { booleanExpression },
     } = this.props;
     return (
-      <div style={[styles.base]} className="custom-condition-editor">
+      <div style={styles.base} className="custom-condition-editor">
         <AddFieldEditor
           {...booleanExpression}
           onChange={this.onChange}
@@ -102,4 +101,4 @@ const styles = {
     marginLeft: 5,
   },
 };
-export default Radium(CustomCondition);
+export default CustomCondition;

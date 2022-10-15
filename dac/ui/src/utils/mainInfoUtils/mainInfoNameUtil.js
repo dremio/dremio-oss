@@ -43,14 +43,8 @@ export function getHref(entity, context) {
     }
     return entity.getIn(["links", "self"]);
   }
-  return {
-    ...context.location,
-    state: {
-      ...context.location.state,
-      originalDatasetVersion:
-        entity.get("datasetConfig") &&
-        entity.getIn(["datasetConfig", "version"]),
-    },
-    pathname: entity.getIn(["links", "query"]),
-  };
+
+  // OSS doesn't have permissions, should always open with edit
+  const editLink = entity.getIn(["links", "edit"]);
+  return editLink ?? entity.getIn(["links", "query"]);
 }

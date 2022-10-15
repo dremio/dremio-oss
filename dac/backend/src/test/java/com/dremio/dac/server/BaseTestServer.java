@@ -21,6 +21,7 @@ import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
+import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import static com.dremio.exec.planner.physical.PlannerSettings.UNLIMITED_SPLITS_SUPPORT;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.lang.String.format;
@@ -1143,6 +1144,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
     };
   }
 
+  protected static AutoCloseable enableVersionedViews() {
+    setSystemOption(VERSIONED_VIEW_ENABLED.getOptionName(), "true");
+    return () -> {
+      setSystemOption(VERSIONED_VIEW_ENABLED.getOptionName(),
+        VERSIONED_VIEW_ENABLED.getDefault().getBoolVal().toString());
+    };
+  }
 
 
   protected static AutoCloseable enableUnlimitedSplitsSupportFlags() {

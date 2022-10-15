@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { NessieRootState, NessieState } from "@app/reducers/nessie/nessie";
+import { NessieRootState, NessieState } from "@app/types/nessie";
 import { selectState } from "@app/selectors/nessie/nessie";
 import { DefaultApi } from "@app/services/nessie/client";
 import { getTreeApi } from "@app/services/nessie/impl/TreeApi";
@@ -44,7 +44,8 @@ export function useNessieContext(): NessieContextType {
 export function createNessieContext(
   source: SourceInfo,
   state: NessieRootState,
-  prefix = ""
+  prefix = "",
+  baseUrl = !source.endpoint ? "" : `/sources/dataplane/${source.name}`
 ): NessieContextType {
   const stateKey = `${prefix}${source.name}`;
   return {
@@ -52,6 +53,6 @@ export function createNessieContext(
     stateKey,
     state: selectState(state, stateKey),
     api: getTreeApi(source.endpoint),
-    baseUrl: !source.endpoint ? "" : `/sources/dataplane/${source.name}`, //Different routes for Dataplane only and Dataplane source
+    baseUrl: baseUrl, //Different routes for Dataplane only and Dataplane source
   };
 }

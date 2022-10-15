@@ -16,6 +16,8 @@
 package com.dremio.common.utils;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -38,6 +40,13 @@ public class TestPathUtils {
     assertEquals(ImmutableList.of("a", "b", "c"), PathUtils.toPathComponents(Path.of("/a/b/c")));
     assertEquals(ImmutableList.of("a", "b", "c"), PathUtils.toPathComponents(Path.of("a/b/c")));
     assertEquals(ImmutableList.of("a", "b", "c/"), PathUtils.toPathComponents(Path.of("a/b/\"c/\"")));
+  }
+
+  @Test
+  public void testGetQuotedFileName() throws Exception {
+    assertEquals("\"c\"", PathUtils.getQuotedFileName(Path.of("/a/b/c")));
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->PathUtils.getQuotedFileName(null));
+    assertTrue(ex.getMessage().contains("Fail to get a valid path from"));
   }
 
   @Test

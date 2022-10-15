@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import javax.inject.Provider;
+
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
@@ -66,7 +68,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private static final int MAX_BACKOFF_MILLIS = 60_000;
 
   private final QueryId queryId;
-  private final NodeEndpoint selfEndpoint;
+  private final Provider<NodeEndpoint> selfEndpoint;
   private final long evictionDelayMillis;
   private final ScheduledThreadPoolExecutor retryExecutor;
   private final ClusterCoordinator clusterCoordinator;
@@ -110,12 +112,12 @@ class MaestroProxyQueryTracker implements QueryTracker {
     DONE
   }
 
-  MaestroProxyQueryTracker(QueryId queryId, NodeEndpoint selfEndpoint,
+  MaestroProxyQueryTracker(QueryId queryId, Provider<NodeEndpoint> selfEndpoint,
                            long evictionDelayMillis,
                            ScheduledThreadPoolExecutor retryExecutor,
                            ClusterCoordinator clusterCoordinator) {
     this.queryId = queryId;
-    this.selfEndpoint = EndpointHelper.getMinimalEndpoint(selfEndpoint);
+    this.selfEndpoint = selfEndpoint;
     this.evictionDelayMillis = evictionDelayMillis;
     this.retryExecutor = retryExecutor;
     this.expirationTime = System.currentTimeMillis() + evictionDelayMillis;
@@ -227,7 +229,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
     List<FragmentStatus> fragmentStatuses = new ArrayList<>(lastFragmentStatuses.values());
     profile = ExecutorQueryProfile.newBuilder()
       .setQueryId(queryId)
-      .setEndpoint(selfEndpoint)
+      .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
       .setProgress(buildProgressMetrics(fragmentStatuses))
       .setNodeStatus(queryTicket.getStatus())
       .addAllFragments(fragmentStatuses)
@@ -336,7 +338,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
             // propagate the first error.
             firstError = NodeQueryFirstError.newBuilder()
               .setHandle(handle)
-              .setEndpoint(selfEndpoint)
+              .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
               .setForeman(foreman)
               .setError(firstErrorInQuery)
               .build();
@@ -352,7 +354,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
             // operator with screen finished.
             screenCompletion = NodeQueryScreenCompletion.newBuilder()
               .setId(handle.getQueryId())
-              .setEndpoint(selfEndpoint)
+              .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
               .setForeman(foreman)
               .build();
           }
@@ -424,7 +426,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
     final NodeQueryCompletion.Builder completionBuilder =
         NodeQueryCompletion.newBuilder()
             .setId(queryId)
-            .setEndpoint(selfEndpoint)
+            .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
             .setForeman(foreman)
             .setResultsSent(resultsSent)
             .setFinalNodeQueryProfile(finalQueryProfile);

@@ -349,7 +349,8 @@ public class JobDetailsUI {
     }
     return new SpillJobDetailsUI(spillJobDetails.getTotalBytesSpilledByHashAgg() > 0,
                                  spillJobDetails.getTotalBytesSpilledBySort() > 0,
-                                 spillJobDetails.getTotalBytesSpilledByHashAgg() + spillJobDetails.getTotalBytesSpilledBySort());
+                                 spillJobDetails.getTotalBytesSpilledByHashJoin() > 0,
+                                 spillJobDetails.getTotalBytesSpilledByHashAgg() + spillJobDetails.getTotalBytesSpilledBySort() + spillJobDetails.getTotalBytesSpilledByHashJoin());
   }
 
   public JobId getJobId() {

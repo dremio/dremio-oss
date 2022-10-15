@@ -68,3 +68,33 @@ export const getSortedTableData = (
   }
   return tableData;
 };
+
+export const getSortIconName = ({
+  sortDirection,
+  sortBy,
+  columnKey,
+  defaultDescending = false,
+}: {
+  sortDirection: string;
+  columnKey: string;
+  sortBy: string;
+  defaultDescending: boolean;
+}) => {
+  let sortSrc = "interface/arrow-up";
+  if (sortBy === columnKey) {
+    if (sortDirection === SortDirection.ASC) {
+      sortSrc = "interface/arrow-up";
+    } else if (sortDirection === SortDirection.DESC) {
+      sortSrc = "interface/arrow-down";
+    }
+  } else {
+    if (defaultDescending) {
+      // the jobs page is built to start on desc order
+      sortSrc = "interface/arrow-down";
+    } else {
+      sortSrc = "interface/arrow-up";
+    }
+  }
+
+  return sortSrc;
+};

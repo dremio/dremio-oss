@@ -38,8 +38,6 @@ import io.netty.channel.socket.SocketChannel;
  * Fabric server that accepts connection.
  */
 class FabricServer extends BasicServer<RpcType, FabricConnection>{
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricServer.class);
-
 
   private final FabricMessageHandler handler;
   private final ConnectionManagerRegistry connectionRegistry;

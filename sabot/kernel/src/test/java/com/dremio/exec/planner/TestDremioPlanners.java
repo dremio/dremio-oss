@@ -118,7 +118,7 @@ public class TestDremioPlanners {
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode root = new NoneRel(cluster);
     planner.setRoot(root);
-    assertThatThrownBy(planner::findBestExp).hasMessageContaining("Job was cancelled because the query went beyond system capacity during query planning.");
+    assertThatThrownBy(planner::findBestExp).hasMessageContaining("Job was canceled because the query is too complex. Please simplify the query.");
   }
 
   @Test

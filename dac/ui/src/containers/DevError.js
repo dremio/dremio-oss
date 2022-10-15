@@ -18,6 +18,7 @@ import { connect } from "react-redux";
 import ReactDOM from "react-dom";
 import PropTypes from "prop-types";
 import RedBox, { RedBoxError } from "redbox-react";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import { hideAppError } from "@app/actions/prodError";
 import { getAppError } from "@app/reducers";
 
@@ -46,6 +47,7 @@ class CustomRedBox extends RedBox {
           <FontIcon
             type="XBig"
             onClick={this.props.onDismiss}
+            className={classes["dismissButtonPsuedoClasses"]}
             style={styles.dismissButton}
           />
         </div>
@@ -117,8 +119,5 @@ const styles = {
   dismissButton: {
     cursor: "pointer",
     transform: "scale(1.5, 1.5)",
-    ":active": {
-      transform: "scale(1.2, 1.2)",
-    },
   },
 };

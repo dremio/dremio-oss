@@ -58,11 +58,13 @@ function fetchJobsListAction(queryState, viewId) {
         try {
           return response.json();
         } catch {
+          // eslint-disable-next-line promise/no-return-wrap
           return Promise.reject(response);
         }
       })
       .then((payload) => {
         dispatch(fetchJobsListActionSuccess(payload, meta));
+        // eslint-disable-next-line promise/no-return-wrap
         return Promise.resolve(payload);
       })
       .catch((response) => {
@@ -111,11 +113,13 @@ function fetchFilteredJobsListForExplorePageAction(
         try {
           return response.json();
         } catch {
+          // eslint-disable-next-line promise/no-return-wrap
           return Promise.reject(response);
         }
       })
       .then((payload) => {
         dispatch(fetchJobsListActionSuccess(payload, meta));
+        // eslint-disable-next-line promise/no-return-wrap
         return Promise.resolve(payload);
       })
       .catch((response) => {
@@ -189,11 +193,13 @@ function loadJobDetailsAction(
         try {
           return response.json();
         } catch {
+          // eslint-disable-next-line promise/no-return-wrap
           return Promise.reject(response);
         }
       })
       .then((payload) => {
         dispatch(loadJobDetailsActionSuccess(payload, meta));
+        // eslint-disable-next-line promise/no-return-wrap
         return Promise.resolve(payload);
       })
       .catch((response) => {
@@ -209,6 +215,7 @@ function loadJobDetailsAction(
           .then((error) => {
             if (response.status === 404) {
               dispatch(loadJobDetailsActionFailure({ response: error }));
+              // eslint-disable-next-line promise/no-return-wrap
               return Promise.resolve({ error, status: response.status });
             } else {
               dispatch(
@@ -251,11 +258,13 @@ function fetchItemsForFilter(tag, filter = "", limit = "50") {
         try {
           return response.json();
         } catch {
+          // eslint-disable-next-line promise/no-return-wrap
           return Promise.reject(response);
         }
       })
       .then((payload) => {
         dispatch(fetchItemsForFilterSuccess(payload, tag));
+        // eslint-disable-next-line promise/no-return-wrap
         return Promise.resolve(payload);
       })
       .catch((payload) =>
@@ -306,11 +315,13 @@ const fetchNextJobList = (href, viewId) => {
         try {
           return response.json();
         } catch {
+          // eslint-disable-next-line promise/no-return-wrap
           return Promise.reject(response);
         }
       })
       .then((payload) => {
         dispatch(fetchNextJobsSuccess(payload, meta));
+        // eslint-disable-next-line promise/no-return-wrap
         return Promise.resolve(payload);
       })
       .catch((response) =>
@@ -409,6 +420,7 @@ export function fetchJobExecutionOperatorDetails(
       .then((response) => response && response.json())
       .then((payload) => {
         dispatch(fetchJobExecutionOperatorDetailsSuccess(payload, meta));
+        // eslint-disable-next-line promise/no-return-wrap
         return Promise.resolve(payload);
       })
       .catch((response) =>

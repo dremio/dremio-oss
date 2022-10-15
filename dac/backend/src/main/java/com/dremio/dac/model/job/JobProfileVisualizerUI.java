@@ -17,7 +17,10 @@ package com.dremio.dac.model.job;
 
 import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseHostLevel;
 import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseOperatorHostLevel;
+import static com.dremio.dac.util.QueryProfileConstant.REFLECTION_PREFIX;
+import static java.lang.String.format;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,12 +33,17 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
+import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.server.admin.profile.AccelerationWrapper;
 import com.dremio.dac.server.admin.profile.HostProcessingRate;
 import com.dremio.dac.util.QueryProfileConstant;
 import com.dremio.dac.util.QueryProfileUtil;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.service.accelerator.AccelerationDetailsUtils;
+import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.jobAnalysis.proto.BaseMetrics;
 import com.dremio.service.jobAnalysis.proto.GraphNodeDetails;
 import com.dremio.service.jobAnalysis.proto.OperatorData;
@@ -43,7 +51,12 @@ import com.dremio.service.jobAnalysis.proto.PhaseData;
 import com.dremio.service.jobAnalysis.proto.PhaseNode;
 import com.dremio.service.jobAnalysis.proto.SuccessorNodes;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Splitter;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -55,13 +68,22 @@ import com.google.gson.reflect.TypeToken;
 public class JobProfileVisualizerUI {
 
   //Class level variable declaration
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobProfileVisualizerUI.class);
   Map<String, Object> graphObjectMap = new HashMap<>();
   List<PhaseData> phaseDataList = new ArrayList<>();
   UserBitShared.QueryProfile profile;
+  private static final Splitter splitter = Splitter.on(CharMatcher.is(',')).trimResults().omitEmptyStrings();
+  private static  Map<String, String> operatorToTable;
+  private final ObjectMapper mapper;
+  private static Map<String, List<String>> reflectionDatasetMap;//ReflectionID -> [ReflectionName, DatasetPath]
 
   //constructor
   public JobProfileVisualizerUI(UserBitShared.QueryProfile profile) {
     this.profile = profile;
+    mapper = new ObjectMapper();
+    mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+    operatorToTable = Maps.newHashMap();
+    reflectionDatasetMap = Maps.newHashMap();
   }
 
   /**
@@ -189,9 +211,64 @@ public class JobProfileVisualizerUI {
     }
     return nextPhaseId;
   }
-
+  private void checkIsAssignable(String field, Class<?> target, Class<?> expected) throws IOException {
+    if (!expected.isAssignableFrom(target)) {
+      throw new IOException(format("Invalid field %s, expected type %s, found %s", field, expected, target));
+    }
+  }
+  private void parseJsonPlan() throws IOException {
+    if (profile.getJsonPlan() == null || profile.getJsonPlan().isEmpty()) {
+      return;
+    }
+    // Parse the plan and map tables to major fragment and operator ids.
+    final Map<String, Object> plan = mapper.readValue(profile.getJsonPlan(), Map.class);
+    for (Map.Entry<String, Object> entry: plan.entrySet()) {
+      checkIsAssignable(entry.getKey(), entry.getValue().getClass(), Map.class);
+      final Map<String, Object> operatorInfo = (Map)entry.getValue();
+      final String operator = (String) operatorInfo.get("\"op\"");
+      if (operator != null && (operator.contains("Scan") || operator.contains("TableFunction")) && operatorInfo.containsKey("\"values\"")) {
+        // Get table name
+        checkIsAssignable(entry.getKey() + ": values", operatorInfo.get("\"values\"").getClass(), Map.class);
+        final Map<String, Object> values = (Map)operatorInfo.get("\"values\"");
+        if (values.containsKey("\"table\"")) {
+          final String tokens = ((String) values.get("\"table\"")).replaceAll("^\\[|\\]$", "");
+          final String tablePath = PathUtils.constructFullPath(IteratorUtils.toList(splitter.split(tokens).iterator())).replaceAll("\"", "");
+          operatorToTable.put(entry.getKey().replaceAll("\"", ""), tablePath);
+        }
+      }
+    }
+  }
+  private void createReflectionsDatasetMap(){
+    UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
+    List<UserBitShared.LayoutMaterializedViewProfile> layoutProfilesList = accelerationProfile.getLayoutProfilesList();
+    AccelerationDetails details = null;
+    AccelerationWrapper wrapper = null;
+    try {
+      details = AccelerationDetailsUtils.deserialize(profile.getAccelerationProfile().getAccelerationDetails());
+      if (details != null) {
+        wrapper = new AccelerationWrapper(details);
+      }
+    } catch (Exception e) {
+      details = new AccelerationDetails();
+      logger.warn("Failed to deserialize acceleration details", e);
+    }
+    AccelerationWrapper accelerationDetails = wrapper;
+    for (UserBitShared.LayoutMaterializedViewProfile viewProfile : layoutProfilesList) {
+      String reflectionDatasetPath = accelerationDetails.getReflectionDatasetPath(viewProfile.getLayoutId());
+      List<String> datasetNameReflectionName = new ArrayList<String>();
+      datasetNameReflectionName.add(viewProfile.getName());
+      datasetNameReflectionName.add(reflectionDatasetPath.replaceAll("\"", ""));
+      reflectionDatasetMap.put(viewProfile.getLayoutId(), datasetNameReflectionName);
+    }
+  }
   private List<PhaseData> getPhaseDetails() {
     if (!profile.getFragmentProfileList().isEmpty()) {
+      try {
+        parseJsonPlan();
+        createReflectionsDatasetMap();
+      } catch (IOException e) {
+        logger.error("Failed to parse physical plan for query {}, plan {}", profile.getId(), profile.getJsonPlan(), e);
+      }
       profile.getFragmentProfileList().stream().forEach(
         major -> {
           buildPhaseData(major);
@@ -299,9 +376,64 @@ public class JobProfileVisualizerUI {
   /**
    * This Method will build the OperatorDataList
    */
+  static String getDatasetNameForOperator(String operatorId, UserBitShared.CoreOperatorType operatorType) {
+
+    String datasetName = null;
+    switch (operatorType) {
+      case AVRO_SUB_SCAN:
+      case DIRECT_SUB_SCAN:
+      case HBASE_SUB_SCAN:
+      case HIVE_SUB_SCAN:
+      case INFO_SCHEMA_SUB_SCAN:
+      case JSON_SUB_SCAN:
+      case MOCK_SUB_SCAN:
+      case PARQUET_ROW_GROUP_SCAN:
+      case SYSTEM_TABLE_SCAN:
+      case TEXT_SUB_SCAN:
+      case ELASTICSEARCH_AGGREGATOR_SUB_SCAN:
+      case ELASTICSEARCH_SUB_SCAN:
+      case MONGO_SUB_SCAN:
+      case EXCEL_SUB_SCAN:
+      case ARROW_SUB_SCAN:
+      case JDBC_SUB_SCAN:
+      case FLIGHT_SUB_SCAN:
+      case ICEBERG_SUB_SCAN:
+      case DELTALAKE_SUB_SCAN:
+      case DIR_LISTING_SUB_SCAN:
+      case TABLE_FUNCTION:
+        if (operatorToTable.containsKey(operatorId)) {
+          datasetName = operatorToTable.get(operatorId);
+        }
+        break;
+      default:
+        break;
+    }
+    return datasetName;
+  }
+
+  static ArrayList<String> getReflectionNameForOperator(String datasetName) {
+
+      ArrayList<String> reflectionPath = new ArrayList<String>(Arrays.asList(datasetName.split("[.]")));
+      String reflectionID = reflectionPath.size()>1?reflectionPath.get(1).replaceAll("\"", ""):null;
+      String reflectionName = null, dataset = null;
+      if(reflectionDatasetMap.containsKey(reflectionID)) {
+
+        reflectionName = reflectionDatasetMap.get(reflectionID).get(0);
+        dataset = reflectionDatasetMap.get(reflectionID).get(1);
+      }
+      return new ArrayList<>(Arrays.asList(reflectionName, dataset));
+  }
   private static void buildOperatorDataList(String phaseId, String operatorId, int operatorType, BaseMetrics baseMetrics, List<OperatorData> operatorData, Map<String, Object> stringObjectMap) {
     String mapIndex = phaseId + "_" + operatorId;
     GraphNodeDetails graphNodeDetails = (GraphNodeDetails) stringObjectMap.get(mapIndex);
+    String key = phaseId + "-" + operatorId;
+    String datasetName = getDatasetNameForOperator(key, UserBitShared.CoreOperatorType.valueOf(operatorType));
+    String reflectionName = null;
+    if(datasetName!=null && datasetName.startsWith(REFLECTION_PREFIX)) {
+      ArrayList<String> list = getReflectionNameForOperator(datasetName);
+      reflectionName = list.get(0);
+      datasetName = list.get(1);
+    }
 
 
     operatorData.add(new OperatorData(
@@ -310,7 +442,9 @@ public class JobProfileVisualizerUI {
       operatorType,
       baseMetrics,
       graphNodeDetails.getMergeNodeName(),
-      graphNodeDetails.getSuccessorId()
+      graphNodeDetails.getSuccessorId(),
+      datasetName,
+      reflectionName
     ));
   }
 
@@ -365,7 +499,7 @@ public class JobProfileVisualizerUI {
           nodeData -> {
             operatorDataList.add(new OperatorData(
               nodeData.getNodeId(), nodeData.getOperatorName(), nodeData.getOperatorType(), nodeData.getBaseMetrics(),
-              nodeData.getMergeNodeName(), nodeData.getSuccessorId()));
+              nodeData.getMergeNodeName(), nodeData.getSuccessorId(), null, null));
           }
         );
         phaseDataList.add(new PhaseData(

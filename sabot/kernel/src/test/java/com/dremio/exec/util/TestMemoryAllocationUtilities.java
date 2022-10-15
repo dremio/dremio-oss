@@ -125,8 +125,8 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     Wrapper wrapper = new Wrapper(f1, 0);
     wrapper.overrideEndpoints(Collections.singletonList(N1));
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, wrapper), 10 + adjustReserve);
-    assertEquals(4l, es1.getProps().getMemLimit());
-    assertEquals(4l, es2.getProps().getMemLimit());
+    assertEquals(4L, es1.getProps().getMemLimit());
+    assertEquals(4L, es2.getProps().getMemLimit());
   }
 
   @Test
@@ -148,8 +148,8 @@ public class TestMemoryAllocationUtilities extends ExecTest {
 
 
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10 + adjustReserve);
-    assertEquals(3l, es1.getProps().getMemLimit());
-    assertEquals(3l, es2.getProps().getMemLimit());
+    assertEquals(3L, es1.getProps().getMemLimit());
+    assertEquals(3L, es2.getProps().getMemLimit());
   }
 
   /**

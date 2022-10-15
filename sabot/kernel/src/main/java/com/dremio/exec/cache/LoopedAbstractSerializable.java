@@ -37,7 +37,6 @@ import com.dremio.common.util.DataOutputOutputStream;
  * instead to avoid infinite loops.
  */
 abstract class LoopedAbstractSerializable implements Serializable {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LoopedAbstractSerializable.class);
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {

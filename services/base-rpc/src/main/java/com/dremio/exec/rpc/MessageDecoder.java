@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcHeader;
@@ -175,9 +176,13 @@ public class MessageDecoder extends ByteToMessageDecoder {
         // TODO: Can we avoid this copy?
         dBody.writeBytes(frame.nioBuffer(frame.readerIndex(), dBodyLength));
 
-      } catch (OutOfMemoryException e) {
-        sendOutOfMemory(e, ctx, header.getCoordinationId());
-        return null;
+      } catch (OutOfMemoryException | OutOfMemoryError e) {
+        if (ErrorHelper.isDirectMemoryException(e)) {
+          sendOutOfMemory(e, ctx, header.getCoordinationId());
+          return null;
+        } else {
+          throw e;
+        }
       }
 
       if (RpcConstants.EXTRA_DEBUGGING) {
@@ -195,10 +200,13 @@ public class MessageDecoder extends ByteToMessageDecoder {
     return m;
   }
 
-  private void sendOutOfMemory(OutOfMemoryException e, final ChannelHandlerContext ctx, int coordinationId){
+  private void sendOutOfMemory(Throwable e, final ChannelHandlerContext ctx, int coordinationId){
     final UserException uex = UserException.memoryError(e)
         .message("Out of memory while receiving data.")
-        .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator))
+        .addContext(e instanceof  OutOfMemoryException ?
+          MemoryDebugInfo.getDetailsOnAllocationFailure((OutOfMemoryException) e, allocator) :
+          MemoryDebugInfo.getSummaryFromRoot(allocator)
+        )
         .build(logger);
 
     final OutboundRpcMessage outMessage = new OutboundRpcMessage(
@@ -226,6 +234,7 @@ private void checkTag(ByteBufInputStream is, int expectedTag) throws IOException
 }
 
 // Taken from CodedInputStream and modified to enable ByteBufInterface.
+@SuppressWarnings("checkstyle:InnerAssignment")
 public static int readRawVarint32(ByteBufInputStream is) throws IOException {
   byte tmp = is.readByte();
   if (tmp >= 0) {

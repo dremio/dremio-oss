@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 
@@ -51,6 +50,7 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.DatasetHelper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -283,6 +283,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     AutoCloseables.close(closeables);
     currentRecordReader = null;
     this.context.getStats().setReadIOStats();
-    this.context.getStats().setScanRuntimeFilterDetailsInProfile();;
+    this.context.getStats().setScanRuntimeFilterDetailsInProfile();
   }
 }

@@ -209,7 +209,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       // Test data:
       // - in the pivot/unpivot code, each group of 64 values is independently checked whether they're all full, all empty, or some full + some empty
       // - test data will mirror that setup
-      assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+      assertEquals(0, count % WORD_BITS);
       for (int i = 0; i < count; i += WORD_BITS) {
         if ((i / WORD_BITS) % 3 == 0) {
           // all set
@@ -266,7 +266,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       // Test data:
       // - in the pivot/unpivot code, we process in groups of 64 bits at a time
       // - test data will mirror that setup
-      assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+      assertEquals(0, count % WORD_BITS);
       for (int i = 0; i < count; i += WORD_BITS) {
         if ((i / WORD_BITS) % 3 == 0) {
           // all set: F, T, F, T, F, ...
@@ -337,7 +337,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
           // Test data:
           // - in the pivot/unpivot code, we process in groups of 64 bits at a time
           // - test data will mirror that setup
-          assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+          assertEquals(0, count % WORD_BITS);
           for (int i = 0; i < count; i += WORD_BITS) {
             if ((i / WORD_BITS) % 3 == 0) {
               // all set: F, T, F, T, F, ...
@@ -425,7 +425,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
   }
 
   private void unpivotHelper(PivotDef pivot, FixedBlockVector fbv, VariableBlockVector vbv,
-                             ValueVector[] in, ValueVector out[], int s, int e) throws Exception {
+                             ValueVector[] in, ValueVector[] out, int s, int e) throws Exception {
     Unpivots.unpivot(pivot, fbv, vbv, s, e);
     for (int i = 0; i < (e - s); i++) {
       for (int j = 0; j < in.length; j++) {
@@ -560,7 +560,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       // Test data:
       // - in the pivot/unpivot code, each group of 64 values is independently checked whether they're all full, all empty, or some full + some empty
       // - test data will mirror that setup
-      assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+      assertEquals(0, count % WORD_BITS);
       for (int i = 0; i < count; i += WORD_BITS) {
         if ((i / WORD_BITS) % 3 == 0) {
           // all set
@@ -603,7 +603,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       // Test data:
       // - in the pivot/unpivot code, we process in groups of 64 bits at a time
       // - test data will mirror that setup
-      assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+      assertEquals(0, count % WORD_BITS);
       for (int i = 0; i < count; i += WORD_BITS) {
         if ((i / WORD_BITS) % 3 == 0) {
           // all set: F, T, F, T, F, ...

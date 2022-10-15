@@ -15,6 +15,8 @@
  */
 package com.dremio.service.autocomplete.completions;
 
+import javax.annotation.Nullable;
+
 import org.immutables.value.Value;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -28,7 +30,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @Value.Style(stagedBuilder = true)
 @JsonSerialize(as = ImmutableCompletionItem.class)
 @JsonDeserialize(as = ImmutableCompletionItem.class)
-@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonInclude(JsonInclude.Include.NON_ABSENT)
 public interface CompletionItem {
   /**
    * The textual value of the completion item. For example "SELECT".
@@ -41,8 +43,12 @@ public interface CompletionItem {
    * This value may differ from the label.
    * For example the label for a catalog entry could be "this.is.a.space" and the insert text will be "\"this.is.a.space\"".
    * Another example is a column could be "NAME", but the insert text will be "space.folder.table.NAME".
+   *
+   * It could also be a snippet as defined in:
+   * https://code.visualstudio.com/docs/editor/userdefinedsnippets
    * @return
    */
+  @Nullable
   String getInsertText();
 
   /**
@@ -55,10 +61,12 @@ public interface CompletionItem {
    * A description of the completion.
    * @return
    */
+  @Nullable
   String getDetail();
 
   /**
    * An object to store some metadata about the completion item.
    */
+  @Nullable
   Object getData();
 }

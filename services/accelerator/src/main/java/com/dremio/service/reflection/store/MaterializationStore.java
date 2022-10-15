@@ -76,7 +76,6 @@ import com.google.common.collect.Iterables;
  * store reflection materialization entries
  */
 public class MaterializationStore {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationStore.class);
 
   private static final String MATERIALIZATION_TABLE_NAME = "materialization_store";
   private static final String REFRESH_TABLE_NAME = "refresh_store";

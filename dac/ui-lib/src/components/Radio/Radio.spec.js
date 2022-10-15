@@ -16,10 +16,10 @@
 import React from "react";
 import { shallow } from "enzyme";
 
-import FormControl from "@material-ui/core/FormControl";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import RadioGroup from "@material-ui/core/RadioGroup";
-import MaterialRadio from "@material-ui/core/Radio";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import RadioGroup from "@mui/material/RadioGroup";
+import MaterialRadio from "@mui/material/Radio";
 
 import Label from "../Label";
 

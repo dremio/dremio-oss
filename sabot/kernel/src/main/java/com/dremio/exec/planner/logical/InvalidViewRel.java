@@ -20,6 +20,7 @@ import java.util.ConcurrentModificationException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
@@ -48,7 +49,7 @@ import com.google.common.base.Joiner;
 /**
  * A marker rel node that identifies a VDS as invalid and needed to be refreshed.
  */
-public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
+public final class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InvalidViewRel.class);
   private static final int MAX_RETRIES = 5;
   private final ViewTable viewTable;
@@ -212,7 +213,7 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
    */
   private static class InvalidFinder extends StatelessRelShuttleImpl {
 
-    private final LinkedHashSet<ViewTable> invalidViews = new LinkedHashSet<>();
+    private final Set<ViewTable> invalidViews = new LinkedHashSet<>();
 
     @Override
     public RelNode visit(RelNode other) {

@@ -16,6 +16,10 @@
 import { shallow } from "enzyme";
 import EllipsedText from "./EllipsedText";
 
+function getProps(wrapper) {
+  return wrapper.dive().props();
+}
+
 describe("EllipsedText", () => {
   let minimalProps;
   let commonProps;
@@ -31,7 +35,7 @@ describe("EllipsedText", () => {
   it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<EllipsedText {...minimalProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.props().className.trim()).to.be.equal("EllipsedText");
+    expect(getProps(wrapper).className.trim()).to.be.equal("EllipsedText");
   });
 
   it("should render with common props without exploding", () => {
@@ -41,13 +45,13 @@ describe("EllipsedText", () => {
       </EllipsedText>
     );
     expect(wrapper).to.have.length(1);
-    expect(wrapper.props().className).to.be.equal("EllipsedText another");
-    expect(wrapper.text()).to.be.equal("bar");
+    expect(getProps(wrapper).className).to.be.equal("EllipsedText another");
+    expect(wrapper.dive().text()).to.be.equal("bar");
   });
 
   it("should render with just text", () => {
     const wrapper = shallow(<EllipsedText {...commonProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.text()).to.be.equal("foo");
+    expect(wrapper.dive().text()).to.be.equal("foo");
   });
 });

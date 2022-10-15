@@ -31,6 +31,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.BaseSender;
+import com.dremio.sabot.op.sender.SenderLatencyTracker;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Preconditions;
 
@@ -43,12 +44,16 @@ public class SingleSenderOperator extends BaseSender {
     private final AccountingExecTunnel tunnel;
     private final FragmentHandle handle;
     private final int recMajor;
+    private final SenderLatencyTracker latencyTracker;
 
     private State state = State.NEEDS_SETUP;
     private VectorAccessible incoming;
 
     public enum Metric implements MetricDef {
-      BYTES_SENT;
+      BYTES_SENT,
+      BATCHES_SENT,
+      SUM_ACK_MILLIS,
+      MAX_ACK_MILLIS;
 
       @Override
       public int metricId() {
@@ -68,6 +73,7 @@ public class SingleSenderOperator extends BaseSender {
 
       NodeEndpoint ep = config.getDestinations(context.getEndpointsIndex()).get(0).getEndpoint();
       this.tunnel = tunnelProvider.getExecTunnel(ep);
+      this.latencyTracker = new SenderLatencyTracker();
     }
 
     @Override
@@ -84,7 +90,7 @@ public class SingleSenderOperator extends BaseSender {
       updateStats(batch);
       context.getStats().startWait();
       try {
-        tunnel.sendRecordBatch(batch);
+        tunnel.sendRecordBatch(batch, latencyTracker.getLatencyObserver());
       } finally {
         context.getStats().stopWait();
       }
@@ -122,10 +128,13 @@ public class SingleSenderOperator extends BaseSender {
 
     @Override
     public void close() throws Exception {
+      context.getStats().setLongStat(Metric.SUM_ACK_MILLIS, latencyTracker.getSumAckMillis());
+      context.getStats().setLongStat(Metric.MAX_ACK_MILLIS, latencyTracker.getMaxAckMillis());
     }
 
     private void updateStats(FragmentWritableBatch writableBatch) {
       context.getStats().addLongStat(Metric.BYTES_SENT, writableBatch.getByteCount());
+      context.getStats().addLongStat(Metric.BATCHES_SENT, 1);
     }
 
     @Override

@@ -45,12 +45,12 @@ public class TestCompositeTrustManager {
    * and also can be inspected to see if each method has been called once.
    */
   abstract static class SingleStateX509ExtendedTrustManager extends X509ExtendedTrustManager {
-    boolean checkClientSocketCalled = false;
-    boolean checkClientEngineCalled = false;
-    boolean checkClientCalled = false;
-    boolean checkServerSocketCalled = false;
-    boolean checkServerEngineCalled = false;
-    boolean checkServerCalled = false;
+    private boolean checkClientSocketCalled = false;
+    private boolean checkClientEngineCalled = false;
+    private boolean checkClientCalled = false;
+    private boolean checkServerSocketCalled = false;
+    private boolean checkServerEngineCalled = false;
+    private boolean checkServerCalled = false;
 
     abstract void doCheck() throws CertificateException;
 

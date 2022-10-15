@@ -20,6 +20,7 @@ import { createSelector } from "reselect";
 import { OrderedMap, fromJS } from "immutable";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
+import { isDcsEdition } from "dyn-load/utils/versionUtils";
 import { withRouteLeaveSubscription } from "@app/containers/RouteLeave.js";
 import { TagsView } from "@app/pages/ExplorePage/components/TagsEditor/Tags.js";
 import ViewStateWrapper from "@app/components/ViewStateWrapper";
@@ -28,11 +29,15 @@ import { toolbarHeight as toolbarHeightCssValue } from "@app/components/Markdown
 import { startSearch as startSearchAction } from "actions/search";
 import ApiUtils from "@app/utils/apiUtils/apiUtils";
 import { showConfirmationDialog } from "@app/actions/confirmation";
+import { addNotification } from "@app/actions/notification";
 import { DataColumnList } from "@app/pages/ExplorePage/components/DataColumns/DataColumnList";
 import { WikiModal } from "@app/pages/ExplorePage/components/Wiki/WikiModal";
-import { WikiEmptyState } from "@app/components/WikiEmptyState";
-import { isWikAvailable } from "@app/selectors/explore";
+import WikiEmptyState from "@app/components/WikiEmptyState";
+import { getTableColumns, isWikAvailable } from "@app/selectors/explore";
 import { SectionTitle, getIconButtonConfig } from "./SectionTitle";
+import ImmutablePropTypes from "react-immutable-proptypes";
+import { columnPropTypes } from "@app/pages/ExplorePage/components/DataColumns/DataColumn";
+
 import {
   leftColumn,
   sectionsContainer,
@@ -62,9 +67,13 @@ const getLoadViewState = createSelector(
     })
 );
 
-const mapStateToProps = (state, { location }) => ({
-  showLoadMask: !isWikAvailable(state, location), // means either dataset data is not loaded yet or we should not get to the wiki page for current data set
-});
+const mapStateToProps = (state, { location }) => {
+  const loc = state.routing.locationBeforeTransitions || {};
+  return {
+    showLoadMask: !isWikAvailable(state, location), // means either dataset data is not loaded yet or we should not get to the wiki page for current data set
+    columns: getTableColumns(state, loc.query && loc.query.version, loc),
+  };
+};
 
 export class WikiView extends PureComponent {
   static propTypes = {
@@ -75,6 +84,19 @@ export class WikiView extends PureComponent {
     isEditAllowed: PropTypes.bool, // indicates weather or not a user has manage tags/wiki permissions
     showConfirmationDialog: PropTypes.func,
     showLoadMask: PropTypes.bool,
+    showWikiContent: PropTypes.bool,
+    showTags: PropTypes.bool,
+    addNotification: PropTypes.func,
+    dataset: PropTypes.instanceOf(Immutable.Map),
+    columns: ImmutablePropTypes.listOf(
+      ImmutablePropTypes.contains(columnPropTypes)
+    ),
+  };
+
+  static defaultProps = {
+    showWikiContent: true,
+    showTags: true,
+    columns: fromJS([]),
   };
 
   // state and related properties ----------------------------
@@ -87,6 +109,9 @@ export class WikiView extends PureComponent {
     // Tags
     ...defaultTagsState,
     tagsViewState: fromJS({}),
+
+    // Fields
+    fields: fromJS([]),
   };
 
   wikiChanged = false;
@@ -143,6 +168,16 @@ export class WikiView extends PureComponent {
     );
   };
 
+  initFields = (dataset) => {
+    ApiUtils.fetchJson(
+      dataset.getIn(["apiLinks", "datagraph"]),
+      this.setFields,
+      () => {},
+      {},
+      2
+    );
+  };
+
   setOriginalTags = ({
     // API format
     tags = [],
@@ -172,6 +207,13 @@ export class WikiView extends PureComponent {
     });
   };
 
+  setFields = (response) => {
+    const {
+      dataset: { fields },
+    } = response;
+    this.setState({ fields: fromJS(fields) });
+  };
+
   componentWillMount() {
     this.handlePropsChange(undefined, this.props);
     this.props.addHasChangesHook(this.hasChanges);
@@ -182,11 +224,19 @@ export class WikiView extends PureComponent {
   }
 
   handlePropsChange = (
-    /* prevProps */ { entityId: prevEntityId } = {},
-    /* newProps */ { entityId } = {}
+    /* prevProps */ { entityId: prevEntityId, dataset: prevDataset } = {},
+    /* newProps */ { entityId, dataset, columns } = {}
   ) => {
     if (prevEntityId !== entityId && entityId) {
       this.initEntity(entityId);
+    }
+
+    if (
+      columns?.size === 0 &&
+      prevDataset?.getIn(["apiLinks", "datagraph"]) == null &&
+      dataset?.getIn(["apiLinks", "datagraph"]) != null
+    ) {
+      this.initFields(dataset);
     }
   };
 
@@ -206,18 +256,27 @@ export class WikiView extends PureComponent {
         }),
       },
       3
-    ).then(
-      (response) => {
+    )
+      .then((response) => {
         return response.json().then(this.setOriginalTags, () => {}); //tags seem to be saved, but response json is not valid; ignore?
-      },
-      () => {
-        this.setState({
-          tagsViewState: this.getErrorViewState(
-            la("Error: Tags are not saved")
-          ),
+      })
+      .catch((response) => {
+        return response.json().then((e) => {
+          // User-friendly error messages for CME are currently only supported on DCS
+          // If on software, use the existing error message
+          if (isDcsEdition() && e?.errorMessage) {
+            this.props.addNotification(e?.errorMessage, "error");
+          } else {
+            this.setState({
+              tagsViewState: this.getErrorViewState(
+                la("Error: Tags are not saved")
+              ),
+            });
+          }
+
+          return null;
         });
-      }
-    );
+      });
   };
 
   addTag = (tag) => {
@@ -295,10 +354,34 @@ export class WikiView extends PureComponent {
     this.wikiChanged = this.state.isWikiInEditMode; // this event is fired, when editMode is canceled. We should not treat this change as user change
   };
 
+  renderWikiContent = () => {
+    const { isEditAllowed } = this.props;
+    const { wiki, wikiViewState } = this.state;
+    const isInProgress = wikiViewState.get("isInProgress");
+
+    if (isInProgress === undefined || isInProgress) {
+      return null;
+    } else if (wiki) {
+      return <MarkdownEditor value={wiki} readMode onChange={this.onChange} />;
+    } else {
+      return (
+        <WikiEmptyState onAddWiki={isEditAllowed ? this.editWiki : null} />
+      );
+    }
+  };
+
   render() {
-    const { className, startSearch, entityId, isEditAllowed, showLoadMask } =
-      this.props;
-    const { isWikiInEditMode, wiki, wikiVersion, tags } = this.state;
+    const {
+      className,
+      startSearch,
+      entityId,
+      isEditAllowed,
+      showLoadMask,
+      showTags = true,
+      showWikiContent = true,
+      columns,
+    } = this.props;
+    const { isWikiInEditMode, wiki, wikiVersion, tags, fields } = this.state;
     const wrapperStylesFix = {
       height: "auto", // need reset a height from 100% to auto, as we need to fit wrapper to it's content
     };
@@ -313,75 +396,77 @@ export class WikiView extends PureComponent {
         style={{ height: "auto", display: "flex", flex: 1, minHeight: 0 }}
       >
         <div className={layout} data-qa="wikiSection">
-          <div
-            className={classNames(leftColumn, className)}
-            data-qa="wikiWrapper"
-          >
-            <ViewStateWrapper
-              viewState={this.state.wikiViewState}
-              style={wrapperStylesFix}
-              hideChildrenWhenFailed={false}
-              messageStyle={messageStyle}
+          {showWikiContent && (
+            <div
+              className={classNames(leftColumn, className)}
+              data-qa="wikiWrapper"
             >
-              <SectionTitle
-                className={sectionTitleCls}
-                title={la("Wiki")}
-                buttons={
-                  isEditAllowed && wiki
-                    ? [
-                        getIconButtonConfig({
-                          key: "edit",
-                          icon: "Edit",
-                          altText: "Edit",
-                          onClick: this.editWiki,
-                        }),
-                      ]
-                    : null
-                }
-              />
-              {wiki ? (
-                <MarkdownEditor
-                  value={wiki}
-                  readMode
+              <ViewStateWrapper
+                viewState={this.state.wikiViewState}
+                style={wrapperStylesFix}
+                hideChildrenWhenFailed={false}
+                messageStyle={messageStyle}
+              >
+                <SectionTitle
+                  className={sectionTitleCls}
+                  title={la("Wiki")}
+                  buttons={
+                    isEditAllowed && wiki
+                      ? [
+                          getIconButtonConfig({
+                            key: "edit",
+                            icon: "interface/edit",
+                            altText: "Edit",
+                            onClick: this.editWiki,
+                            styles: {
+                              width: 17,
+                              height: 18,
+                              color: "var(--dremio--color--neutral--600)",
+                            },
+                          }),
+                        ]
+                      : null
+                  }
+                />
+                {this.renderWikiContent()}
+                <WikiModal
+                  isOpen={isWikiInEditMode}
+                  entityId={entityId}
                   onChange={this.onChange}
+                  wikiValue={wiki}
+                  wikiVersion={wikiVersion}
+                  save={this.saveWiki}
+                  cancel={this.cancelWikiEdit}
                 />
-              ) : (
-                <WikiEmptyState
-                  onAddWiki={isEditAllowed ? this.editWiki : null}
-                />
-              )}
-              <WikiModal
-                isOpen={isWikiInEditMode}
-                entityId={entityId}
-                onChange={this.onChange}
-                wikiValue={wiki}
-                wikiVersion={wikiVersion}
-                save={this.saveWiki}
-                cancel={this.cancelWikiEdit}
-              />
-            </ViewStateWrapper>
-          </div>
+              </ViewStateWrapper>
+            </div>
+          )}
           <div
             className={classNames(rightColumn, sectionsContainer)}
             data-qa="tagsSection"
           >
-            <ViewStateWrapper
-              viewState={this.state.tagsViewState}
+            {showTags && (
+              <ViewStateWrapper
+                viewState={this.state.tagsViewState}
+                className={sectionItem}
+                style={wrapperStylesFix}
+                hideChildrenWhenFailed={false}
+                messageStyle={messageStyle}
+              >
+                <SectionTitle title={la("Tags")} className={sectionTitleCls} />
+                <TagsView
+                  className={tagsCls}
+                  tags={getTags(tags)}
+                  onAddTag={isEditAllowed ? this.addTag : null}
+                  onRemoveTag={isEditAllowed ? this.removeTag : null}
+                  onTagClick={startSearch}
+                />
+              </ViewStateWrapper>
+            )}
+            <DataColumnList
               className={sectionItem}
-              style={wrapperStylesFix}
-              hideChildrenWhenFailed={false}
-              messageStyle={messageStyle}
-            >
-              <SectionTitle title={la("Tags")} className={sectionTitleCls} />
-              <TagsView
-                className={tagsCls}
-                tags={getTags(tags)}
-                onAddTag={isEditAllowed ? this.addTag : null}
-                onRemoveTag={isEditAllowed ? this.removeTag : null}
-                onTagClick={startSearch}
-              />
-            </ViewStateWrapper>
-            <DataColumnList className={sectionItem} />
+              columns={columns?.size ? columns : fields}
+            />
           </div>
         </div>
       </ViewStateWrapper>
@@ -394,6 +479,9 @@ export const Wiki = withRouter(
     startSearch: startSearchAction(dispatch),
     showConfirmationDialog() {
       return dispatch(showConfirmationDialog(...arguments));
+    },
+    addNotification() {
+      return dispatch(addNotification(...arguments));
     },
   }))(withRouteLeaveSubscription(WikiView))
 );

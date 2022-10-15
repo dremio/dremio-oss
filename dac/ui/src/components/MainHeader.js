@@ -19,9 +19,6 @@ import { Link } from "react-router";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { FormattedMessage, injectIntl } from "react-intl";
-
-import Art from "components/Art";
-
 import MainHeaderMixin from "dyn-load/components/MainHeaderMixin";
 import mainHeaderConfig from "@inject/components/mainHeaderConfig";
 import config from "../utils/config";
@@ -37,6 +34,7 @@ import "./MainHeader.less";
 import "./IconFont/css/DremioIcons-old.css";
 
 @MainHeaderMixin
+// TODO: this class is not being used anymore, should be removed in another patch
 export class MainHeader extends PureComponent {
   static propTypes = {
     user: PropTypes.instanceOf(Immutable.Map),
@@ -71,9 +69,9 @@ export class MainHeader extends PureComponent {
       <header className="main-header">
         <Link className="dremio" to="/" style={styles.logo}>
           <span className={"dremioLogoWithTextContainer"}>
-            <Art
-              className={"dremioLogoWithText"}
-              src={"NarwhalLogoWithNameLight.svg"}
+            <dremio-icon
+              name="corporate/dremio"
+              class={"dremioLogoWithText"}
               alt={this.props.intl.formatMessage({ id: "App.NarwhalLogo" })}
               style={{
                 ...styles.logoIcon,

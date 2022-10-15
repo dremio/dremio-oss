@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
-import Button from "components/Buttons/Button";
+import { Button } from "dremio-ui-lib";
 import * as ButtonTypes from "components/Buttons/ButtonTypes";
 import WizardFooter from "./WizardFooter";
+import { intl } from "@app/utils/intl";
 
 class StepWizard extends PureComponent {
   static propTypes = {
@@ -35,24 +35,25 @@ class StepWizard extends PureComponent {
     return (
       <WizardFooter style={this.props.style}>
         <Button
-          disable={!this.props.hasActiveDataset}
+          disabled={!this.props.hasActiveDataset}
           onMouseDown={this.props.changeFormType.bind(this, "apply")}
           onClick={this.props.onNextClick}
-          type={ButtonTypes.NEXT}
+          color={ButtonTypes.UI_LIB_PRIMARY}
           style={{ marginBottom: 0 }}
-          disableSubmit
+          disableMargin
           key="details-wizard-next"
-          text="Next"
+          text={intl.formatMessage({ id: "Common.Next" })}
         />
         <Button
           style={{ marginLeft: 5, marginBottom: 0, marginRight: 5 }}
-          type={ButtonTypes.CANCEL}
-          disableSubmit
+          color={ButtonTypes.UI_LIB_SECONDARY}
+          disableMargin
           onClick={this.props.onCancelClick}
           key="details-wizard-cancel"
+          text={intl.formatMessage({ id: "Common.Cancel" })}
         />
       </WizardFooter>
     );
   }
 }
-export default Radium(StepWizard);
+export default StepWizard;

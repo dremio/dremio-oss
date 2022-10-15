@@ -31,6 +31,7 @@ public interface AsyncTask extends Runnable {
   void updateSleepDuration(long duration);
   void updateBlockedOnDownstreamDuration(long duration);
   void updateBlockedOnUpstreamDuration(long duration);
+  void updateBlockedOnMemoryDuration(long duration);
   void addBlockedOnSharedResourceDuration(SharedResourceType resource, long duration);
   void setWakeupCallback(AvailabilityCallback callback);
   void setTaskDescriptor(TaskDescriptor descriptor);

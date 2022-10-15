@@ -23,6 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
@@ -52,14 +53,12 @@ public abstract class AbstractTestOCCKVStore<K, V> {
   private KVStore<K, V> kvStore;
   private KVStoreProvider provider;
 
-  // CHECKSTYLE:OFF VisibilityModifier
-  @Parameterized.Parameter
+  @Parameter
   public Class<? extends StoreCreationFunction<K, V, KVStore<K, V>>> storeCreationFunction;
 
-  @Parameterized.Parameter(1)
+  @Parameter(1)
   public DataGenerator<K, V> gen;
 
-  // CHECKSTYLE:ON VisibilityModifier
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
     return Arrays.asList(new Object[][]{

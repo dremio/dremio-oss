@@ -15,8 +15,10 @@
  */
 package com.dremio.options;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+
 import java.util.SortedSet;
-import java.util.TreeSet;
 
 import org.junit.Test;
 
@@ -48,8 +50,7 @@ public class TestOptionList {
     expectedList.add(optionValue1);
     expectedList.add(optionValue2);
     changedList.mergeIfNotPresent(localList);
-    assert changedList.equals(expectedList) : String.format("OptionLists merge incorrectly.\n\nexpected: %s \n\n" +
-        "returned: %s", expectedList, changedList);
+    assertEquals(expectedList, changedList);
   }
 
   @Test
@@ -64,14 +65,11 @@ public class TestOptionList {
     optionMap.put(optionValue2.getName(), optionValue2);
     final OptionType maxType = optionMap.get("test-option").last().getType();
     final OptionType minType = optionMap.get("test-option").first().getType();
-    assert maxType == OptionType.QUERY : String.format("OptionValues are not in the correct order of OptionType.\n\nexpected: %s \n\n" +
-      "returned: %s", OptionType.QUERY, maxType);
-    assert minType == OptionType.SYSTEM : String.format("OptionValues are not in the correct order of OptionType.\n\nexpected: %s \n\n" +
-      "returned: %s", OptionType.SYSTEM, minType);
+    assertEquals(OptionType.QUERY, maxType);
+    assertEquals(OptionType.SYSTEM, minType);
     SortedSet<OptionValue> values = optionMap.get("nonexisting-test-option");
-    assert values != null && values.size() == 0 : String.format("Option name not found, should return an empty Collection.\\n\\nexpected: %s \\n\\n\" +" +
-      "returned: %s", new TreeSet<OptionValue>(), values);
-
+    assertThat(values)
+      .isNotNull()
+      .isEmpty();
   }
-
 }

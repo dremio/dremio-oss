@@ -46,6 +46,10 @@ public class FixedBlockVector implements AutoCloseable {
     resetPositions();
   }
 
+  public ArrowBuf getBuf() {
+    return buf;
+  }
+
   public long getMemoryAddress(){
     return buf.memoryAddress();
   }
@@ -137,7 +141,7 @@ public class FixedBlockVector implements AutoCloseable {
     return LargeMemoryUtil.checkedCastToInt(buf.writerIndex());
   }
 
-  int getCapacity() {
+  public int getCapacity() {
     return buf != null ? LargeMemoryUtil.checkedCastToInt(buf.capacity()) : 0;
   }
 }

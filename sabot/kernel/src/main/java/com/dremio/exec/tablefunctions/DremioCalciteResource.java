@@ -53,4 +53,7 @@ public interface DremioCalciteResource extends CalciteResource {
    */
   @BaseMessage("Invalid External Query statement on source <{0}>")
   ExInst<SqlValidatorException> externalQueryInvalidError(String sourceName);
+
+  @BaseMessage("Number of target columns ({0,number}) does not equal number of source items ({1,number})")
+  ExInst<SqlValidatorException> unmatchColumn(int a0, int a1);
 }

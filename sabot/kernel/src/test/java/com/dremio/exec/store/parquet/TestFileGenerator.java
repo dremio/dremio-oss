@@ -19,6 +19,7 @@ import static org.apache.parquet.column.Encoding.PLAIN;
 import static org.apache.parquet.column.Encoding.RLE;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -35,13 +36,11 @@ import org.apache.parquet.schema.MessageTypeParser;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.store.ByteArrayUtil;
 
-public class TestFileGenerator {
+public final class TestFileGenerator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestFileGenerator.class);
 
-  // 10 mb per page
-  static int bytesPerPage = 1024 * 1024 * 1;
   // { 00000001, 00000010, 00000100, 00001000, 00010000, ... }
-  static byte[] bitFields = { 1, 2, 4, 8, 16, 32, 64, -128 };
+  static final byte[] bitFields = { 1, 2, 4, 8, 16, 32, 64, -128 };
   static final byte allBitsTrue = -1;
   static final byte allBitsFalse = 0;
   static final byte[] varLen1 = { 50, 51, 52, 53, 54, 55, 56 };
@@ -49,7 +48,7 @@ public class TestFileGenerator {
   static final byte[] varLen3 = { 100, 99, 98 };
 
   static final Object[] intVals = { -200, 100, Integer.MAX_VALUE };
-  static final Object[] longVals = { -5000l, 5000l, Long.MAX_VALUE };
+  static final Object[] longVals = { -5000L, 5000L, Long.MAX_VALUE };
   static final Object[] floatVals = { 1.74f, Float.MAX_VALUE, Float.MIN_VALUE };
   static final Object[] doubleVals = { 100.45d, Double.MAX_VALUE, Double.MIN_VALUE, };
   static final Object[] boolVals = { false, false, true };
@@ -59,8 +58,7 @@ public class TestFileGenerator {
   // TODO - figure out what this should be set at, it should be based on the max nesting level
   public static final int MAX_EXPECTED_BIT_WIDTH_FOR_DEFINITION_LEVELS = 16;
 
-  static void populateDrill_418_fields(ParquetTestProperties props) {
-
+  static void populateFieldsForDrill418(ParquetTestProperties props) {
     props.fields.put("cust_key", new FieldInfo("int32", "integer", 32, intVals, TypeProtos.MinorType.INT, props));
     props.fields.put("nation_key", new FieldInfo("int32", "integer", 32, intVals, TypeProtos.MinorType.INT, props));
     props.fields.put("acctbal", new FieldInfo("int32", "integer", 32, intVals, TypeProtos.MinorType.INT, props));
@@ -112,8 +110,8 @@ public class TestFileGenerator {
 
   private static class ValueRepeaterProducer extends ValueProducer {
 
-    WrapAroundCounter position;
-    Object[] values;
+    private final WrapAroundCounter position;
+    private final Object[] values;
 
     public ValueRepeaterProducer(Object[] values) {
       this.values = values;
@@ -163,7 +161,7 @@ public class TestFileGenerator {
     CompressionCodecName codec = CompressionCodecName.UNCOMPRESSED;
     ParquetFileWriter w = new ParquetFileWriter(configuration, schema, path);
     w.start();
-    HashMap<String, Integer> columnValuesWritten = new HashMap<>();
+    Map<String, Integer> columnValuesWritten = new HashMap<>();
     int valsWritten;
     for (int k = 0; k < props.numberRowGroups; k++) {
       w.startBlock(props.recordsPerRowGroup);
@@ -184,17 +182,17 @@ public class TestFileGenerator {
 
         w.startColumn(c1, props.recordsPerRowGroup, codec);
         final int valsPerPage = (int) Math.ceil(props.recordsPerRowGroup / (float) fieldInfo.numberOfPages);
-        final int PAGE_SIZE = 1024 * 1024; // 1 MB
+        final int pageSize = 1024 * 1024; // 1 MB
         byte[] bytes;
         RunLengthBitPackingHybridValuesWriter defLevels = new RunLengthBitPackingHybridValuesWriter(
             MAX_EXPECTED_BIT_WIDTH_FOR_DEFINITION_LEVELS,
             valsPerPage,
-            PAGE_SIZE,
+            pageSize,
             new DirectByteBufferAllocator());
         RunLengthBitPackingHybridValuesWriter repLevels = new RunLengthBitPackingHybridValuesWriter(
             MAX_EXPECTED_BIT_WIDTH_FOR_DEFINITION_LEVELS,
             valsPerPage,
-            PAGE_SIZE,
+            pageSize,
             new DirectByteBufferAllocator());
         // for variable length binary fields
         int bytesNeededToEncodeLength = 4;
@@ -267,4 +265,7 @@ public class TestFileGenerator {
     logger.debug("Finished generating parquet file.");
   }
 
+  private TestFileGenerator() {
+    // Utility class
+  }
 }

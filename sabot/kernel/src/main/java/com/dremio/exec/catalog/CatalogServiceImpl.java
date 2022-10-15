@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import javax.inject.Provider;
 
@@ -81,6 +82,7 @@ import com.dremio.service.namespace.NamespaceUser;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
@@ -689,6 +691,10 @@ public class CatalogServiceImpl implements CatalogService {
       return CatalogServiceImpl.this.getPlugin(pluginName, true);
     }
 
+    @Override
+    public Stream<VersionedPlugin> getAllVersionedPlugins() {
+      return getPlugins().getAllVersionedPlugins();
+    }
   }
 
   @Override
@@ -741,7 +747,6 @@ public class CatalogServiceImpl implements CatalogService {
       .build()));
   }
 
-  @VisibleForTesting
   PluginsManager getPlugins() {
     return plugins;
   }
@@ -785,13 +790,12 @@ public class CatalogServiceImpl implements CatalogService {
   private class CatalogIdentityResolver implements IdentityResolver {
     @Override
     public CatalogIdentity getOwner(List<String> path) throws NamespaceException {
-      final DatasetConfig dataset = systemNamespace.getDataset(new NamespaceKey(path));
-
-      if (dataset.getType() != DatasetType.VIRTUAL_DATASET) {
-        return null;
+      NamespaceKey key = new NamespaceKey(path);
+      if (systemNamespace.getEntityByPath(key).getType() == NameSpaceContainer.Type.DATASET) {
+        final DatasetConfig dataset = systemNamespace.getDataset(key);
+        return dataset.getType() != DatasetType.VIRTUAL_DATASET ? null : new CatalogUser(dataset.getOwner());
       }
-
-      return new CatalogUser(dataset.getOwner());
+      return null;
     }
 
     @Override
@@ -829,5 +833,10 @@ public class CatalogServiceImpl implements CatalogService {
       // Error is ignored here as plugin propagation is best effort
       logger.warn("Failure while communicating source change [{}].", config.getName(), e1);
     }
+  }
+
+  @Override
+  public Stream<VersionedPlugin> getAllVersionedPlugins() {
+    return getPlugins().getAllVersionedPlugins();
   }
 }

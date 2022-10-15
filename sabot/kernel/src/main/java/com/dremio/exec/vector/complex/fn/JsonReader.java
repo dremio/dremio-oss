@@ -210,7 +210,7 @@ public class JsonReader extends BaseJsonProcessor {
     default:
       throw
         getExceptionWithContext(
-          UserException.dataReadError(), currentFieldName, null)
+          UserException.dataReadError(), currentFieldName)
           .message("Failure while reading JSON. (Got an invalid read state %s )", readState.toString())
           .build(logger);
     }
@@ -223,7 +223,7 @@ public class JsonReader extends BaseJsonProcessor {
     if(!parser.isClosed()){
       throw
         getExceptionWithContext(
-          UserException.dataReadError(), currentFieldName, null)
+          UserException.dataReadError(), currentFieldName)
         .message("Dremio attempted to unwrap a toplevel list "
           + "in your document.  However, it appears that there is trailing content after this top level list.  Dremio only "
           + "supports querying a set of distinct maps or a single json array with multiple inner maps.")
@@ -240,7 +240,7 @@ public class JsonReader extends BaseJsonProcessor {
       if(inOuterList){
         throw
           getExceptionWithContext(
-            UserException.dataReadError(), currentFieldName, null)
+            UserException.dataReadError(), currentFieldName)
           .message("The top level of your document must either be a single array of maps or a set "
             + "of white space delimited maps.")
           .build(logger);
@@ -254,7 +254,7 @@ public class JsonReader extends BaseJsonProcessor {
         }else{
           throw
             getExceptionWithContext(
-              UserException.dataReadError(), currentFieldName, null)
+              UserException.dataReadError(), currentFieldName)
             .message("The top level of your document must either be a single array of maps or a set "
               + "of white space delimited maps.")
             .build(logger);
@@ -272,7 +272,7 @@ public class JsonReader extends BaseJsonProcessor {
       }else{
         throw
           getExceptionWithContext(
-            UserException.dataReadError(), currentFieldName, null)
+            UserException.dataReadError(), currentFieldName)
           .message("Failure while parsing JSON.  Ran across unexpected %s.", JsonToken.END_ARRAY)
           .build(logger);
       }
@@ -282,7 +282,7 @@ public class JsonReader extends BaseJsonProcessor {
     default:
       throw
         getExceptionWithContext(
-          UserException.dataReadError(), currentFieldName, null)
+          UserException.dataReadError(), currentFieldName)
           .message("Failure while parsing JSON.  Found token of [%s].  Dremio currently only supports parsing "
               + "json strings that contain either lists or maps.  The root object cannot be a scalar.", t)
           .build(logger);
@@ -406,7 +406,7 @@ public class JsonReader extends BaseJsonProcessor {
         default:
           throw
                   getExceptionWithContext(
-                          UserException.dataReadError(), currentFieldName, null)
+                          UserException.dataReadError(), currentFieldName)
                           .message("Unexpected token %s", parser.getCurrentToken())
                           .build(logger);
         }
@@ -472,7 +472,7 @@ public class JsonReader extends BaseJsonProcessor {
         default:
           throw
             getExceptionWithContext(
-              UserException.dataReadError(), currentFieldName, null)
+              UserException.dataReadError(), currentFieldName)
               .message("Unexpected token %s", parser.getCurrentToken())
               .build(logger);
         }
@@ -596,7 +596,7 @@ public class JsonReader extends BaseJsonProcessor {
         // Take the maximum number of leaves from the current and the calculated for this array entry.
         maxArrayLeafCount = Math.max(maxArrayLeafCount, currentLeafCount);
       } catch (Exception e) {
-        throw getExceptionWithContext(e, this.currentFieldName, null).build(logger);
+        throw getExceptionWithContext(e, this.currentFieldName).build(logger);
       }
     }
 
@@ -637,7 +637,7 @@ public class JsonReader extends BaseJsonProcessor {
       default:
         throw
           getExceptionWithContext(
-            UserException.dataReadError(), currentFieldName, null)
+            UserException.dataReadError(), currentFieldName)
           .message("Unexpected token %s", parser.getCurrentToken())
           .build(logger);
       }

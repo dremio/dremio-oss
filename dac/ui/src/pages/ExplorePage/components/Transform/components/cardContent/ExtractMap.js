@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 import { LINE_CENTER_CENTER } from "uiTheme/radium/flexStyle.js";
 import { formLabel } from "uiTheme/radium/typography";
@@ -53,4 +52,4 @@ const styles = {
     ...formLabel,
   },
 };
-export default Radium(ExtractMap);
+export default ExtractMap;

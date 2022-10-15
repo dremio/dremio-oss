@@ -15,8 +15,13 @@
  */
 package com.dremio.exec.planner.types;
 
+import java.util.AbstractList;
+
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.sql.type.SqlTypeName;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Note that this class extends from {@link org.apache.calcite.sql.type.SqlTypeFactoryImpl} indirectly, via
@@ -41,6 +46,28 @@ public class JavaTypeFactoryImpl extends org.apache.calcite.jdbc.JavaTypeFactory
     default:
       return super.createSqlType(typeName, precision);
     }
+  }
+
+  public RelDataType createTypeWithMaxVarcharPrecision(RelDataType rowType) {
+    Preconditions.checkState(rowType instanceof RelRecordType);
+
+    return createStructType(rowType.getStructKind(),
+      new AbstractList<RelDataType>() {
+        @Override public RelDataType get(int index) {
+          RelDataType fieldType =
+            rowType.getFieldList().get(index).getType();
+          if (fieldType.getSqlTypeName() == SqlTypeName.VARCHAR) {
+            return createSqlType(SqlTypeName.VARCHAR, 65536);
+          } else {
+            return fieldType;
+          }
+        }
+
+        @Override public int size() {
+          return rowType.getFieldCount();
+        }
+      },
+      rowType.getFieldNames());
   }
 
 }

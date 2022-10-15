@@ -17,7 +17,7 @@
 import { createContext, useEffect, useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 
-import { Reference } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import PromiseViewState from "@app/components/PromiseViewState/PromiseViewState";
 import { isReqLoading } from "@app/utils/smartPromise";
@@ -43,7 +43,7 @@ export const BranchHistoryContext = createContext(
 
 function BranchHistory({ params }: BranchHistoryProps) {
   const branchName: string = useMemo(() => {
-    return (params?.branchName || "").split(".")[0];
+    return decodeURIComponent(params?.branchName || "").split(".")[0];
   }, [params]);
 
   const { state, api } = useNessieContext();

@@ -20,12 +20,9 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.INTERS
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SET_MINUS;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.UNION;
 
-import org.apache.arrow.util.Preconditions;
-
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -38,7 +35,7 @@ import com.google.common.collect.ImmutableSet;
  * |   query INTERSECT [ ALL | DISTINCT ] query
  *
  */
-public final class SetQueryStatement extends QueryStatement {
+public final class SetQueryStatement extends Statement {
   private static final ImmutableSet<Integer> QUERY_SEPARATORS = new ImmutableSet.Builder<Integer>()
     .add(UNION)
     .add(EXCEPT)
@@ -48,27 +45,17 @@ public final class SetQueryStatement extends QueryStatement {
 
   private SetQueryStatement(
     ImmutableList<DremioToken> tokens,
-    ImmutableList<QueryStatement> children) {
+    ImmutableList<Statement> children) {
     super(tokens, children);
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
   }
 
   public static SetQueryStatement parse(TokenBuffer tokenBuffer) {
     Preconditions.checkNotNull(tokenBuffer);
 
     ImmutableList<DremioToken> tokens = tokenBuffer.toList();
-    ImmutableList.Builder<QueryStatement> queryStatementListBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<Statement> queryStatementListBuilder = new ImmutableList.Builder<>();
     while (!tokenBuffer.isEmpty()) {
-      QueryStatement parsedQueryStatement = parseNext(tokenBuffer);
+      SelectQueryStatement parsedQueryStatement = parseNext(tokenBuffer);
       queryStatementListBuilder.add(parsedQueryStatement);
       tokenBuffer.read();
     }
@@ -76,7 +63,7 @@ public final class SetQueryStatement extends QueryStatement {
     return new SetQueryStatement(tokens, queryStatementListBuilder.build());
   }
 
-  private static QueryStatement parseNext(TokenBuffer tokenBuffer) {
+  private static SelectQueryStatement parseNext(TokenBuffer tokenBuffer) {
     ImmutableList<DremioToken> tokens = tokenBuffer.readUntilMatchKindsAtSameLevel(QUERY_SEPARATORS);
     TokenBuffer selectQueryTokenBuffer = new TokenBuffer(tokens);
     return SelectQueryStatement.parse(selectQueryTokenBuffer);

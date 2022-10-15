@@ -8,7 +8,9 @@
   "rules": {
     "liberty/use-logical-spec": true,
     "custom-property-empty-line-before": null,
-    "custom-property-pattern": null
+    "custom-property-pattern": null,
+    "no-descending-specificity": null,
+    "no-duplicate-selectors": null
   },
   "ignoreFiles": ["dist-themes/**/*"]
 }

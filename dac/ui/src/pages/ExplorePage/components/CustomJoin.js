@@ -15,7 +15,6 @@
  */
 import { Component } from "react";
 import Immutable from "immutable";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -110,4 +109,4 @@ class CustomJoin extends Component {
       : this.renderDatasetsTree();
   }
 }
-export default Radium(CustomJoin);
+export default CustomJoin;

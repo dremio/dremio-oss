@@ -49,8 +49,9 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorContainer.class);
 
   private final Resetter resetter = new Resetter();
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final List<VectorWrapper<?>> wrappers = Lists.newArrayList();
-  protected final BufferAllocator allocator;
+  private final BufferAllocator allocator;
 
   private BatchSchema schema;
   private int recordCount = -1;
@@ -333,10 +334,8 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     }
   }
 
-  @SuppressWarnings("unused")
-  private BufferAllocator getAllocator() {
-    throw new UnsupportedOperationException("Intentionally not exposing the allocator of the VectorContainer. " +
-                                              "Doing so might accidentally expose the fragment output allocator");
+  protected BufferAllocator getAllocator() {
+    return allocator;
   }
 
   @Override

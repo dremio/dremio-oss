@@ -82,7 +82,7 @@ abstract class MetadataOperations {
   protected void checkAndRepair() {
     RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(
       datasetConfig, context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME),
-      context.getNamespaceService(SystemUser.SYSTEM_USERNAME), storagePlugin);
+      context.getNamespaceService(SystemUser.SYSTEM_USERNAME), storagePlugin, context.getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE));
     repairOperation.checkAndRepairDatasetWithQueryRetry();
   }
 
@@ -100,9 +100,12 @@ abstract class MetadataOperations {
     datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
   }
 
-  protected void save() {
+  protected static void save(NamespaceKey table,
+                             DatasetConfig datasetConfig,
+                             String userName,
+                             SabotContext context) {
     try {
-      context.getNamespaceService(schemaConfig.getUserName()).addOrUpdateDataset(table, datasetConfig);
+      context.getNamespaceService(userName).addOrUpdateDataset(table, datasetConfig);
     } catch (NamespaceException e) {
       throw UserException.validationError(e)
         .message("Failure while updating dataset")

@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.replay;
 
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.function.Function;
 
@@ -50,7 +51,6 @@ public class JoinRecursiveReplayer implements YieldingRunnable {
 
       // if finished, close the replayer.
       if (currentReplayer.isFinished()) {
-        logger.trace("replay entry finished");
         // this step can trigger more entries to be appended to the replayList
         currentReplayer.close();
         currentReplayer = null;
@@ -59,9 +59,25 @@ public class JoinRecursiveReplayer implements YieldingRunnable {
     }
 
     if (!replayList.isEmpty()) {
-      logger.trace("switching to new replay entry");
-      JoinReplayEntry entry = replayList.removeFirst();
-      currentReplayer = joinReplayerFactory.apply(entry);
+      // for debug
+      // dumpInfo();
+
+      // pick the entry with the smallest build size. That will have the highest probability of completing without spilling.
+      JoinReplayEntry victim = null;
+      long victimSize = Long.MAX_VALUE;
+      for (JoinReplayEntry entry : replayList) {
+        if (entry.getBuildSize() < victimSize) {
+          victimSize = entry.getBuildSize();
+          victim = entry;
+        }
+      }
+      assert victim != null;
+      boolean removed = replayList.remove(victim);
+      assert removed;
+      logger.debug("picked entry for replay build size {} records {} probe size {} records {}",
+        victim.getBuildSize(), victim.getBuildNumRecords(),
+        victim.getProbeSize(), victim.getProbeNumRecords());
+      currentReplayer = joinReplayerFactory.apply(victim);
     }
     return 0;
   }
@@ -69,6 +85,25 @@ public class JoinRecursiveReplayer implements YieldingRunnable {
   @Override
   public boolean isFinished() {
     return currentReplayer == null && replayList.isEmpty();
+  }
+
+  private void dumpInfo() {
+    try {
+      long buildSize = 0;
+      long buildRecords = 0;
+      long probeSize = 0;
+      long probeRecords = 0;
+
+      for (JoinReplayEntry entry : replayList) {
+        buildSize += entry.getBuildSize();
+        buildRecords += entry.getBuildNumRecords();
+        probeSize += entry.getProbeSize();
+        probeRecords += entry.getProbeNumRecords();
+      }
+      logger.debug("spill has cumulative build size {} records {} probe size {} records {}, across {} replay entries",
+        buildSize, buildRecords, probeSize, probeRecords,
+        replayList.size());
+    } catch (IOException ignore) {}
   }
 
   @Override

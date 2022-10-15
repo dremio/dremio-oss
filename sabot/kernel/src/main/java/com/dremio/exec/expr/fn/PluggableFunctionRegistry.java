@@ -29,7 +29,7 @@ public interface PluggableFunctionRegistry {
    * @param operatorTable
    * @param isDecimalV2Enabled
    */
-  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled);
+  void register(OperatorTable operatorTable, boolean isDecimalV2Enabled);
 
   /**
    * If exists return the function implementation holder matching the given <code>functionCall</code> expression,
@@ -38,6 +38,5 @@ public interface PluggableFunctionRegistry {
    * @param functionCall
    * @return
    */
-  public AbstractFunctionHolder getFunction(FunctionCall functionCall);
-
+  AbstractFunctionHolder getFunction(FunctionCall functionCall);
 }

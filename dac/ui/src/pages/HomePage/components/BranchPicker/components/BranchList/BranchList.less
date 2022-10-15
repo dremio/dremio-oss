@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/mixins.less";
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .branchList {
@@ -26,13 +25,20 @@
     flex-direction: column;
 
     &-header-item {
-      color: @SECONDARY_600;
-      font-weight: 500;
-      text-transform: uppercase;
+      color: var(--dremio--color--text--faded) !important;
+      font-weight: 400 !important;
+      font-size: 12px !important;
+      padding-bottom: 0 !important;
+      position: absolute !important;
+      bottom: 0 !important;
+
+      &.MuiListItem-root.Mui-disabled {
+        opacity: 1 !important;
+      }
     }
 
     &-search {
-      margin-right: 16px;
+      margin-right: 8px;
       margin-bottom: 8px;
     }
 
@@ -47,7 +53,7 @@
     &-item-icon {
       margin-right: 4px;
       display: flex;
-      color: @FIGMA_TEXT_LESS_IMPORTANT;
+      color: var(--dremio--color--icon--main);
     }
 
     .font-icon {
@@ -57,12 +63,13 @@
     .MuiMenuItem-root {
       min-height: calc(100% - 8px);
       padding: 4px;
-      padding-right: 12px;
+      margin-right: 8px;
     }
 
     .MuiListItem-root.Mui-selected {
-      background-color: @PRIMARY_200 !important;
+      background-color: var(--dremio--color--primary--100) !important;
       font-weight: 600 !important;
+      border-radius: 4px;
     }
   }
 }

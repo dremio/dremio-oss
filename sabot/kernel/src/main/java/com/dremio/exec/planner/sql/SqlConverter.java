@@ -44,6 +44,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.udf.SqlUserDefinedFunctionExpanderRule;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
@@ -92,6 +93,7 @@ public class SqlConverter {
   private final Catalog catalog;
   private final SqlRexConvertletTable convertletTable;
   private final ReflectionAllowedMonitoringConvertletTable.ConvertletTableNotes convertletTableNotes;
+  public VersionContext viewExpansionVersionContext;
 
   public SqlConverter(
       final PlannerSettings settings,
@@ -135,6 +137,7 @@ public class SqlConverter {
         new ConvertletTable(
           functionContext.getContextInformation(),
           settings.getOptions().getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));
+    this.viewExpansionVersionContext = null;
   }
 
   private SqlConverter(SqlConverter parent, ParserConfig parserConfig) {
@@ -158,6 +161,7 @@ public class SqlConverter {
     this.catalog = parent.catalog;
     this.convertletTable = parent.convertletTable;
     this.convertletTableNotes = parent.convertletTableNotes;
+    this.viewExpansionVersionContext = parent.viewExpansionVersionContext;
   }
 
   public SqlConverter withSystemDefaultParserConfig() {
@@ -233,10 +237,6 @@ public class SqlConverter {
     return functionContext;
   }
 
-  public Catalog getCatalog() {
-    return catalog;
-  }
-
   public SqlParser.Config getParserConfig() {
     return parserConfig;
   }
@@ -279,6 +279,14 @@ public class SqlConverter {
 
   public SqlRexConvertletTable getConvertletTable() {
     return convertletTable;
+  }
+
+  public Catalog getCatalog() {
+    return catalog;
+  }
+
+  public void setViewExpansionVersionContext(VersionContext versionContext) {
+    viewExpansionVersionContext = versionContext;
   }
 
   /**

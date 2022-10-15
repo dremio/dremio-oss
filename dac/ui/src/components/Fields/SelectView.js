@@ -15,7 +15,6 @@
  */
 import { PureComponent, createRef, Fragment } from "react";
 import { Popover, MouseEvents } from "@app/components/Popover";
-import Art from "@app/components/Art";
 import classNames from "classnames";
 
 import PropTypes from "prop-types";
@@ -25,6 +24,7 @@ import {
   open as openCls,
   select as selectCls,
   menuHeader as menuHeaderCls,
+  disabledIcon as disabledIconCls,
 } from "./SelectView.less";
 /**
  * node or render props function
@@ -66,13 +66,13 @@ export class SelectView extends PureComponent {
     useLayerForClickAway: PropTypes.bool,
     /** Attributes that would be applied to a content wrapper dom element */
     rootAttrs: PropTypes.object,
-    icon: PropTypes.string,
     iconStyle: PropTypes.object,
     popoverFilters: PropTypes.string,
-    isArtIcon: PropTypes.bool,
     iconClass: PropTypes.string,
     hasIconFirst: PropTypes.bool,
     closeOnSelect: PropTypes.bool,
+    hasSpecialIcon: PropTypes.bool,
+    iconId: PropTypes.string,
   };
 
   static defaultProps = {
@@ -121,14 +121,14 @@ export class SelectView extends PureComponent {
   isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl);
 
   renderIcon = () => {
-    const { disabled, icon, iconStyle, isArtIcon, iconClass } = this.props;
-    return isArtIcon ? (
-      <Art src={icon} alt="icon" className={iconClass} />
-    ) : (
-      <i
-        className={icon}
-        style={{ ...iconStyle, ...(disabled ? styles.arrowDisabled : {}) }}
+    const { disabled, hasSpecialIcon, iconId, iconClass } = this.props;
+    return !hasSpecialIcon ? (
+      <dremio-icon
+        name="interface/caretDown"
+        class={disabled ? disabledIconCls : ""}
       />
+    ) : (
+      <dremio-icon name={iconId} class={iconClass} />
     );
   };
 

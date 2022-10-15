@@ -33,7 +33,6 @@ const isEdge = platform.name === "Microsoft Edge";
 export class ExploreCopyTableButton extends PureComponent {
   static propTypes = {
     title: PropTypes.string,
-    style: PropTypes.object,
     version: PropTypes.string,
     // connected
     addNotification: PropTypes.func.isRequired,
@@ -41,7 +40,7 @@ export class ExploreCopyTableButton extends PureComponent {
   };
 
   static defaultProps = {
-    title: la("Copy table content to clipboard"),
+    title: "Copy table content to clipboard",
   };
 
   state = {
@@ -187,17 +186,15 @@ export class ExploreCopyTableButton extends PureComponent {
       return null;
     }
 
-    const { title, style, jobId } = this.props;
+    const { title, jobId } = this.props;
     const isDisabled = !jobId;
 
     return (
       <CopyButtonIcon
         title={title}
-        style={style}
         onClick={this.handleClick}
         disabled={isDisabled}
-        showSpinner={this.state.isPreparing}
-        version={2}
+        isLoading={this.state.isPreparing}
       />
     );
   }

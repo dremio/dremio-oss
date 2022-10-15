@@ -15,6 +15,11 @@
  */
 package com.dremio.sabot.op.spi;
 
+import java.util.EnumSet;
+
+import com.dremio.exec.proto.UserBitShared.MetricDef.DisplayType;
+import com.dremio.sabot.exec.context.MetricDef;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 
 /**
@@ -65,7 +70,8 @@ public interface Operator extends AutoCloseable {
    *
    * @param message The message to work on.
    */
-  default void workOnOOB(OutOfBandMessage message) {}
+  default void workOnOOB(OutOfBandMessage message) {
+  }
 
   /**
    * A type of operator that can output data.
@@ -102,7 +108,12 @@ public interface Operator extends AutoCloseable {
   /**
    * A type of operator that can shrink their memory usage on request
    */
-  interface ShrinkableOperator extends Operator {
+  interface ShrinkableOperator {
+    /**
+     * Returns the id of the shrinkable operator
+     * @return
+     */
+    int getOperatorId();
 
     /**
      * Report the maximum amount of memory that can potentially be shrunk
@@ -112,10 +123,10 @@ public interface Operator extends AutoCloseable {
 
     /**
      * Informs the operator to shrink its memory usage
-     * @param size (bytes) - the operator must try to shrink by atleast this amount
-     * @return the amount of memory actually shrunk.
+     * @param size (bytes) - this is the amount of shrinkable memory reported by the operator
+     * @return true if the operator is done spilling memory
      */
-    long shrinkMemory(long size);
+    boolean shrinkMemory(long size) throws Exception;
   }
 
   /**
@@ -132,4 +143,11 @@ public interface Operator extends AutoCloseable {
     RETURN visitTerminalOperator(TerminalOperator op, EXTRA extra) throws EXCEP;
   }
 
+  default void addDisplayStatsWithZeroValue(OperatorContext context, EnumSet enumSet){
+    enumSet.forEach(stat -> {
+      if(((MetricDef) stat).getDisplayType() == DisplayType.DISPLAY_BY_DEFAULT) {
+        context.getStats().addLongStat((MetricDef)stat, 0);
+      }
+    });
+  }
 }

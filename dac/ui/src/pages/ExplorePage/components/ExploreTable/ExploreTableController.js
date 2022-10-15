@@ -24,7 +24,8 @@ import exploreUtils from "utils/explore/exploreUtils";
 import exploreTransforms from "utils/exploreTransforms";
 import jobsUtils from "@app/utils/jobsUtils.js";
 
-import { LIST, MAP } from "@app/constants/DataTypes";
+import { LIST, MAP, STRUCT } from "@app/constants/DataTypes";
+import * as PATHS from "@app/exports/paths";
 
 import {
   getPeekData,
@@ -67,8 +68,7 @@ import { Button } from "dremio-ui-lib";
 import JobListingPage from "@app/pages/JobPageNew/JobListingPage";
 import { parseQueryState } from "utils/jobsQueryState";
 import { updateQueryState } from "actions/jobs/jobs";
-import { Tooltip } from "dremio-ui-lib";
-import Art from "@app/components/Art";
+import { IconButton, Tooltip } from "dremio-ui-lib";
 import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
 
 import "./ExploreTableController.less";
@@ -102,6 +102,7 @@ export class ExploreTableController extends PureComponent {
     isResizeInProgress: PropTypes.bool,
     children: PropTypes.node,
     getTableHeight: PropTypes.func,
+    shouldRenderInvisibles: PropTypes.bool,
     columnFilter: PropTypes.string,
     // Actions
     resetViewState: PropTypes.func,
@@ -439,7 +440,9 @@ export class ExploreTableController extends PureComponent {
       const transform = exploreUtils.getTransformState(location);
       const columnType = transform.get("columnType");
       const initializeColumnTypeForExtract =
-        columnType === LIST || columnType === MAP ? columnType : "default";
+        columnType === LIST || columnType === MAP || columnType === STRUCT
+          ? columnType
+          : "default";
       const isDefault = initializeColumnTypeForExtract === "default";
 
       if (!exploreUtils.transformHasSelection(transform) && isDefault) {
@@ -471,6 +474,7 @@ export class ExploreTableController extends PureComponent {
           hide={this.hideCellMore}
           openPopover={this.state.openPopover}
           selectAll={this.selectAll}
+          style={{ width: "400px" }}
         />
       </ErrorBoundary>
     ) : null;
@@ -482,28 +486,28 @@ export class ExploreTableController extends PureComponent {
     return (
       <div className="sqlEditor__jobsTable__actionButtonContainer">
         {exploreUtils.getCancellable(status) ? (
-          <Art
-            className={"sqlEditor__jobsTable__buttons"}
-            src="CancelJobAndStop.svg"
-            alt="Cancel a job from running button"
+          <IconButton
+            tooltip="Query.Table.Cancel"
             onClick={() => cancelJob(jobId)}
-            title="Cancel job"
-          />
+            className="sqlEditor__jobsTable__buttons"
+          >
+            <dremio-icon name="sql-editor/stop" />
+          </IconButton>
         ) : (
           <div className={"sqlEditor__jobsTable__buttons"}></div>
         )}
-        <Art
-          className={"sqlEditor__jobsTable__buttons"}
-          src="ExternalLinkGray.svg"
-          alt="Jobs Detail Link Icon"
+        <IconButton
+          tooltip="Job.Open.External"
           onClick={() => {
             const jobTabPath = jobsUtils.isNewJobsPage()
               ? `/job/${jobId}`
               : `/jobs#${jobId}`;
             window.open(jobTabPath, "_blank");
           }}
-          title="Open jobs detail in another browser tab"
-        />
+          className="sqlEditor__jobsTable__buttons"
+        >
+          <dremio-icon name="interface/external-link" />
+        </IconButton>
       </div>
     );
   }
@@ -512,13 +516,13 @@ export class ExploreTableController extends PureComponent {
     const { cancelPendingSql } = this.props;
     return (
       <div className="sqlEditor__jobsTable__actionButtonContainer">
-        <Art
-          className={"sqlEditor__jobsTable__buttons"}
-          src="TrashBold.svg"
-          alt="Remove a query before running button"
+        <IconButton
+          tooltip="NewQuery.Remove"
           onClick={() => cancelPendingSql(index)}
-          title="Remove query"
-        />
+          className={"sqlEditor__jobsTable__buttons"}
+        >
+          <dremio-icon name="interface/delete" />
+        </IconButton>
       </div>
     );
   }
@@ -596,6 +600,7 @@ export class ExploreTableController extends PureComponent {
       currentJobsMap,
       currentSql,
       previousMultiSql,
+      shouldRenderInvisibles,
     } = this.props;
     const { pendingSQLJobsTableHeight } = this.state;
 
@@ -640,11 +645,9 @@ export class ExploreTableController extends PureComponent {
                 currentJobsMap[queryTabNumber - 1].isCancelDisabled
               }
             >
-              <Art
-                className={"sqlEditor__jobsTable__buttons"}
-                src={currentTab.buttonIcon}
-                alt={currentTab.buttonAlt}
-                title={currentTab.buttonText}
+              <dremio-icon
+                name={currentTab.buttonIcon}
+                class={"sqlEditor__jobsTable__tab-button"}
               />
               {currentTab.buttonText}
             </Button>
@@ -681,6 +684,7 @@ export class ExploreTableController extends PureComponent {
             isDumbTable={this.props.isDumbTable}
             getTableHeight={this.props.getTableHeight}
             isGrayed={this.state.isGrayed}
+            shouldRenderInvisibles={shouldRenderInvisibles}
             canSelect={canSelect}
             isMultiSql={currentJobsMap && currentJobsMap.length > 1}
             isEdited={!!previousMultiSql && currentSql !== previousMultiSql}
@@ -792,7 +796,7 @@ function mapStateToProps(state, ownProps) {
   }
 
   return {
-    tableData: tableData || Immutable.fromJS({ rows: [], columns: [] }),
+    tableData: tableData || Immutable.fromJS({ rows: null, columns: [] }),
     columnFilter: getColumnFilter(state),
     previewVersion,
     paginationUrl,

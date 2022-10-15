@@ -1,0 +1,245 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "("
+  input: "SELECT ("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "WITH"
+     - "CASE"
+     - "SELECT"
+     - "VALUES"
+     - "("
+ -
+  description: "(datetime"
+  input: "SELECT (datetime"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - ")"
+     - "."
+     - "IN"
+     - "="
+ -
+  description: "(datetime,"
+  input: "SELECT (datetime, "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "(datetime, datetime"
+  input: "SELECT (datetime, datetime"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "NOT"
+     - "+"
+     - ","
+ -
+  description: "(datetime, datetime)"
+  input: "SELECT (datetime, datetime)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "FROM"
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "PERIOD("
+  input: "SELECT PERIOD("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "("
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+ -
+  description: "PERIOD(datetime"
+  input: "SELECT PERIOD(datetime"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "."
+     - "IN"
+     - "="
+     - "+"
+ -
+  description: "PERIOD(datetime,"
+  input: "SELECT PERIOD(datetime, "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "PERIOD(datetime, datetime"
+  input: "SELECT PERIOD(datetime, datetime"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "NOT"
+     - "+"
+     - "-"
+ -
+  description: "PERIOD(datetime, datetime)"
+  input: "SELECT PERIOD(datetime, datetime)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "FROM"
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "CONTAINS"
+  input: "SELECT myPeriod CONTAINS"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "PERIOD"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "OVERLAPS"
+  input: "SELECT myPeriod OVERLAPS"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "PERIOD"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "EQUALS"
+  input: "SELECT myPeriod EQUALS"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "PERIOD"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "PRECEDES"
+  input: "SELECT myPeriod PRECEDES"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "PERIOD"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "IMMEDIATELY PRECEDES"
+  input: "SELECT myPeriod IMMEDIATELY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "PRECEDES"
+     - "SUCCEEDS"
+     - ","
+     - ";"
+     - "EXCEPT"
+ -
+  description: "IMMEDIATELY PRECEDES"
+  input: "SELECT myPeriod IMMEDIATELY PRECEDES"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "PERIOD"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "SUCCEEDS"
+  input: "SELECT myPeriod SUCCEEDS"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "PERIOD"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "IMMEDIATELY SUCCEEDS"
+  input: "SELECT myPeriod IMMEDIATELY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "PRECEDES"
+     - "SUCCEEDS"
+     - ","
+     - ";"
+     - "EXCEPT"
+ -
+  description: "IMMEDIATELY SUCCEEDS"
+  input: "SELECT myPeriod IMMEDIATELY SUCCEEDS"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "PERIOD"
+     - "+"
+     - "-"
+     - "?"

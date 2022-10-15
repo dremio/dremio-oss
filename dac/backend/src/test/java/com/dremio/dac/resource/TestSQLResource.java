@@ -16,8 +16,8 @@
 package com.dremio.dac.resource;
 
 import static java.util.Arrays.asList;
-import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -611,7 +611,7 @@ public class TestSQLResource extends BaseTestServer {
 
   @Test
   public void testFunctionCompletion2() throws Exception {
-    String query = "SELECT * FROM testSpace.supplier WHERE ABS(";
+    String query = "SELECT * FROM testSpace.supplier WHERE ASCII(";
     String autocompleteResponse = testAutocomplete(query, query.length(), new ArrayList<>());
     Assert.assertNotNull(autocompleteResponse);
     Assert.assertTrue(autocompleteResponse.contains("Column"));

@@ -22,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.view.ViewVersionMetadata;
 import org.projectnessie.api.params.FetchOption;
@@ -42,6 +41,7 @@ import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.IcebergView;
 import org.projectnessie.model.ImmutableIcebergTable;
 import org.projectnessie.model.ImmutableIcebergView;
+import org.projectnessie.model.Namespace;
 import org.projectnessie.model.Operation;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.Tag;
@@ -49,21 +49,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.context.RequestContext;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
-import com.dremio.exec.store.NessieUnAuthorizedException;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceAlreadyExistsException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceInfo;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
+import com.dremio.exec.store.UnAuthenticatedException;
 import com.dremio.telemetry.api.metrics.MetricsInstrumenter;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -85,7 +83,6 @@ public class NessieClientImpl implements NessieClient {
   private static final String SQL_TEXT = "N/A";
 
   private final NessieApiV1 nessieApi;
-  private RequestContext requestContext = RequestContext.current();
   private static final MetricsInstrumenter metrics = new MetricsInstrumenter(NessieClient.class);
 
   private final LoadingCache<ImmutablePair<ContentKey, ResolvedVersionContext>, Content> nessieContentsCache = CacheBuilder
@@ -99,41 +96,24 @@ public class NessieClientImpl implements NessieClient {
     this.nessieApi = nessieApi;
   }
 
-  public NessieClientImpl(NessieApiV1 nessieApi, RequestContext requestContext) {
-    this.nessieApi = nessieApi;
-    this.requestContext = requestContext;
-  }
-
   @Override
   @WithSpan
   public ResolvedVersionContext getDefaultBranch() {
     try {
-      return requestContext.call(() -> {
-        Branch defaultBranch = nessieApi.getDefaultBranch();
-        return ResolvedVersionContext.ofBranch(defaultBranch.getName(), defaultBranch.getHash());
-      });
+      Branch defaultBranch = nessieApi.getDefaultBranch();
+      return ResolvedVersionContext.ofBranch(defaultBranch.getName(), defaultBranch.getHash());
     } catch (NessieNotFoundException e) {
       throw new NoDefaultBranchException(e);
     } catch (NessieNotAuthorizedException e) {
-      throw new NessieUnAuthorizedException(e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new UnAuthenticatedException(e, "Unable to authenticate to the Nessie server. Make sure that the token is valid and not expired");
     }
   }
 
   @Override
   @WithSpan
   public ResolvedVersionContext resolveVersionContext(VersionContext versionContext) {
-    try {
-      return requestContext.call(() -> {
-        Preconditions.checkNotNull(versionContext);
-        return metrics.log("resolveVersionContext", () -> resolveVersionContextHelper(versionContext));
-      });
-    } catch (IllegalStateException | ReferenceTypeConflictException | ReferenceNotFoundException | NoDefaultBranchException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    Preconditions.checkNotNull(versionContext);
+    return metrics.log("resolveVersionContext", () -> resolveVersionContextHelper(versionContext));
   }
 
   private ResolvedVersionContext resolveVersionContextHelper(VersionContext versionContext) {
@@ -198,78 +178,58 @@ public class NessieClientImpl implements NessieClient {
   @WithSpan
   public boolean commitExists(String commitHash) {
     try {
-      return requestContext.call(() -> {
-        // TODO: Nessie might add a specific API for this in a later version: https://github.com/projectnessie/nessie/issues/1804
-        nessieApi.getCommitLog()
-          .refName(DETACHED)
-          .hashOnRef(commitHash)
-          .fetch(FetchOption.MINIMAL) // Might be slightly faster
-          .maxRecords(1) // Might be slightly faster
-          .get();
-        return true;
-      });
+      nessieApi.getCommitLog()
+        .refName(DETACHED)
+        .hashOnRef(commitHash)
+        .fetch(FetchOption.MINIMAL) // Might be slightly faster
+        .maxRecords(1) // Might be slightly faster
+        .get();
+
+      return true;
     } catch (NessieNotFoundException e) {
       return false;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
   @Override
   @WithSpan
   public Stream<ReferenceInfo> listBranches() {
-    try {
-      return requestContext.call(() ->
-        nessieApi.getAllReferences()
-        .get()
-        .getReferences()
-        .stream()
-        .filter(ref -> ref instanceof Branch)
-        .map(ref -> new ReferenceInfo("Branch", ref.getName(), ref.getHash())));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return nessieApi.getAllReferences()
+      .get()
+      .getReferences()
+      .stream()
+      .filter(ref -> ref instanceof Branch)
+      .map(ref -> new ReferenceInfo("Branch", ref.getName(), ref.getHash()));
   }
 
   @Override
   @WithSpan
   public Stream<ReferenceInfo> listTags() {
-    try {
-      return requestContext.call(() ->
-        nessieApi.getAllReferences()
-          .get()
-          .getReferences()
-          .stream()
-          .filter(ref -> ref instanceof Tag)
-          .map(ref -> new ReferenceInfo("Tag", ref.getName(), ref.getHash())));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return nessieApi.getAllReferences()
+      .get()
+      .getReferences()
+      .stream()
+      .filter(ref -> ref instanceof Tag)
+      .map(ref -> new ReferenceInfo("Tag", ref.getName(), ref.getHash()));
   }
 
   @Override
   @WithSpan
   public Stream<ChangeInfo> listChanges(VersionContext version) {
     try {
-      return requestContext.call(() -> {
-          ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
-          return nessieApi.getCommitLog()
-          .reference(toRef(resolvedVersion))
-          .get()
-          .getLogEntries()
-          .stream()
-          .map(log -> new ChangeInfo(
-            log.getCommitMeta().getHash(),
-            log.getCommitMeta().getAuthor(),
-            (log.getCommitMeta().getAuthorTime() != null) ? log.getCommitMeta().getAuthorTime().toString() : "",
-            log.getCommitMeta().getMessage()));
-      });
+      ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
+      return nessieApi.getCommitLog()
+        .reference(toRef(resolvedVersion))
+        .get()
+        .getLogEntries()
+        .stream()
+        .map(log -> new ChangeInfo(
+          log.getCommitMeta().getHash(),
+          log.getCommitMeta().getAuthor(),
+          (log.getCommitMeta().getAuthorTime() != null) ? log.getCommitMeta().getAuthorTime().toString() : "",
+          log.getCommitMeta().getMessage()));
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
-    } catch (IllegalStateException | ReferenceTypeConflictException | ReferenceNotFoundException | NoDefaultBranchException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -287,67 +247,47 @@ public class NessieClientImpl implements NessieClient {
 
   private Stream<ExternalNamespaceEntry> listEntries(List<String> catalogPath, VersionContext version, boolean shouldIncludeNestedTables) {
     try {
-      return requestContext.call(() -> {
-        ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
+      ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
 
-        final GetEntriesBuilder requestBuilder = nessieApi.getEntries()
-          .reference(toRef(resolvedVersion));
+      final GetEntriesBuilder requestBuilder = nessieApi.getEntries()
+        .reference(toRef(resolvedVersion));
 
-        int depth = (catalogPath != null && !catalogPath.isEmpty())
-          ? catalogPath.size() + 1
-          : 1;
+      int depth = (catalogPath != null && !catalogPath.isEmpty())
+        ? catalogPath.size() + 1
+        : 1;
 
-        if (!shouldIncludeNestedTables) {
-          requestBuilder.namespaceDepth(depth);
-        }
+      if (!shouldIncludeNestedTables) {
+        requestBuilder.namespaceDepth(depth);
+      }
 
-        if (depth > 1) {
-          // TODO: Escape "."s within individual path names
-          requestBuilder.filter(String.format("entry.namespace.matches('%s(\\\\.|$)')", String.join("\\\\.", catalogPath)));
-        }
+      if (depth > 1) {
+        // TODO: Escape "."s within individual path names
+        requestBuilder.filter(String.format("entry.namespace.matches('%s(\\\\.|$)')", String.join("\\\\.", catalogPath)));
+      }
 
-        return requestBuilder
-          .get()
-          .getEntries()
-          .stream()
-          .map(entry -> ExternalNamespaceEntry.of(entry.getType().toString(), entry.getName().getElements()));
-      });
-    } catch (IllegalStateException | ReferenceTypeConflictException | ReferenceNotFoundException | NoDefaultBranchException e) {
-      throw e;
+      return requestBuilder
+        .get()
+        .getEntries()
+        .stream()
+        .map(entry -> ExternalNamespaceEntry.of(entry.getType().toString(), entry.getName().getElements()));
     } catch (NessieNotFoundException e) {
       throw UserException.dataReadError(e).buildSilently();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
   @Override
   @WithSpan
-  public void createNamespace(String namespacePath, VersionContext version) {
-    try {
-      requestContext.call(
-          () -> {
-            metrics.log("createNamespace", () -> createNamespaceHelper(namespacePath, version));
-            return null;
-          });
-    } catch (IllegalStateException
-        | ReferenceTypeConflictException
-        | ReferenceNotFoundException
-        | NoDefaultBranchException
-        | NessieNamespaceAlreadyExistsException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+  public void createNamespace(List<String> namespacePathList, VersionContext version) {
+    metrics.log("createNamespace", () -> createNamespaceHelper(namespacePathList, version));
   }
 
-  private void createNamespaceHelper(String namespacePath, VersionContext version) {
+  private void createNamespaceHelper(List<String> namespacePathList, VersionContext version) {
     try {
       ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
       nessieApi
           .createNamespace()
           .reference(toRef(resolvedVersion))
-          .namespace(namespacePath)
+          .namespace(Namespace.of(namespacePathList))
           .create();
     } catch (IllegalStateException
         | ReferenceTypeConflictException
@@ -366,43 +306,23 @@ public class NessieClientImpl implements NessieClient {
   @Override
   @WithSpan
   public void createBranch(String branchName, VersionContext sourceVersion) {
-    try {
-      requestContext.call(() -> {
-        ResolvedVersionContext resolvedSourceVersion = resolveVersionContext(sourceVersion);
-        createReferenceHelper(
-          Branch.of(
-            branchName,
-            resolvedSourceVersion.getCommitHash()),
-          resolvedSourceVersion.getRefName());
-        return null;
-      });
-    } catch (IllegalStateException | ReferenceAlreadyExistsException | ReferenceTypeConflictException |
-      ReferenceNotFoundException | NoDefaultBranchException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    ResolvedVersionContext resolvedSourceVersion = resolveVersionContext(sourceVersion);
+    createReferenceHelper(
+      Branch.of(
+        branchName,
+        resolvedSourceVersion.getCommitHash()),
+      resolvedSourceVersion.getRefName());
   }
 
   @Override
   @WithSpan
   public void createTag(String tagName, VersionContext sourceVersion) {
-    try {
-      requestContext.call(() -> {
-        ResolvedVersionContext resolvedSourceVersion = resolveVersionContext(sourceVersion);
-        createReferenceHelper(
-          Tag.of(
-            tagName,
-            resolvedSourceVersion.getCommitHash()),
-          resolvedSourceVersion.getRefName());
-        return null;
-      });
-    } catch (IllegalStateException | ReferenceAlreadyExistsException |
-      ReferenceTypeConflictException | ReferenceNotFoundException | NoDefaultBranchException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    ResolvedVersionContext resolvedSourceVersion = resolveVersionContext(sourceVersion);
+    createReferenceHelper(
+      Tag.of(
+        tagName,
+        resolvedSourceVersion.getCommitHash()),
+      resolvedSourceVersion.getRefName());
   }
 
   /**
@@ -417,13 +337,10 @@ public class NessieClientImpl implements NessieClient {
    */
   private void createReferenceHelper(Reference reference, String sourceRefName) {
     try {
-      requestContext.call(() -> {
-        nessieApi.createReference()
-          .reference(reference)
-          .sourceRefName(sourceRefName)
-          .create();
-        return null;
-      });
+      nessieApi.createReference()
+        .reference(reference)
+        .sourceRefName(sourceRefName)
+        .create();
     } catch (NessieReferenceAlreadyExistsException e) {
       throw new ReferenceAlreadyExistsException(e);
     } catch (NessieConflictException e) {
@@ -431,8 +348,6 @@ public class NessieClientImpl implements NessieClient {
       throw new IllegalStateException(e);
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -443,28 +358,22 @@ public class NessieClientImpl implements NessieClient {
     Preconditions.checkNotNull(branchHash);
 
     try {
-      final String[] finalBranchHash = {branchHash};
-      requestContext.call(() -> {
-        // Empty branchHash implies force drop, look up current hash
-        if (finalBranchHash[0].isEmpty()) {
-          finalBranchHash[0] = nessieApi.getReference()
-            .refName(branchName)
-            .get()
-            .getHash();
-        }
+      // Empty branchHash implies force drop, look up current hash
+      if (branchHash.isEmpty()) {
+        branchHash = nessieApi.getReference()
+          .refName(branchName)
+          .get()
+          .getHash();
+      }
 
-        nessieApi.deleteBranch()
-          .branchName(branchName)
-          .hash(finalBranchHash[0])
-          .delete();
-        return null;
-      });
+      nessieApi.deleteBranch()
+        .branchName(branchName)
+        .hash(branchHash)
+        .delete();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -475,28 +384,22 @@ public class NessieClientImpl implements NessieClient {
     Preconditions.checkNotNull(tagHash);
 
     try {
-      final String[] finalTagHash = {tagHash};
-      requestContext.call(() -> {
-        // Empty tagHash implies force drop, look up current hash
-        if (finalTagHash[0].isEmpty()) {
-          finalTagHash[0] = nessieApi.getReference()
-            .refName(tagName)
-            .get()
-            .getHash();
-        }
+      // Empty tagHash implies force drop, look up current hash
+      if (tagHash.isEmpty()) {
+        tagHash = nessieApi.getReference()
+          .refName(tagName)
+          .get()
+          .getHash();
+      }
 
-        nessieApi.deleteTag()
-          .tagName(tagName)
-          .hash(finalTagHash[0])
-          .delete();
-        return null;
-      });
+      nessieApi.deleteTag()
+        .tagName(tagName)
+        .hash(tagHash)
+        .delete();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -504,24 +407,19 @@ public class NessieClientImpl implements NessieClient {
   @WithSpan
   public void mergeBranch(String sourceBranchName, String targetBranchName) {
     try {
-      requestContext.call(() -> {
-        final String targetHash = nessieApi.getReference().refName(targetBranchName).get().getHash();
-        final String sourceHash = nessieApi.getReference().refName(sourceBranchName).get().getHash();
+      final String targetHash = nessieApi.getReference().refName(targetBranchName).get().getHash();
+      final String sourceHash = nessieApi.getReference().refName(sourceBranchName).get().getHash();
 
-        nessieApi.mergeRefIntoBranch()
-          .branchName(targetBranchName)
-          .hash(targetHash)
-          .fromRefName(sourceBranchName)
-          .fromHash(sourceHash)
-          .merge();
-        return null;
-      });
+      nessieApi.mergeRefIntoBranch()
+        .branchName(targetBranchName)
+        .hash(targetHash)
+        .fromRefName(sourceBranchName)
+        .fromHash(sourceHash)
+        .merge();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException e) {
       throw new ReferenceNotFoundException(e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -529,23 +427,18 @@ public class NessieClientImpl implements NessieClient {
   @WithSpan
   public void assignBranch(String branchName, VersionContext sourceContext) {
     try {
-      requestContext.call(() -> {
-        final String branchHash = nessieApi.getReference().refName(branchName).get().getHash();
-        final Reference reference = getReference(sourceContext);
-        nessieApi
-          .assignBranch()
-          .branchName(branchName)
-          .hash(branchHash)
-          .assignTo(reference)
-          .assign();
-        return null;
-      });
+      final String branchHash = nessieApi.getReference().refName(branchName).get().getHash();
+      ResolvedVersionContext resolvedVersion = resolveVersionContext(sourceContext);
+      nessieApi
+        .assignBranch()
+        .branchName(branchName)
+        .hash(branchHash)
+        .assignTo(toRef(resolvedVersion))
+        .assign();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException | ReferenceNotFoundException e) {
       throw new ReferenceNotFoundException(e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -553,37 +446,31 @@ public class NessieClientImpl implements NessieClient {
   @WithSpan
   public void assignTag(String tagName, VersionContext sourceVersion) {
     try {
-      requestContext.call(() -> {
-        final String tagHash = nessieApi.getReference().refName(tagName).get().getHash();
-        final Reference reference = getReference(sourceVersion);
-        nessieApi
-          .assignTag()
-          .tagName(tagName)
-          .hash(tagHash)
-          .assignTo(reference)
-          .assign();
-        return null;
-      });
+      final String tagHash = nessieApi.getReference().refName(tagName).get().getHash();
+      ResolvedVersionContext resolvedVersion = resolveVersionContext(sourceVersion);
+      nessieApi
+        .assignTag()
+        .tagName(tagName)
+        .hash(tagHash)
+        .assignTo(toRef(resolvedVersion))
+        .assign();
     } catch (NessieConflictException e) {
       throw new ReferenceConflictException(e);
     } catch (NessieNotFoundException | ReferenceNotFoundException e) {
       throw new ReferenceNotFoundException(e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
   @Override
   @WithSpan
   public String getMetadataLocation(List<String> catalogKey, ResolvedVersionContext version) {
-    try {
-      return requestContext.call(() ->
-        metrics.log("nessieGetContents", () -> getMetadataLocationHelper(catalogKey, version)));
-    } catch (UserException | IllegalStateException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return metrics.log("nessieGetContents", () -> getMetadataLocationHelper(catalogKey, version));
+  }
+
+  @Override
+  @WithSpan
+  public String getMetadataLocation(List<String> catalogKey, ResolvedVersionContext version, String jobId) {
+    return metrics.log("nessieGetContents", () -> getMetadataLocationHelper(catalogKey, version));
   }
 
   private String getMetadataLocationHelper(List<String> catalogKey, ResolvedVersionContext version) {
@@ -607,12 +494,7 @@ public class NessieClientImpl implements NessieClient {
   @Override
   @WithSpan
   public Optional<String> getViewDialect(List<String> catalogKey, ResolvedVersionContext version) {
-    try {
-      return requestContext.call(() ->
-        metrics.log("nessieGetViewDialect", () -> getViewDialectHelper(catalogKey, version)));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return metrics.log("nessieGetViewDialect", () -> getViewDialectHelper(catalogKey, version));
   }
 
   private Optional<String> getViewDialectHelper(List<String> catalogKey, ResolvedVersionContext version) {
@@ -650,37 +532,31 @@ public class NessieClientImpl implements NessieClient {
 
   private Optional<Content> getIcebergContentsHelper(ContentKey contentKey, ResolvedVersionContext version) {
     try {
-      return requestContext.call(() -> {
-        Content content = nessieApi.getContent()
-          .key(contentKey)
-          .reference(toRef(version))
-          .get()
-          .get(contentKey);
-        logger.debug("Content for key '{}' at '{}': Content type :{} content {}",
-          contentKey,
-          version,
-          content == null ? "null" : content.getType(),
-          content == null ? "null" : content);
+      Content content = nessieApi.getContent()
+        .key(contentKey)
+        .reference(toRef(version))
+        .get()
+        .get(contentKey);
+      logger.debug("Content for key '{}' at '{}': Content type :{} content {}",
+        contentKey,
+        version,
+        content == null ? "null" : content.getType(),
+        content == null ? "null" : content);
 
-        if (content == null) {
-          logger.warn("Content from Nessie for key {} return null ", contentKey);
-          return Optional.empty();
-        }
-        if (!(content instanceof IcebergTable) && !(content instanceof IcebergView)) {
-          logger.warn("Unexpected content type from Nessie for key {} : type : {} ", contentKey, content.getType());
-        }
-        return Optional.of(content);
-      });
+      if (content == null) {
+        logger.warn("Content from Nessie for key {} return null ", contentKey);
+        return Optional.empty();
+      }
+      if (!(content instanceof IcebergTable) && !(content instanceof IcebergView)) {
+        logger.warn("Unexpected content type from Nessie for key {} : type : {} ", contentKey, content.getType());
+      }
+      return Optional.of(content);
     } catch (NessieNotFoundException e) {
       logger.error("Failed to get metadata location for table: {}", contentKey, e);
       if (e.getErrorCode() == ErrorCode.REFERENCE_NOT_FOUND // TODO: Cleanup
         || e.getErrorCode() != ErrorCode.CONTENT_NOT_FOUND) {
         throw UserException.dataReadError(e).buildSilently();
       }
-    } catch (IllegalStateException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
 
     return Optional.empty();
@@ -691,45 +567,49 @@ public class NessieClientImpl implements NessieClient {
   public void commitTable(
       List<String> catalogKey,
       String newMetadataLocation,
-      TableMetadata metadata,
-      ResolvedVersionContext version) {
-    try {
-      requestContext.call(() -> {
-        metrics.log(
-          "commitTable",
-          () -> commitTableHelper(catalogKey, newMetadataLocation, metadata, version));
-        return null;
-      });
-    } catch (UserException | IllegalStateException | CommitFailedException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+      NessieClientTableMetadata nessieClientTableMetadata,
+      ResolvedVersionContext version,
+      String jobId) {
+    metrics.log(
+      "commitTable",
+      () -> commitTableHelper(catalogKey, newMetadataLocation, nessieClientTableMetadata, version));
+  }
+
+  @Override
+  @WithSpan
+  public void commitTable(
+    List<String> catalogKey,
+    String newMetadataLocation,
+    NessieClientTableMetadata nessieClientTableMetadata,
+    ResolvedVersionContext version) {
+    metrics.log(
+      "commitTable",
+      () -> commitTableHelper(catalogKey, newMetadataLocation, nessieClientTableMetadata, version));
   }
 
   private void commitTableHelper(
       List<String> catalogKey,
       String newMetadataLocation,
-      TableMetadata metadata,
+      NessieClientTableMetadata nessieClientTableMetadata,
       ResolvedVersionContext version) {
     Preconditions.checkArgument(version.isBranch());
 
     logger.debug("Committing new metadatalocation {} snapshotId {} currentSchemaId {} defaultSpecId {} sortOrder {} for key {}",
       newMetadataLocation,
-      metadata.currentSnapshot().snapshotId(),
-      metadata.currentSchemaId(),
-      metadata.defaultSpecId(),
-      metadata.sortOrder(),
+      nessieClientTableMetadata.getSnapshotId(),
+      nessieClientTableMetadata.getCurrentSchemaId(),
+      nessieClientTableMetadata.getDefaultSpecId(),
+      nessieClientTableMetadata.getSortOrderId(),
       catalogKey);
 
     final ContentKey contentKey = ContentKey.of(catalogKey);
     final IcebergTable newTable =
         ImmutableIcebergTable.builder()
             .metadataLocation(newMetadataLocation)
-            .snapshotId(metadata.currentSnapshot().snapshotId())
-            .schemaId(metadata.currentSchemaId())
-            .specId(metadata.defaultSpecId())
-            .sortOrderId(metadata.sortOrder().orderId())
+            .snapshotId(nessieClientTableMetadata.getSnapshotId())
+            .schemaId(nessieClientTableMetadata.getCurrentSchemaId())
+            .specId(nessieClientTableMetadata.getDefaultSpecId())
+            .sortOrderId(nessieClientTableMetadata.getSortOrderId())
             .build();
 
     commitOperationHelper(contentKey, newTable, version);
@@ -762,20 +642,11 @@ public class NessieClientImpl implements NessieClient {
       ViewVersionMetadata metadata,
       String dialect,
       ResolvedVersionContext version) {
-    try {
-      requestContext.call(() -> {
-        metrics.log(
-          "commitView",
-          () ->
-            commitViewHelper(
-              catalogKey, newMetadataLocation, icebergView, metadata, dialect, version));
-        return null;
-      });
-    } catch (UserException | IllegalStateException | CommitFailedException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    metrics.log(
+      "commitView",
+      () ->
+        commitViewHelper(
+          catalogKey, newMetadataLocation, icebergView, metadata, dialect, version));
   }
 
   private void commitViewHelper(
@@ -819,16 +690,7 @@ public class NessieClientImpl implements NessieClient {
   @WithSpan
   public void deleteCatalogEntry(List<String> catalogKey, ResolvedVersionContext version) {
     Preconditions.checkArgument(version.isBranch());
-    try {
-      requestContext.call(() -> {
-        metrics.log("deleteCatalogEntry", () -> deleteCatalogEntryHelper(catalogKey, version));
-        return null;
-      });
-    } catch (UserException | IllegalStateException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    metrics.log("deleteCatalogEntry", () -> deleteCatalogEntryHelper(catalogKey, version));
   }
 
   private void deleteCatalogEntryHelper(List<String> catalogKey, ResolvedVersionContext version) {
@@ -870,14 +732,7 @@ public class NessieClientImpl implements NessieClient {
 
   @Override
   public VersionedPlugin.EntityType getVersionedEntityType(List<String> tableKey, ResolvedVersionContext version) {
-    try {
-      return requestContext.call(() ->
-        metrics.log("IcebergGetContents", () -> getVersionedEntityTypeHelper(tableKey, version)));
-    } catch (IllegalStateException | UserException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return metrics.log("IcebergGetContents", () -> getVersionedEntityTypeHelper(tableKey, version));
   }
 
   private VersionedPlugin.EntityType getVersionedEntityTypeHelper(List<String> catalogKey, ResolvedVersionContext version) {
@@ -889,6 +744,8 @@ public class NessieClientImpl implements NessieClient {
           return VersionedPlugin.EntityType.ICEBERG_TABLE;
         case ICEBERG_VIEW:
           return VersionedPlugin.EntityType.ICEBERG_VIEW;
+        case NAMESPACE:
+          return VersionedPlugin.EntityType.FOLDER;
         default:
           throw new IllegalStateException("Unsupported entity: " + content.getType());
       }
@@ -905,7 +762,8 @@ public class NessieClientImpl implements NessieClient {
         .refName(versionContext.getValue())
         .get();
     } catch (NessieNotFoundException e) {
-      throw new ReferenceNotFoundException(e);
+      logger.error(e.getMessage());
+      throw new ReferenceNotFoundException("Reference " + versionContext.getType().toString().toLowerCase() + " " + versionContext.getValue() + " not found");
     }
 
     return reference;
@@ -925,11 +783,6 @@ public class NessieClientImpl implements NessieClient {
     }
   }
 
-  @VisibleForTesting
-  void setRequestContext(RequestContext requestContext) {
-    this.requestContext = requestContext;
-  }
-
   private class NessieContentsCacheLoader extends CacheLoader<ImmutablePair<ContentKey, ResolvedVersionContext>, Content> {
     @Override
     public Content load(ImmutablePair<ContentKey, ResolvedVersionContext> pair) {
@@ -945,5 +798,17 @@ public class NessieClientImpl implements NessieClient {
   }
 
   public static final class NullMetadataException extends RuntimeException {
+  }
+
+  @Override
+  @WithSpan
+  public String getContentId(List<String> catalogKey) {
+    final ContentKey contentKey = ContentKey.of(catalogKey);
+    Content content = getContent(contentKey, getDefaultBranch());
+    if (content == null) {
+      // content will be null for implicitly created folders/namespaces.
+      return "";
+    }
+    return content.getId();
   }
 }

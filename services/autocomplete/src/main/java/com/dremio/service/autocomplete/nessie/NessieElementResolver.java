@@ -16,11 +16,8 @@
 package com.dremio.service.autocomplete.nessie;
 
 import java.util.List;
-import java.util.Optional;
 
-import org.apache.arrow.util.Preconditions;
-
-import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.google.common.base.Preconditions;
 
 /**
  * Resolves the proper Nessie elements given the context.
@@ -34,10 +31,8 @@ public final class NessieElementResolver {
     this.reader = reader;
   }
 
-  public List<? extends NessieElement> resolve(DremioToken dremioToken) {
-    Optional<NessieElementType> optionalNessieElementType = NessieElementType.tryConvertFromDremioToken(dremioToken);
-    NessieElementType nessieElementType = optionalNessieElementType.get();
-    switch (nessieElementType)
+  public List<? extends NessieElement> resolve(NessieElementType type) {
+    switch (type)
     {
     case BRANCH:
       return this.reader.getBranches();
@@ -49,7 +44,7 @@ public final class NessieElementResolver {
       return this.reader.getTags();
 
     default:
-      throw new RuntimeException("UNKNOWN NESSIE ELEMENT TYPE: " + nessieElementType);
+      throw new RuntimeException("UNKNOWN NESSIE ELEMENT TYPE: " + type);
     }
   }
 }

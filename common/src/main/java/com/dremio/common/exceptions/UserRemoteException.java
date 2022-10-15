@@ -24,7 +24,7 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError;
  * Wraps a DremioPBError object so we don't need to rebuilt it multiple times when sending it to the client. It also
  * gives access to the original exception className and message.
  */
-public class UserRemoteException extends UserException {
+public final class UserRemoteException extends UserException {
 
   private final DremioPBError error;
 

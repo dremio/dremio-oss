@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import Art from "@app/components/Art";
 import FontIcon from "@app/components/Icon/FontIcon";
 import { Entry } from "@app/services/nessie/client";
 import NessieLink from "../NessieLink/NessieLink";
@@ -43,10 +42,10 @@ function RepoHeader({
           <span className="repoHeader-divider">/</span>
           <NessieLink to="/" className="repoHeader-branch">
             <span className="repoHeader-branchIcon">
-              <Art
-                src="GitBranch.svg"
+              <dremio-icon
+                name="vcs/branch"
                 alt="Reference"
-                style={{ width: 24, height: 24 }}
+                class="repoHeader-branchIcon--icon"
               />
             </span>
             <span className="repoHeader-branchName text-ellipsis">

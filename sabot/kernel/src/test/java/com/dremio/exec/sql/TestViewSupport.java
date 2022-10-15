@@ -25,6 +25,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.config.DremioConfig;
+import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 
@@ -103,6 +104,22 @@ public class TestViewSupport extends TestBaseViewSupport {
         new String[] { "region_id", "sales_city", "sales_state_province", "sales_district", "sales_region",
             "sales_country", "sales_district_id" },
         ImmutableList.of(new Object[] { 0L, "None", "None", "No District", "No Region", "No Country", 0L })
+    );
+  }
+
+  @Test
+  public void viewWithUnionWithStarInDef_StarInQuery() throws Exception {
+    testViewHelper(
+      TEMP_SCHEMA,
+      null,
+      "WITH TABLE_A AS (SELECT * FROM cp.\"region.json\" UNION ALL SELECT * FROM cp.\"region.json\") SELECT * FROM TABLE_A ORDER BY \"region_id\"",
+      "SELECT * FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 2",
+      new String[] { "region_id", "sales_city", "sales_state_province", "sales_district", "sales_region",
+        "sales_country", "sales_district_id" },
+      ImmutableList.of(
+        new Object[] { 0L, "None", "None", "No District", "No Region", "No Country", 0L },
+        new Object[] { 0L, "None", "None", "No District", "No Region", "No Country", 0L }
+      )
     );
   }
 
@@ -543,17 +560,19 @@ public class TestViewSupport extends TestBaseViewSupport {
 
   @Test // DRILL-2589
   public void createViewWithUniqueColsInFieldListDuplicateColsInQuery2() throws Exception {
-    testViewHelper(
+    try (AutoCloseable ac = setSystemOptionWithAutoReset(HashJoinOperator.NUM_PARTITIONS.getOptionName(), "1")) {
+      testViewHelper(
         TEMP_SCHEMA,
         "(regionid1, regionid2)",
         "SELECT t1.region_id, t2.region_id FROM cp.\"region.json\" t1 JOIN cp.\"region.json\" t2 " +
-            "ON t1.region_id = t2.region_id LIMIT 1",
+          "ON t1.region_id = t2.region_id LIMIT 1",
         "SELECT * FROM TEST_SCHEMA.TEST_VIEW_NAME",
         new String[]{"regionid1", "regionid2"},
         ImmutableList.of(
-            new Object[]{0L, 0L}
+          new Object[]{0L, 0L}
         )
-    );
+      );
+    }
   }
 
   @Test // DRILL-2589

@@ -1,0 +1,52 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "../../styles/constants/index.scss";
+
+// Default tooltip colors. Moved out of the main theme for readability
+.MuiTooltip-tooltip,
+.tooltip {
+  background-color: var(--dremio--color--neutral--700) !important;
+  .MuiTooltip-arrow {
+    color: var(--dremio--color--neutral--700) !important;
+  }
+  .MuiTooltip-arrow::before {
+    background-color: var(--dremio--color--neutral--700) !important;
+  }
+
+  &.MuiTooltip-tooltip {
+    border-radius: 2px;
+    min-height: 28px;
+    font-weight: 400;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 19.6px; //Needed after Mui v5 upgrade
+  }
+}
+
+// Custom tooltip
+.richTooltip {
+  background-color: var(--dremio--color--neutral--000) !important;
+  max-width: 400px !important;
+  color: var(--dremio--color--text--main) !important;
+  padding: 16px 0px 20px 0px !important;
+  box-shadow: var(--dremio--shadow--layer-1) !important;
+  .MuiTooltip-arrow {
+    color: var(--dremio--color--neutral--000) !important;
+  }
+  .MuiTooltip-arrow::before {
+    background-color: var(--dremio--color--neutral--000) !important;
+  }
+}

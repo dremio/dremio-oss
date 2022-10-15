@@ -18,9 +18,10 @@ import PropTypes from "prop-types";
 import { label } from "uiTheme/radium/forms";
 import { formDefault } from "uiTheme/radium/typography";
 import { Select } from "components/Fields";
-import HoverHelp from "components/HoverHelp";
 import DurationField from "components/Fields/DurationField";
 import FieldWithError from "components/Fields/FieldWithError";
+import { HoverHelp } from "dremio-ui-lib";
+import { metaDataPolicyDefaultValues } from "@inject/utils/metaDataUtils";
 
 // todo wrap in la
 const DISCOVERY_TOOLTIP =
@@ -39,7 +40,6 @@ Dremio updates details for all datasets in a source. This mode increases query p
 const AUTHORIZATION_TOOLTIP =
   "When impersonation is enabled, maximum amount of time Dremio will cache authorization information.";
 const DEFAULT_DURATION_ONE_HOUR = 3600000;
-const DEFAULT_DURATION_THREE_HOUR = DEFAULT_DURATION_ONE_HOUR * 3;
 const DEFAULT_DURATION_ONE_DAY = DEFAULT_DURATION_ONE_HOUR * 24;
 
 const MIN_TIME = 60 * 1000; // when changed, must update validation error text
@@ -52,11 +52,16 @@ export default class MetadataRefresh extends Component {
   };
 
   static defaultFormValues() {
+    const {
+      namesRefreshMillis,
+      datasetDefinitionRefreshAfterMillis,
+      datasetDefinitionExpireAfterMillis,
+    } = metaDataPolicyDefaultValues();
     return {
       metadataPolicy: {
-        namesRefreshMillis: DEFAULT_DURATION_ONE_HOUR,
-        datasetDefinitionRefreshAfterMillis: DEFAULT_DURATION_ONE_HOUR,
-        datasetDefinitionExpireAfterMillis: DEFAULT_DURATION_THREE_HOUR,
+        namesRefreshMillis,
+        datasetDefinitionRefreshAfterMillis,
+        datasetDefinitionExpireAfterMillis,
         authTTLMillis: DEFAULT_DURATION_ONE_DAY,
         updateMode: "PREFETCH_QUERIED",
       },

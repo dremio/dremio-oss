@@ -18,9 +18,7 @@ package com.dremio.exec.planner.sql.parser;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDescribeTable;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
@@ -30,7 +28,6 @@ import org.apache.calcite.sql.SqlPivot;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSetOption;
 import org.apache.calcite.sql.SqlUnpivot;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.util.SqlVisitor;
 
@@ -45,7 +42,6 @@ import com.google.common.collect.Maps;
  * For example, this visitor converts {@code a['b'][4]['c']} to {@code a.b[4].c}
  */
 public class CompoundIdentifierConverter extends SqlShuttle {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompoundIdentifierConverter.class);
 
   private boolean enableComplex = false;
   private final boolean withCalciteComplexTypeSupport;
@@ -82,19 +78,6 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     ArgHandler<SqlNode> argHandler = new ComplexExpressionAware(call);
     call.getOperator().acceptCall(this, call, false, argHandler);
     SqlNode node = argHandler.result();
-    if (withCalciteComplexTypeSupport) {
-      if (node instanceof SqlCall) {
-        SqlCall sqlCall = ((SqlCall) node);
-        if ("item".equals(sqlCall.getOperator().getName().toLowerCase())) {
-          SqlNode left = sqlCall.getOperandList().get(0);
-          SqlNode right = sqlCall.getOperandList().get(1);
-          if (right instanceof SqlCharStringLiteral) {
-              SqlIdentifier identifier = new SqlIdentifier(((SqlCharStringLiteral) right).getNlsString().getValue(), call.getParserPosition());
-              node = new SqlBasicCall(SqlStdOperatorTable.DOT, new SqlNode[]{left, identifier}, call.getParserPosition());
-          }
-        }
-      }
-    }
     return node;
   }
 

@@ -20,11 +20,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.arrow.util.VisibleForTesting;
-
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.io.file.FileAttributes;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Captures DeltaLake commit and metadata information present in one log file. The log file could be a JSON or checkpoint.parquet

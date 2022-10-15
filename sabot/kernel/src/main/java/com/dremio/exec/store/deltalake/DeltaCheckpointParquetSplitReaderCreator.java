@@ -144,12 +144,12 @@ public class DeltaCheckpointParquetSplitReaderCreator {
           final boolean autoCorrectCorruptDates = opCtx.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
 
           final SchemaDerivationHelper.Builder schemaHelperBuilder = SchemaDerivationHelper.builder()
-                    .readInt96AsTimeStamp(readInt96AsTimeStamp)
+                    .readInt96AsTimeStamp(readInt96AsTimeStamp) // add mapDataTypeEnabled to support Map DataType
                     .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, projectedCols.getBatchSchemaProjectedColumns(),
                             autoCorrectCorruptDates));
 
           final ParquetSubScan parquetSubScanConfig = toParquetScanConfig(addWithPartitionCols, referencedTables,
-            fieldsToRead, footer, parquetXAttr.getPath(), SchemaDerivationHelper.builder().build());
+            fieldsToRead, footer, parquetXAttr.getPath(), SchemaDerivationHelper.builder().build()); // add mapDataTypeEnabled to support Map Type in CheckoutpointParquet
 
           schemaHelperBuilder.noSchemaLearning(parquetSubScanConfig.getFullSchema());
             SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();

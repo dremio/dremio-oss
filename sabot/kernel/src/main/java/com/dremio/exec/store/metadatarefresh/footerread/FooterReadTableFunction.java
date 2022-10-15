@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.base.OpProps;
@@ -203,7 +204,7 @@ public class FooterReadTableFunction extends AbstractTableFunction {
         fileFormat = footer.getFileFormat();
       }
       if (partitionData.isPresent()) {
-        SchemaConverter schemaConverter = new SchemaConverter(tableName);
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).setMapTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
         List<Field> partitionColumns = partitionData.get()
                 .getPartitionType()
                 .fields().stream().map(x -> schemaConverter.fromIcebergColumn(x)).collect(Collectors.toList());

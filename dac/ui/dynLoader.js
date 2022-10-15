@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 /*eslint no-sync: 0*/
-const fs = require("fs");
 const path = require("path");
 
 exports.path = path.resolve(
@@ -45,11 +44,4 @@ exports.applyNodeResolver = () => {
 // used by webpack/babel to resolve the babel plugins
 exports.applyNodeModulesResolver = () => {
   require("app-module-path").addPath(path.resolve(__dirname, "node_modules"));
-};
-
-exports.applyTSConfig = () => {
-  const tsconfigPathToCopy = path.resolve(exports.path, "../tsconfig.dev.json");
-  // apply tsconfig for dynamic modules
-  // console.info(`Typescript config is applied: '${tsconfigPathToCopy}'`);
-  fs.copyFileSync(tsconfigPathToCopy, path.resolve(__dirname, "tsconfig.json"));
 };

@@ -77,6 +77,7 @@ import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
@@ -216,6 +217,9 @@ public class TestSystemStoragePluginInitializer {
       .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
     when(sabotContext.isCoordinator())
       .thenReturn(true);
+
+    when(sabotContext.getCredentialsServiceProvider())
+      .thenReturn(() -> mock(CredentialsService.class));
 
     final FileSystemWrapper fileSystemWrapper = (fs, storageId, pluginConf, operatorContext, enableAsync, isMetadataEnabled) -> fs;
     when(sabotContext.getFileSystemWrapper())

@@ -266,12 +266,14 @@ public class BloomFilterTest {
     @Test(expected = IllegalArgumentException.class)
     public void testInvalidSizeSmallerThanMeta() {
         try (final BloomFilter bloomFilter = new BloomFilter(bfTestAllocator, TEST_NAME, 24)) {
+          // trigger exception
         }
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testSizeNotMultipleOf8() {
         try (final BloomFilter bloomFilter = new BloomFilter(bfTestAllocator, TEST_NAME, 31)) {
+          // trigger exception
         }
     }
 

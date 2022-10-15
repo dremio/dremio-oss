@@ -31,7 +31,7 @@ import com.google.common.collect.Lists;
  * The list is broken up into batches of HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR
  * elements to be iterated over by the caller.
  */
-public class InputSplitBatchIterator extends AbstractIterator<List<InputSplit>> {
+public final class InputSplitBatchIterator extends AbstractIterator<List<InputSplit>> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InputSplitBatchIterator.class);
 
   private final Iterator<List<InputSplit>> partitionedInputSplitsIterator;

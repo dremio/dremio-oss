@@ -33,6 +33,7 @@ public class TestJobProfileVisualizerUI extends BaseTestServer {
 
   private UserBitShared.QueryProfile queryProfile;
   private JobProfileVisualizerUI jobProfileVisualizerUI;
+  private static final String tablePath = "cp.parquet/decimals/mixedDecimalsInt32Int64FixedLengthWithStats.parquet";
 
   @Before
   public void setUp() throws Exception {
@@ -76,5 +77,18 @@ public class TestJobProfileVisualizerUI extends BaseTestServer {
     assertTrue("IoWaitTime", baseMetrics.getIoWaitTime().intValue() >= 0);
     assertTrue("SetupTime", baseMetrics.getSetupTime().intValue() >= 0);
     assertEquals(null, baseMetrics.getBytesProcessed());
+  }
+
+  @Test
+  public void testDatasetAndReflectionDetailsInJobProfileInfo() throws Exception {
+    List<PhaseData> phaseDataList = jobProfileVisualizerUI.getJobProfileInfo();
+    List<OperatorData> operatorData = phaseDataList.get(0).getOperatorDataList();
+
+    assertEquals("00", phaseDataList.get(0).getPhaseId());
+    assertEquals(9, operatorData.size());
+    assertEquals(53, operatorData.get(6).getOperatorType().intValue());
+    assertEquals("TABLE_FUNCTION", operatorData.get(6).getOperatorName());
+    assertEquals(tablePath, operatorData.get(6).getDataSetName());
+    assertEquals(null, operatorData.get(6).getReflectionName());
   }
 }

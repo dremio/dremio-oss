@@ -24,7 +24,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -32,7 +31,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -40,7 +38,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -48,7 +45,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -56,7 +52,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"
@@ -68,27 +63,15 @@
   output:
     completions:
      -
-      data: "SET"
-      detail: "Some SQL keyword"
-      insertText: "SET"
       kind: "Keyword"
       label: "SET"
      -
-      data: "."
-      detail: "Some SQL keyword"
-      insertText: "."
       kind: "Keyword"
       label: "."
      -
-       data: "AS"
-       detail: "Some SQL keyword"
-       insertText: "AS"
-       kind: "Keyword"
-       label: "AS"
+      kind: "Keyword"
+      label: "AS"
      -
-      data: "["
-      detail: "Some SQL keyword"
-      insertText: "["
       kind: "Keyword"
       label: "["
     functionContext: null
@@ -104,8 +87,8 @@
           name: "COMM"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.COMM"
+      detail: "column (INTEGER) in EMP"
+      insertText: "COMM"
       kind: "Column"
       label: "COMM"
      -
@@ -114,8 +97,8 @@
           name: "DEPTNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.DEPTNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "DEPTNO"
       kind: "Column"
       label: "DEPTNO"
      -
@@ -124,8 +107,8 @@
           name: "EMPNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.EMPNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMPNO"
       kind: "Column"
       label: "EMPNO"
      -
@@ -134,8 +117,8 @@
           name: "ENAME"
           type: "VARCHAR"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.ENAME"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "ENAME"
       kind: "Column"
       label: "ENAME"
      -
@@ -144,8 +127,8 @@
           name: "HIREDATE"
           type: "TIMESTAMP"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.HIREDATE"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "HIREDATE"
       kind: "Column"
       label: "HIREDATE"
     functionContext: null
@@ -161,8 +144,8 @@
           name: "COMM"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.COMM"
+      detail: "column (INTEGER) in EMP"
+      insertText: "COMM"
       kind: "Column"
       label: "COMM"
      -
@@ -171,8 +154,8 @@
           name: "DEPTNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.DEPTNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "DEPTNO"
       kind: "Column"
       label: "DEPTNO"
      -
@@ -181,8 +164,8 @@
           name: "EMPNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.EMPNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMPNO"
       kind: "Column"
       label: "EMPNO"
      -
@@ -191,8 +174,8 @@
           name: "ENAME"
           type: "VARCHAR"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.ENAME"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "ENAME"
       kind: "Column"
       label: "ENAME"
      -
@@ -201,8 +184,8 @@
           name: "HIREDATE"
           type: "TIMESTAMP"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.HIREDATE"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "HIREDATE"
       kind: "Column"
       label: "HIREDATE"
     functionContext: null
@@ -213,35 +196,20 @@
   output:
     completions:
      -
-      data: "!="
-      detail: "Some SQL keyword"
-      insertText: "!="
+      kind: "Keyword"
+      label: "WHERE"
+     -
+      kind: "Keyword"
+      label: ","
+     -
+      kind: "Keyword"
+      label: "FROM"
+     -
       kind: "Keyword"
       label: "!="
      -
-      data: "%"
-      detail: "Some SQL keyword"
-      insertText: "%"
       kind: "Keyword"
       label: "%"
-     -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
-      kind: "Keyword"
-      label: "*"
-     -
-      data: "+"
-      detail: "Some SQL keyword"
-      insertText: "+"
-      kind: "Keyword"
-      label: "+"
-     -
-      data: ","
-      detail: "Some SQL keyword"
-      insertText: ","
-      kind: "Keyword"
-      label: ","
     functionContext: null
     hasMoreResults: true
  -
@@ -255,8 +223,8 @@
           name: "COMM"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.COMM"
+      detail: "column (INTEGER) in EMP"
+      insertText: "COMM"
       kind: "Column"
       label: "COMM"
      -
@@ -265,8 +233,8 @@
           name: "DEPTNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.DEPTNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "DEPTNO"
       kind: "Column"
       label: "DEPTNO"
      -
@@ -275,8 +243,8 @@
           name: "EMPNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.EMPNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMPNO"
       kind: "Column"
       label: "EMPNO"
      -
@@ -285,8 +253,8 @@
           name: "ENAME"
           type: "VARCHAR"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.ENAME"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "ENAME"
       kind: "Column"
       label: "ENAME"
      -
@@ -295,8 +263,8 @@
           name: "HIREDATE"
           type: "TIMESTAMP"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.HIREDATE"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "HIREDATE"
       kind: "Column"
       label: "HIREDATE"
     functionContext: null
@@ -307,35 +275,20 @@
   output:
     completions:
      -
-      data: ","
-      detail: "Some SQL keyword"
-      insertText: ","
       kind: "Keyword"
       label: ","
      -
-      data: "OR"
-      detail: "Some SQL keyword"
-      insertText: "OR"
-      kind: "Keyword"
-      label: "OR"
-     -
-      data: "WHERE"
-      detail: "Some SQL keyword"
-      insertText: "WHERE"
       kind: "Keyword"
       label: "WHERE"
      -
-      data: "!="
-      detail: "Some SQL keyword"
-      insertText: "!="
       kind: "Keyword"
-      label: "!="
+      label: "OR"
      -
-      data: "%"
-      detail: "Some SQL keyword"
-      insertText: "%"
       kind: "Keyword"
-      label: "%"
+      label: "FROM"
+     -
+      kind: "Keyword"
+      label: "AND"
     functionContext: null
     hasMoreResults: true
  -
@@ -349,8 +302,8 @@
           name: "COMM"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.COMM"
+      detail: "column (INTEGER) in EMP"
+      insertText: "COMM"
       kind: "Column"
       label: "COMM"
      -
@@ -359,8 +312,8 @@
           name: "DEPTNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.DEPTNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "DEPTNO"
       kind: "Column"
       label: "DEPTNO"
      -
@@ -369,8 +322,8 @@
           name: "EMPNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.EMPNO"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMPNO"
       kind: "Column"
       label: "EMPNO"
      -
@@ -379,8 +332,8 @@
           name: "ENAME"
           type: "VARCHAR"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.ENAME"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "ENAME"
       kind: "Column"
       label: "ENAME"
      -
@@ -389,8 +342,8 @@
           name: "HIREDATE"
           type: "TIMESTAMP"
         tableAlias: "EMP"
-      detail: "Some Column"
-      insertText: "EMP.HIREDATE"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "HIREDATE"
       kind: "Column"
       label: "HIREDATE"
     functionContext: null
@@ -401,33 +354,18 @@
   output:
     completions:
      -
-      data: "!="
-      detail: "Some SQL keyword"
-      insertText: "!="
       kind: "Keyword"
       label: "!="
      -
-      data: "%"
-      detail: "Some SQL keyword"
-      insertText: "%"
       kind: "Keyword"
       label: "%"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
      -
-      data: "+"
-      detail: "Some SQL keyword"
-      insertText: "+"
       kind: "Keyword"
       label: "+"
      -
-      data: "-"
-      detail: "Some SQL keyword"
-      insertText: "-"
       kind: "Keyword"
       label: "-"
     functionContext: null

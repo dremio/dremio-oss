@@ -29,16 +29,17 @@ import MenuItem from "components/Menus/MenuItem";
 import DividerHr from "components/Menus/DividerHr";
 import { HookConsumer } from "@app/containers/RouteLeave";
 import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
+import { showAccountSettingsModal } from "@app/actions/modals/accountSettingsActions";
 
 import "./AccountMenu.less";
 
 const AccountMenu = (props) => {
   // eslint-disable-next-line no-shadow
-  const { closeMenu, router, logoutUser } = props;
+  const { closeMenu, openAccountSettingsModal, logoutUser } = props;
 
   const onAccountSettings = () => {
     closeMenu();
-    router.push({ pathname: "/account/info" });
+    openAccountSettingsModal();
   };
 
   const onLogOut = (doChangesCheckFn) => {
@@ -99,13 +100,15 @@ AccountMenu.propTypes = {
   }),
   closeMenu: PropTypes.func.isRequired,
   logoutUser: PropTypes.func.isRequired,
+  openAccountSettingsModal: PropTypes.any,
 };
 
 const mapDispatchToProps = {
   logoutUser,
+  openAccountSettingsModal: showAccountSettingsModal,
 };
 
 export default compose(
-  withRouter,
-  connect(null, mapDispatchToProps)
+  connect(null, mapDispatchToProps),
+  withRouter
 )(AccountMenu);

@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -58,7 +57,6 @@ public class TestHyperLogLog extends PlanTestBase {
       "group by l_returnflag");
   }
 
-  @Ignore("DX-10395")
   @Test
   public void ndv2() throws Exception {
     test("set planner.slice_target = 1");
@@ -97,7 +95,7 @@ public class TestHyperLogLog extends PlanTestBase {
       .sqlQuery(sql)
       .ordered()
       .baselineColumns("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l")
-      .baselineValues(1l, 1l, 1l, 1l, 1l, 1l, 1l, 1l, 1l, 1l, 1l, 1l)
+      .baselineValues(1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L)
       .go();
   }
 
@@ -126,7 +124,7 @@ public class TestHyperLogLog extends PlanTestBase {
       .sqlQuery(sql)
       .ordered()
       .baselineColumns("EXPR$0")
-      .baselineValues(1004l)
+      .baselineValues(1004L)
       .go();
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.sql;
 
+import static com.dremio.TestBuilder.listOf;
 import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -32,6 +33,8 @@ import java.util.Objects;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.JsonStringHashMap;
+import org.apache.arrow.vector.util.Text;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
@@ -228,7 +231,7 @@ public class TestCTAS extends PlanTestBase {
         .sqlQuery(selectFromCreatedTable)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(111396l)
+        .baselineValues(111396L)
         .build()
         .run();
     } finally {
@@ -681,7 +684,7 @@ public class TestCTAS extends PlanTestBase {
       IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
       Table table = icebergHadoopModel.getIcebergTable(icebergHadoopModel.getTableIdentifier(tableFolder.toString()));
-      SchemaConverter schemaConverter = new SchemaConverter(table.name());
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).build();
       BatchSchema icebergSchema = schemaConverter.fromIceberg(table.schema());
       SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
       schemaBuilder.addField(CompleteType.VARCHAR.toField("name"));
@@ -782,7 +785,6 @@ public class TestCTAS extends PlanTestBase {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testSchemaValidationsForInsertDifferentTypes() throws Exception {
 
     final String intString = "int_string";
@@ -811,7 +813,6 @@ public class TestCTAS extends PlanTestBase {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testSchemaValidationsForInsertDecimals() throws Exception {
 
     final String decimal1 = "scale3";
@@ -937,7 +938,7 @@ public class TestCTAS extends PlanTestBase {
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
       IcebergModel icebergModel = getIcebergModel(tableFolder, IcebergCatalogType.NESSIE);
       UserExceptionAssert.assertThatThrownBy(() -> icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableFolder.getPath())))
-        .hasMessageContaining("Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry.");
+        .hasMessageContaining("Failed to load the Iceberg table.");
     }
 
   }
@@ -1054,6 +1055,80 @@ public class TestCTAS extends PlanTestBase {
       assertTrue(metadataFolder.exists());
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), testCtasDefaultTable));
+    }
+  }
+
+  @Test
+  public void testCTASCreateIcebergWithMapColumn () throws Exception {
+    final String icebergTable = "icebergWithMapColumn";
+
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableMapDataType()) {
+      final String query = String.format("CREATE TABLE %s.%s  " +
+          " STORE AS (type => 'iceberg') AS SELECT * from cp.\"parquet/map_data_types/mapcolumn.parquet\"",
+        TEMP_SCHEMA, icebergTable);
+      test(query);
+
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), icebergTable);
+      assertTrue(tableFolder.exists());
+
+      File metadataFolder = new File(tableFolder, "metadata");
+      assertTrue(metadataFolder.exists());
+
+      final String selectQuery = String.format("SELECT * FROM %s.%s", TEMP_SCHEMA, icebergTable);
+      JsonStringHashMap<String, Object> structrow1 = new JsonStringHashMap<>();
+      JsonStringHashMap<String, Object> structrow2 = new JsonStringHashMap<>();
+      structrow1.put("key", new Text("b"));
+      structrow1.put("value", new Text("bb"));
+      structrow2.put("key", new Text("c"));
+      structrow2.put("value", new Text("cc"));
+      testBuilder()
+        .sqlQuery(selectQuery)
+        .unOrdered()
+        .baselineColumns("col1", "col2", "col3")
+        .baselineValues(2, listOf(structrow1), "def")
+        .baselineValues(12, listOf(structrow2), "abc")
+        .go();
+
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), icebergTable));
+    }
+  }
+
+  @Test
+  public void testCTASCreateParquetWithMapColumn () throws Exception {
+    final String parquetTable = "parquetWithMapColumn";
+
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableMapDataType()) {
+      final String query = String.format("CREATE TABLE %s.%s  " +
+          " STORE AS (type => 'parquet') AS SELECT * from cp.\"parquet/map_data_types/mapcolumn.parquet\"",
+        TEMP_SCHEMA, parquetTable);
+      test(query);
+
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), parquetTable);
+      assertTrue(tableFolder.exists());
+
+      File metadataFolder = new File(tableFolder, "metadata");
+      assertTrue(!metadataFolder.exists());
+
+      final String selectQuery = String.format("SELECT * FROM %s.%s", TEMP_SCHEMA, parquetTable);
+      JsonStringHashMap<String, Object> structrow1 = new JsonStringHashMap<>();
+      JsonStringHashMap<String, Object> structrow2 = new JsonStringHashMap<>();
+      structrow1.put("key", new Text("b"));
+      structrow1.put("value", new Text("bb"));
+      structrow2.put("key", new Text("c"));
+      structrow2.put("value", new Text("cc"));
+      testBuilder()
+        .sqlQuery(selectQuery)
+        .unOrdered()
+        .baselineColumns("col1", "col2", "col3")
+        .baselineValues(2, listOf(structrow1), "def")
+        .baselineValues(12, listOf(structrow2), "abc")
+        .go();
+
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), parquetTable));
     }
   }
 

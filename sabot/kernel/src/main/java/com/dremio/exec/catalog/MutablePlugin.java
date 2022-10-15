@@ -91,11 +91,25 @@ public interface MutablePlugin extends StoragePlugin {
   void addPrimaryKey(NamespaceKey table,
                      DatasetConfig datasetConfig,
                      SchemaConfig schemaConfig,
-                     List<Field> columns);
+                     List<Field> columns,
+                     ResolvedVersionContext versionContext);
 
   void dropPrimaryKey(NamespaceKey table,
                       DatasetConfig datasetConfig,
-                      SchemaConfig schemaConfig);
+                      SchemaConfig schemaConfig,
+                      ResolvedVersionContext versionContext);
+
+  List<String> getPrimaryKey(NamespaceKey key,
+                             DatasetConfig datasetConfig,
+                             SchemaConfig schemaConfig,
+                             ResolvedVersionContext versionContext,
+                             boolean saveInKvStore);
+
+  List<String> getPrimaryKeyFromMetadata(NamespaceKey table,
+                                         DatasetConfig datasetConfig,
+                                         SchemaConfig schemaConfig,
+                                         ResolvedVersionContext versionContext,
+                                         boolean saveInKvStore);
 
   StoragePluginId getId();
 

@@ -38,7 +38,6 @@ import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
 
 public class TestSystemTable extends BaseTestQuery {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSystemTable.class);
   @ClassRule
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
 

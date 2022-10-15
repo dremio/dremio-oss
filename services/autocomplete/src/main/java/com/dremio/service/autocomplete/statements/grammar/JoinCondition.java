@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 package com.dremio.service.autocomplete.statements.grammar;
-
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.google.common.collect.ImmutableList;
 
@@ -27,18 +26,20 @@ import com.google.common.collect.ImmutableList;
  *       ON booleanExpression
  *   |   USING '(' column [, column ]* ')'
  */
-public final class JoinCondition {
-  private final ImmutableList<DremioToken> tokens;
+public final class JoinCondition extends Statement {
+  private final Expression expression;
 
-  private JoinCondition(ImmutableList<DremioToken> tokens) {
-    this.tokens = tokens;
+  private JoinCondition(
+    ImmutableList<DremioToken> tokens,
+    Expression expression) {
+    super(tokens, asListIgnoringNulls(expression));
+    this.expression = expression;
   }
 
-  public ImmutableList<DremioToken> getTokens() {
-    return tokens;
-  }
-
-  public static JoinCondition parse(ImmutableList<DremioToken> tokens) {
-    return new JoinCondition(tokens);
+  public static JoinCondition parse(
+    ImmutableList<DremioToken> tokens,
+    ImmutableList<TableReference> tableReferences) {
+    Expression expression = Expression.parse(tokens, tableReferences);
+    return new JoinCondition(tokens, expression);
   }
 }

@@ -42,6 +42,7 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.BaseSender;
+import com.dremio.sabot.op.sender.SenderLatencyTracker;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Function;
 import com.google.common.collect.ArrayListMultimap;
@@ -64,12 +65,17 @@ public class RoundRobinOperator extends BaseSender {
   private final List<List<Integer>> minorFragments;
   private int currentTunnelsIndex;
   private int currentMinorFragmentsIndex;
+  private final SenderLatencyTracker latencyTracker = new SenderLatencyTracker();
 
   private VectorAccessible incoming;
 
   public enum Metric implements MetricDef {
     N_RECEIVERS,
-    BYTES_SENT;
+    BYTES_SENT,
+    BATCHES_SENT,
+    SUM_ACK_MILLIS,
+    MAX_ACK_MILLIS;
+
     @Override
     public int metricId() {
       return ordinal();
@@ -113,10 +119,13 @@ public class RoundRobinOperator extends BaseSender {
   private void updateStats(FragmentWritableBatch writableBatch) {
     stats.setLongStat(Metric.N_RECEIVERS, tunnels.size());
     stats.addLongStat(Metric.BYTES_SENT, writableBatch.getByteCount());
+    stats.addLongStat(Metric.BATCHES_SENT, 1);
   }
 
   @Override
   public void close() throws Exception {
+    stats.setLongStat(Metric.SUM_ACK_MILLIS, latencyTracker.getSumAckMillis());
+    stats.setLongStat(Metric.MAX_ACK_MILLIS, latencyTracker.getMaxAckMillis());
   }
 
   @Override
@@ -177,7 +186,7 @@ public class RoundRobinOperator extends BaseSender {
       minorFragments.get(currentTunnelsIndex).get(currentMinorFragmentsIndex)
     );
     updateStats(batch);
-    tunnels.get(currentTunnelsIndex).sendRecordBatch(batch);
+    tunnels.get(currentTunnelsIndex).sendRecordBatch(batch, latencyTracker.getLatencyObserver());
 
     currentMinorFragmentsIndex++;
     if (currentMinorFragmentsIndex >= minorFragments.get(currentTunnelsIndex).size()) {

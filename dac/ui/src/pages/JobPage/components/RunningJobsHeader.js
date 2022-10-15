@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 import { PALE_NAVY } from "uiTheme/radium/colors";
 
@@ -27,7 +26,7 @@ class RunningJobsHeader extends PureComponent {
   //TODO: jobCount will be used after beta2
   render() {
     return (
-      <h3 className="running-jobs-header" style={[style.base]}>
+      <h3 className="running-jobs-header" style={style.base}>
         Jobs
       </h3>
     );
@@ -44,4 +43,4 @@ const style = {
     padding: "0 10px",
   },
 };
-export default Radium(RunningJobsHeader);
+export default RunningJobsHeader;

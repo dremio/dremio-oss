@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .userNavigation {
     &__container {
-      background-color: @FIGMA_USERNAV_BACKGROUND;
+      border-right: 1px solid var(--dremio--color--neutral--150);
       min-width: 272px;
       font-size: 14px;
+      margin-left: 16px;
     }
 
     &__link:hover {
@@ -35,15 +35,13 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      color: @FIGMA_TEXT_MAIN;
+      color: var(--dremio--color--text--main);
     }
 
     &__title {
       display: flex;
       flex-direction: row;
       align-items: center;
-      padding: 9px 16px;
-      background-color: @FIGMA_PRIMARY_150;
       height: 64px;
       font-weight: 600;
       font-size: 16px;
@@ -57,7 +55,7 @@
       font-size: 12px;
       padding-bottom: 4px;
       font-weight: 400;
-      color: @TROUT;
+      color: var(--dremio--color--neutral--600);
     }
 
     &__item,
@@ -70,13 +68,16 @@
       margin: 2px 16px 0 54px;
       border-radius: 4px;
       text-decoration: none;
-      color: @FIGMA_TEXT_MAIN;
+      color: var(--dremio--color--text--main);
       font-weight: 400;
       height: 40px;
 
       &.--selected {
-        background-color: @FIGMA_PRIMARY_600 !important; // Important is needed here to ignore the :hover's background
-        color: @WHITE;
+        background-color: var(
+          --dremio--color--primary--600
+        ) !important; // Important is needed here to ignore the :hover's background
+        color: var(--dremio--color--neutral--000);
+        margin: 0 2x 0 4px;
         font-weight: 600;
       }
     }
@@ -90,16 +91,16 @@
     }
 
     &__headerLink {
-      margin: 0px 16px 0 16px;
+      margin: 2px 16px 2px 4px;
       &:hover {
-        background-color: @FIGMA_PRIMARY_150;
+        background-color: var(--dremio--color--primary--150);
       }
     }
 
     &__navigation {
       margin: 0 16px;
       span {
-        color: @PRIMARY_800;
+        color: var(--dremio--color--primary--800);
       }
 
       &:hover {
@@ -111,6 +112,7 @@
       margin: 0 8px 0 0;
       height: 24px;
       width: 24px;
+      color: var(--dremio--color--neutral--600);
     }
 
     &__itemList {
@@ -121,6 +123,7 @@
       margin-right: 8px;
       height: 24px;
       width: 24px;
+      color: var(--dremio--color--neutral--600);
     }
   }
   #selected {

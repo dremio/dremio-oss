@@ -204,7 +204,7 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle, MetadataSup
       final FileAttributes file = fileName.or(selection.getFileAttributesList().get(0));
 
       EasyDatasetSplitXAttr dataset = EasyDatasetSplitXAttr.newBuilder()
-          .setStart(0l)
+          .setStart(0L)
           .setLength(Long.MAX_VALUE)
           .setPath(file.getPath().toString())
           .build();

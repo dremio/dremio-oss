@@ -57,8 +57,8 @@ import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
-import com.google.api.client.util.Maps;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import io.grpc.stub.StreamObserver;
 
@@ -103,6 +103,11 @@ public class TestFragmentExecutors {
 
     @Override
     public void updateBlockedOnUpstreamDuration(long duration) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void updateBlockedOnMemoryDuration(long duration) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -211,7 +216,7 @@ public class TestFragmentExecutors {
       .setPart2(queryKey)
       .build();
 
-    ExecProtos.FragmentHandle fragmentHandles[] = new ExecProtos.FragmentHandle[numFragments];
+    ExecProtos.FragmentHandle[] fragmentHandles = new ExecProtos.FragmentHandle[numFragments];
     // First fragment is 0:0; All other fragments are: 1:(i-1)
     // (i.e., major ID + minor ID == fragment index)
 
@@ -258,8 +263,8 @@ public class TestFragmentExecutors {
       return null;
     }).when(mockFragmentExecutorBuilder).buildAndStartQuery(any(), any(), any());
 
-    FragmentExecutor fragmentExecutors[] = new FragmentExecutor[numFragments];
-    AsyncTask asyncTasks[] = new AsyncTask[numFragments];
+    FragmentExecutor[] fragmentExecutors = new FragmentExecutor[numFragments];
+    AsyncTask[] asyncTasks = new AsyncTask[numFragments];
     for (int i = 0; i < numFragments; i++) {
       fragmentExecutors[i] = mock(FragmentExecutor.class);
       TestAsyncTask testAsyncTask = new TestAsyncTask();

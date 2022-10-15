@@ -20,8 +20,6 @@ package com.dremio.exec.physical.impl.join;
  */
 public class MergeJoinBatch {
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MergeJoinBatch.class);
-//
 //  public final MappingSet setupMapping =
 //    new MappingSet("null", "null",
 //      GM("doSetup", "doSetup", null, null),

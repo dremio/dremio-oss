@@ -46,9 +46,10 @@ public final class JobsRpcUtils {
     if (t instanceof UserException) {
       return GrpcExceptionUtil.toStatusRuntimeException((UserException) t);
     } else if (t instanceof JobNotFoundException) {
+      if (((JobNotFoundException) t).getErrorType().equals(JobNotFoundException.causeOfFailure.CANCEL_FAILED)) {
+        return Status.FAILED_PRECONDITION.withDescription(t.getMessage()).asRuntimeException();
+      }
       return io.grpc.Status.NOT_FOUND.asException();
-    } else if (t instanceof JobCancelException) {
-      return Status.FAILED_PRECONDITION.withDescription(t.getMessage()).asRuntimeException();
     } else if (t instanceof ReflectionJobValidationException) {
       return io.grpc.Status.INVALID_ARGUMENT.asException();
     } else if (t instanceof AccessControlException) {

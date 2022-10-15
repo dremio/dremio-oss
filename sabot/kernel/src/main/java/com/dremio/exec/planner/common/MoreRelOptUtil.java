@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.common;
 
 import static com.dremio.exec.planner.common.ScanRelBase.getRowTypeFromProjectedColumns;
+import static java.lang.Math.max;
 import static org.apache.calcite.sql.type.SqlTypeName.INTERVAL_TYPES;
 
 import java.math.BigDecimal;
@@ -31,6 +32,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -50,6 +52,7 @@ import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Filter;
@@ -96,6 +99,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Triple;
 
 import com.carrotsearch.hppc.IntIntHashMap;
@@ -116,6 +120,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+
+import net.logstash.logback.encoder.org.apache.commons.lang3.StringUtils;
 
 /**
  * Utility class that is a subset of the RelOptUtil class and is a placeholder for Dremio specific
@@ -183,6 +189,51 @@ public final class MoreRelOptUtil {
     return checkRowTypesCompatibility(rowType1, rowType2, compareNames, allowSubstring, false);
   }
 
+  public static boolean checkFieldTypesCompatibility(
+    RelDataType fieldType1,
+    RelDataType fieldType2,
+    boolean allowSubstring,
+    boolean insertOp) {
+    // If one of the types is ANY comparison should succeed
+    if (fieldType1.getSqlTypeName() == SqlTypeName.ANY
+      || fieldType2.getSqlTypeName() == SqlTypeName.ANY) {
+      return true;
+    }
+
+    if ((fieldType1.toString().equals(fieldType2.toString()))) {
+      return true;
+    }
+
+    if (allowSubstring
+      && (fieldType1.getSqlTypeName() == SqlTypeName.CHAR && fieldType2.getSqlTypeName() == SqlTypeName.CHAR)
+      && (fieldType1.getPrecision() <= fieldType2.getPrecision())) {
+      return true;
+    }
+
+    // Check if Dremio implicit casting can resolve the incompatibility
+    List<TypeProtos.MinorType> types = Lists.newArrayListWithCapacity(2);
+    TypeProtos.MinorType minorType1 = Types.getMinorTypeFromName(fieldType1.getSqlTypeName().getName());
+    TypeProtos.MinorType minorType2 = Types.getMinorTypeFromName(fieldType2.getSqlTypeName().getName());
+    types.add(minorType1);
+    types.add(minorType2);
+    if (insertOp) {
+      // Insert is more strict than normal select in terms of implicit casts
+      // Return false if TypeCastRules do not allow implicit cast
+      if (TypeCastRules.isCastable(minorType1, minorType2, true) &&
+        TypeCastRules.getLeastRestrictiveTypeForInsert(types) != null) {
+        if (TypeCastRules.isCastSafeFromDataTruncation(fieldType1, fieldType2)) {
+          return true;
+        }
+      }
+    } else {
+      if (TypeCastRules.getLeastRestrictiveType(types) != null) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   // Similar to RelOptUtil.areRowTypesEqual() with the additional check for allowSubstring
   private static boolean checkRowTypesCompatibility(
       RelDataType rowType1,
@@ -206,39 +257,7 @@ public final class MoreRelOptUtil {
     for (Pair<RelDataTypeField, RelDataTypeField> pair : Pair.zip(f1, f2)) {
       final RelDataType type1 = pair.left.getType();
       final RelDataType type2 = pair.right.getType();
-      // If one of the types is ANY comparison should succeed
-      if (type1.getSqlTypeName() == SqlTypeName.ANY
-        || type2.getSqlTypeName() == SqlTypeName.ANY) {
-        continue;
-      }
-      if (!(type1.toString().equals(type2.toString()))) {
-        if (allowSubstring
-            && (type1.getSqlTypeName() == SqlTypeName.CHAR && type2.getSqlTypeName() == SqlTypeName.CHAR)
-            && (type1.getPrecision() <= type2.getPrecision())) {
-          continue;
-        }
-
-        // Check if Dremio implicit casting can resolve the incompatibility
-        List<TypeProtos.MinorType> types = Lists.newArrayListWithCapacity(2);
-        TypeProtos.MinorType minorType1 = Types.getMinorTypeFromName(type1.getSqlTypeName().getName());
-        TypeProtos.MinorType minorType2 = Types.getMinorTypeFromName(type2.getSqlTypeName().getName());
-        types.add(minorType1);
-        types.add(minorType2);
-        if (insertOp) {
-          // Insert is more strict than normal select in terms of implicit casts
-          // Return false if TypeCastRules do not allow implicit cast
-          if (TypeCastRules.isCastable(minorType1, minorType2, true) &&
-            TypeCastRules.getLeastRestrictiveTypeForInsert(types) != null) {
-            if (TypeCastRules.isCastSafeFromDataTruncation(type1, type2)) {
-              continue;
-            }
-          }
-        } else {
-          if (TypeCastRules.getLeastRestrictiveType(types) != null) {
-            continue;
-          }
-        }
-
+      if (!checkFieldTypesCompatibility(type1, type2, allowSubstring, insertOp)) {
         return false;
       }
     }
@@ -464,7 +483,7 @@ public final class MoreRelOptUtil {
   }
 
   public static boolean isSimpleColumnSelection(Project project) {
-    HashSet<Integer> inputRefReferenced = new HashSet<>();
+    Set<Integer> inputRefReferenced = new HashSet<>();
     for (Pair<RexNode, String> proj : project.getNamedProjects()) {
       if (proj.getKey().getKind() != SqlKind.INPUT_REF) {
         return false;
@@ -619,12 +638,10 @@ public final class MoreRelOptUtil {
       // be skipped since ORDER BY is always legal there.
       if (root instanceof Sort) {
         this.topLevelSort = (Sort) root;
-      }
-      else if (root instanceof Project &&
+      } else if (root instanceof Project &&
         root.getInput(0) instanceof Sort) {
         this.topLevelSort = (Sort) root.getInput(0);
-      }
-      else {
+      } else {
         this.topLevelSort = null;
       }
     }
@@ -727,7 +744,7 @@ public final class MoreRelOptUtil {
     }
   }
 
-  public static class ContainsRexVisitor extends RexVisitorImpl<Boolean> {
+  public static final class ContainsRexVisitor extends RexVisitorImpl<Boolean> {
 
     private final boolean checkOrigin;
     private final RelMetadataQuery mq;
@@ -989,8 +1006,8 @@ public final class MoreRelOptUtil {
       return null;
     }
     final RexNode[] groupProjects = new RexNode[numGroupKeys];
-    final LinkedHashSet<Integer> constantInd = new LinkedHashSet<>();
-    final LinkedHashSet<Integer> groupInd = new LinkedHashSet<>();
+    final Set<Integer> constantInd = new LinkedHashSet<>();
+    final Set<Integer> groupInd = new LinkedHashSet<>();
     final Map<Integer, Integer> mapping = new HashMap<>();
     for (int i = 0 ; i < agg.getGroupSet().cardinality() ; i++) {
       RexLiteral literal = projectedLiteral(agg.getInput(), i);
@@ -1220,7 +1237,7 @@ public final class MoreRelOptUtil {
    * =>
    * $1 <> 1 and $2 <> 2
    */
-  public static class StructuredConditionRewriter extends StatelessRelShuttleImpl {
+  public static final class StructuredConditionRewriter extends StatelessRelShuttleImpl {
     private StructuredConditionRewriter() {
     }
 
@@ -1246,7 +1263,7 @@ public final class MoreRelOptUtil {
     /**
      *
      */
-    private static class ConditionFlattenter extends RexShuttle {
+    private static final class ConditionFlattenter extends RexShuttle {
       private RexBuilder builder;
 
       private ConditionFlattenter(RexBuilder builder) {
@@ -1329,7 +1346,8 @@ public final class MoreRelOptUtil {
       return v.count.value;
     }
 
-    Pointer <Integer>count = new Pointer<Integer>(0);
+    private Pointer<Integer> count = new Pointer<>(0);
+
     public int getRexNodeCount() {
       return count.value;
     }
@@ -1519,7 +1537,7 @@ public final class MoreRelOptUtil {
   }
 
   public static class TransformCollectingCall extends RelOptRuleCall {
-    final List<RelNode> outcome = new ArrayList<>();
+    private final List<RelNode> outcome = new ArrayList<>();
 
     public TransformCollectingCall(RelOptPlanner planner, RelOptRuleOperand operand, RelNode[] rels,
                                    Map<RelNode, List<RelNode>> nodeInputs) {
@@ -1566,5 +1584,76 @@ public final class MoreRelOptUtil {
           leftTypes.size() + rightKey)));
     }
     return RexUtil.composeConjunction(rexBuilder, conditions, false);
+  }
+
+  public static boolean containsUnsupportedDistinctCall(Aggregate aggregate) {
+    return aggregate.getAggCallList().stream().anyMatch(aggregateCall ->
+      aggregateCall.isDistinct() && aggregateCall.getAggregation().getKind() != SqlKind.LISTAGG);
+  }
+
+  public static int getNextExprIndexFromFields(List<String> fieldNames) {
+    int startIndex = -1;
+    for (String name : fieldNames) {
+      if (name.startsWith("EXPR$")) {
+        String[] split = name.split("EXPR\\$");
+        if (split.length == 2 && StringUtils.isNumeric(split[1])) {
+          startIndex = max(Integer.parseInt(split[1]), startIndex);
+        }
+      }
+    }
+    return startIndex + 1;
+  }
+
+  public static class SimpleReflectionFinderVisitor extends StatelessRelShuttleImpl {
+    private final List<String> primaryKey;
+    private final List<Integer> indices;
+
+    public SimpleReflectionFinderVisitor() {
+      this.primaryKey = new ArrayList<>();
+      this.indices = new ArrayList<>();
+    }
+
+    @Override
+    public RelNode visit(LogicalAggregate aggregate) {
+      // Will get here if its an agg reflection. We only support PK for raw reflections.
+      return aggregate;
+    }
+
+    @Override
+    public RelNode visit(LogicalProject project) {
+      return visit(project.getInput());
+    }
+
+    @Override
+    public RelNode visit(LogicalFilter filter) {
+      return visit(filter.getInput());
+    }
+
+    @Override
+    public RelNode visit(RelNode other) {
+      if (other instanceof ScanRelBase) {
+        List<String> toAdd = ((ScanRelBase) other).getTableMetadata().getPrimaryKey();
+        if (!CollectionUtils.isEmpty(toAdd)) {
+          primaryKey.addAll(toAdd);
+          indices.addAll(other.getRowType().getFieldList().stream()
+            .filter(f -> toAdd.contains(f.getName().toLowerCase(Locale.ROOT)))
+            .map(RelDataTypeField::getIndex)
+            .collect(Collectors.toList()));
+        }
+        return other;
+      } else if (other instanceof LogicalProject || other instanceof LogicalFilter) {
+        return visit(((SingleRel) other).getInput());
+      } else {
+        return other;
+      }
+    }
+
+    public List<String> getPrimaryKey() {
+      return primaryKey;
+    }
+
+    public List<Integer> getIndices() {
+      return indices;
+    }
   }
 }

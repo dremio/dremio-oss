@@ -1,0 +1,38 @@
+/**
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "../../../node_modules/leantable/dist-css/fixed-header.css";
+@import "../../../node_modules/leantable/dist-css/theme-hooks.css";
+
+:root {
+  --leantable--column--gap: 10px;
+  --leantable--header--background: white;
+  --leantable--header--padding-block: 10px;
+  --leantable--header--text-align: left;
+  --leantable--row--background: white;
+  --leantable--row--border: 1px solid #eeeef1;
+  --leantable--row--hover--background: #e9f5f9;
+  --leantable--row--padding-block: 10px;
+}
+
+.leantable__table {
+  font-size: 14px;
+  width: 100%;
+}
+
+.leantable__header-cell {
+  font-weight: 600;
+}

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -28,9 +29,10 @@ import com.dremio.common.scanner.persistence.AnnotatedClassDescriptor;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionSyntax;
+import com.dremio.exec.planner.sql.Checker;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlAggOperator;
-import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -39,7 +41,7 @@ import com.google.common.collect.Lists;
 /**
  * Registry of Dremio functions.
  */
-public class FunctionRegistry implements PrimaryFunctionRegistry{
+public class FunctionRegistry implements PrimaryFunctionRegistry {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionRegistry.class);
 
   private static final ImmutableMap<String, Pair<Integer, Integer>> funcToRange = ImmutableMap.<String, Pair<Integer, Integer>> builder()
@@ -176,19 +178,20 @@ public class FunctionRegistry implements PrimaryFunctionRegistry{
       }
 
       for (Entry<Pair<Integer, Integer>, Collection<BaseFunctionHolder>> entry : functions.asMap().entrySet()) {
-        final SqlOperatorImpl sqlOperator;
         final Pair<Integer, Integer> range = entry.getKey();
         final int max = range.getRight();
         final int min = range.getLeft();
-        sqlOperator = new SqlOperatorImpl(
+        final SqlFunction sqlOperator = SqlFunctionImpl.create(
+          name,
+          TypeInferenceUtils.getSqlReturnTypeInference(
             name,
-            min,
-            max,
-            isDeterministic,
-            isDynamic,
-            TypeInferenceUtils.getSqlReturnTypeInference(name, Lists.newArrayList(entry.getValue
-              ()), isDecimalV2Enabled),
-            sqlSyntax);
+            Lists.newArrayList(entry.getValue()),
+            isDecimalV2Enabled),
+          Checker.between(min, max),
+          SqlFunctionImpl.Source.JAVA,
+          isDeterministic,
+          isDynamic,
+          sqlSyntax);
         operatorTable.add(name, sqlOperator);
       }
       for (Entry<Integer, Collection<BaseFunctionHolder>> entry : aggregateFunctions.asMap().entrySet()) {

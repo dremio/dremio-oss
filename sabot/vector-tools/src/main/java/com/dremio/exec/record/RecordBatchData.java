@@ -34,7 +34,7 @@ public class RecordBatchData implements AutoCloseable {
 
   private int recordCount;
   private SelectionVector2 sv2;
-  VectorContainer container = new VectorContainer();
+  private VectorContainer container = new VectorContainer();
 
   protected RecordBatchData(List<? extends ValueVector> vectors, int recordCount) {
     this.container.addCollection(new ArrayList<>(vectors));

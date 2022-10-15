@@ -38,6 +38,7 @@ import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.common.exceptions.UserCancellationException;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
@@ -576,8 +577,12 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
       return "";
     }
 
-    return RelOptUtil.dumpPlan("", plan, SqlExplainFormat.TEXT,
-      verbose ? SqlExplainLevel.ALL_ATTRIBUTES : SqlExplainLevel.EXPPLAN_ATTRIBUTES);
+    try {
+      return RelOptUtil.dumpPlan("", plan, SqlExplainFormat.TEXT,
+        verbose ? SqlExplainLevel.ALL_ATTRIBUTES : SqlExplainLevel.EXPPLAN_ATTRIBUTES);
+    } catch (UserCancellationException userCancellationException) {
+      return "";
+    }
   }
 
   public int getNumFragments() {

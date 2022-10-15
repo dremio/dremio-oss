@@ -24,9 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
-import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.BigIntVector;
@@ -50,16 +47,17 @@ import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ListColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.MapColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.MultiValuedColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.UnionColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
@@ -673,26 +671,24 @@ public class HiveORCCopiers {
       ensureHasRequiredCapacity(outputIdx + count);
       // Input is in milliseconds since epoch and output is expected in same format
       final long[] input = inputVector.time;
-      final int[] inputnanos = inputVector.nanos;
-      final int NANO_TO_MILLIS = 1000000;
       if (inputVector.isRepeating) {
         if (inputVector.isNull[0]) {
           return; // If all repeating values are null, then there is no need to write anything to vector
         }
-        final long value = input[0] + (inputnanos[0] / NANO_TO_MILLIS);
+        final long value = input[0];
 
         for (int i = 0; i < count; i++, outputIdx++) {
           outputVector.set(outputIdx, value);
         }
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-          outputVector.set(outputIdx, input[inputIdx] + (inputnanos[inputIdx] / NANO_TO_MILLIS));
+          outputVector.set(outputIdx, input[inputIdx]);
         }
       } else {
         final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
-            outputVector.set(outputIdx, input[inputIdx] + (inputnanos[inputIdx] / NANO_TO_MILLIS));
+            outputVector.set(outputIdx, input[inputIdx]);
           }
         }
       }
@@ -901,7 +897,7 @@ public class HiveORCCopiers {
               .bigDecimalValue()
               .movePointRight(outputScale)
               .unscaledValue()
-              .toByteArray();;
+              .toByteArray();
             outputVector.setBigEndian(outputIdx, decimalValue);
           }
           catch (Exception e) {
@@ -921,7 +917,7 @@ public class HiveORCCopiers {
                 .bigDecimalValue()
                 .movePointRight(outputScale)
                 .unscaledValue()
-                .toByteArray();;
+                .toByteArray();
               outputVector.setBigEndian(outputIdx, decimalValue);
             } catch (Exception e) {
 
@@ -1320,26 +1316,24 @@ public class HiveORCCopiers {
       // For now, not converting timestamp to human readable date form
       // will need to revisit if output is not what users want
       final long[] input = inputVector.time;
-      final int[] inputnanos = inputVector.nanos;
-      final int NANO_TO_MILLIS = 1000000;
       if (inputVector.isRepeating) {
         if (inputVector.isNull[0]) {
           return; // If all repeating values are null, then there is no need to write anything to vector
         }
-        final byte[] value = Long.toString(input[0] + (inputnanos[0] / NANO_TO_MILLIS)).getBytes();
+        final byte[] value = Long.toString(input[0]).getBytes();
         for (int i = 0; i < count; i++, outputIdx++) {
           outputVector.setSafe(outputIdx, value);
         }
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-          final byte[] value = Long.toString(input[inputIdx] + (inputnanos[inputIdx] / NANO_TO_MILLIS)).getBytes();
+          final byte[] value = Long.toString(input[inputIdx]).getBytes();
           outputVector.setSafe(outputIdx, value);
         }
       } else {
         final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
-            final byte[] value = Long.toString(input[inputIdx] + (inputnanos[inputIdx] / NANO_TO_MILLIS)).getBytes();
+            final byte[] value = Long.toString(input[inputIdx]).getBytes();
             outputVector.setSafe(outputIdx, value);
           }
         }

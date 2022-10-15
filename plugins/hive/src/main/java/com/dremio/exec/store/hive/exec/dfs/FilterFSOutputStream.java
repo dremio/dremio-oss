@@ -16,6 +16,7 @@
 package com.dremio.exec.store.hive.exec.dfs;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 
@@ -45,6 +46,21 @@ public class FilterFSOutputStream extends FSOutputStream {
   @Override
   public int hashCode() {
     return out.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (other == null || getClass() != other.getClass()) {
+      return false;
+    }
+
+    FilterFSOutputStream castOther = (FilterFSOutputStream) other;
+
+    return Objects.equals(this.out, castOther.out);
   }
 
   /**

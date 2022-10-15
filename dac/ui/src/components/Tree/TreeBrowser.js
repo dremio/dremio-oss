@@ -20,7 +20,6 @@ import { connect } from "react-redux";
 
 import { intl } from "@app/utils/intl";
 import SubHeaderTabs from "@app/components/SubHeaderTabs";
-import { SinglePageTypeButton } from "@app/pages/ExplorePage/components/PageTypeButtons";
 import { getLocation } from "@app/selectors/routing";
 import SearchDatasetsPopover from "../DatasetList/SearchDatasetsPopover";
 import {
@@ -31,6 +30,8 @@ import {
 import SortDropDownMenu from "@app/components/SortDropDownMenu";
 import SQLScripts from "../SQLScripts/SQLScripts";
 import TreeNode from "./TreeNode";
+//@ts-ignore
+import { TabsNavigationItem } from "dremio-ui-lib";
 import "./TreeBrowser.less";
 import * as classes from "./TreeBrowser.less";
 
@@ -77,7 +78,7 @@ export const TreeBrowser = (props) => {
         ? intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Text.Close" })
         : intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Text.Open" })
     );
-  }, [sidebarCollapsed, intl]);
+  }, [sidebarCollapsed]);
 
   const [homeSource, sortedTree] = useMemo(() => {
     const tempHomeSource = Array.from(resourceTree)[0];
@@ -156,22 +157,20 @@ export const TreeBrowser = (props) => {
   const renderTabs = () => {
     return props.isSqlEditorTab ? (
       <>
-        <SinglePageTypeButton
-          classname={`TreeBrowser-tab ${
-            DATA_SCRIPT_TABS.Data === selectedTab ? "--active" : ""
-          }`}
-          text="Data"
-          isSelected={DATA_SCRIPT_TABS.Data === selectedTab}
+        <TabsNavigationItem
+          name="Data"
+          activeTab={selectedTab}
           onClick={() => setSelectedTab(DATA_SCRIPT_TABS.Data)}
-        />
-        <SinglePageTypeButton
-          classname={`TreeBrowser-tab ${
-            DATA_SCRIPT_TABS.Scripts === selectedTab ? "--active" : ""
-          }`}
-          text="Scripts"
-          isSelected={DATA_SCRIPT_TABS.Scripts === selectedTab}
+        >
+          {intl.formatMessage({ id: "Dataset.Data" })}
+        </TabsNavigationItem>
+        <TabsNavigationItem
+          name="Scripts"
+          activeTab={selectedTab}
           onClick={() => setSelectedTab(DATA_SCRIPT_TABS.Scripts)}
-        />
+        >
+          {intl.formatMessage({ id: "Common.Scripts" })}
+        </TabsNavigationItem>
       </>
     ) : (
       <div className="TreeBrowser-tab">Data</div>

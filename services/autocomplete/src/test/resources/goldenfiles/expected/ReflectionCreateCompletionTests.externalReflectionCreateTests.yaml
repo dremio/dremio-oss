@@ -26,7 +26,6 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -34,7 +33,6 @@
       data:
         name: "EMP"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "EMP"
       kind: "CatalogEntry"
       label: "EMP"
@@ -42,7 +40,6 @@
       data:
         name: "physical dataset"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"physical dataset\""
       kind: "CatalogEntry"
       label: "physical dataset"
@@ -50,7 +47,6 @@
       data:
         name: "SALGRADE"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "SALGRADE"
       kind: "CatalogEntry"
       label: "SALGRADE"
@@ -58,7 +54,6 @@
       data:
         name: "virtual dataset"
         type: "Virtual Dataset"
-      detail: "Some CatalogEntry"
       insertText: "\"virtual dataset\""
       kind: "CatalogEntry"
       label: "virtual dataset"

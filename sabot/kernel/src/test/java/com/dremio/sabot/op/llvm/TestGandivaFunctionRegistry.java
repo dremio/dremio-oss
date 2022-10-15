@@ -149,7 +149,7 @@ public class TestGandivaFunctionRegistry extends ExecTest {
 
   @Test
   public void getAllDremioJavaFunctions() {
-    ArrayListMultimap<String, AbstractFunctionHolder> functionMap = new FunctionImplementationRegistry(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT)
+    ArrayListMultimap<String, AbstractFunctionHolder> functionMap = FunctionImplementationRegistry.create(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT)
       .getFunctionRegistry().getRegisteredFunctions();
     for (Map.Entry<String, AbstractFunctionHolder> e : functionMap.entries()) {
       AbstractFunctionHolder functionHolder = e.getValue();

@@ -20,7 +20,8 @@ import static com.dremio.TestBuilder.mapOf;
 import static com.dremio.exec.cache.VectorAccessibleSerializable.readIntoArrowBuf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -281,7 +282,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
     try (final ArrowBuf buffer = allocator.buffer(256)) {
       final InputStream inputStream = mock(InputStream.class);
-      when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
+      when(inputStream.read(any(byte[].class), anyInt(), anyInt())).thenAnswer(new Answer() {
         @Override
         public Integer answer(InvocationOnMock invocation) throws Throwable {
           byte[] byteBuf = invocation.getArgument(0, byte[].class);
@@ -302,7 +303,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
     try (final ArrowBuf buffer = allocator.buffer(256)) {
       final InputStream inputStream = mock(InputStream.class);
-      when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
+      when(inputStream.read(any(byte[].class), anyInt(), anyInt())).thenAnswer(new Answer() {
         @Override
         public Integer answer(InvocationOnMock invocation) throws Throwable {
           byte[] byteBuf = invocation.getArgument(0, byte[].class);
@@ -327,7 +328,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
     try (final ArrowBuf buffer = allocator.buffer(256)) {
       final InputStream inputStream = mock(InputStream.class);
-      when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenReturn(-1);
+      when(inputStream.read(any(byte[].class), anyInt(), anyInt())).thenReturn(-1);
       try {
         readIntoArrowBuf(inputStream, buffer, 256);
         fail("Expected above call to fail");

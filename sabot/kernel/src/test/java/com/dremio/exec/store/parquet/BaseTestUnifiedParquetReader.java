@@ -36,6 +36,7 @@ import org.junit.Before;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
@@ -183,6 +184,7 @@ public class BaseTestUnifiedParquetReader extends BaseTestOperator {
         .noSchemaLearning(schema)
         .readInt96AsTimeStamp(parquetReaderOptions.isReadInt96AsTimestampEnabled())
         .dateCorruptionStatus(ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
+        .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
         .build();
 
     ParquetReaderFactory parquetReaderFactory = getParquetReaderFactory();

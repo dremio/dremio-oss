@@ -113,7 +113,7 @@ public class TestSortOperator extends BaseTestOperator {
       try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
         ExternalSortOperator operator = newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
         try (TpchGenerator g = TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
-          ; // create schema on vector container but don't generate any records since we're only setting up.
+          // create schema on vector container but don't generate any records since we're only setting up.
           operator.setup(g.getOutput());
         }
       }

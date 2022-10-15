@@ -39,7 +39,7 @@ import io.netty.util.internal.PlatformDependent;
 abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
 
   private static final long OFF = 0;
-  private static final long ON = 0xFFFFFFFFFFFFFFFFl;
+  private static final long ON = 0xFFFFFFFFFFFFFFFFL;
 
   private final FieldVector input;
   private final FieldVector output;

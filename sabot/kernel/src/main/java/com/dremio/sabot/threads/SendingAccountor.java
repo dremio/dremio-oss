@@ -28,7 +28,6 @@ import com.dremio.sabot.threads.sharedres.SharedResourceType;
  * TODO: Need to update to use long for number of pending messages.
  */
 public class SendingAccountor {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SendingAccountor.class);
 
   private final AtomicInteger pendingMessages = new AtomicInteger(0);
   private volatile SharedResource sendComplete;

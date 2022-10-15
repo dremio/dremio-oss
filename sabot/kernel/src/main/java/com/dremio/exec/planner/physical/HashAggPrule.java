@@ -15,15 +15,27 @@
  */
 package com.dremio.exec.planner.physical;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.AggregatePrel.OperatorPhase;
@@ -52,9 +64,9 @@ public class HashAggPrule extends AggPruleBase {
     final AggregateRel aggregate = (AggregateRel) call.rel(0);
     final RelNode input = call.rel(1);
 
-    if (aggregate.containsDistinctCall() || aggregate.getGroupCount() == 0) {
-      // currently, don't use HashAggregate if any of the logical aggrs contains DISTINCT or
-      // if there are no grouping keys
+    if (MoreRelOptUtil.containsUnsupportedDistinctCall(aggregate) || (aggregate.getGroupCount() == 0 && !aggregate.containsSupportedListAggCall())) {
+      // currently, don't use HashAggregate if any of the logical aggrs contains unsupported DISTINCT or
+      // if there are no grouping keys. Using empty grouping key with listagg is supported.
       return;
     }
 
@@ -126,20 +138,56 @@ public class HashAggPrule extends AggPruleBase {
           newInput,
           aggregate.getGroupSet(),
           aggregate.getGroupSets(),
-          aggregate.getAggCallList(),
+          getUpdatedPhase1AggregateCall(aggregate),
           OperatorPhase.PHASE_1of2);
 
       HashToRandomExchangePrel exch =
           new HashToRandomExchangePrel(phase1Agg.getCluster(), phase1Agg.getTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys),
               phase1Agg, ImmutableList.copyOf(getDistributionField(aggregate, true)));
 
+      final RexBuilder rexBuilder = aggregate.getCluster().getRexBuilder();
+      final List<AggregateCall> phase2Calls = new ArrayList<>();
+      final List<RexNode> projectedExprs = new ArrayList<>(rexBuilder.identityProjects(exch.getRowType()));
+      final List<String> fieldNames = new ArrayList<>(exch.getRowType().getFieldNames());
+      int delimiterCount = 0;
+      int startIndex = MoreRelOptUtil.getNextExprIndexFromFields(fieldNames);
+
+      // handle delimiter constant for ListAgg
+      for (Pair<AggregateCall, RexLiteral> aggPair : phase1Agg.getPhase2AggCalls()) {
+        final AggregateCall call = aggPair.getKey();
+        final RexLiteral literal = aggPair.getValue();
+        if (call.getAggregation().getKind() == SqlKind.LISTAGG && literal != null) {
+          projectedExprs.add(literal);
+          fieldNames.add("EXPR$" + (startIndex + delimiterCount));
+          delimiterCount++;
+          phase2Calls.add(
+            AggregateCall.create(
+                call.getAggregation(),
+                call.isDistinct(),
+                call.isApproximate(),
+                call.getArgList(),
+                call.filterArg,
+                call.collation,
+                call.type,
+                call.name));
+        } else {
+          phase2Calls.add(call);
+        }
+      }
+
+      RelNode twoPhaseAggInput = exch;
+      if (delimiterCount > 0) {
+        RelDataType rowType = RexUtil.createStructType(exch.getCluster().getTypeFactory(), projectedExprs, fieldNames);
+        twoPhaseAggInput = ProjectPrel.create(exch.getCluster(), exch.getTraitSet(), exch, projectedExprs, rowType);
+      }
+
       HashAggPrel phase2Agg =  HashAggPrel.create(
-          aggregate.getCluster(),
-          exch.getTraitSet(),
-          exch,
+          twoPhaseAggInput.getCluster(),
+          twoPhaseAggInput.getTraitSet(),
+          twoPhaseAggInput,
           phase1Agg.getPhase2GroupSet(),
           null,
-          phase1Agg.getPhase2AggCalls(),
+          phase2Calls,
           OperatorPhase.PHASE_2of2);
       return phase2Agg;
     }

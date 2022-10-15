@@ -53,7 +53,6 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends BaseFormatPlugin {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasyFormatPlugin.class);
 
   private final BasicFormatMatcher matcher;
   private final SabotContext context;

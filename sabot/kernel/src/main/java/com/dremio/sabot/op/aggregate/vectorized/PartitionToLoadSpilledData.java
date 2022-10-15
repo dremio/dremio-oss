@@ -25,6 +25,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedListVarcharVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -88,8 +89,6 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
   private ArrowBuf fixedKeyColPivotedData;
   private ArrowBuf variableKeyColPivotedData;
   private final FieldVector[] postSpillAccumulatorVectors;
-  private final int fixedDataLength;
-  private final int variableDataLength;
   private final int batchSize;
   private int recordsInBatch;
   private final byte[] accumulatorTypes;
@@ -112,8 +111,6 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
      * here to load the spilled batch into memory.
      */
     try(AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
-      this.fixedDataLength = fixedDataLength;
-      this.variableDataLength = variableDataLength;
       fixedKeyColPivotedData = allocator.buffer(Numbers.nextPowerOfTwo(fixedDataLength));
       rollbackable.add(fixedKeyColPivotedData);
       variableKeyColPivotedData = allocator.buffer(Numbers.nextPowerOfTwo(variableDataLength));
@@ -123,8 +120,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
       this.recordsInBatch = 0;
       this.postSpillAccumulatorVectors = new FieldVector[postSpillAccumulatorVectorFields.size()];
       this.accumulatorTypes = new byte[postSpillAccumulatorVectorFields.size()];
-      initPostSpillAccumulatorVectors(postSpillAccumulatorVectorFields, accumulatorTypes,
-        batchSize, rollbackable);
+      initPostSpillAccumulatorVectors(postSpillAccumulatorVectorFields, accumulatorTypes, rollbackable);
       rollbackable.commit();
       logger.debug("Extra Partition Pre-allocation, fixed-data length: {}, variable-data length: {}, actual fixed-data capacity: {}, actual variable-data capacty: {}, batchSize: {}",
                    fixedDataLength, variableDataLength, fixedKeyColPivotedData.capacity(), variableKeyColPivotedData.capacity(), batchSize);
@@ -140,11 +136,9 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
    * since {@link VectorizedHashAggOperator} has materialized the aggregate
    * expressions.
    * @param postSpillAccumulatorVectorFields accumulator vector types
-   * @param valueCount value count for the vector
    */
   private void initPostSpillAccumulatorVectors(final List<Field> postSpillAccumulatorVectorFields,
                                                final byte[] accumulatorTypes,
-                                               final int valueCount,
                                                final AutoCloseables.RollbackCloseable rollbackCloseable) {
     int count = 0;
     for (Field field : postSpillAccumulatorVectorFields) {
@@ -156,23 +150,25 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
        * as variable width.
        */
       final Types.MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(field.getType());
-      if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
-        final int accumLen;
+      if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY || type == Types.MinorType.LIST) {
         if (accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.MAX.ordinal() ||
             accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.MIN.ordinal()) {
-          accumLen = varLenAccumulatorCapacity;
+          ((BaseVariableWidthVector)vector).allocateNew(varLenAccumulatorCapacity, batchSize);
+        } else if (accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG.ordinal() ||
+                   accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal() ||
+                   accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
+          vector = FixedListVarcharVector.allocListVector(allocator, batchSize);
         } else {
           Preconditions.checkArgument(accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.HLL.ordinal() ||
             accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal());
-          accumLen = SKETCH_SIZE * valueCount;
+          ((BaseVariableWidthVector)vector).allocateNew(SKETCH_SIZE * batchSize, batchSize);
         }
-        ((BaseVariableWidthVector) vector).allocateNew(accumLen, valueCount);
       } else {
         Preconditions.checkArgument(vector instanceof BaseFixedWidthVector, "Error: detected invalid accumulator vector type");
-        ((BaseFixedWidthVector) vector).allocateNew(valueCount);
+        ((BaseFixedWidthVector) vector).allocateNew(batchSize);
       }
 
-      Preconditions.checkArgument(vector.getValueCapacity() >= valueCount, "Error: failed to correctly pre-allocate accumulator vector in extra partition");
+      Preconditions.checkArgument(vector.getValueCapacity() >= batchSize, "Error: failed to correctly pre-allocate accumulator vector in extra partition");
       postSpillAccumulatorVectors[count] = vector;
       accumulatorTypes[count] = (byte)type.ordinal();
       count++;

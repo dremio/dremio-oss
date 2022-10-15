@@ -71,6 +71,7 @@ import org.mockito.stubbing.Answer;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
@@ -83,6 +84,7 @@ import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IncrementalMetadataRefreshCommitter;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.catalog.GetDatasetRequest;
@@ -128,6 +130,9 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
     ExecutionControls executionControls = mock(ExecutionControls.class);
     when(executionControls.lookupExceptionInjection(any(), any())).thenReturn(null);
     when(operatorContext.getExecutionControls()).thenReturn(executionControls);
+    OptionManager optionManager = mock(OptionManager.class);
+    when(optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).thenReturn(true);
+    when(operatorContext.getOptions()).thenReturn(optionManager);
   }
 
   public String initialiseTableWithLargeSchema(BatchSchema schema, String tableName) throws IOException {
@@ -513,7 +518,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
       Schema sc = table.schema();
-      SchemaConverter schemaConverter = new SchemaConverter(table.name());
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).build();
       Assert.assertTrue(consolidatedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
     } finally {
       FileUtils.deleteDirectory(tableFolder);
@@ -563,7 +568,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
       Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
       Schema sc = newTable.schema();
-      SchemaConverter schemaConverter = new SchemaConverter(newTable.name());
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(newTable.name()).build();
       Assert.assertTrue(consolidatedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
       Assert.assertEquals(6, Iterables.size(newTable.snapshots()));
     } finally {
@@ -600,7 +605,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
       Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
       Schema sc = newTable.schema();
-      SchemaConverter schemaConverter = new SchemaConverter(newTable.name());
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(newTable.name()).build();
       Assert.assertTrue(newSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
     } finally {
       FileUtils.deleteDirectory(tableFolder);
@@ -775,7 +780,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
       Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
       Schema sc = newTable.schema();
-      SchemaConverter schemaConverter = new SchemaConverter(newTable.name());
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(newTable.name()).build();
       Assert.assertTrue(expectedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
     } finally {
       FileUtils.deleteDirectory(tableFolder);
@@ -812,7 +817,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
   }
 
   private DataFile getDatafileWithPartitionSpec(String path) {
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     PartitionSpec spec_id_and_data_column = PartitionSpec.builderFor(schemaConverter.toIcebergSchema(schema))
       .identity("id")
       .build();

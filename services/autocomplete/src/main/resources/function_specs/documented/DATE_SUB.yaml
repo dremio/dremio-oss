@@ -1,0 +1,71 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "DATE_SUB"
+signatures:
+ -
+  returnType: "DATE"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "TIMESTAMP"
+    name: "DATE_TIMESTAMP_expression"
+    description: "The DATE or TIMESTAMP to subtract days from. This value must be a literal in the DATE or TIMESTAMP format."
+   -
+    kind: "REGULAR"
+    type: "INT"
+    name: "days"
+    description: "Number of days to subtract from DATE_expression"
+  description: "Returns the calculated DATE value."
+  sampleCodes:
+   -
+    call: "SELECT DATE_SUB('2021-06-05', 5)"
+    result: "2021-05-31"
+   -
+    call: "SELECT DATE_SUB('2021-06-24 06:11:51.567', 4)"
+    result: "2021-06-20"
+   -
+    call: "SELECT DATE_SUB('2021-05-28', 10)"
+    result: "2021-05-18"
+ -
+  returnType: "DATE"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "DATE"
+    name: "DATE_TIMESTAMP_expression"
+    description: "The DATE or TIMESTAMP to subtract days from. This value must be a literal in the DATE or TIMESTAMP format."
+   -
+    kind: "REGULAR"
+    type: "INT"
+    name: "days"
+    description: "Number of days to subtract from DATE_expression"
+  description: "Returns the calculated DATE value."
+  sampleCodes:
+   -
+    call: "SELECT DATE_SUB('2021-06-05', 5)"
+    result: "2021-05-31"
+   -
+    call: "SELECT DATE_SUB('2021-06-24 06:11:51.567', 4)"
+    result: "2021-06-20"
+   -
+    call: "SELECT DATE_SUB('2021-05-28', 10)"
+    result: "2021-05-18"
+dremioVersion: "1.0+"
+functionCategories:
+ - "DATETIME"
+description: "Subtracts the number of days from the specified DATE or TIMESTAMP.\n"

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.dremio.datastore.SearchQueryUtils;
@@ -48,6 +49,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 import com.google.protobuf.ByteString;
 
 /**
@@ -77,9 +79,14 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     ImmutableSet.of(IncrementalUpdateUtils.UPDATE_COLUMN);
 
   private final NamespaceService userNamespace;
+  private PluginRetriever pluginRetriever;
 
-  InformationSchemaCatalogImpl(NamespaceService userNamespace) {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InformationSchemaCatalogImpl.class);
+
+
+  public InformationSchemaCatalogImpl(NamespaceService userNamespace, PluginRetriever pluginRetriever) {
     this.userNamespace = userNamespace;
+    this.pluginRetriever = pluginRetriever;
   }
 
   private static LegacyFindByCondition getCondition(SearchQuery searchQuery) {
@@ -187,6 +194,13 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     }
   }
 
+  private Stream<VersionedPlugin> versionedPluginsRetriever() {
+    if (pluginRetriever == null) {
+      return null;
+    }
+    return pluginRetriever.getAllVersionedPlugins();
+  }
+
   @Override
   public Iterator<Catalog> listCatalogs(SearchQuery searchQuery) {
     return Collections.singleton(Catalog.newBuilder()
@@ -199,6 +213,20 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
   @Override
   public Iterator<Schema> listSchemata(SearchQuery searchQuery) {
+    final Iterator<Schema>[] res = new Iterator[]{Collections.emptyIterator()};
+    Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
+
+    //Todo(DX-54506): it should work when searchQuery is not null
+    if (versionedPlugins != null) {
+      if (searchQuery == null) {
+        versionedPlugins.forEach(
+          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaSchemataInfo().iterator())
+        );
+      } else {
+        logger.warn(String.format("Filtering INFORMATION_SCHEMA.SCHEMATA is not supported for Arctic/Nessie sources"));
+      }
+    }
+
     final SearchTypes.SearchQuery query;
     if (searchQuery == null) {
       // search for schemata is faster than range scan, so push filter down
@@ -211,26 +239,41 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
       userNamespace.find(new LegacyFindByCondition().setCondition(query));
 
     final Set<String> alreadySent = new HashSet<>();
-    return StreamSupport.stream(searchResults.spliterator(), false)
-      .filter(IS_NOT_INTERNAL)
-      .filter(entry -> !alreadySent.contains(entry.getKey().toUnescapedString()))
-      .peek(entry -> alreadySent.add(entry.getKey().toUnescapedString()))
-      .map(entry -> Schema.newBuilder()
-        .setCatalogName(DEFAULT_CATALOG_NAME)
-        .setSchemaName(entry.getKey().toUnescapedString())
-        .setSchemaOwner("<owner>")
-        .setSchemaType(SchemaType.SIMPLE)
-        .setIsMutable(false)
-        .build())
-      .iterator();
+    return Iterators.concat(res[0],
+        StreamSupport.stream(searchResults.spliterator(), false)
+          .filter(IS_NOT_INTERNAL)
+          .filter(entry -> !alreadySent.contains(entry.getKey().toUnescapedString()))
+          .peek(entry -> alreadySent.add(entry.getKey().toUnescapedString()))
+          .map(entry -> Schema.newBuilder()
+            .setCatalogName(DEFAULT_CATALOG_NAME)
+            .setSchemaName(entry.getKey().toUnescapedString())
+            .setSchemaOwner("<owner>")
+            .setSchemaType(SchemaType.SIMPLE)
+            .setIsMutable(false)
+            .build()).iterator());
   }
 
   @Override
   public Iterator<Table> listTables(SearchQuery searchQuery) {
+    final Iterator[] res = {Collections.emptyIterator()};
+    Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
+
+    //Todo(DX-54506): it should work when searchQuery is not null
+    if (versionedPlugins != null) {
+      if (searchQuery == null) {
+        versionedPlugins.forEach(
+          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaTableInfo().iterator())
+        );
+      } else {
+        logger.warn(String.format("Filtering INFORMATION_SCHEMA.\"TABLES\" is not supported for Arctic/Nessie sources"));
+      }
+    }
+
     final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
       userNamespace.find(getCondition(searchQuery));
 
-    return StreamSupport.stream(searchResults.spliterator(), false)
+    return Iterators.concat(res[0],
+      StreamSupport.stream(searchResults.spliterator(), false)
       .filter(IS_NOT_INTERNAL)
       .filter(IS_DATASET)
       .map(input -> {
@@ -251,44 +294,70 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
           .setTableName(input.getKey().getName())
           .setTableType(tableType)
           .build();
-      })
-      .iterator();
+      }).iterator());
   }
 
   @Override
   public Iterator<View> listViews(SearchQuery searchQuery) {
-    final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-      userNamespace.find(getCondition(searchQuery));
+    final Iterator[] res = {Collections.emptyIterator()};
+    Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    return StreamSupport.stream(searchResults.spliterator(), false)
-      .filter(IS_NOT_INTERNAL)
-      .filter(IS_DATASET)
-      .filter(entry -> entry.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET)
-      .map(entry -> View.newBuilder()
-        .setCatalogName(DEFAULT_CATALOG_NAME)
-        .setSchemaName(entry.getKey().getParent().toUnescapedString())
-        .setTableName(entry.getKey().getName())
-        .setViewDefinition(entry.getValue().getDataset().getVirtualDataset().getSql())
-        .build())
-      .iterator();
+    //Todo(DX-54506): it should work when searchQuery is not null
+    if (versionedPlugins != null) {
+      if (searchQuery == null) {
+        versionedPlugins.forEach(
+          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaViewInfo().iterator())
+        );
+      } else {
+        logger.warn(String.format("Filtering INFORMATION_SCHEMA.VIEWS is not supported for Arctic/Nessie sources"));
+      }
+    }
+
+      final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
+        userNamespace.find(getCondition(searchQuery));
+
+      return Iterators.concat(res[0],
+        StreamSupport.stream(searchResults.spliterator(), false)
+        .filter(IS_NOT_INTERNAL)
+        .filter(IS_DATASET)
+        .filter(entry -> entry.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET)
+        .map(entry -> View.newBuilder()
+          .setCatalogName(DEFAULT_CATALOG_NAME)
+          .setSchemaName(entry.getKey().getParent().toUnescapedString())
+          .setTableName(entry.getKey().getName())
+          .setViewDefinition(entry.getValue().getDataset().getVirtualDataset().getSql())
+          .build()).iterator());
   }
 
   @Override
   public Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery) {
+    final Iterator[] res = {Collections.emptyIterator()};
+    Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
+    //Todo(DX-54506): it should work when searchQuery is not null
+    if (versionedPlugins != null) {
+      if (searchQuery == null) {
+        versionedPlugins.forEach(
+          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaColumnInfo().iterator())
+        );
+      } else {
+        logger.warn("Filtering INFORMATION_SCHEMA.COLUMNS is not supported for Arctic/Nessie sources");
+      }
+    }
+
     final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
       userNamespace.find(getCondition(searchQuery));
 
-    return StreamSupport.stream(searchResults.spliterator(), false)
-      .filter(IS_NOT_INTERNAL)
-      .filter(IS_DATASET)
-      .filter(entry -> DatasetHelper.getSchemaBytes(entry.getValue().getDataset()) != null)
-      .map(entry -> TableSchema.newBuilder()
-        .setCatalogName(DEFAULT_CATALOG_NAME)
-        .setSchemaName(entry.getKey().getParent().toUnescapedString())
-        .setTableName(entry.getKey().getName())
-        .setBatchSchema(rewriteBatchSchema(DatasetHelper.getSchemaBytes(entry.getValue().getDataset())))
-        .build())
-      .iterator();
+   return Iterators.concat(res[0],
+     StreamSupport.stream(searchResults.spliterator(), false)
+       .filter(IS_NOT_INTERNAL)
+       .filter(IS_DATASET)
+       .filter(entry -> DatasetHelper.getSchemaBytes(entry.getValue().getDataset()) != null)
+       .map(entry -> TableSchema.newBuilder()
+         .setCatalogName(DEFAULT_CATALOG_NAME)
+         .setSchemaName(entry.getKey().getParent().toUnescapedString())
+         .setTableName(entry.getKey().getName())
+         .setBatchSchema(rewriteBatchSchema(DatasetHelper.getSchemaBytes(entry.getValue().getDataset())))
+         .build()).iterator());
   }
 
   private static ByteString rewriteBatchSchema(io.protostuff.ByteString byteString) {

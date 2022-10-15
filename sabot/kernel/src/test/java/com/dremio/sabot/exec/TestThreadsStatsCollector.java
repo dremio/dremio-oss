@@ -28,7 +28,7 @@ public class TestThreadsStatsCollector {
     Thread t = new Thread() {
       public void run () {
         try {
-          sleep(400l);
+          sleep(400L);
         } catch (InterruptedException e) {
         }
       }
@@ -37,7 +37,7 @@ public class TestThreadsStatsCollector {
     Thread t1 = new Thread() {
       public void run () {
         try {
-          sleep(400l);
+          sleep(400L);
         } catch (InterruptedException e) {
         }
       }
@@ -51,7 +51,7 @@ public class TestThreadsStatsCollector {
     collector.start();
 
     // allow the collector to get stats
-    sleep(200l);
+    sleep(200L);
     Integer stat = collector.getCpuTrailingAverage(t.getId(), 1);
     Integer statThread2 = collector.getCpuTrailingAverage(t1.getId(), 1);
     // We should get stats only for thread t1

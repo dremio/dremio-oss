@@ -74,6 +74,7 @@ import com.dremio.exec.planner.logical.CorrelateRule;
 import com.dremio.exec.planner.logical.DremioAggregateProjectPullUpConstantsRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule.ForGroupingSets;
+import com.dremio.exec.planner.logical.DremioExpandDistinctAggregatesRule;
 import com.dremio.exec.planner.logical.DremioProjectJoinTransposeRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.DremioSortMergeRule;
@@ -878,7 +879,7 @@ public enum PlannerPhase {
       CoreRules.UNION_TO_DISTINCT,
       CoreRules.AGGREGATE_REMOVE,
       DremioAggregateReduceFunctionsRule.INSTANCE,
-      CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES_TO_JOIN,
+      DremioExpandDistinctAggregatesRule.INSTANCE,
 
       // Add support for WHERE style joins.
       FILTER_INTO_JOIN_CALCITE_RULE,

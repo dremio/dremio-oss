@@ -43,7 +43,7 @@ public class TestPermissionCheckCache {
     final String username = "ensureNotCached";
     final StoragePlugin plugin = mock(StoragePlugin.class);
     final SourceConfig sourceConfig = new SourceConfig();
-    final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(0l), 1000);
+    final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(0L), 1000);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
         .thenReturn(true);
     assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
@@ -72,7 +72,7 @@ public class TestPermissionCheckCache {
     final String username = "ensureReloaded";
     final StoragePlugin plugin = mock(StoragePlugin.class);
     final SourceConfig sourceConfig = new SourceConfig();
-    final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(500l), 1000);
+    final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(500L), 1000);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
         .thenReturn(true, false);
     assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));

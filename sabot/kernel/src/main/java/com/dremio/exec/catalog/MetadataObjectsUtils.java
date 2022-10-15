@@ -238,7 +238,7 @@ public final class MetadataObjectsUtils {
    * @param out bytes output
    * @return byte string
    */
-  static ByteString toProtostuff(BytesOutput out) {
+  public static ByteString toProtostuff(BytesOutput out) {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     try {
       out.writeTo(output);

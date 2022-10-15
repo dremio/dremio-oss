@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { fixedWidthBold, formLabel } from "uiTheme/radium/typography";
@@ -59,7 +58,7 @@ class ReplacePatternCard extends Component {
     const { fields } = this.props;
     return (
       <div className="transform-card-content">
-        <div style={[styles.header, formLabel]}>Edit Selection</div>
+        <div style={{ ...styles.header, ...formLabel }}>Edit Selection</div>
         <ReplacePattern fields={fields} />
       </div>
     );
@@ -78,4 +77,4 @@ class ReplacePatternCard extends Component {
     );
   }
 }
-export default Radium(ReplacePatternCard);
+export default ReplacePatternCard;

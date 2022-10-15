@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import Art from "@app/components/Art";
+import { Tooltip } from "dremio-ui-lib";
+import { getIconPath } from "@app/utils/getIconPath";
 
 export const getReflectionIcon = () => {
   return {
@@ -31,12 +32,13 @@ const ReflectionIcon = ({ isAcceleration }) => {
   return (
     <span className="jobsContent-dataset__accelerationIconWrapper">
       {isAcceleration && (
-        <Art
-          src="Reflection.svg"
-          alt="Query was accelerated Icon"
-          title="Query was accelerated"
-          className="jobsContent-dataset__accelerationIcon"
-        />
+        <Tooltip title="Query was accelerated">
+          <img
+            src={getIconPath("interface/reflection")}
+            alt="Reflection"
+            className="jobsContent-dataset__accelerationIcon"
+          />
+        </Tooltip>
       )}
     </span>
   );

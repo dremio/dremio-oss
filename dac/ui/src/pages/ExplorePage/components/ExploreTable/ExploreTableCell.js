@@ -19,7 +19,7 @@ import { Cell } from "fixed-data-table-2";
 import Immutable from "immutable";
 import shallowEqual from "fbjs/lib/shallowEqual";
 import { pick } from "lodash/object";
-import { LIST, MAP, TEXT } from "@app/constants/DataTypes";
+import { LIST, MAP, TEXT, STRUCT } from "@app/constants/DataTypes";
 import { DATE_TYPES, NUMBER_TYPES } from "@app/constants/columnTypeGroups";
 
 import dataFormatUtils from "utils/dataFormatUtils";
@@ -49,6 +49,7 @@ export class ExploreTableCellView extends Component {
     columns: PropTypes.instanceOf(Immutable.List),
     onCellTextSelect: PropTypes.func,
     selectItemsOfList: PropTypes.func,
+    shouldRenderInvisibles: PropTypes.bool,
 
     // Cell props
     width: PropTypes.number,
@@ -174,7 +175,7 @@ export class ExploreTableCellView extends Component {
       if (!state.transformType) {
         this.props.onCellTextSelect({ ...selectedData.position, columnType });
       }
-    } else if (columnType !== MAP) {
+    } else if (columnType !== MAP && columnType !== STRUCT) {
       const element = selectionData.oRange.startContainer.parentElement;
       this.props.selectAll(
         element,
@@ -269,6 +270,7 @@ export class ExploreTableCellView extends Component {
         this.state.innerContentWidth > width ||
           this.getFullValueUrl() ||
           columnType === MAP ||
+          columnType === STRUCT ||
           columnType === LIST
       )
     );
@@ -281,7 +283,15 @@ export class ExploreTableCellView extends Component {
   }
 
   render() {
-    const { rowIndex, data, columnType, style, width, height } = this.props;
+    const {
+      rowIndex,
+      data,
+      columnType,
+      style,
+      width,
+      height,
+      shouldRenderInvisibles,
+    } = this.props;
     const row = data.get(rowIndex);
     const showEllipsis = this.showEllipsis();
     const cellValue = this.getCellValue();
@@ -322,7 +332,7 @@ export class ExploreTableCellView extends Component {
                 cellValue,
                 this.getCellType() || columnType,
                 row,
-                false
+                shouldRenderInvisibles
               )}
             </span>
           </div>

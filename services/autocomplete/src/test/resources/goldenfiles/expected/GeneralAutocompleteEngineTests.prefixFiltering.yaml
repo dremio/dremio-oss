@@ -17,16 +17,56 @@
 ---
  -
   description: "PREFIX FILTERING FUNCTION"
-  input: "SELECT ONE_ARG_NUM^"
+  input: "SELECT AB^"
   output:
     completions:
      -
-      data: "ONE_ARG_NUMERIC_FUNCTION"
-      detail: "ONE_ARG_NUMERIC_FUNCTION"
-      insertText: "ONE_ARG_NUMERIC_FUNCTION(<NUMERIC>)"
+      detail: "Computes the absolute value of a numeric expression."
+      insertText: "ABS(${1:FLOAT})"
       kind: "Function"
-      label: "ONE_ARG_NUMERIC_FUNCTION"
+      label: "ABS(???)"
     functionContext: null
+    hasMoreResults: false
+ -
+  description: "PREFIX FILTERING PARAMETER"
+  input: "SELECT ABS(EMP.DEPT^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+    functionContext:
+      function:
+        description: "Computes the absolute value of a numeric expression."
+        name: "ABS"
+        signatures:
+         - "(FLOAT) -> FLOAT"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(FLOAT) -> FLOAT"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     hasMoreResults: false
  -
   description: "PREFIX FILTERING CATALOG ENTRIES"
@@ -37,7 +77,20 @@
       data:
         name: "DEPT"
         type: "Physical Dataset"
-      detail: "Some CatalogEntry"
+      insertText: "DEPT"
+      kind: "CatalogEntry"
+      label: "DEPT"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "PREFIX FILTERING CATALOG ENTRIES WITH DOUBLE QUOTES"
+  input: "SELECT * FROM \"dep^\""
+  output:
+    completions:
+     -
+      data:
+        name: "DEPT"
+        type: "Physical Dataset"
       insertText: "DEPT"
       kind: "CatalogEntry"
       label: "DEPT"
@@ -54,7 +107,7 @@
           name: "EMPNO"
           type: "INTEGER"
         tableAlias: "EMP"
-      detail: "Some Column"
+      detail: "column (INTEGER) in EMP"
       insertText: "EMP.EMPNO"
       kind: "Column"
       label: "EMPNO"
@@ -64,28 +117,23 @@
           name: "ENAME"
           type: "VARCHAR"
         tableAlias: "EMP"
-      detail: "Some Column"
+      detail: "column (VARCHAR) in EMP"
       insertText: "EMP.ENAME"
       kind: "Column"
       label: "ENAME"
      -
-      data: "E"
-      detail: "E"
+      detail: "Returns Euler's number, a constant approximately equal to 2.718281828459045."
       insertText: "E()"
       kind: "Function"
-      label: "E"
+      label: "E()"
      -
-      data: "ELEMENT"
-      detail: "ELEMENT"
-      insertText: "ELEMENT()"
+      insertText: "ELT(${1:INT}, ${2:CHARACTERS}, ${3:CHARACTERS})"
       kind: "Function"
-      label: "ELEMENT"
+      label: "ELT(???, ???, ???)"
      -
-      data: "EQUAL"
-      detail: "EQUAL"
-      insertText: "EQUAL()"
+      insertText: "ELT(${1:INT}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS})"
       kind: "Function"
-      label: "EQUAL"
+      label: "ELT(???, ???, ???, ???)"
     functionContext: null
     hasMoreResults: true
  -
@@ -94,27 +142,15 @@
   output:
     completions:
      -
-      data: "SELECT"
-      detail: "Some SQL keyword"
-      insertText: "SELECT"
       kind: "Keyword"
       label: "SELECT"
      -
-      data: "SET"
-      detail: "Some SQL keyword"
-      insertText: "SET"
       kind: "Keyword"
       label: "SET"
      -
-      data: "SHOW"
-      detail: "Some SQL keyword"
-      insertText: "SHOW"
       kind: "Keyword"
       label: "SHOW"
      -
-      data: "SPECIFIC"
-      detail: "Some SQL keyword"
-      insertText: "SPECIFIC"
       kind: "Keyword"
       label: "SPECIFIC"
     functionContext: null

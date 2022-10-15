@@ -132,11 +132,11 @@ class NodeActivityView extends PureComponent {
     let icon = "";
     switch (status) {
       case "red":
-        icon = "StoppedEngine.svg";
+        icon = "engine-state/stopped";
         break;
       case "green":
       default:
-        icon = "RunningEngine.svg";
+        icon = "engine-state/running";
         break;
     }
     return <NodeTableCellStatus icon={icon} />;
@@ -165,16 +165,11 @@ class NodeActivityView extends PureComponent {
     }
     return <div className={"nodeType"}>{type}</div>;
   }
-  showCopy(ip) {
-    this.setState({ showCopyButton: ip });
-  }
-  hideCopy() {
-    this.setState({ showCopyButton: undefined });
-  }
+
   getNodeData(columnNames, node) {
     const [nodeStatus, name, nodeType, ip, port, cpu, memory, version] =
       columnNames;
-    const { showCopyButton } = this.state;
+
     const status = this.getNodeCellStatus(node);
     return {
       data: {
@@ -194,17 +189,15 @@ class NodeActivityView extends PureComponent {
         [ip]: {
           node: () => {
             return (
-              <div
-                style={{ display: "flex", flexDirection: "row" }}
-                onMouseEnter={() => this.showCopy(node.get("ip"))}
-                onMouseLeave={this.hideCopy.bind(this)}
-              >
+              <div className="node-activity-ip-container">
                 <EllipsedText text={node.get("ip")} style={{ flexGrow: 0 }} />
-                {showCopyButton && showCopyButton === node.get("ip") && (
-                  <div style={{ paddingTop: "2px", paddingLeft: "4px" }}>
-                    <CopyButton title={"Copy Host"} text={node.get("ip")} />
-                  </div>
-                )}
+                <div className="node-activity-copy-button">
+                  <CopyButton
+                    title={"Copy Host"}
+                    text={node.get("ip")}
+                    buttonStyle={{ height: "28px", width: "28px" }}
+                  />
+                </div>
               </div>
             );
           },
@@ -246,28 +239,33 @@ class NodeActivityView extends PureComponent {
     const endChildren = this.getHeaderEndChildren();
     const header = endChildren ? (
       <SettingHeader
-        icon="Node.svg"
+        icon="settings/node-activity"
         title={la("Node Activity")}
         endChildren={endChildren}
       />
     ) : (
-      <SettingHeader icon="Node.svg" title={la("Node Activity")} />
+      <SettingHeader
+        icon="settings/node-activity"
+        title={la("Node Activity")}
+      />
     );
     return (
       <div id="admin-nodeActivity" style={page}>
         {header}
-        {this.getSubHeader()}
-        <div style={pageContent}>
-          <StatefulTableViewer
-            tableData={tableData}
-            columns={columns}
-            viewState={this.props.viewState}
-            rowHeight={40}
-            virtualized
-            scrollableTable
-            fixedColumnCount={2}
-            defaultSortDirection="ASC"
-          />
+        <div className="gutter-left--double">
+          {this.getSubHeader()}
+          <div style={pageContent}>
+            <StatefulTableViewer
+              tableData={tableData}
+              columns={columns}
+              viewState={this.props.viewState}
+              rowHeight={40}
+              virtualized
+              scrollableTable
+              fixedColumnCount={2}
+              defaultSortDirection="ASC"
+            />
+          </div>
         </div>
       </div>
     );

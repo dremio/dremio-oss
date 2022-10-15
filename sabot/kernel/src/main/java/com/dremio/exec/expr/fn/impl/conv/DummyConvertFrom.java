@@ -27,7 +27,7 @@ import com.dremio.exec.expr.annotations.Output;
  * This and {@link DummyConvertTo} class merely act as a placeholder so that Optiq
  * allows 'convert_to()' and 'convert_from()' functions in SQL.
  */
-@FunctionTemplate(name = "convert_from", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@FunctionTemplate(name = "convert_from", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, isDeterministic = false)
 @SuppressWarnings("unused") // found through classpath search
 public class DummyConvertFrom implements SimpleFunction {
 

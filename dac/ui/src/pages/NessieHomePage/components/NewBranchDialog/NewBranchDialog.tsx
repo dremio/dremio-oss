@@ -17,18 +17,17 @@
 import { useState } from "react";
 import { connect } from "react-redux";
 import { FormattedMessage } from "react-intl";
-
+import { Button } from "dremio-ui-lib/dist-esm";
 import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
 import {
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   TextField,
-} from "@material-ui/core";
+} from "@mui/material";
 
-import { Reference } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 import { useNessieContext } from "../../utils/context";
 import { CustomDialogTitle } from "./utils";
 
@@ -38,9 +37,13 @@ type NewBranchDialogProps = {
   open: boolean;
   closeDialog: () => void;
   forkFrom: Reference;
+  newRefType?: "BRANCH" | "TAG";
+  customHeader?: string;
+  customContentText?: string;
   allRefs?: Reference[];
   setAllRefs?: React.Dispatch<React.SetStateAction<Reference[]>>;
   setSuccessMessage?: React.Dispatch<React.SetStateAction<JSX.Element | null>>;
+  refetch?: () => void;
 };
 
 type ConnectedProps = {
@@ -51,10 +54,14 @@ function NewBranchDialog({
   open,
   closeDialog,
   forkFrom,
+  newRefType = "BRANCH",
+  customHeader,
+  customContentText,
   allRefs,
   setAllRefs,
   setSuccessMessage,
   setReference,
+  refetch,
 }: NewBranchDialogProps & ConnectedProps): JSX.Element {
   const { api, stateKey } = useNessieContext();
   const [newBranchName, setNewBranchName] = useState("");
@@ -76,16 +83,15 @@ function NewBranchDialog({
 
   const onAdd = async () => {
     setIsSending(true);
-
     try {
-      const reference = await api.createReference({
+      const reference = (await api.createReference({
         sourceRefName: forkFrom ? forkFrom.name : undefined,
         reference: {
-          type: "BRANCH",
+          type: newRefType,
           hash: forkFrom ? forkFrom.hash : null,
           name: newBranchName,
         } as Reference,
-      });
+      })) as Reference;
 
       if (allRefs && setAllRefs) {
         setAllRefs([
@@ -104,6 +110,7 @@ function NewBranchDialog({
 
       setErrorText(null);
       closeDialog();
+      refetch?.();
       setNewBranchName("");
       setIsSending(false);
     } catch (error: any) {
@@ -133,12 +140,18 @@ function NewBranchDialog({
           className="new-branch-dialog-header"
         >
           <span className="new-branch-dialog-header-title">
-            <FormattedMessage id="RepoView.Dialog.CreateBranch.CreateBranch" />
+            <FormattedMessage
+              id={customHeader ?? "RepoView.Dialog.CreateBranch.CreateBranch"}
+            />
           </span>
         </CustomDialogTitle>
         <DialogContent className="new-branch-dialog-body">
           <DialogContentText>
-            <FormattedMessage id="RepoView.Dialog.CreateBranch.BranchName" />
+            <FormattedMessage
+              id={
+                customContentText ?? "RepoView.Dialog.CreateBranch.BranchName"
+              }
+            />
           </DialogContentText>
           <TextField
             onChange={updateInput}
@@ -158,14 +171,10 @@ function NewBranchDialog({
           ></TextField>
         </DialogContent>
         <DialogActions className="new-branch-dialog-actions">
-          <Button
-            onClick={onCancel}
-            disabled={isSending}
-            className="cancel-button"
-          >
+          <Button variant="secondary" onClick={onCancel} disabled={isSending}>
             <FormattedMessage id="Common.Cancel" />
           </Button>
-          <Button onClick={onAdd} disabled={isSending} className="add-button">
+          <Button variant="primary" onClick={onAdd} disabled={isSending}>
             <FormattedMessage id="Common.Add" />
           </Button>
         </DialogActions>

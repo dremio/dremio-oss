@@ -38,6 +38,9 @@ import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
@@ -89,6 +92,7 @@ public class TestAbstractDataCollector extends DremioTest {
                                                                return schedulerService;
                                                              }
                                                            });
+    final OptionManager options = new DefaultOptionManager(new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT));
     try {
       spillService.start();
     } catch (Exception e) {
@@ -96,7 +100,7 @@ public class TestAbstractDataCollector extends DremioTest {
     }
     try {
       AbstractDataCollector dataCollector = new AbstractDataCollector(resourceGroup, true,
-        collector, 10240, allocator, config, handle, workQueue, tunnelProvider, spillService, endpointsIndex) {
+        collector, 10240, allocator, config, options, handle, workQueue, tunnelProvider, spillService, endpointsIndex) {
         @Override
         protected RawBatchBuffer getBuffer(int minorFragmentId) {
           return null;

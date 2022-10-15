@@ -50,6 +50,7 @@ describe("performLoadDataset saga", () => {
     datasetVersion,
   });
   const viewId = "VIEW_ID";
+  const isRunOrPreview = true;
   let location;
   let gen;
   let next;
@@ -76,7 +77,9 @@ describe("performLoadDataset saga", () => {
     beforeEach(() => {
       gen = handlePerformLoadDataset({ meta: { dataset, viewId } });
       next = gen.next(); // loadDataset call
-      expect(next.value).to.eql(call(loadDataset, dataset, viewId));
+      expect(next.value).to.eql(
+        call(loadDataset, dataset, viewId, undefined, undefined, true)
+      );
       const apiAction = "an api action";
       next = gen.next(apiAction); // transformThenNavigate call
       // try to load a data and navigate to a received version
@@ -97,7 +100,9 @@ describe("performLoadDataset saga", () => {
       expect(next.value).to.be.eql(call(focusSqlEditorSaga));
       next = gen.next();
       next = gen.next();
-      expect(next.value).to.eql(call(loadTableData, datasetVersion));
+      expect(next.value).to.eql(
+        call(loadTableData, datasetVersion, undefined, isRunOrPreview)
+      );
       next = gen.next();
       expect(next.done).to.be.true;
     });
@@ -183,6 +188,7 @@ describe("performLoadDataset saga", () => {
           viewId,
           location.query.tipVersion,
           undefined,
+          undefined,
           undefined
         )
       );
@@ -195,6 +201,7 @@ describe("performLoadDataset saga", () => {
           dataset,
           viewId,
           location.query.tipVersion,
+          undefined,
           undefined,
           undefined
         )
@@ -255,7 +262,8 @@ describe("performLoadDataset saga", () => {
               datasetVersion,
               jobId,
               forceLoad,
-              paginationUrl
+              paginationUrl,
+              isRunOrPreview
             ),
             // listener for cancelation action is added
             isLoadCanceled: take([

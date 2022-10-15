@@ -15,13 +15,19 @@
  */
 package com.dremio.sabot.exec.rpc;
 
+import java.util.concurrent.TimeUnit;
+
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.record.FragmentWritableBatch;
+import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.threads.SendingMonitor;
+import com.google.common.base.Stopwatch;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * Wrapper around a {@link com.dremio.sabot.exec.rpc.ExecTunnel} that tracks the status of batches sent to
@@ -43,9 +49,9 @@ public class AccountingExecTunnel {
     tunnel.sendStreamComplete(statusHandler, streamComplete);
   }
 
-  public void sendRecordBatch(FragmentWritableBatch batch) {
+  public void sendRecordBatch(FragmentWritableBatch batch, SenderLatencyObserver observer) {
     monitor.increment();
-    tunnel.sendRecordBatch(statusHandler, batch);
+    tunnel.sendRecordBatch(observer == null ? statusHandler : new StatsTrackingListenerWrapper(statusHandler, observer), batch);
   }
 
   public void informReceiverFinished(FinishedReceiver finishedReceiver) {
@@ -58,4 +64,36 @@ public class AccountingExecTunnel {
     tunnel.sendOOBMessage(statusHandler, message);
   }
 
+  private static class StatsTrackingListenerWrapper implements RpcOutcomeListener<Ack> {
+    private final RpcOutcomeListener<Ack> inner;
+    private final Stopwatch watch;
+    private final SenderLatencyObserver observer;
+
+    StatsTrackingListenerWrapper(RpcOutcomeListener<Ack> inner, SenderLatencyObserver observer) {
+      this.inner = inner;
+      this.watch = Stopwatch.createStarted();
+      this.observer = observer;
+    }
+
+    private void  updateAckTime() {
+      observer.updateAckTimeMillis(watch.stop().elapsed(TimeUnit.MILLISECONDS));
+    }
+
+    @Override
+    public void failed(RpcException ex) {
+      updateAckTime();
+      inner.failed(ex);
+    }
+
+    @Override
+    public void success(Ack value, ByteBuf buffer) {
+      updateAckTime();
+      inner.success(value, buffer);
+    }
+
+    @Override
+    public void interrupted(InterruptedException e) {
+      inner.interrupted(e);
+    }
+  }
 }

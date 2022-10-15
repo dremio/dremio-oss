@@ -18,7 +18,7 @@ package com.dremio.sabot.op.common.ht2;
 
 import static com.dremio.exec.util.TestdataSetupUtils.newHashMap;
 import static com.dremio.exec.util.TestdataSetupUtils.randomStrings;
-import static org.apache.arrow.util.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -120,6 +120,7 @@ public class LBlockHashTableKeyReaderTest {
             PivotDef pivot = new PivotDef(4, 0, 0, ImmutableList.of(v));
             List<String> fieldsToRead = Lists.newArrayList("structfield");
             try (HashTableKeyReader reader = newKeyReader(fieldsToRead, pivot)) {
+              // trigger exception
             }
         }
     }
@@ -141,6 +142,7 @@ public class LBlockHashTableKeyReaderTest {
             PivotDef pivot = new PivotDef(-1, 1, 0, ImmutableList.of(v));
             List<String> fieldsToRead = Lists.newArrayList("structfield");
             try (HashTableKeyReader reader = newKeyReader(fieldsToRead, pivot)) {
+              // trigger exception
             }
         }
     }

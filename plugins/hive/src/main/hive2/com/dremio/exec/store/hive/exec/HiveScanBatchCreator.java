@@ -30,7 +30,7 @@ import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
 import org.apache.hadoop.hive.serde2.OpenCSVSerde;
-import org.apache.hadoop.hive.serde2.SerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
@@ -266,7 +266,7 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
       }
 
       try {
-        Class<? extends SerDe> aClass = (Class<? extends SerDe>) Class.forName(serialiazationLib);
+        Class<? extends AbstractSerDe> aClass = (Class<? extends AbstractSerDe>) Class.forName(serialiazationLib);
         if (!OrcSerde.class.isAssignableFrom(aClass) &&
                 !ParquetHiveSerDe.class.isAssignableFrom(aClass) &&
                 !LazySimpleSerDe.class.isAssignableFrom(aClass) &&

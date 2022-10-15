@@ -15,7 +15,6 @@
     limitations under the License.
 
 -->
-<#-- Copyright 2016 Dremio Corporation -->
      | < L_CONTAINS: "CONTAINS(" > { pushState(); }: LUCENE_DEFAULT
      | < LBRACE_D: "{" (" ")* ["d","D"] >
      | < LBRACE_T: "{" (" ")* ["t","T"] >

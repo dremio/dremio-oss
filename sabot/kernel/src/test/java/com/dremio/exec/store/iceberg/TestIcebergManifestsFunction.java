@@ -36,6 +36,7 @@ public class TestIcebergManifestsFunction extends IcebergMetadataTestTable {
   @Test
   public void testTableManifestSchema() throws Exception {
     List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema = Lists.newArrayList();
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("content"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("path"), Types.required(TypeProtos.MinorType.VARCHAR)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("length"), Types.required(TypeProtos.MinorType.BIGINT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("partition_spec_id"), Types.required(TypeProtos.MinorType.INT)));
@@ -43,6 +44,9 @@ public class TestIcebergManifestsFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("added_data_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("existing_data_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("deleted_data_files_count"), Types.required(TypeProtos.MinorType.INT)));
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("added_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("existing_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("deleted_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("partition_summaries"), Types.required(TypeProtos.MinorType.LIST)));
     expectedSchema(expectedSchema,"SELECT * FROM table(table_manifests('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
   }
@@ -50,6 +54,7 @@ public class TestIcebergManifestsFunction extends IcebergMetadataTestTable {
   @Test
   public void testInvalidColumnCountTableManifestSchema() {
     List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema = Lists.newArrayList();
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("content"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("path"), Types.required(TypeProtos.MinorType.VARCHAR)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("length"), Types.required(TypeProtos.MinorType.BIGINT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("partition_spec_id"), Types.required(TypeProtos.MinorType.INT)));
@@ -57,6 +62,9 @@ public class TestIcebergManifestsFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("added_data_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("existing_data_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("deleted_data_files_count"), Types.required(TypeProtos.MinorType.INT)));
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("added_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("existing_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
+    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("deleted_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
     assertThatThrownBy(() -> expectedSchema(expectedSchema,"SELECT * FROM table(table_manifests('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath()))
       .hasMessageContaining("Expected and actual numbers of columns do not match.");
   }

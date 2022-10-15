@@ -86,6 +86,6 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
    * sql statement. This will return the sql required to extend the table with the fields.
    */
   default String getExtendTableSql() {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedExtendTableException();
   }
 }

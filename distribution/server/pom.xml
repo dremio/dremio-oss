@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -35,6 +35,8 @@
     <dremio.distribution.resources.directory>${project.build.directory}/distribution-resources</dremio.distribution.resources.directory>
     <dremio.hive.plugin-group-id>com.dremio.plugins</dremio.hive.plugin-group-id>
     <dremio.hive.plugin-artifact-id-prefix>dremio</dremio.hive.plugin-artifact-id-prefix>
+    <dremio.distribution.tar.maxSize>750000000</dremio.distribution.tar.maxSize>
+    <dremio.distribution.rpm.maxSize>750000000</dremio.distribution.rpm.maxSize>
   </properties>
 
   <dependencies>
@@ -110,12 +112,10 @@
     <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>arrow-vector</artifactId>
-      <version>${arrow.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>arrow-memory-core</artifactId>
-      <version>${arrow.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -206,13 +206,6 @@
 
     <dependency>
       <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-winutils</artifactId>
-      <version>3.2.0</version>
-      <type>zip</type>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common-native</artifactId>
       <classifier>linux</classifier>
     </dependency>
@@ -297,7 +290,7 @@
                     Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
                   </message>
-                  <maxsize>710000000</maxsize>
+                  <maxsize>${dremio.distribution.tar.maxSize}</maxsize>
                   <minsize>500000000</minsize>
                   <files>
                     <file>${project.build.directory}/${dremio.distribution.name}-${project.version}.tar.gz</file>
@@ -341,9 +334,9 @@
                   <name>${dremio.distribution.name}</name>
                   <summary>Dremio Self-service Data Platform.</summary>
                   <description>
-                      Dremio is a platform for providing self-service analytics on modern data.
+                    Dremio is a platform for providing self-service analytics on modern data.
                   </description>
-                  <license>2018 Dremio Corporation</license>
+                  <license>Copyright (C) 2017-2022 Dremio Corporation</license>
                   <version>${project.version}</version>
                   <vendor>Dremio Corporation</vendor>
                   <url>http://www.dremio.com</url>
@@ -357,6 +350,10 @@
                   <defaultDirmode>755</defaultDirmode>
                   <defaultUsername>root</defaultUsername>
                   <defaultGroupname>wheel</defaultGroupname>
+                  <defineStatements>
+                    <!-- Allow platform dependent binaries (libs) to be packaged in noarch RPMs. -->
+                    <defineStatement>_binaries_in_noarch_packages_terminate_build 0</defineStatement>
+                  </defineStatements>
                   <mappings>
                     <mapping>
                       <directory>/opt/dremio/bin</directory>
@@ -540,7 +537,7 @@ exit 0
                         Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
                       </message>
-                      <maxsize>703000000</maxsize>
+                      <maxsize>${dremio.distribution.rpm.maxSize}</maxsize>
                       <minsize>500000000</minsize>
                       <files>
                         <file>${project.build.directory}/rpm/${dremio.distribution.name}/RPMS/noarch/${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm</file>
@@ -565,6 +562,10 @@ exit 0
           <name>mapr</name>
         </property>
       </activation>
+      <properties>
+        <dremio.distribution.tar.maxSize>880000000</dremio.distribution.tar.maxSize>
+        <dremio.distribution.rpm.maxSize>870000000</dremio.distribution.rpm.maxSize>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>com.dremio.provision</groupId>

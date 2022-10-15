@@ -182,6 +182,10 @@ const KNOWN = {
     licenseURL:
       "https://raw.githubusercontent.com/facebook/regenerator/fde052c6c3563e007d233870ecd4a41920773bbd/LICENSE",
   },
+  "format@0.2.2": {
+    licenses: "MIT",
+    licenseURL: "https://sjs.mit-license.org/",
+  },
   "boolbase@1.0.0": {
     licenseURL:
       "https://raw.githubusercontent.com/fb55/boolbase/be0bcd8a4e917a0a5895e95b523fbbed05a64871/LICENSE",
@@ -208,9 +212,18 @@ const KNOWN = {
     licenses: "Unlicense",
     noFile: true,
   },
+  "https://github.com/mantinedev/mantine": {
+    tagScheme: (v) => v,
+  },
+  "https://github.com/radix-ui/primitives": {
+    tagScheme: () => "main",
+  },
 };
 
-const NAMES = "LICENSE License.txt LICENSE.md README.md readme.md"
+// @mui/styled mistakenly adds @babel/core as a peerDep which depends on caniuse-lite. This is never actually packaged
+const IGNORED = ["caniuse-lite"];
+
+const NAMES = "LICENSE License.txt LICENSE.md README.md readme.md License"
   .split(" ")
   .reverse();
 const fetchLicense = (module) => {
@@ -271,7 +284,6 @@ const fetchLicense = (module) => {
     module.licenseText = extractedText;
     return module;
   };
-
   return fetchNext();
 };
 
@@ -302,14 +314,15 @@ async function main() {
             noFile: false,
           },
           KNOWN[module.name],
-          KNOWN[key]
+          KNOWN[key],
+          KNOWN[module.repository]
         ); // let known override
 
         if (NORMALIZED_LICENSES[module.licenses]) {
           module.licenses = NORMALIZED_LICENSES[module.licenses];
         }
 
-        if (!BLESSED.has(module.licenses)) {
+        if (!BLESSED.has(module.licenses) && !IGNORED.includes(module.name)) {
           setErrorToModule(
             module,
             `Found license type that has not been blessed yet: ${module.licenses}`
@@ -352,7 +365,9 @@ async function main() {
         );
       }
       try {
-        const data = await Promise.all(promises);
+        const data = await (
+          await Promise.all(promises)
+        ).filter((module) => !IGNORED.includes(module.name));
 
         data.forEach((module) => {
           if (module.licenseText) {

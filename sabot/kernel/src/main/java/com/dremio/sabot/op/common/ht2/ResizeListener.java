@@ -55,6 +55,9 @@ public interface ResizeListener {
     @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {}
+
+    @Override
+    public void compact(final int batchIndex, final int nextRecSize) {}
   };
 
   void addBatch() throws Exception;
@@ -69,16 +72,18 @@ public interface ResizeListener {
 
   void releaseBatch(final int batchIdx);
 
-  default boolean hasSpace(final int space, final int batchIndex) {
+  default boolean hasSpace(final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
     return true;
   }
 
-  public List<Accumulator> getVarlenAccumChildren();
+  List<Accumulator> getVarlenAccumChildren();
 
-  public List<FieldVector> getFixedlenAccumulators(final int batchIndex);
+  List<FieldVector> getFixedlenAccumulators(final int batchIndex);
 
-  public void accumulate(final long memoryAddr, final int count,
-                         final int bitsInChunk, final int chunkOffsetMask);
+  void accumulate(final long memoryAddr, final int count,
+                  final int bitsInChunk, final int chunkOffsetMask);
+
+  void compact(int batchIndex, final int nextRecSize);
 
   default int getAccumCompactionCount() {
     return 0;

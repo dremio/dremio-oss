@@ -147,7 +147,7 @@ public class TestUserSessionServiceImpl {
       .withInitialQuoting(Quoting.BRACKET)
       .withFullyQualifiedProjectsSupport(true)
       .withLegacyCatalog()
-      .withRecordBatchFormat(UserProtos.RecordBatchFormat.DREMIO_1_4)
+      .withRecordBatchFormat(UserProtos.RecordBatchFormat.DREMIO_23_0)
       .setSupportComplexTypes(true)
       .withUserProperties(properties)
       .withSourceVersionMapping(sourceVersionMapping)
@@ -167,7 +167,7 @@ public class TestUserSessionServiceImpl {
     assertEquals(session1.getLastQueryId(), session2.getLastQueryId());
     assertEquals(session1.getMaxMetadataCount(), session2.getMaxMetadataCount());
     assertEquals(session1.getRecordBatchFormat(), session2.getRecordBatchFormat());
-    assertEquals(UserProtos.RecordBatchFormat.DREMIO_1_4, session2.getRecordBatchFormat());
+    assertEquals(UserProtos.RecordBatchFormat.DREMIO_23_0, session2.getRecordBatchFormat());
     assertEquals(session1.getRoutingEngine(), session2.getRoutingEngine());
     assertEquals(session1.getRoutingQueue(), session2.getRoutingQueue());
     assertEquals(session1.getRoutingTag(), session2.getRoutingTag());

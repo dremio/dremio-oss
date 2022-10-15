@@ -23,7 +23,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
 public class SqlAggOperator extends SqlAggFunction {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlAggOperator.class);
 
   public SqlAggOperator(String name, int argCountMin, int argCountMax, SqlReturnTypeInference sqlReturnTypeInference) {
     super(name,
@@ -31,7 +30,7 @@ public class SqlAggOperator extends SqlAggFunction {
         SqlKind.OTHER_FUNCTION,
         sqlReturnTypeInference,
         null,
-        Checker.getChecker(argCountMin, argCountMax),
+        Checker.between(argCountMin, argCountMax),
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
   }
 }

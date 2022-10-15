@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.parser;
 
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
@@ -52,4 +53,20 @@ public interface SqlDmlOperator {
   default NamespaceKey getPath() {
     return DmlUtils.getPath(getTargetTable());
   }
+
+  /**
+   *  Get the source of DML operation.
+   */
+  SqlNode getSourceTableRef();
+
+  /**
+   * @return the alias for the target table
+   */
+  SqlIdentifier getAlias();
+
+  /**
+   *
+   * @return the condition expression for the DMLed data
+   */
+  SqlNode getCondition();
 }

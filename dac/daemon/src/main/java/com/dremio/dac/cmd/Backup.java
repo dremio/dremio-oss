@@ -19,17 +19,23 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 
+import javax.inject.Provider;
+
 import org.apache.hadoop.conf.Configuration;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.services.credentials.CredentialsService;
 
 /**
  * Backup command line.
@@ -69,6 +75,7 @@ public class Backup {
 
   public static BackupStats createBackup(
     DACConfig dacConfig,
+    Provider<CredentialsService> credentialsServiceProvider,
     String userName,
     String password,
     boolean checkSSLCertificates,
@@ -76,7 +83,7 @@ public class Backup {
     boolean binary,
     boolean includeProfiles
     ) throws IOException, GeneralSecurityException {
-    final WebClient client = new WebClient(dacConfig, userName, password, checkSSLCertificates);
+    final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
     BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles);
     return client.buildPost(BackupStats.class, "/backup", options);
   }
@@ -142,7 +149,17 @@ public class Backup {
         if (!validateOnlineOption(options)) {
           throw new ParameterException("User credential is required.");
         }
-        BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, !options.acceptAll, target, !options.json, options.profiles);
+
+        BackupStats backupStats;
+        if (!options.acceptAll) {
+          final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
+          final ScanResult scanResult = ClassPathScanner.fromPrescan(sabotConfig);
+          try (CredentialsService credentialsService = CredentialsService.newInstance(dacConfig.getConfig(), scanResult)) {
+            backupStats = createBackup(dacConfig, () -> credentialsService, options.userName, options.password, true, target, !options.json, options.profiles);
+          }
+        } else {
+          backupStats = createBackup(dacConfig, () -> null, options.userName, options.password, false, target, !options.json, options.profiles);
+        }
         AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
           backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
       }

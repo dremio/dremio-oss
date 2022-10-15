@@ -110,19 +110,19 @@ public class TestFlatten extends PlanTestBase {
         .createFiles(1, numCopies, "json");
 
     List<JsonStringHashMap<String,Object>> data = Lists.newArrayList(
-        mapOf("uid", 1l,
-            "lst_lst_0", listOf(1l, 2l, 3l, 4l, 5l),
-            "lst_lst_1", listOf(2l, 3l, 4l, 5l, 6l),
+        mapOf("uid", 1L,
+            "lst_lst_0", listOf(1L, 2L, 3L, 4L, 5L),
+            "lst_lst_1", listOf(2L, 3L, 4L, 5L, 6L),
             "lst_lst", listOf(
-            listOf(1l, 2l, 3l, 4l, 5l),
-            listOf(2l, 3l, 4l, 5l, 6l))
+            listOf(1L, 2L, 3L, 4L, 5L),
+            listOf(2L, 3L, 4L, 5L, 6L))
         ),
-        mapOf("uid", 2l,
-            "lst_lst_0", listOf(1l, 2l, 3l, 4l, 5l),
-            "lst_lst_1", listOf(2l, 3l, 4l, 5l, 6l),
+        mapOf("uid", 2L,
+            "lst_lst_0", listOf(1L, 2L, 3L, 4L, 5L),
+            "lst_lst_1", listOf(2L, 3L, 4L, 5L, 6L),
             "lst_lst", listOf(
-            listOf(1l, 2l, 3l, 4l, 5l),
-            listOf(2l, 3l, 4l, 5l, 6l))
+            listOf(1L, 2L, 3L, 4L, 5L),
+            listOf(2L, 3L, 4L, 5L, 6L))
         )
     );
 
@@ -255,8 +255,8 @@ public class TestFlatten extends PlanTestBase {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("a")
-        .baselineValues(131l)
-        .baselineValues(106l)
+        .baselineValues(131L)
+        .baselineValues(106L)
         .go();
   }
 
@@ -286,10 +286,10 @@ public class TestFlatten extends PlanTestBase {
         .unOrdered();
     Object map1 = mapOf("id1", "1",
                         "name", "zhu",
-                        "num", listOf(listOf(1l, 2l, 3l)));
+                        "num", listOf(listOf(1L, 2L, 3L)));
     Object map2 = mapOf("id1", "2",
                       "name", "hao",
-                      "num", listOf(listOf(4l, 5l, 6l)));
+                      "num", listOf(listOf(4L, 5L, 6L)));
     for (int i = 0; i < numCopies; i++) {
       builder.baselineValues("abc", map1);
       builder.baselineValues("abc", map2);

@@ -27,6 +27,7 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
 
+@SuppressWarnings("UseCorrectAssertInTests")
 public class TestIcebergComplexColumnCommands extends BaseTestQuery {
 
   @Before

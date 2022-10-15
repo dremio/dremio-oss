@@ -16,13 +16,10 @@
 
 package com.dremio.service.autocomplete.tokens;
 
-import java.util.List;
-
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.dremio.service.autocomplete.statements.grammar.CatalogPath;
 import com.dremio.service.autocomplete.statements.grammar.FromClause;
+import com.dremio.service.autocomplete.statements.grammar.TableReference;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 public final class QueryBuilder {
@@ -42,25 +39,34 @@ public final class QueryBuilder {
 
   public static String build(FromClause fromClause) {
     Preconditions.checkNotNull(fromClause);
-    return build(Tokens.STAR_COLUMN, fromClause);
+    return build(fromClause.getTableReferences());
   }
 
-  public static String build(ImmutableList<DremioToken> columnTokens, FromClause fromClause) {
+  public static String build(ImmutableList<TableReference> tableReferences) {
+    Preconditions.checkNotNull(tableReferences);
+    return build(Tokens.STAR_COLUMN, tableReferences);
+  }
+
+  public static String build(
+    ImmutableList<DremioToken> columnTokens,
+    ImmutableList<TableReference> tableReferences) {
     Preconditions.checkNotNull(columnTokens);
-    Preconditions.checkNotNull(fromClause);
+    Preconditions.checkNotNull(tableReferences);
 
     ImmutableList.Builder<DremioToken> modifiedQueryTokensBuilder = new ImmutableList.Builder<DremioToken>()
       .add(Tokens.SELECT)
-      .addAll(columnTokens)
-      .add(Tokens.FROM);
+      .addAll(columnTokens);
 
-    List<CatalogPath> catalogPaths = fromClause.getCatalogPaths();
-    for (int i = 0; i < catalogPaths.size(); i++) {
-      CatalogPath catalogPath = catalogPaths.get(i);
-      modifiedQueryTokensBuilder.addAll(catalogPath.getTokens());
+    if (!tableReferences.isEmpty()) {
+      modifiedQueryTokensBuilder.add(Tokens.FROM);
 
-      if (i != catalogPaths.size() - 1) {
-        modifiedQueryTokensBuilder.add(Tokens.COMMA);
+      for (int i = 0; i < tableReferences.size(); i++) {
+        TableReference tableReference = tableReferences.get(i);
+        modifiedQueryTokensBuilder.addAll(tableReference.getTokens());
+
+        if (i != tableReferences.size() - 1) {
+          modifiedQueryTokensBuilder.add(Tokens.COMMA);
+        }
       }
     }
 

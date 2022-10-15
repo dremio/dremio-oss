@@ -209,15 +209,13 @@ public abstract class HashTableTemplate implements HashTable {
       if (isProbe) {
         if(isKeyMatchInternalProbe(incomingRowIdx, currentIdxWithinBatch)){
           return KEY_MATCHES;
-        };
+        }
       } else {
         if(isKeyMatchInternalBuild(incomingRowIdx, currentIdxWithinBatch)){
           return KEY_MATCHES;
-        };
+        }
       }
-
       return links.get(currentIdxWithinBatch);
-
     }
 
     // Insert a new <key1, key2...keyN> entry coming from the incoming batch into the hash table

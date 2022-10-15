@@ -25,8 +25,10 @@ import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.InputReference;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
@@ -202,6 +204,16 @@ public class ExpressionValidator implements ExprVisitor<Void, ErrorCollector, Ru
   public Void visitConvertExpression(ConvertExpression e, ErrorCollector value)
       throws RuntimeException {
     return e.getInput().accept(this, value);
+  }
+
+  @Override
+  public Void visitListAggExpression(ListAggExpression e, ErrorCollector value) throws RuntimeException {
+    return null;
+  }
+
+  @Override
+  public Void visitOrdering(Ordering e, ErrorCollector value) throws RuntimeException {
+    return null;
   }
 
 }

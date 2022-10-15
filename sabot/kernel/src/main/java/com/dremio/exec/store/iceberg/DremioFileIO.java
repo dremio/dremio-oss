@@ -17,6 +17,7 @@ package com.dremio.exec.store.iceberg;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -67,7 +68,7 @@ public class DremioFileIO implements FileIO {
   }
 
   public DremioFileIO(FileSystem fs, Iterable<Map.Entry<String, String>> conf, MutablePlugin plugin) {
-    this(fs, null, null, null, null, conf, plugin);
+    this(fs, null, null, null, null, conf.iterator(), plugin);
   }
 
   public DremioFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID, Long fileLength, Configuration conf, MutablePlugin plugin) {
@@ -82,7 +83,7 @@ public class DremioFileIO implements FileIO {
     this.plugin = plugin;
   }
 
-  public DremioFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID, Long fileLength, Iterable<Map.Entry<String, String>> conf, MutablePlugin plugin) {
+  private DremioFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID, Long fileLength, Iterator<Map.Entry<String, String>> conf, MutablePlugin plugin) {
     try (Closeable swapper = ContextClassLoaderSwapper.swapClassLoader(DremioFileIO.class)) {
       Preconditions.checkNotNull(conf, "Configuration can not be null");
       Preconditions.checkNotNull(plugin, "Plugin can not be null");
@@ -92,12 +93,15 @@ public class DremioFileIO implements FileIO {
       this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
       this.fileLength = fileLength;
       this.conf = new Configuration();
-      for (Map.Entry<String, String> property : conf) {
+      while (conf.hasNext()) {
+        Map.Entry<String, String> property = conf.next();
         this.conf.set(property.getKey(), property.getValue());
       }
       this.plugin = plugin;
     }
   }
+
+
 
   // In case if FS is null then reading of file will be take care by HadoopInputFile.
   @Override

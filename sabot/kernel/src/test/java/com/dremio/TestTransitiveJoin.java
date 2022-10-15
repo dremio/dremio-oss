@@ -62,8 +62,8 @@ public class TestTransitiveJoin extends PlanTestBase {
 
     testPlanMatchingPatterns(onVds,
       new String[] {
-        Pattern.quote("Filter(condition=[=(CAST($0):VARCHAR(65536) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\", '2')]) : rowType = RecordType(INTEGER l_orderkey)"),
-        Pattern.quote("Filter(condition=[=(CAST($0):VARCHAR(65536) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\", '2')]) : rowType = RecordType(INTEGER o_orderkey):")
+        Pattern.quote("Filter(condition=[=(CAST($0):VARCHAR(65536), '2')]) : rowType = RecordType(INTEGER l_orderkey)"),
+        Pattern.quote("Filter(condition=[=(CAST($0):VARCHAR(65536), '2')]) : rowType = RecordType(INTEGER o_orderkey):")
       });
 
     test("drop view dfs_test.l");

@@ -176,7 +176,7 @@ public class TestLocalJobsService {
 
     localJobsService.start();
 
-    verify(schedulerService, times(4)).schedule(any(Schedule.class), any(Runnable.class));
+    verify(schedulerService, times(5)).schedule(any(Schedule.class), any(Runnable.class));
   }
 
   @Test

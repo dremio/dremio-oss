@@ -52,7 +52,7 @@ public class SqlTypeNameVisitor implements ArrowTypeVisitor<String> {
 
   @Override
   public String visit(Struct paramStruct_) {
-    return "MAP";
+    return "STRUCT";
   }
 
   @Override
@@ -163,7 +163,7 @@ public class SqlTypeNameVisitor implements ArrowTypeVisitor<String> {
   }
 
   @Override
-  public String visit(ArrowType.Map paramDuration) {
-    throw new UnsupportedOperationException("Dremio does not support map.");
+  public String visit(ArrowType.Map paramMap) {
+    return "MAP";
   }
 }

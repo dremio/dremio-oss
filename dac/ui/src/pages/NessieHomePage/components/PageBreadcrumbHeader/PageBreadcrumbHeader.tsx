@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 import { useIntl } from "react-intl";
-
 //@ts-ignore
 import { CopyToClipboard } from "dremio-ui-lib";
 import BranchPicker from "@app/pages/HomePage/components/BranchPicker/BranchPicker";
 import NessieBreadcrumb from "../NessieBreadcrumb/NessieBreadcrumb";
 import { useNessieContext } from "../../utils/context";
+import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import {
+  constructArcticUrl,
+  useArcticCatalogContext,
+} from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
+import ArcticBreadcrumb from "@app/exports/pages/ArcticCatalog/components/ArcticBreadcrumb/ArcticBreadcrumb";
 
 import "./PageBreadcrumbHeader.less";
 
@@ -27,19 +32,33 @@ function PageBreadcrumbHeader({
   path,
   rightContent,
   hasBranchPicker = true,
+  className = "",
 }: {
   path?: string[];
   rightContent?: any;
   hasBranchPicker?: boolean;
+  className?: string;
 }) {
   const intl = useIntl();
-  const { source } = useNessieContext();
+  const { source, state, baseUrl } = useNessieContext();
+  const arcticCtx = useArcticCatalogContext();
+  const Breadcrumb = arcticCtx ? ArcticBreadcrumb : (NessieBreadcrumb as any);
+  const redirectUrl = arcticCtx
+    ? constructArcticUrl({
+        type: arcticCtx.isCatalog ? "catalog" : "source",
+        baseUrl: baseUrl,
+        tab: arcticCtx?.activeTab,
+        namespace: "",
+      })
+    : "/";
 
   return (
-    <div className="pageBreadcrumbHeader">
+    <div className={`pageBreadcrumbHeader ${className}`}>
       <span className="pageBreadcrumbHeader-crumbContainer">
-        <NessieBreadcrumb path={path} />
-        {hasBranchPicker && <BranchPicker redirectUrl="/" />}
+        <Breadcrumb path={path} />
+        {hasBranchPicker && !isDefaultReferenceLoading(state) && (
+          <BranchPicker redirectUrl={redirectUrl} />
+        )}
         <span className="pageBreadcrumbHeader-copyButton">
           <CopyToClipboard
             tooltipText={intl.formatMessage({ id: "Common.PathCopied" })}

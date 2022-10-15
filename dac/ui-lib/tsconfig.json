@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "jsx": "react",
+    "lib": ["DOM", "ES2019"],
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "target": "ES2019"
+  }
+}

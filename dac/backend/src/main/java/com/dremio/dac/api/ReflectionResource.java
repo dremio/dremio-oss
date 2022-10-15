@@ -100,7 +100,7 @@ public class ReflectionResource {
       final ReflectionGoal reflectionGoal = reflectionServiceHelper.updateReflection(reflection.toReflectionGoal());
       return reflectionServiceHelper.newReflection(reflectionGoal);
     } catch (ConcurrentModificationException e) {
-      throw new ConflictException(e);
+      throw new ConflictException("The reflection seems to have been modified by another flow. Please verify the reflection definition and retry.",e);
     }
   }
 

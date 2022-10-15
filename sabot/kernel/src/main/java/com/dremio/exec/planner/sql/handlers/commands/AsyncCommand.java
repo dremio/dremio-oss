@@ -22,8 +22,6 @@ import com.dremio.exec.physical.PhysicalPlan;
  */
 public abstract class AsyncCommand implements CommandRunner<Void> {
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AsyncCommand.class);
-
   public AsyncCommand() {
   }
 

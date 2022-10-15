@@ -32,8 +32,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
-import org.apache.arrow.util.VisibleForTesting;
-
 import com.dremio.datastore.KVUtil;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.VersionExtractor;
@@ -48,6 +46,7 @@ import com.dremio.datastore.format.Format;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;

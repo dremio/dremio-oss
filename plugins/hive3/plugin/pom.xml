@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
@@ -52,7 +52,7 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
-      <version>hadoop3-2.2.2-dremio-202108161113150127-7bb5f20</version>
+      <version>hadoop3-${gcs-connector-version}</version>
       <classifier>shaded</classifier>
         <exclusions>
           <exclusion>
@@ -1251,13 +1251,11 @@
     <dependency>
       <groupId>org.pf4j</groupId>
       <artifactId>pf4j</artifactId>
-      <version>${pf4j.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>${slf4j.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -1327,11 +1325,6 @@
       <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

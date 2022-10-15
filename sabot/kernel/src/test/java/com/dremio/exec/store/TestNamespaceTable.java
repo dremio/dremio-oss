@@ -141,7 +141,7 @@ public class TestNamespaceTable {
             .setRecordCount(123L)
             .setScanFactor(1.0))),
       "",
-      MaterializedSplitsPointer.of(-1, Arrays.asList(partitionChunkMetadata), 1)), false);
+      MaterializedSplitsPointer.of(-1, Arrays.asList(partitionChunkMetadata), 1), null), false);
   }
 
   private NamespaceTable createTable(String name, RelDataType type) {

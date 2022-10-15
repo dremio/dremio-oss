@@ -21,23 +21,25 @@ import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.Preconditions;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.datasketches.hll.HllSketch;
 
+import com.google.common.base.Preconditions;
+
 import io.netty.util.internal.PlatformDependent;
 
 public final class NdvAccumulators {
 
-  private NdvAccumulators(){};
+  private NdvAccumulators(){}
 
   public static class IntNdvAccumulators extends BaseNdvAccumulator {
     private static final int WIDTH_INPUT = 4;
 
     public IntNdvAccumulators(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                              final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                              final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -74,7 +76,7 @@ public final class NdvAccumulators {
   public static class VarLenNdvAccumulators extends BaseNdvAccumulator {
 
     public VarLenNdvAccumulators(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                                 final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                                 final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -118,7 +120,7 @@ public final class NdvAccumulators {
     private static final int WIDTH_INPUT = 4;
 
     public FloatNdvAccumulator(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                               final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                               final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -155,7 +157,7 @@ public final class NdvAccumulators {
     private static final int WIDTH_INPUT = 8;
 
     public BigIntNdvAccumulator(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                                final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                                final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -192,7 +194,7 @@ public final class NdvAccumulators {
     private static final int WIDTH_INPUT = 8;
 
     public DoubleNdvAccumulator(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                                final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                                final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -231,7 +233,7 @@ public final class NdvAccumulators {
     byte[] valBuf = new byte[WIDTH_INPUT];
 
     public DecimalNdvAccumulator(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                                 final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHodler) {
+                                 final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHodler) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHodler);
     }
 
@@ -270,7 +272,7 @@ public final class NdvAccumulators {
     private static final int WIDTH_INPUT = 16;      // decimal inputs
 
     public DecimalNdvAccumulatorV2(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                                   final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                                   final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -311,7 +313,7 @@ public final class NdvAccumulators {
     private static final int BITS_PER_LONG = (1 << BITS_PER_LONG_SHIFT);
 
     public BitNdvAccumulator(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                             final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                             final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -360,7 +362,7 @@ public final class NdvAccumulators {
     private static final int WIDTH_INPUT = 8;       // pair-of-ints inputs
 
     public IntervalDayNdvAccumulator(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                                     final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
+                                     final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
       super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder);
     }
 
@@ -395,14 +397,14 @@ public final class NdvAccumulators {
 
   public static class NdvUnionAccumulators extends BaseNdvUnionAccumulator {
     public NdvUnionAccumulators(FieldVector input, FieldVector transferVector, final int maxValuesPerBatch,
-                                final BufferAllocator computationVectorAllocator, BaseVariableWidthVector tempAccumulatorHolder) {
-      super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, null, null);
+                                final BufferAllocator computationVectorAllocator, BaseValueVector tempAccumulatorHolder) {
+      super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, null);
     }
 
     public NdvUnionAccumulators(BaseNdvAccumulator baseNdvAccum, FieldVector input,
                                 final int maxValuesPerBatch, final BufferAllocator computationVectorAllocator) {
       super(input, baseNdvAccum.getOutput(), maxValuesPerBatch,
-         baseNdvAccum.getTempAccumulatorHolder(), baseNdvAccum.getDataBuffer(), baseNdvAccum.getValidityBuffer());
+         baseNdvAccum.getTempAccumulatorHolder(), baseNdvAccum.getDataBuffer());
     }
 
     @Override

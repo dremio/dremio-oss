@@ -21,8 +21,8 @@ import {
   DefaultApi,
   FetchOption,
   LogResponse,
-  Reference,
 } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 
 export type BranchHistoryContextType = {
   currentRef: Reference;
@@ -62,7 +62,9 @@ export function useBranchHistoryContext(
   }, [commitHistory, setCommitLog]);
 
   return {
-    currentRef: currentBranch ? currentBranch : ({} as Reference),
+    currentRef: currentBranch
+      ? (currentBranch as Reference)
+      : ({} as Reference),
     currentRefStatus,
     currentRefErr,
     commitLog,

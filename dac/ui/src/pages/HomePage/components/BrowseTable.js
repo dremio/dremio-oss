@@ -25,7 +25,7 @@ import EllipsedText from "components/EllipsedText";
 
 import { SearchField } from "components/Fields";
 import StatefulTableViewer from "components/StatefulTableViewer";
-import { SortDirection } from "components/VirtualizedTableViewer";
+import { SortDirection } from "@app/components/Table/TableUtils";
 import { WikiButton } from "@app/pages/HomePage/components/WikiButton";
 import { BrowseTableResizer } from "@app/pages/HomePage/components/BrowseTableResizer";
 import {
@@ -57,6 +57,7 @@ export default class BrowseTable extends Component {
     intl: PropTypes.object.isRequired,
     renderExternalLink: PropTypes.func,
     renderTitleExtraContent: PropTypes.func,
+    className: PropTypes.string,
     // extra props passed along to underlying Table impl
   };
 
@@ -202,17 +203,17 @@ export default class BrowseTable extends Component {
                       ref={(searchField) => (this.searchField = searchField)}
                       onChange={this.handleFilterChange}
                       style={tableStyles.searchField}
-                      inputStyle={{ paddingRight: "24px" }}
                       closeIconTheme={
-                        showButtonDivider ? tableStyles.closeIcon : undefined
+                        showButtonDivider && tableStyles.closeIcon
                       }
                       placeholder={intl.formatMessage({
-                        id: "Dataset.SearchEllipsis",
+                        id: "Dataset.FilterEllipsis",
                       })}
+                      disabled={tableData.size < 1}
                       showCloseIcon
                       showIcon
                       inputClassName="mousetrap"
-                      dataQa="browse-table-search"
+                      dataQa="browse-table-filter"
                       className={`${searchField} ${
                         showButtonDivider && searchFieldDivider
                       }`}

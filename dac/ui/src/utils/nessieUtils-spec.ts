@@ -39,6 +39,7 @@ describe("nessieUtils", () => {
     it("returns branch", () => {
       expect(getTypeAndValue(nessieState["ref/dataplane"])).to.deep.equal({
         type: nessieState["ref/dataplane"].reference!.type,
+        //@ts-ignore
         value: nessieState["ref/dataplane"].reference!.name,
       });
     });
@@ -46,6 +47,7 @@ describe("nessieUtils", () => {
     it("returns tag", () => {
       expect(getTypeAndValue(nessieState["ref/ref/dataplane3"])).to.deep.equal({
         type: nessieState["ref/ref/dataplane3"].reference!.type,
+        //@ts-ignore
         value: nessieState["ref/ref/dataplane3"].reference!.name,
       });
     });
@@ -72,6 +74,7 @@ describe("nessieUtils", () => {
       expect(getNessieReferencePayload(nessieState)).to.deep.equal({
         dataplane: {
           type: nessieState["ref/dataplane"].reference!.type,
+          //@ts-ignore
           value: nessieState["ref/dataplane"].reference!.name,
         },
         dataplane2: {
@@ -80,6 +83,7 @@ describe("nessieUtils", () => {
         },
         "ref/dataplane3": {
           type: nessieState["ref/ref/dataplane3"].reference!.type,
+          //@ts-ignore
           value: nessieState["ref/ref/dataplane3"].reference!.name,
         },
       });
@@ -94,6 +98,7 @@ describe("nessieUtils", () => {
     it("returns branch", () => {
       expect(getRefQueryParams(nessieState, "ref/dataplane")).to.deep.equal({
         refType: nessieState["ref/dataplane"].reference!.type,
+        //@ts-ignore
         refValue: nessieState["ref/dataplane"].reference!.name,
       });
     });
@@ -103,6 +108,7 @@ describe("nessieUtils", () => {
         getRefQueryParams(nessieState, "ref/ref/dataplane3")
       ).to.deep.equal({
         refType: nessieState["ref/ref/dataplane3"].reference!.type,
+        //@ts-ignore
         refValue: nessieState["ref/ref/dataplane3"].reference!.name,
       });
     });

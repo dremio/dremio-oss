@@ -88,4 +88,21 @@ public class TestViewCreator extends BaseTestServer {
       assertTrue(e.getMessage().contains("not found"));
     }
   }
+
+  @Test
+  public void createQueryDDLSql() {
+    enableVersionedViews();
+    expectSuccess(getBuilder(getAPIv2().path("space/mySpace")).buildPut(Entity.json(new Space(null, "mySpace", null, null, null, 0, null))));
+
+    expectSuccess(getBuilder(getAPIv2().path("space/mySpace/folder/")).buildPost(Entity.json("{\"name\": \"myFolder\"}")), Folder.class);
+
+    SqlQuery ctas = getQueryFromSQL("CREATE TABLE \"$scratch\".\"ctas\" AS select 1");
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .setQueryType(QueryType.UI_RUN)
+        .build()
+    );
+  }
+
 }

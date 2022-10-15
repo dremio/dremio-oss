@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import {
@@ -66,9 +65,10 @@ class SplitCard extends Component {
 
   renderBack() {
     const { fields } = this.props;
+
     return (
       <div>
-        <div style={[styles.title, { marginBottom: 0 }]}>
+        <div style={{ ...styles.title, marginBottom: 0 }}>
           {la("Edit Selection")}
         </div>
         <div className="transform-card-content">
@@ -95,4 +95,4 @@ class SplitCard extends Component {
     );
   }
 }
-export default Radium(SplitCard);
+export default SplitCard;

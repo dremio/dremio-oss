@@ -15,7 +15,10 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.exec.record.selection.SelectionVector2;
+import com.google.common.base.Preconditions;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -23,22 +26,37 @@ import io.netty.util.internal.PlatformDependent;
  * Utility class to do the proper casting for read/write to sv2.
  */
 public final class SV2UnsignedUtil {
-  public static int read(long sv2Addr, int index) {
-    assert index >= 0;
-    return read(sv2Addr + index * SelectionVector2.RECORD_SIZE);
+  public static int readAtIndex(ArrowBuf buf, int index) {
+    return readAtOffset(buf, index * SelectionVector2.RECORD_SIZE);
   }
 
-  public static int read(long sv2OffsetAttr) {
-    return Short.toUnsignedInt(PlatformDependent.getShort(sv2OffsetAttr));
+  public static int readAtOffset(ArrowBuf buf, int offset) {
+    return Short.toUnsignedInt(buf.getShort(offset));
   }
 
-  public static void write(long sv2Addr, int index, int value) {
-    assert value < 65536;
-    write(sv2Addr + index * SelectionVector2.RECORD_SIZE, value);
+  public static void writeAtIndex(ArrowBuf buf, int index, int value) {
+    writeAtOffset(buf, index * SelectionVector2.RECORD_SIZE, value);
   }
 
-  public static void write(long sv2OffsetAttr, int value) {
-    PlatformDependent.putShort(sv2OffsetAttr, (short)value);
+  public static void writeAtOffset(ArrowBuf buf, int offset, int value) {
+    Preconditions.checkArgument(value < 65536);
+    buf.setShort(offset, (short)value);
   }
 
+  public static int readAtIndexUnsafe(long bufStartAddr, int index) {
+    return readAtOffsetUnsafe(bufStartAddr, index * SelectionVector2.RECORD_SIZE);
+  }
+
+  public static int readAtOffsetUnsafe(long bufStartAddr, int offset) {
+    return Short.toUnsignedInt(PlatformDependent.getShort(bufStartAddr + offset));
+  }
+
+  public static void writeAtIndexUnsafe(long bufStartAddr, int index, int value) {
+    writeAtOffsetUnsafe(bufStartAddr, index * SelectionVector2.RECORD_SIZE, value);
+  }
+
+  public static void writeAtOffsetUnsafe(long bufStartAddr, int offset, int value) {
+    assert(value < 65536);
+    PlatformDependent.putShort(bufStartAddr + offset, (short)value);
+  }
 }

@@ -24,6 +24,10 @@ public class DefaultMemoryArbiter implements MemoryArbiter {
   public DefaultMemoryArbiter(DremioRootAllocator rootAllocator) {
   }
 
+  @Override
+  public void taskDone(MemoryArbiterTask memoryArbiterTask) {
+  }
+
   /**
    * The requested memory is always granted
    */

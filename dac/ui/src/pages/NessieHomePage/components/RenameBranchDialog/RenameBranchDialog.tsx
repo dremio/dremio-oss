@@ -18,21 +18,22 @@ import { useState } from "react";
 import { connect } from "react-redux";
 import { FormattedMessage } from "react-intl";
 
+import { Button } from "dremio-ui-lib/dist-esm";
 import {
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   TextField,
-} from "@material-ui/core";
+} from "@mui/material";
 
 import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
-import { Reference } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 import { CustomDialogTitle } from "../NewBranchDialog/utils";
 import { useNessieContext } from "../../utils/context";
 
 import "./RenameBranchDialog.less";
+import { ReferenceType } from "@app/services/nessie/client";
 
 type RenameBranchDialogProps = {
   open: boolean;
@@ -85,8 +86,9 @@ function RenameBranchDialog({
         reference: newReference,
       });
 
-      await api.deleteBranch({
-        branchName: referenceToRename.name,
+      await api.deleteReference({
+        referenceName: referenceToRename.name,
+        referenceType: ReferenceType.Branch,
         expectedHash: referenceToRename.hash,
       });
 
@@ -156,18 +158,10 @@ function RenameBranchDialog({
           ></TextField>
         </DialogContent>
         <DialogActions className="rename-branch-dialog-actions">
-          <Button
-            onClick={onCancel}
-            disabled={isSending}
-            className="cancel-button"
-          >
+          <Button variant="secondary" onClick={onCancel} disabled={isSending}>
             <FormattedMessage id="Common.Cancel" />
           </Button>
-          <Button
-            onClick={onAdd}
-            disabled={isSending}
-            className="rename-button"
-          >
+          <Button variant="primary" onClick={onAdd} disabled={isSending}>
             <FormattedMessage id="Common.Rename" />
           </Button>
         </DialogActions>

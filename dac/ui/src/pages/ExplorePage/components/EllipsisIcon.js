@@ -57,7 +57,7 @@ export default class EllipsisIcon extends PureComponent {
       <div className="ellipsis-icon">
         <FontIcon
           theme={theme}
-          ref={(component) => (this.ellipsis = ReactDOM.findDOMNode(component))}
+          ref={(component) => (this.ellipsis = ReactDOM.findDOMNode(component))} // eslint-disable-line react/no-find-dom-node
           type="Ellipsis"
           onClick={this.onClick}
         />

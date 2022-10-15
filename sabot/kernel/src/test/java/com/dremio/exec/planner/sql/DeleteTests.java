@@ -25,6 +25,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createRandomId;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createView;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createViewFromTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.setContext;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testDmlQuery;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQueries;
@@ -43,8 +44,9 @@ import org.apache.commons.lang3.ArrayUtils;
 public class DeleteTests {
 
   public static void testMalformedDeleteQueries(String source) throws Exception {
-    try (Table table = createBasicTable(source, 1, 0)) {
-      testMalformedDmlQueries(new Object[]{table.fqn, table.columns[0]},
+    try (Table sourceTable = createBasicTable(source,3, 0);
+         Table targetTable = createBasicTable(source,2, 0)) {
+      testMalformedDmlQueries(new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.columns[0], sourceTable.columns[0]},
         "DELETE",
         "DELETE FROM",
         "DELETE %s",
@@ -52,8 +54,14 @@ public class DeleteTests {
         "DELETE FROM %s WHERE",
         "DELETE FROM %s t WHERE",
         "DELETE FROM %s AS t WHERE",
-        "DELETE FROM %s AS t WHERE %s ="
-      );
+        "DELETE FROM %s AS t using",
+        "DELETE FROM %s AS t using %s as",
+        "DELETE FROM %s AS t using %s where t.%s =",
+        "DELETE FROM %s AS t using (select * from %s) as",
+        "DELETE FROM %s AS t using (select * from %s) as s where",
+        "DELETE FROM %s AS t using (select * from %s) as s where t.%s =",
+        "DELETE FROM %s AS t using select * from %s as s where t.%s = s.%s"
+        );
     }
   }
 
@@ -138,6 +146,141 @@ public class DeleteTests {
           ArrayUtils.addAll(ArrayUtils.subarray(table.originalData, 0, 4),
             ArrayUtils.subarray(table.originalData, 5, 9)));
       }
+    }
+  }
+
+  public static void testDeleteWithOneSourceTable(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source,3, 5);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using %s where t.id = %s.id",
+        new Object[]{targetTable.fqn, sourceTable.fqn, sourceTable.fqn}, targetTable, 5,
+        ArrayUtils.subarray(targetTable.originalData, 5, 10));
+    }
+  }
+
+  public static void testDeleteWithOneSourceTableWithoutFullPath(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source, 3, 5);
+         Table targetTable = createBasicTable(source, 2, 10);
+         AutoCloseable ignored = setContext(allocator, source)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using %s where t.id = %s.id",
+              new Object[]{targetTable.name, sourceTable.name, sourceTable.name}, targetTable, 5,
+              ArrayUtils.subarray(targetTable.originalData, 5, 10));
+    }
+  }
+
+  public static void testDeleteWithViewUsedAsSourceTable(BufferAllocator allocator, String source) throws Exception {
+    String viewName = createRandomId();
+    try (Table targetTable = createBasicTable(source, 3, 5);
+         AutoCloseable ignore = createViewFromTable(source, viewName, targetTable.fqn)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using %s.%s where t.id = %s.%s.id",
+              new Object[]{targetTable.fqn, source, viewName, source, viewName}, targetTable, 5,
+              EMPTY_EXPECTED_DATA);
+    }
+  }
+
+  public static void testDeleteWithOneSourceTableQueryUsingSource(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source,3, 4);
+         Table targetTable = createBasicTable(source,2, 10)) {
+              testDmlQuery(allocator, "DELETE FROM %s AS t using (SELECT id from %s WHERE id < 4) AS s where t.id = s.id",
+                      new Object[]{targetTable.fqn, sourceTable.fqn}, targetTable, 4,
+                      ArrayUtils.subarray(targetTable.originalData, 4, 10));
+    }
+  }
+
+  public static void testDeleteWithSourceTableAsQueryUsingTarget(BufferAllocator allocator, String source) throws Exception {
+    try (Table targetTable = createBasicTable(source,2, 10)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using (SELECT id from %s WHERE id < 4) AS s where t.id = s.id",
+              new Object[]{targetTable.fqn, targetTable.fqn}, targetTable, 4,
+              ArrayUtils.subarray(targetTable.originalData, 4, 10));
+    }
+  }
+
+  public static void testDeleteWithOneUnusedSourceTable(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source,3, 4);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      assertThatThrownBy(()
+        -> testDmlQuery(allocator,
+        "DELETE FROM %s AS t using %s",
+        new Object[]{targetTable.fqn, sourceTable.fqn}, targetTable, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("A target row matched more than once. Please update your query.");
+    }
+  }
+
+  public static void testDeleteWithUnrelatedConditionToSourceTable(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source,3, 4);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      assertThatThrownBy(()
+        -> testDmlQuery(allocator,
+        "DELETE FROM %s AS t using %s where t.id < 2",
+        new Object[]{targetTable.fqn, sourceTable.fqn}, targetTable, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("A target row matched more than once. Please update your query.");
+    }
+  }
+
+  public static void testDeleteWithPartialUnrelatedConditionToSourceTable(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source,3, 4);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      assertThatThrownBy(()
+        -> testDmlQuery(allocator,
+        "DELETE FROM %s AS t using (select * from %s where id > 0 and id < 4) s " +
+          "where t.id = s.id or t.id = 0",
+        new Object[]{targetTable.fqn, sourceTable.fqn}, targetTable, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("A target row matched more than once. Please update your query.");
+    }
+  }
+
+  public static void testDeleteWithTwoSourceTables(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable1 = createBasicTable(source,3, 4);
+         Table sourceTable2 = createBasicTable(source,3, 5);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using %s, %s where t.id = %s.id and t.id = %s.id",
+        new Object[]{targetTable.fqn, sourceTable1.fqn, sourceTable2.fqn, sourceTable1.fqn, sourceTable2.fqn}, targetTable, 4,
+        ArrayUtils.subarray(targetTable.originalData, 4, 10));
+    }
+  }
+
+  public static void testDeleteWithTwoSourceTableOneSourceQuery(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable1 = createBasicTable(source,3, 4);
+         Table sourceTable2 = createBasicTable(source,3, 5);
+         Table sourceTable3 = createBasicTable(source,3, 6);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using %s as s1, %s as s2, (select id from %s) s3" +
+          " where t.id = s1.id and t.id = s2.id and t.id = s3.id",
+        new Object[]{targetTable.fqn, sourceTable1.fqn, sourceTable2.fqn, sourceTable3.fqn}, targetTable, 4,
+        ArrayUtils.subarray(targetTable.originalData, 4, 10));
+    }
+  }
+
+  public static void testDeleteWithTwoSourceTableTwoSourceQuery(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable1 = createBasicTable(source,3, 4);
+         Table sourceTable2 = createBasicTable(source,3, 5);
+         Table sourceTable3 = createBasicTable(source,3, 6);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using %s as s1, (select id from %s WHERE id < 4) as s2, (select id from %s) s3" +
+                      " where t.id = s1.id and t.id = s2.id and t.id = s3.id",
+              new Object[]{targetTable.fqn, sourceTable1.fqn, sourceTable2.fqn, sourceTable3.fqn}, targetTable, 4,
+              ArrayUtils.subarray(targetTable.originalData, 4, 10));
+    }
+  }
+
+  public static void testDeleteWithSourceTableWithSubquery(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source,3, 5);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using (select * from %s where %s.id < 3) as s where t.id = s.id",
+        new Object[]{targetTable.fqn, sourceTable.fqn, sourceTable.fqn}, targetTable, 3,
+        ArrayUtils.subarray(targetTable.originalData, 3, 10));
+    }
+  }
+
+  public static void testDeleteWithSourceTableMultipleConditions(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source,3, 5);
+         Table targetTable = createBasicTable(source,2, 10)) {
+      testDmlQuery(allocator, "DELETE FROM %s AS t using (select * from %s) as s where t.id = s.id and t.%s = s.%s",
+        new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.columns[0], sourceTable.columns[0]}, targetTable, 5,
+        ArrayUtils.subarray(targetTable.originalData, 5, 10));
     }
   }
 

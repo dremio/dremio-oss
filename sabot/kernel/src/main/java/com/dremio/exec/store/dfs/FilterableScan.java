@@ -38,4 +38,5 @@ public interface FilterableScan extends RelNode {
   BatchSchema getBatchSchema();
   Long getSurvivingRowCount();
   Long getSurvivingFileCount();
+  boolean canUsePartitionStats();
 }

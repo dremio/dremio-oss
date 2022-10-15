@@ -37,6 +37,7 @@ public final class OverloadedFunction extends SqlFunction {
   public static final OverloadedFunction TWO_ARG_1 = new OverloadedFunction(OperandTypes.TWO_ARG_1);
   public static final OverloadedFunction TWO_ARG_2 = new OverloadedFunction(OperandTypes.TWO_ARG_2);
   public static final OverloadedFunction THREE_ARG_1 = new OverloadedFunction(OperandTypes.THREE_ARG_1);
+  public static final OverloadedFunction THREE_ARG_2 = new OverloadedFunction(OperandTypes.THREE_ARG_2);
   private final List<SqlTypeName> operandTypes;
 
   private static final class OperandTypes {
@@ -52,6 +53,10 @@ public final class OverloadedFunction extends SqlFunction {
 
     public static final List<SqlTypeName> THREE_ARG_1 = new ImmutableList.Builder<SqlTypeName>()
       .add(SqlTypeName.BOOLEAN, SqlTypeName.DATE, SqlTypeName.BINARY)
+      .build();
+
+    public static final List<SqlTypeName> THREE_ARG_2 = new ImmutableList.Builder<SqlTypeName>()
+      .add(SqlTypeName.BOOLEAN, SqlTypeName.BINARY, SqlTypeName.DATE)
       .build();
   }
 

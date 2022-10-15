@@ -39,8 +39,8 @@ import org.apache.arrow.flight.auth2.CallHeaderAuthenticator;
 import org.apache.arrow.flight.auth2.ServerCallHeaderAuthMiddleware;
 import org.apache.arrow.flight.grpc.ServerInterceptorAdapter;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.Preconditions;
 
+import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import io.grpc.Server;

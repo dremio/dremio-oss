@@ -31,12 +31,10 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.BaseTestQuery;
 import com.google.common.io.Resources;
 
-import junit.framework.TestCase;
-
 /**
  * Basic tests for ParquetInputFormat.getSplits
  */
-public class ParquetInputFormatTest extends TestCase {
+public class ParquetInputFormatTest {
 
   @Test
   public void testInvalidJobConf() throws Exception{
@@ -45,7 +43,7 @@ public class ParquetInputFormatTest extends TestCase {
     final JobConf jobConf = new JobConf(hiveConf);
     try {
       InputSplit[] inputSplits = new ParquetInputFormat().getSplits(jobConf, 1);
-      fail();
+      Assert.fail();
     }
     catch (IOException ioe) {
       Assert.assertTrue(ioe.getMessage().contains("No input paths specified in job"));

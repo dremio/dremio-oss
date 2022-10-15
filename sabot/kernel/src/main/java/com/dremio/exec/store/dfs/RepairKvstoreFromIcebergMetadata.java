@@ -88,6 +88,7 @@ public class RepairKvstoreFromIcebergMetadata {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RepairKvstoreFromIcebergMetadata.class);
 
   private final int MAX_REPAIR_ATTEMPTS = 3;
+  private final boolean isMapDataTypeEnabled;
   private DatasetConfig datasetConfig;
   private final FileSystemPlugin<?> metaStoragePlugin;
   private final StoragePlugin storagePlugin;
@@ -99,11 +100,16 @@ public class RepairKvstoreFromIcebergMetadata {
   private String currentRootPointerFileLocation;
   private Snapshot currentIcebergSnapshot;
 
-  public RepairKvstoreFromIcebergMetadata(DatasetConfig datasetConfig, FileSystemPlugin<?> metaStoragePlugin, NamespaceService namespaceService, StoragePlugin storagePlugin) {
+  public RepairKvstoreFromIcebergMetadata(DatasetConfig datasetConfig,
+                                          FileSystemPlugin<?> metaStoragePlugin,
+                                          NamespaceService namespaceService,
+                                          StoragePlugin storagePlugin,
+                                          boolean isMapDataTypeEnabled) {
     this.datasetConfig = datasetConfig;
     this.metaStoragePlugin = metaStoragePlugin;
     this.namespaceService = namespaceService;
     this.storagePlugin = storagePlugin;
+    this.isMapDataTypeEnabled = isMapDataTypeEnabled;
   }
 
   public boolean checkAndRepairDatasetWithQueryRetry() {
@@ -204,7 +210,7 @@ public class RepairKvstoreFromIcebergMetadata {
   }
 
   private void repairSchema() {
-    BatchSchema newSchemaFromIceberg = new SchemaConverter().fromIceberg(currentIcebergTable.schema());
+    BatchSchema newSchemaFromIceberg = SchemaConverter.getBuilder().setMapTypeEnabled(isMapDataTypeEnabled).build().fromIceberg(currentIcebergTable.schema());
     datasetConfig.setRecordSchema(ByteStringUtil.wrap(newSchemaFromIceberg.toByteArray()));
     logger.info("Repairing schema. Current KV store schema {}. Schema from iceberg table {}", BatchSchema.deserialize(datasetConfig.getRecordSchema()).toString(), newSchemaFromIceberg);
   }

@@ -22,25 +22,31 @@ import { getSortedSources } from "@app/selectors/home";
 import ApiUtils from "@app/utils/apiUtils/apiUtils";
 import { sourceTypesIncludeS3 } from "@app/utils/sourceUtils";
 import { loadSourceListData } from "@app/actions/resources/sources";
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
-import { PROJECT_STATES } from "@inject/pages/SettingPage/subpages/projects/ProjectConst";
 
+import { isDcsEdition } from "dyn-load/utils/versionUtils";
 import { getViewState } from "@app/selectors/resources";
-import { getProjects } from "@inject/selectors/projects";
-import { fetchProjects } from "@inject/actions/admin";
+import { fetchFeatureFlag } from "@inject/actions/featureFlag";
 import { page } from "@app/uiTheme/radium/general";
 
-import SideNav from "@app/components/SideNav/SideNav";
+import ProjectActivationHOC from "@inject/containers/ProjectActivationHOC";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 import {
   HomePageTop,
   showHomePageTop,
 } from "@inject/pages/HomePage/HomePageTop";
+import NavCrumbs, {
+  showNavCrumbs,
+} from "@inject/components/NavCrumbs/NavCrumbs";
 import QlikStateModal from "../ExplorePage/components/modals/QlikStateModal";
 import LeftTree from "./components/LeftTree";
 import "./HomePage.less";
 import HomePageActivating from "@inject/pages/HomePage/HomePageActivating";
+import { intl } from "@app/utils/intl";
+import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
 
 const PROJECT_CONTEXT = "projectContext";
+const DATA_OPTIMIZATION = "data_optimization";
+
 class HomePage extends Component {
   static propTypes = {
     userInfo: PropTypes.object,
@@ -49,10 +55,10 @@ class HomePage extends Component {
     routeParams: PropTypes.object,
     location: PropTypes.object.isRequired,
     loadSourceListData: PropTypes.func,
-    fetchProjects: PropTypes.func,
+    fetchFeatureFlag: PropTypes.func,
     children: PropTypes.node,
     style: PropTypes.object,
-    projectList: PropTypes.array,
+    isProjectInactive: PropTypes.bool,
   };
 
   state = {
@@ -61,12 +67,10 @@ class HomePage extends Component {
 
   componentWillMount() {
     this.props.loadSourceListData();
-    if (this.props.fetchProjects) {
-      this.props.fetchProjects();
-    }
   }
 
   componentDidMount() {
+    isDcsEdition() && this.props.fetchFeatureFlag(DATA_OPTIMIZATION);
     this.setStateWithSourceTypesFromServer();
   }
 
@@ -101,29 +105,12 @@ class HomePage extends Component {
 
   // Note were are getting the "ref" to the SearchBar React object.
   render() {
+    const { isProjectInactive } = this.props;
     const homePageSearchClass = showHomePageTop()
       ? " --withSearch"
       : " --withoutSearch";
 
-    const currentProject =
-      localStorageUtils.getProjectContext &&
-      localStorageUtils.getProjectContext();
-    let isProjectInactive = false;
-
-    if (currentProject) {
-      const filteredProject = this.props.projectList.filter(
-        (pr) => pr.id === currentProject.id
-      )[0];
-      if (filteredProject && filteredProject.state === PROJECT_STATES.ACTIVE) {
-        isProjectInactive = false;
-      } else if (
-        filteredProject &&
-        (filteredProject.state === PROJECT_STATES.INACTIVE ||
-          filteredProject.state === PROJECT_STATES.ACTIVATING)
-      ) {
-        isProjectInactive = true;
-      }
-    }
+    const homePageNavCrumbClass = showNavCrumbs ? " --withNavCrumbs" : "";
 
     const projectName =
       localStorage.getItem(PROJECT_CONTEXT) &&
@@ -132,11 +119,18 @@ class HomePage extends Component {
     return (
       <div id="home-page" style={page}>
         <div className="page-content">
-          <SideNav />
+          <SonarSideNav />
           {!isProjectInactive && (
             <div className={"homePageBody"}>
               <HomePageTop />
-              <div className={"homePageLeftTreeDiv" + homePageSearchClass}>
+              {isDcsEdition() && <NavCrumbs />}
+              <div
+                className={
+                  "homePageLeftTreeDiv" +
+                  homePageSearchClass +
+                  homePageNavCrumbClass
+                }
+              >
                 <LeftTree
                   sourcesViewState={this.props.sourcesViewState}
                   sources={this.props.sources}
@@ -147,7 +141,18 @@ class HomePage extends Component {
                   className="col-lg-2 col-md-3"
                   currentProject={projectName}
                 />
-                {this.props.children}
+                <ErrorBoundary
+                  title={intl.formatMessage(
+                    { id: "Support.error.section" },
+                    {
+                      section: intl.formatMessage({
+                        id: "SectionLabel.catalog",
+                      }),
+                    }
+                  )}
+                >
+                  {this.props.children}
+                </ErrorBoundary>
               </div>
             </div>
           )}
@@ -162,7 +167,6 @@ class HomePage extends Component {
 function mapStateToProps(state) {
   return {
     sources: getSortedSources(state),
-    projectList: getProjects ? getProjects(state) : [],
     userInfo: state.home.config.get("userInfo"),
     sourcesViewState: getViewState(state, "AllSources"),
   };
@@ -170,5 +174,5 @@ function mapStateToProps(state) {
 
 export default connect(mapStateToProps, {
   loadSourceListData,
-  fetchProjects,
-})(HomePage);
+  fetchFeatureFlag,
+})(ProjectActivationHOC(HomePage));

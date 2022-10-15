@@ -17,10 +17,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { usePromise } from "react-smart-promise";
 import { AutoSizer, List } from "react-virtualized";
-import { MenuItem } from "@material-ui/core";
+import { MenuItem } from "@mui/material";
 
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { Reference } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 import { SearchField } from "components/Fields";
 import RefIcon from "../RefIcon/RefIcon";
 
@@ -63,7 +63,9 @@ function BranchList({
         isHeader: true,
         name: intl.formatMessage({ id: "Nessie.AllBranchesHeader" }),
       },
-      ...branches.filter((b) => b.name !== defaultReference.name),
+      ...(branches as Reference[]).filter(
+        (b) => b.name !== defaultReference.name
+      ),
     ];
   }, [data, defaultReference, intl]);
 
@@ -71,7 +73,7 @@ function BranchList({
   const filteredList = useMemo(() => {
     return !search
       ? branchList
-      : branchList.filter((cur) => {
+      : (branchList as Reference[]).filter((cur) => {
           return (
             isHeader(cur) ||
             cur.name.toLowerCase().includes(search.toLowerCase().trim())

@@ -28,7 +28,6 @@ import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
@@ -48,6 +47,7 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.DremioFlightServiceOptions;
 import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import io.netty.buffer.ByteBuf;

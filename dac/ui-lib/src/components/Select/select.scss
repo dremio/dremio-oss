@@ -17,17 +17,56 @@
 
 .selectRoot {
   // Naming this as selectRoot to avoid conflicts with select
-  padding: 4px 0px;
-  &__select {
-    @include input-size();
-    &.--disabled {
-      border-color: $border-color !important;
+  [role="combobox"],
+  [role="breadcrumb"] {
+    .MuiSelect-select {
+      @include input-size();
+    }
+    height: 34px !important; //Was 34px before mui upgrade
+    border: none !important; //Fieldset controls border now.
+    letter-spacing: normal !important;
+    font-family: "Inter var", sans-serif !important;
+
+    //There was no hover style prior to mui upgrade
+    fieldset {
+      border: 1px solid var(--dremio--color--neutral--200);
+    }
+    &:hover {
+      fieldset {
+        border-color: var(--dremio--color--neutral--200) !important;
+      }
+    }
+    &:focus,
+    &.Mui-focused {
+      fieldset {
+        border-color: var(--dremio--color--primary--500) !important;
+        border-width: 1px !important;
+      }
+    }
+    padding-top: 1px;
+    padding-bottom: 1px;
+
+    &.Mui-disabled {
+      &,
+      &:hover {
+        fieldset {
+          border-color: $border-color !important;
+        }
+      }
       background-color: $disabled-color !important;
-      color: $oslo-gray !important;
+      color: $FIGMA_TEXT_DISABLED !important;
       select {
         background-color: $disabled-color !important;
       }
     }
+  }
+
+  .MuiSelect-select {
+    padding-left: 0 !important;
+  }
+
+  .MuiSelect-icon {
+    top: unset;
   }
 
   &__no-padding {
@@ -45,8 +84,11 @@
   }
 
   &__menu {
-    margin-top: 32px;
     max-height: 300px !important;
+    #breadcrumb-icon {
+      block-size: 24px;
+      min-width: 24px;
+    }
   }
 
   &__option {
@@ -54,6 +96,17 @@
     font-size: 14px !important;
     &.--selected {
       background-color: $iceberg !important;
+    }
+  }
+
+  [role="breadcrumb"] {
+    height: 24px !important;
+    .MuiSelect-select {
+      height: 24px !important;
+      border: none !important;
+      #breadcrumb-text {
+        max-width: 102px;
+      }
     }
   }
 }

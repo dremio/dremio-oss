@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.tablefunction;
 
+import java.util.EnumSet;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +25,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.foreman.UnsupportedFunctionException;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -42,7 +43,14 @@ public class TableFunctionOperator implements SingleInputOperator {
   public enum Metric implements MetricDef {
     NUM_DATA_FILE,
     NUM_MANIFEST_FILE,
-    MAX_SCHEMA_WIDTH;
+    MAX_SCHEMA_WIDTH,
+    NUM_DELETE_MANIFESTS,
+    NUM_POS_DELETE_FILES,
+    NUM_EQ_DELETE_FILES,
+    NUM_DELETE_FILE_READERS,
+    PARQUET_DELETE_FILE_BYTES_READ,
+    NUM_POS_DELETED_ROWS,
+    NUM_EQ_DELETED_ROWS;
 
     @Override
     public int metricId() {
@@ -85,7 +93,6 @@ public class TableFunctionOperator implements SingleInputOperator {
     if (records == 0) {
       currentrow = -1;
       state = State.CAN_CONSUME;
-      context.getStats().recordBatchOutput(0, 0);
       return 0;
     }
 
@@ -146,7 +153,6 @@ public class TableFunctionOperator implements SingleInputOperator {
       currentrow = -1;
       state = State.CAN_CONSUME;
     }
-    context.getStats().recordBatchOutput(totalOutputRecords, VectorUtil.getSize(output));
 
     return totalOutputRecords;
   }
@@ -188,6 +194,7 @@ public class TableFunctionOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(tableFunction);
+    addDisplayStatsWithZeroValue(context, EnumSet.allOf(ScanOperator.Metric.class));
   }
 
   /**

@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,8 +31,6 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.util.Preconditions;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -60,6 +59,8 @@ import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.MetricDef.AggregationType;
+import com.dremio.exec.proto.UserBitShared.MetricDef.DisplayType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
@@ -80,8 +81,10 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.values.EmptyValuesCreator.EmptyRecordReader;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -101,7 +104,7 @@ public class ScanOperator implements ProducerOperator {
   public enum Metric implements MetricDef {
     @Deprecated
     SETUP_NS, // @deprecated use stats time in OperatorStats instead.
-    NUM_READERS, // tracks how many readers were opened so far
+    NUM_READERS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM, "Number of readers"), // tracks how many readers were opened so far
     NUM_REMOTE_READERS, // tracks how many readers are non-local
     NUM_ROW_GROUPS, // number of rowGroups for the FileSplitParquetRecordReader
     NUM_VECTORIZED_COLUMNS,
@@ -120,8 +123,8 @@ public class ScanOperator implements ProducerOperator {
     LOCAL_BYTES_READ,     // Total number of local bytes read using local I/O
     SHORT_CIRCUIT_BYTES_READ, // Total number of bytes read using short circuit reads
     PRELOADED_BYTES,           // Number of bytes pre-loaded
-    NUM_CACHE_HITS,       // Number of C3 hits
-    NUM_CACHE_MISSES,     // Number of C3 misses
+    NUM_CACHE_HITS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM, "Number of cache hits"),       // Number of C3 hits
+    NUM_CACHE_MISSES(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of cache misses"),     // Number of C3 misses
     BLOCK_AFFINITY_CACHE_HITS, // Number of block affinity cache hits
     BLOCK_AFFINITY_CACHE_MISSES, // Number of block affinity cache misses
     AVG_PROCESSING_TIME_NS,   // Average processing time of request by C3
@@ -134,7 +137,7 @@ public class ScanOperator implements ProducerOperator {
     TOTAL_HIVE_PARQUET_TRUNCATE_VARCHAR, // Total number of fixed-len varchar truncation in haveParquetCoercion
     TOTAL_HIVE_PARQUET_TRANSFER_VARCHAR, //  Total number of fixed-len varchar transfers in haveParquetCoercion
     HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME_NS, // Time spent checking if truncation is required for a varchar field
-    NUM_ROW_GROUPS_PRUNED, // number of rowGroups pruned in ParquetVectorizedReader
+    NUM_ROW_GROUPS_PRUNED(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of row groups pruned"), // number of rowGroups pruned in ParquetVectorizedReader
     MAX_ROW_GROUPS_IN_HIVE_FILE_SPLITS, // max number of row groups across hive file splits
     NUM_HIVE_FILE_SPLITS_WITH_NO_ROWGROUPS, // Number of hive file splits with no rowgroups
     MIN_IO_READ_TIME_NS,   // Minimum IO read time
@@ -144,7 +147,7 @@ public class ScanOperator implements ProducerOperator {
     NUM_HIVE_PARQUET_DECIMAL_COERCIONS, // Number of decimal coercions in hive parquet
     NUM_ROW_GROUPS_TRIMMED, // Number of row groups trimmed from footer in memory
     NUM_COLUMNS_TRIMMED,    // Number of columns trimmed from footer in memory
-    NUM_PARTITIONS_PRUNED, // Number of partitions pruned from runtime filter
+    NUM_PARTITIONS_PRUNED(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of partitions pruned using runtime filter"), // Number of partitions pruned from runtime filter
     NUM_BOOSTED_FILE_READS, // Number of Boosted File Reads.
     MAX_BOOSTED_FILE_READ_TIME_NS, // Max Boosted IO read Time.
     AVG_BOOSTED_FILE_READ_TIME_NS, // Average Boosted IO time.
@@ -153,11 +156,11 @@ public class ScanOperator implements ProducerOperator {
     OFFSET_INDEX_READ, // Offset Index Read,
     COLUMN_INDEX_READ, // Column Index Read.
     NUM_BOOSTED_RECORD_BATCHES_PRUNED, //Due to Filter how many record batches have been skipped
-    NUM_PAGES_PRUNED, // Number of pages skipped based on stats
+    NUM_PAGES_PRUNED(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of pages pruned"), // Number of pages skipped based on stats
     NUM_PAGES_READ, // Number of pages checked upon
     PAGE_DECOMPRESSION_TIME_NS, // Total time taken for page decompression in nanos
-    NUM_RUNTIME_FILTERS, // Number of runtime filter received at scan
-    RUNTIME_COL_FILTER_DROP_COUNT, // Number of non partition column filters dropped due to schema incompatibility
+    NUM_RUNTIME_FILTERS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX,"Number of runtime filters received"), // Number of runtime filter received at scan
+    RUNTIME_COL_FILTER_DROP_COUNT(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX,"Number of runtime filters dropped"), // Number of non partition column filters dropped due to schema incompatibility
     ROW_GROUPS_SCANNED_WITH_RUNTIME_FILTER, // Number of rowgroups scanned with runtime filter
     RLE_PAGE_DECODING_READ_TIME_NS, // Total time taken for reading during page decoding for RLE encoding
     RLE_PAGE_DECODING_WRITE_TIME_NS, // Total time taken for writing arrow vectors during page decoding for RLE encoding
@@ -172,9 +175,38 @@ public class ScanOperator implements ProducerOperator {
     NUM_EXTRA_FOOTER_READS // Number of times footer is read for a split.
     ;
 
+    private final DisplayType displayType;
+    private final AggregationType aggregationType;
+    private final String displayCode;
+
+    Metric() {
+      this(DisplayType.DISPLAY_NEVER, AggregationType.SUM, "");
+    }
+
+    Metric(DisplayType displayType, AggregationType aggregationType, String displayCode) {
+      this.displayType = displayType;
+      this.aggregationType = aggregationType;
+      this.displayCode = displayCode;
+    }
+
     @Override
     public int metricId() {
       return ordinal();
+    }
+
+    @Override
+    public DisplayType getDisplayType() {
+      return this.displayType;
+    }
+
+    @Override
+    public AggregationType getAggregationType() {
+      return this.aggregationType;
+    }
+
+    @Override
+    public String getDisplayCode() {
+      return this.displayCode;
     }
   }
 
@@ -201,9 +233,9 @@ public class ScanOperator implements ProducerOperator {
   protected final SubScan config;
   private final GlobalDictionaries globalDictionaries;
   // maps peerJoin -> number of fragments that will send a runtime filter. This is initialized as part of creating the ScanOperator
-  private final HashMap<Long, Integer> peerJoinFragmentMap = new HashMap<>();
+  private final Map<Long, Integer> peerJoinFragmentMap = new HashMap<>();
   // maps peerJoin -> the filter to apply
-  private final HashMap<Long, Object> peerJoinFilterMap = new HashMap<>();
+  private final Map<Long, Object> peerJoinFilterMap = new HashMap<>();
   private final Stopwatch readTime = Stopwatch.createUnstarted();
 
   private final Set<SchemaPath> columnsToBoost;
@@ -552,6 +584,7 @@ public class ScanOperator implements ProducerOperator {
     closeables.add(readers);
     closeables.addAll(runtimeFilters);
     AutoCloseables.close(closeables);
+    addDisplayStatsWithZeroValue(context, EnumSet.allOf(Metric.class));
     OperatorStats operatorStats = context.getStats();
     operatorStats.setReadIOStats();
     operatorStats.setScanRuntimeFilterDetailsInProfile();

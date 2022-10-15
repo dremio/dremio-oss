@@ -84,17 +84,21 @@ export class BiApplications extends PureComponent {
     const viewStateWithoutError = this.props.viewState.set("isFailed", false);
     return (
       <div className="biApplication-settings">
-        <SettingHeader icon="Chart.svg">{la("BI Applications")}</SettingHeader>
-        <ViewStateWrapper
-          viewState={viewStateWithoutError}
-          hideChildrenWhenFailed={false}
-          style={{ overflow: "auto", height: "100%", flex: "1 1 auto" }}
-        >
-          <BiApplicationTools
-            renderSettings={this.renderSettingsMicroForm}
-            settings={this.props.settings}
-          />
-        </ViewStateWrapper>
+        <SettingHeader icon="settings/bi-applications">
+          {la("BI Applications")}
+        </SettingHeader>
+        <div className="gutter-left--double">
+          <ViewStateWrapper
+            viewState={viewStateWithoutError}
+            hideChildrenWhenFailed={false}
+            style={{ overflow: "auto", height: "100%", flex: "1 1 auto" }}
+          >
+            <BiApplicationTools
+              renderSettings={this.renderSettingsMicroForm}
+              settings={this.props.settings}
+            />
+          </ViewStateWrapper>
+        </div>
       </div>
     );
   }

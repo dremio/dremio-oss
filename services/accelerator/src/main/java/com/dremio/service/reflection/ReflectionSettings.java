@@ -31,4 +31,5 @@ public interface ReflectionSettings {
   void setReflectionSettings(NamespaceKey key, AccelerationSettings settings);
 
   void removeSettings(NamespaceKey key);
+  default int getAllHash() { return 0; };
 }

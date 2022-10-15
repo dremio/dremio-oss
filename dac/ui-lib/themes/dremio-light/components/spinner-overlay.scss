@@ -1,0 +1,47 @@
+@use "../utility-classes/overlay-container";
+
+@mixin dremio-spinner-overlay-shown {
+  color: var(--dremio--color--neutral--600);
+  opacity: 1;
+}
+
+@mixin dremio-spinner-overlay-hidden {
+  color: transparent;
+  opacity: 0;
+}
+
+.dremio-spinner-overlay {
+  @extend %overlay-container;
+
+  z-index: 100;
+  transition: color 500ms 150ms, opacity 200ms;
+  @include dremio-spinner-overlay-hidden;
+
+  &-enter,
+  &-appear {
+    @include dremio-spinner-overlay-hidden;
+  }
+
+  &-enter-active,
+  &-appear-active,
+  &-appear-done,
+  &-enter-done {
+    @include dremio-spinner-overlay-shown;
+  }
+
+  &-exit {
+    @include dremio-spinner-overlay-shown;
+  }
+
+  &-exit-active {
+    @include dremio-spinner-overlay-hidden;
+  }
+}
+
+.dremio-spinner-overlay {
+  background: white;
+
+  .dremio-spinner {
+    --dremio--spinner--size: 30px;
+  }
+}

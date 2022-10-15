@@ -147,15 +147,11 @@ public class YarnController {
       .withApplicationClassPaths(yarnClasspath)
       .withBundlerClassAcceptor(new HadoopClassExcluder())
       .setLogLevels(ImmutableMap.of(Logger.ROOT_LOGGER_NAME, yarnContainerLogLevel()))
-      .withEnv(envVars)
+      .withEnv(YARN_RUNNABLE_NAME, envVars)
       .withMaxRetries(YARN_RUNNABLE_NAME, MAX_APP_RESTART_RETRIES)
-      .withArguments(YARN_RUNNABLE_NAME, discoveryArgs.toArray());
-
-    for (String classpathJar : dacDaemonApp.getJarNames()) {
-      preparer.withClassPaths(classpathJar);
-    }
-
-    preparer.addJVMOptions(prepareCommandOptions(yarnConfiguration, propertyList));
+      .withArguments(YARN_RUNNABLE_NAME, discoveryArgs.toArray())
+      .setJVMOptions(YARN_RUNNABLE_NAME, prepareCommandOptions(yarnConfiguration, propertyList))
+      .withClassPaths(dacDaemonApp.getJarNames());
 
     String queue = yarnConfiguration.get(DacDaemonYarnApplication.YARN_QUEUE_NAME);
     if (queue != null) {

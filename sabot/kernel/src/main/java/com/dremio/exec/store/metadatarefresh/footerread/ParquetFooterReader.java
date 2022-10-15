@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.metadatarefresh.footerread;
 
+import static com.dremio.exec.ExecConstants.ENABLE_MAP_DATA_TYPE;
 import static com.dremio.exec.ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP;
 
 import java.io.IOException;
@@ -135,6 +136,7 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
     final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
       .readInt96AsTimeStamp(opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
       .dateCorruptionStatus(dateStatus)
+      .mapDataTypeEnabled(opContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
       .build();
 
     for (Type parquetField : footer.getFileMetaData().getSchema().getFields()) {
@@ -203,6 +205,7 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
       final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
         .readInt96AsTimeStamp(opContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
         .dateCorruptionStatus(dateStatus)
+        .mapDataTypeEnabled(opContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
         .build();
 
 

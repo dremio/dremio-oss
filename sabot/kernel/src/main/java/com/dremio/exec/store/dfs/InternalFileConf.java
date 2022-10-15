@@ -79,8 +79,25 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.PARQUET;
 
   @Tag(13)
+  public String tokenEndpoint = null;
+
+  @Tag(14)
+  public String clientId = null;
+
+  @Tag(15)
+  public String clientSecret = null;
+
+  @Tag(16)
+  public String accountName = null;
+
+  @Tag(17)
   public boolean isPartitionInferenceEnabled = false;
 
+  @Tag(18)
+  public String accountKind = null;
+
+  @Tag(19)
+  public String sharedAccessKey = null;
   @Override
   public Path getPath() {
     return Path.of(path);
@@ -132,6 +149,36 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
   }
 
   @Override
+  public String getTokenEndpoint() {
+    return tokenEndpoint;
+  }
+
+  @Override
+  public String getClientId() {
+    return clientId;
+  }
+
+  @Override
+  public String getClientSecret() {
+    return clientSecret;
+  }
+
+  @Override
+  public String getAccountName() {
+    return accountName;
+  }
+
+  @Override
+  public String getAccountKind() {
+    return accountKind;
+  }
+
+  @Override
+  public String getSharedAccessKey() {
+    return sharedAccessKey;
+  }
+
+  @Override
   public MayBeDistFileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new MayBeDistFileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
@@ -151,9 +198,19 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
       if (dataCredentials.hasKeys()) {
         this.accessKey = dataCredentials.getKeys().getAccessKey();
         this.secretKey = dataCredentials.getKeys().getSecretKey();
-      } else {
+      } else if (dataCredentials.hasDataRole()) {
         this.iamRole = dataCredentials.getDataRole().getIamRole();
         this.externalId = dataCredentials.getDataRole().getExternalId();
+      } else if (dataCredentials.hasClientAccess()) {
+        this.tokenEndpoint = dataCredentials.getClientAccess().getTokenEndpoint();
+        this.clientId = dataCredentials.getClientAccess().getClientId();
+        this.clientSecret = dataCredentials.getClientAccess().getClientSecret();
+        this.accountName = dataCredentials.getClientAccess().getAccountName();
+        this.accountKind = dataCredentials.getClientAccess().getAccountKind();
+      } else if (dataCredentials.hasSharedAccessKey()) {
+        this.sharedAccessKey = dataCredentials.getSharedAccessKey().getAccessKey();
+        this.accountName = dataCredentials.getSharedAccessKey().getAccountName();
+        this.accountKind = dataCredentials.getSharedAccessKey().getAccountKind();
       }
     }
   }

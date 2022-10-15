@@ -116,8 +116,8 @@
     hasIdentifier: false
     hasMoreResults: false
     tokens:
-     - ")"
      - ","
+     - ")"
      - "BY"
  -
   description: "MEASURES"
@@ -126,8 +126,8 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
+     - "SUM"
      - "APPROX"
      - "APPROXIMATE"
      - "COUNT"
      - "MAX"
-     - "MIN"

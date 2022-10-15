@@ -53,9 +53,9 @@ import com.google.common.base.Preconditions;
  * custom data generator for large number of accumulators in the schema
  */
 public class CustomHashAggDataGeneratorLargeAccum implements Generator {
-  private static final FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private static final ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
-  private static final CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
+  private static final FieldType DECIMAL_FIELD_TYPE = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal DECIMAL_ARROWTYPE = (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
+  private static final CompleteType DECIMAL_COMPLETE_TYPE = new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
 
   private static final Field INT_KEY = CompleteType.INT.toField("INT_KEY");
   private static final Field BIGINT_KEY = CompleteType.BIGINT.toField("BIGINT_KEY");
@@ -63,9 +63,8 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
   private static final Field FLOAT_KEY = CompleteType.FLOAT.toField("FLOAT_KEY");
   private static final Field DOUBLE_KEY = CompleteType.DOUBLE.toField("DOUBLE_KEY");
   private static final Field BOOLEAN_KEY = CompleteType.BIT.toField("BOOLEAN_KEY");
-  private static final Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
+  private static final Field DECIMAL_KEY = DECIMAL_COMPLETE_TYPE.toField("DECIMAL_KEY");
 
-  private static final Field INT_MEASURE = CompleteType.INT.toField("INT_MEASURE");
   /* arrays on heap that will store column values as we generate data for the schema */
   private Integer[] intKeyValues;
   private Long[] bigintKeyValues;
@@ -112,7 +111,7 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
   private int numAccum;
   private int position;
   private int batches;
-  private final HashMap<Key, Value> aggregatedResults = new HashMap<>();
+  private final Map<Key, Value> aggregatedResults = new HashMap<>();
 
   public CustomHashAggDataGeneratorLargeAccum(final int numRows, final BufferAllocator allocator, final int numAccum)
   {
@@ -133,8 +132,7 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
       .addField(BOOLEAN_KEY)
       .addField(DECIMAL_KEY);
     for (int i = 0; i < this.numAccum; ++i) {
-      Field INT_MEASURE = CompleteType.INT.toField("INT_MEASURE_" + i);
-      schemaBuilder = schemaBuilder.addField(INT_MEASURE);
+      schemaBuilder = schemaBuilder.addField(CompleteType.INT.toField("INT_MEASURE_" + i));
     }
     final BatchSchema schema = schemaBuilder.build();
 
@@ -149,8 +147,7 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
     decimalKey = container.addOrGet(DECIMAL_KEY);
 
     for (int i = 0; i < this.numAccum; ++i) {
-      Field INT_MEASURE = CompleteType.INT.toField("INT_MEASURE_" + i);
-      IntVector v = container.addOrGet(INT_MEASURE);
+      IntVector v = container.addOrGet(CompleteType.INT.toField("INT_MEASURE_" + i));
       accumList.add(v);
     }
   }
@@ -205,7 +202,7 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
       row++;
     }
 
-    String headers[] = new String[this.numAccum + 7];
+    String[] headers = new String[this.numAccum + 7];
     headers[0] = "INT_KEY";
     headers[1] = "BIGINT_KEY";
     headers[2] = "VARCHAR_KEY";
@@ -303,13 +300,13 @@ public class CustomHashAggDataGeneratorLargeAccum implements Generator {
   }
 
   private static class Key {
-    final int intKey;
-    final long bigintKey;
-    final String varKey;
-    final int floatKey;
-    final long doubleKey;
-    final boolean booleanKey;
-    final BigDecimal decimalKey;
+    private final int intKey;
+    private final long bigintKey;
+    private final String varKey;
+    private final int floatKey;
+    private final long doubleKey;
+    private final boolean booleanKey;
+    private final BigDecimal decimalKey;
 
     Key(final int intKey, final long bigintKey, final String varKey,
         final int floatKey, final long doubleKey, final boolean booleanKey,

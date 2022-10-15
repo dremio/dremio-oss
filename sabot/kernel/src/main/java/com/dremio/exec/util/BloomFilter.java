@@ -16,8 +16,8 @@
 
 package com.dremio.exec.util;
 
-import static org.apache.arrow.util.Preconditions.checkArgument;
-import static org.apache.arrow.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.nio.charset.StandardCharsets;
 
@@ -25,13 +25,13 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.fn.impl.HashValPair;
 import com.dremio.common.expression.fn.impl.MurmurHash3;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -58,7 +58,7 @@ public class BloomFilter implements AutoCloseable {
     private int numHashFunctions;
     private String name;
     private ArrowBuf dataBuffer;
-    private long numBitsSetLoc;
+    private long numBitsSetLoc = 0;
 
     /**
      * Initialise. The dataBuffer memory is used for keeping the bloomfilter bits.
@@ -70,7 +70,7 @@ public class BloomFilter implements AutoCloseable {
      */
     public BloomFilter(BufferAllocator bufferAllocator, String name, long minSizeBytes) {
         // Enables filter to do 64 bit operations during merge.
-        checkArgument(minSizeBytes % 8==0, "Data size should be multiple of 8 bytes");
+        checkArgument(minSizeBytes % 8 == 0, "Data size should be multiple of 8 bytes");
         checkArgument(minSizeBytes > META_BYTES_CNT, "Invalid data size");
         checkNotNull(bufferAllocator);
 
@@ -100,13 +100,14 @@ public class BloomFilter implements AutoCloseable {
         // Unset bits explicitly. The sliced buffer might be previously used.
         dataBuffer.writerIndex(0);
         for (int i = 0; i < sizeInBytes; i += 8) {
-            dataBuffer.writeLong(0l);
+            dataBuffer.writeLong(0L);
         }
 
         // Last 32 bytes are meta bytes, including 24 byte name and 8 byte numSetBits.
         byte[] metaBytes = new byte[24];
         byte[] nameBytesAll = name.getBytes(StandardCharsets.UTF_8);
-        System.arraycopy(name.getBytes(StandardCharsets.UTF_8), Math.max(0, nameBytesAll.length - 24), metaBytes, 0, Math.min(24, nameBytesAll.length));
+        System.arraycopy(name.getBytes(StandardCharsets.UTF_8), Math.max(0, nameBytesAll.length - 24),
+          metaBytes, 0, Math.min(24, nameBytesAll.length));
         this.name = new String(metaBytes, StandardCharsets.UTF_8);
         this.dataBuffer.writeBytes(metaBytes);
         this.dataBuffer.writeLong(0L);
@@ -119,7 +120,7 @@ public class BloomFilter implements AutoCloseable {
         checkNotNull(dataBuffer);
 
         final long dataSize = dataBuffer.capacity();
-        checkArgument(dataSize % 8==0, "Data size should be multiple of 8 bytes");
+        checkArgument(dataSize % 8 == 0, "Data size should be multiple of 8 bytes");
         checkArgument(dataSize > META_BYTES_CNT, "Invalid data size");
         this.dataBuffer = dataBuffer;
         this.sizeInBytes = dataSize - META_BYTES_CNT;
@@ -259,9 +260,11 @@ public class BloomFilter implements AutoCloseable {
      * @param that
      */
     public void merge(BloomFilter that) {
-        checkArgument(this!=that, "Can't merge with the same BloomFilter object.");
-        checkArgument(this.numHashFunctions==that.numHashFunctions, "Incompatible BloomFilter, different hashing technique.");
-        checkArgument(this.sizeInBits==that.sizeInBits, "Incompatible BloomFilter, different sizes (%s, %s).", this.sizeInBytes, that.sizeInBytes);
+        checkArgument(this != that, "Can't merge with the same BloomFilter object.");
+        checkArgument(this.numHashFunctions == that.numHashFunctions,
+          "Incompatible BloomFilter, different hashing technique.");
+        checkArgument(this.sizeInBits == that.sizeInBits,
+          "Incompatible BloomFilter, different sizes (%s, %s).", this.sizeInBytes, that.sizeInBytes);
 
         final long thisMemPos = this.dataBuffer.memoryAddress();
         final long thatMemPos = that.dataBuffer.memoryAddress();
@@ -279,7 +282,7 @@ public class BloomFilter implements AutoCloseable {
 
     @VisibleForTesting
     public long getNumBitsSet() {
-        return PlatformDependent.getLong(numBitsSetLoc);
+        return numBitsSetLoc == 0 ? 0 : PlatformDependent.getLong(numBitsSetLoc);
     }
 
     private void setNumBitsSet(final long newVal) {

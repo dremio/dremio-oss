@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-import React from "react";
-import { render } from "react-dom";
+import { createRoot } from "react-dom/client";
 import $ from "jquery";
 import Immutable from "immutable";
 
@@ -27,10 +26,10 @@ import setupMetrics from "@inject/setupMetrics";
 
 import "@inject/vendor/segment";
 import "./vendor/chat";
-import "imports-loader?this=>window!script-loader!jsplumb/dist/js/jsPlumb-2.1.4-min.js";
 import "dremio-ui-lib/dist-themes/dremio-light/index.css";
 import "dremio-ui-lib/dist/index.css";
 import "./main.less";
+import { iconBasePath } from "@app/utils/getIconPath";
 
 // add css here to be sure that its content will appear after compiled main.less content.
 // when import .css file inside of .less file than .css content appears at the top of the file
@@ -47,7 +46,6 @@ import { configureDremioIcon } from "dremio-ui-lib/dist-esm/index";
 //import MirageServer from './MirageServer';
 
 // useful debugging leaks...
-window.React = React;
 window.$ = $;
 window.Immutable = Immutable;
 
@@ -70,8 +68,15 @@ const store = configureStore();
 //    window.store.getState().resources.entities.toJS()
 window.store = store;
 
-configureDremioIcon("/static/icons/dremio");
+const initApp = async () => {
+  if (process.env.ENABLE_MSW === "true") {
+    await (await import("./setupMsw")).browserMocks();
+  }
 
-startup.run();
+  configureDremioIcon(iconBasePath);
+  startup.run();
 
-render(<Root store={store} />, document.getElementById("root"));
+  createRoot(document.getElementById("root")).render(<Root store={store} />);
+};
+
+initApp();

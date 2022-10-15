@@ -47,14 +47,15 @@ public class TableModifyRel extends TableModifyRelBase implements Rel {
                            List<RexNode> sourceExpressionList,
                            boolean flattened,
                            CreateTableEntry createTableEntry,
-                           List<String> mergeUpdateColumnList) {
+                           List<String> mergeUpdateColumnList,
+                           boolean hasSource) {
     super(LOGICAL, cluster, traitSet, table, catalogReader, input, operation, updateColumnList, sourceExpressionList,
-      flattened, createTableEntry, mergeUpdateColumnList);
+      flattened, createTableEntry, mergeUpdateColumnList, hasSource);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new TableModifyRel(getCluster(), traitSet, getTable(),  getCatalogReader(), sole(inputs), getOperation(),
-      getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList());
+      getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList(), hasSource());
   }
 }

@@ -16,11 +16,11 @@
 package com.dremio.service.flight;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import org.apache.calcite.avatica.util.Quoting;
 
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -210,7 +210,7 @@ public class ChangeTrackingUserSession extends UserSession {
   }
 
   @Override
-  public Map<String, VersionContext> getSourceVersionMapping() {
+  public CaseInsensitiveMap<VersionContext> getSourceVersionMapping() {
     return delegate.getSourceVersionMapping();
   }
 

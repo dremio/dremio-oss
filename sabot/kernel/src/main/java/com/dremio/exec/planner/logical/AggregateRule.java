@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.logical;
 
+import static com.dremio.exec.planner.common.MoreRelOptUtil.containsUnsupportedDistinctCall;
+
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -42,8 +44,9 @@ public class AggregateRule extends RelOptRule {
     final LogicalAggregate aggregate = (LogicalAggregate) call.rel(0);
     final RelNode input = call.rel(1);
 
-    if (aggregate.containsDistinctCall() || ProjectableSqlAggFunctions.isProjectableAggregate(aggregate)) {
+    if (containsUnsupportedDistinctCall(aggregate) || ProjectableSqlAggFunctions.isProjectableAggregate(aggregate)) {
       // currently, don't use this rule if any of the aggregates contains DISTINCT or projectable agg calls
+      // (LIST_AGG with distinct is allowed)
       return;
     }
 

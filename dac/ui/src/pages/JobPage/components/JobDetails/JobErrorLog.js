@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import ExpandIcon from "components/ExpandIcon";
 
@@ -60,7 +59,7 @@ class JobErrorLog extends Component {
 
     return (
       <div style={styles.base}>
-        <div style={[styles.messageContent, expandedStyle]}>
+        <div style={{ ...styles.messageContent, ...expandedStyle }}>
           <span>{error}</span>
         </div>
         <div onClick={this.expandIcon} style={styles.expandPanel}>
@@ -105,4 +104,4 @@ const styles = {
     width: "100%",
   },
 };
-export default Radium(JobErrorLog);
+export default JobErrorLog;

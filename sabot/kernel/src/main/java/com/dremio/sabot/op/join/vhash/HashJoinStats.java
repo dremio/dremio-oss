@@ -59,7 +59,26 @@ public class HashJoinStats {
     EXTRA_CONDITION_EVALUATION_COUNT,
     EXTRA_CONDITION_EVALUATION_MATCHED,
     EXTRA_CONDITION_SETUP_NANOS,
-    BUILD_CARRYOVER_COPY_NANOS;
+    BUILD_CARRYOVER_COPY_NANOS,
+
+    SPILL_COUNT, /* Number of times the operator spilled */
+    SPILL_REPLAY_COUNT, /* Number of times the operator replayed spill */
+    SPILL_WR_BUILD_BYTES, /* total spilled bytes, from build side */
+    SPILL_RD_BUILD_BYTES, /* total replayed bytes, from build side */
+    SPILL_WR_BUILD_RECORDS, /* total spilled records, from build side */
+    SPILL_RD_BUILD_RECORDS, /* total replayed records, from build side */
+    SPILL_WR_BUILD_BATCHES, /* total spilled batches, from build side */
+    SPILL_RD_BUILD_BATCHES, /* total replayed batches, from build side */
+    SPILL_RD_BUILD_BATCHES_MERGED, /* total replayed batches, from build side , after merge */
+    SPILL_WR_PROBE_BYTES, /* total spilled bytes, from probe side */
+    SPILL_RD_PROBE_BYTES, /* total replayed bytes, from probe side */
+    SPILL_WR_PROBE_RECORDS, /* total spilled records, from probe side */
+    SPILL_RD_PROBE_RECORDS, /* total replayed records, from probe side */
+    SPILL_WR_PROBE_BATCHES, /* total spilled batches, from probe side */
+    SPILL_RD_PROBE_BATCHES, /* total replayed batches, from probe side */
+    SPILL_RD_PROBE_BATCHES_MERGED, /* total replayed batches, from probe side , after merge */
+    SPILL_WR_NANOS, /* time spent in spill write */
+    SPILL_RD_NANOS; /* time spent in spill read */
 
     @Override
     public int metricId() {

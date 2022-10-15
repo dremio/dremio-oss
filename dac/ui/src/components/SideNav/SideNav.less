@@ -37,6 +37,7 @@ html {
   .sideNav-item {
     width: 6.4rem;
     height: 6.4rem;
+    position: relative;
 
     .sideNav-item__link,
     .sideNav-item__hoverMenu {
@@ -57,19 +58,31 @@ html {
     }
 
     .sideNav-item__icon {
-      width: 20px;
-      height: 20px;
+      color: var(--dremio--color--neutral--000);
+
+      dremio-icon {
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    .sideNav-item__caret-icon {
+      height: 12px;
+      width: 12px;
+      color: var(--dremio--color--neutral--000);
+      right: 7px;
+      bottom: 7px;
+      position: absolute;
     }
 
     .sideNav-item__logo {
-      width: 32px;
-      height: 32px;
+      dremio-icon {
+        width: 40px;
+        height: 40px;
+      }
     }
 
     .sideNav-item__customHoverMenu {
-      width: 6.4rem;
-      height: 6.4rem;
-
       &.--wide {
         width: 22.4rem;
       }
@@ -87,8 +100,6 @@ html {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 6.4rem;
-        height: 6.4rem;
 
         .sideNav__project {
           font-size: 1.3rem;
@@ -117,6 +128,13 @@ html {
     align-self: flex-end;
     margin-bottom: 1rem;
     width: inherit;
+
+    &__divider {
+      width: 48px;
+      height: 1px;
+      background-color: var(--dremio--color--neutral--300);
+      margin: auto;
+    }
   }
 
   .item__hover {
@@ -141,5 +159,62 @@ html {
     display: flex;
     justify-content: center;
     align-items: center;
+  }
+}
+
+// sonar is default theme, above
+:global {
+  .sideNav {
+    // organization theme
+    &--organization {
+      background-color: var(--dremio--color--primary--100);
+
+      .sideNav-item__icon {
+        color: var(--dremio--color--neutral--600);
+      }
+
+      .sideNav-item__caret-icon {
+        color: var(--dremio--color--neutral--600);
+      }
+
+      .sideNav-item__link,
+      .sideNav-item__hoverMenu {
+        &.--menuDisplayed {
+          background-color: var(--dremio--color--primary--200);
+        }
+
+        &.--active {
+          background-color: var(--dremio--color--link);
+        }
+      }
+
+      .item__hover {
+        &:hover {
+          background-color: var(--dremio--color--primary--200);
+        }
+      }
+    }
+
+    // arctic theme
+    &--arctic {
+      background-color: var(--dremio--color--arctic--400);
+
+      .sideNav-item__link,
+      .sideNav-item__hoverMenu {
+        &.--menuDisplayed {
+          background-color: var(--dremio--color--arctic--300);
+        }
+
+        &.--active {
+          background-color: var(--dremio--color--arctic--100);
+        }
+      }
+
+      .item__hover {
+        &:hover {
+          background-color: var(--dremio--color--arctic--300);
+        }
+      }
+    }
   }
 }

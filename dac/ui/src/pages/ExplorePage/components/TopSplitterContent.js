@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
 import { Component } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";

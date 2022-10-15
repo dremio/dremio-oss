@@ -51,7 +51,7 @@ const getShallowWrapper = (props = defaultProps) => {
 describe("Icon Input", () => {
   it("has the required components", () => {
     const wrapper = getShallowWrapper();
-    expect(wrapper.find("div.input-root").exists()).toBe(true);
+    expect(wrapper.find("IconInputRoot").exists()).toBe(true);
     expect(wrapper.find(Label).exists()).toBe(true);
     expect(wrapper.find(Label).props().value).toEqual(defaultProps.label);
     expect(wrapper.find("input").exists()).toBe(true);
@@ -61,7 +61,7 @@ describe("Icon Input", () => {
 
   it("adds the classes passed as props to respective elements", () => {
     const wrapper = getShallowWrapper();
-    expect(wrapper.find("div.input-root").props().className).toEqual(
+    expect(wrapper.find("IconInputRoot").props().className).toEqual(
       expect.stringContaining("sample-root-class")
     );
     expect(wrapper.find(Label).props().className).toEqual(

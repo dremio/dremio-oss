@@ -15,7 +15,7 @@
  */
 package com.dremio.service.autocomplete.nessie;
 
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  * The base class to represent all Nessie elements

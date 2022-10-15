@@ -16,10 +16,10 @@
 import { useState } from "react";
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
-import { Label } from "dremio-ui-lib";
+import { Label, Tooltip } from "dremio-ui-lib";
 import jobsUtils from "utils/jobsUtils";
 import FontIcon from "components/Icon/FontIcon";
-import Art from "@app/components/Art";
+import { getIconPath } from "@app/utils/getIconPath";
 import TextWithHelp from "@app/components/TextWithHelp";
 import { getIconByEntityType } from "utils/iconUtils";
 import "./Scans.less";
@@ -37,19 +37,32 @@ const renderScanTooltip = (tooltip, scanName) => {
   );
 };
 
-const renderIcon = (iconName, className) => {
+const renderIcon = (iconName, className, isGradient) => {
   return (
-    <Art
-      src={iconName}
-      alt="Reflection"
-      title="Reflection"
-      className={className}
-    />
+    <Tooltip title="Job.Reflection">
+      {!isGradient ? (
+        <dremio-icon
+          name={iconName}
+          alt="Reflection"
+          class={className}
+          data-qa={iconName}
+        />
+      ) : (
+        <img
+          src={getIconPath(iconName)}
+          alt="Reflection"
+          className={className}
+          data-qa={iconName}
+        />
+      )}
+    </Tooltip>
   );
 };
 const ScanItem = ({ scan, scansForFilter, intl: { formatMessage } }) => {
   const [isScanOpen, setIsScanOpen] = useState(false);
-  const collapseIconUsed = isScanOpen ? "DownArrow.svg" : "Right_Arrow.svg";
+  const collapseIconUsed = isScanOpen
+    ? "interface/down-chevron"
+    : "interface/right-chevron";
   const dataSetType = scan.get("datasetType");
   return (
     <div className="scans-content">
@@ -62,7 +75,11 @@ const ScanItem = ({ scan, scansForFilter, intl: { formatMessage } }) => {
           {renderIcon(collapseIconUsed, "scans-content__dropdownIcon")}
         </span>
         {dataSetType === "REFLECTION" ? (
-          renderIcon("Reflection.svg", "scans-content__reflectionIcon")
+          renderIcon(
+            "interface/reflection",
+            "scans-content__reflectionIcon",
+            true
+          )
         ) : (
           <span className="margin-top--half">
             <FontIcon

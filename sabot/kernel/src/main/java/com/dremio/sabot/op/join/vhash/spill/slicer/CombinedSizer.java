@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 
@@ -38,17 +39,24 @@ class CombinedSizer implements Sizer {
   }
 
   @Override
-  public int computeBitsNeeded(long sv2Addr, int len) {
+  public int computeBitsNeeded(ArrowBuf sv2, int startIdx, int numberOfRecords) {
     return sizers.stream()
-        .mapToInt(s -> s.computeBitsNeeded(sv2Addr, len))
+        .mapToInt(s -> s.computeBitsNeeded(sv2, startIdx, numberOfRecords))
         .sum();
   }
 
+@Override
+  public int getSizeInBitsStartingFromOrdinal(int ordinal, int numberOfRecords) {
+    return sizers.stream()
+      .mapToInt(s -> s.getSizeInBitsStartingFromOrdinal(ordinal, numberOfRecords))
+      .sum();
+  }
+
   @Override
-  public Copier getCopier(BufferAllocator allocator, long sv2Addr, int count, List<FieldVector> vectorOutput) {
+  public Copier getCopier(BufferAllocator allocator, ArrowBuf sv2, int startIdx, int count, List<FieldVector> vectorOutput) {
     return new CombinedCopier(
         sizers.stream()
-        .map(s -> s.getCopier(allocator, sv2Addr, count, vectorOutput))
+        .map(s -> s.getCopier(allocator, sv2, startIdx, count, vectorOutput))
         .collect(Collectors.toList())
         );
   }

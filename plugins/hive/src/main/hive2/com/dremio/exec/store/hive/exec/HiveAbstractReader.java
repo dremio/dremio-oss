@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -33,7 +34,7 @@ import javax.annotation.Nullable;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
-import org.apache.hadoop.hive.serde2.SerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
@@ -81,10 +82,10 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
 
   protected JobConf jobConf;
 
-  protected SerDe tableSerDe;
+  protected AbstractSerDe tableSerDe;
   protected StructObjectInspector tableOI;
 
-  protected SerDe partitionSerDe;
+  protected AbstractSerDe partitionSerDe;
   protected StructObjectInspector partitionOI;
 
   protected ScanFilter filter;
@@ -101,7 +102,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
 
   public HiveAbstractReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
                             final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
-                            final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
+                            final AbstractSerDe tableSerDe, final StructObjectInspector tableOI, final AbstractSerDe partitionSerDe,
                             final StructObjectInspector partitionOI, final ScanFilter filter,
                             final Collection<List<String>> referencedTables, final UserGroupInformation readerUgi) {
     super(context, projectedColumns);
@@ -164,7 +165,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
           }
         }
 
-        ColumnProjectionUtils.appendReadColumns(jobConf, columnIds, selectedColumnNames);
+        ColumnProjectionUtils.appendReadColumns(jobConf, columnIds, selectedColumnNames, Collections.emptyList());
 
         List<StructField> selectedStructFieldRefs = new ArrayList<>();
         List<ObjectInspector> selectedColumnObjInspectors = new ArrayList<>();

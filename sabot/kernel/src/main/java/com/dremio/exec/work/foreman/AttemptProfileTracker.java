@@ -147,7 +147,6 @@ class AttemptProfileTracker {
   UserBitShared.QueryProfile sendTailProfile(UserException userException) throws Exception {
     // fetch latest progress metrics before publishing tail profile, as they'll be deleted in putQueryTailProfile
     getLatestQueryProgressMetrics();
-
     this.userException = userException;
 
     // DX-28440 : when query is cancelled from flight service
@@ -183,23 +182,40 @@ class AttemptProfileTracker {
     }
   }
 
-  // Get the latest planning profile.
-  synchronized UserBitShared.QueryProfile getPlanningProfile() {
+  private UserBitShared.QueryProfile getPlanningProfileFunction(boolean ignoreExceptions)  throws UserException, com.dremio.common.exceptions.UserCancellationException {
     UserBitShared.QueryProfile.Builder builder = UserBitShared.QueryProfile.newBuilder();
 
-    if (planningProfile == null) {
-      addPlanningDetails(builder);
-      if (builder.getPlanningEnd() > 0) {
-        // if planning has completed, this part will remain unchanged. save it to
-        // optimise future requests.
-        planningProfile = builder.build();
+    try {
+      if (planningProfile == null) {
+        addPlanningDetails(builder);
+        if (builder.getPlanningEnd() > 0) {
+          // if planning has completed, this part will remain unchanged. save it to
+          // optimise future requests.
+          planningProfile = builder.build();
+        }
+      } else {
+        builder.mergeFrom(planningProfile);
       }
-    } else {
-      builder.mergeFrom(planningProfile);
+    } catch (com.dremio.common.exceptions.UserCancellationException userCancellationException) {
+      if (ignoreExceptions) {
+        logger.debug("Ignoring Exceptions", userCancellationException);
+      } else {
+        throw userCancellationException;
+      }
+    } finally {
+      addLatestState(builder);
+      return builder.build();
     }
+  }
 
-    addLatestState(builder);
-    return builder.build();
+  // Get the latest planning profile.
+  synchronized UserBitShared.QueryProfile getPlanningProfile()  throws UserException, com.dremio.common.exceptions.UserCancellationException {
+    return getPlanningProfileFunction(false);
+  }
+
+  // Get the latest planning profile ignoring Exceptions.
+  synchronized UserBitShared.QueryProfile getPlanningProfileNoException() {
+    return getPlanningProfileFunction(true);
   }
 
   // fetch full profile (including executor profiles) from JTS.
@@ -219,7 +235,7 @@ class AttemptProfileTracker {
   }
 
   // add planner related details to the profile builder.
-  private void addPlanningDetails(UserBitShared.QueryProfile.Builder builder) {
+  private void addPlanningDetails(UserBitShared.QueryProfile.Builder builder) throws UserException, com.dremio.common.exceptions.UserCancellationException {
     builder.setQuery(queryDescription);
     builder.setUser(queryContext.getQueryUserName());
     builder.setId(queryId);
@@ -245,7 +261,6 @@ class AttemptProfileTracker {
 
     if (capturer != null) {
       builder.setTotalFragments(capturer.getNumFragments());
-      builder.setAccelerationProfile(capturer.getAccelerationProfile());
       builder.addAllDatasetProfile(capturer.getDatasets());
       builder.setNumPlanCacheUsed(capturer.getNumPlanCacheUses());
 
@@ -273,6 +288,8 @@ class AttemptProfileTracker {
       if (serializedPlan != null) {
         builder.setSerializedPlan(ByteString.copyFrom(serializedPlan));
       }
+      // This method might throw exception, hence moved it to the bottom
+      builder.setAccelerationProfile(capturer.getAccelerationProfile());
     }
 
     // get stats from schema tree provider

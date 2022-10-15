@@ -17,7 +17,7 @@ package com.dremio.service.autocomplete.nessie;
 
 import java.time.Instant;
 
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  *  A single point in the Git history; the entire history of a project is represented as a set of interrelated commits.

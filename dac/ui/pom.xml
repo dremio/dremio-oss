@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
@@ -68,6 +68,9 @@
             <exclude>src/services/nessie/client/**</exclude>
             <exclude>**/*.json</exclude>
             <exclude>**/*.md</exclude>
+            <exclude>.npmrc</exclude>
+            <exclude>.pnpmfile.cjs</exclude>
+            <exclude>**/*.gitkeep</exclude>
           </excludes>
           <mapping>
             <!-- full file names -->
@@ -132,7 +135,7 @@
             <phase>initialize</phase>
             <goals>
               <goal>install-node-and-npm</goal>
-              <goal>npm</goal>
+              <goal>npx</goal>
             </goals>
             <!-- Optional configuration which provides for running any npm
               command -->
@@ -140,7 +143,7 @@
               <environmentVariables>
                 <SKIP_POST>true</SKIP_POST>
               </environmentVariables>
-              <arguments>${npm.installscript}</arguments>
+              <arguments>${pnpm.execinstallscript}</arguments>
             </configuration>
           </execution>
           <execution>

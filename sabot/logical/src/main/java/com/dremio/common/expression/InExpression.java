@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -261,7 +262,7 @@ public class InExpression extends LogicalExpressionBase {
   }
 
   public static class BytesSet {
-    private final HashSet<BytesHolder> byteArraySet = new HashSet<>();
+    private final Set<BytesHolder> byteArraySet = new HashSet<>();
 
     public BytesSet(NullableVarBinaryHolder[] holders) {
       for(NullableVarBinaryHolder h : holders) {

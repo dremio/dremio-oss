@@ -340,7 +340,7 @@ public class ParquetInputFormat extends FileInputFormat<NullWritable, ArrayWrita
         }
       }
 
-      if (done == true) {
+      if (done) {
         break;
       }
     }
@@ -373,7 +373,7 @@ public class ParquetInputFormat extends FileInputFormat<NullWritable, ArrayWrita
     long getValue() {return value;}
 
     void addValue(int blockIndex, long value) {
-      if (blockIds.add(blockIndex) == true) {
+      if (blockIds.add(blockIndex)) {
         this.value += value;
       }
     }

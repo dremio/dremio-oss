@@ -52,8 +52,7 @@ class FieldVarCharOutput extends TextOutput {
   // track if field is still getting appended
   private boolean fieldOpen = true;
   // holds chars for a field
-  private byte[] fieldBytes;
-  private static final int MAX_FIELD_LENGTH = 1024 * 64;
+  private final byte[] fieldBytes;
 
   private boolean collect = true;
   private boolean rowHasData = false;
@@ -114,8 +113,7 @@ class FieldVarCharOutput extends TextOutput {
       }
     }
 
-    this.fieldBytes = new byte[MAX_FIELD_LENGTH];
-
+    this.fieldBytes = new byte[sizeLimit];
   }
 
   /**
@@ -153,10 +151,7 @@ class FieldVarCharOutput extends TextOutput {
       return;
     }
 
-    if (currentDataPointer >= MAX_FIELD_LENGTH ) {
-      throw FieldSizeLimitExceptionHelper.createFieldSizeLimitException(currentDataPointer, MAX_FIELD_LENGTH, currentFieldIndex, logger);
-    }
-
+    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
     fieldBytes[currentDataPointer++] = data;
   }
 

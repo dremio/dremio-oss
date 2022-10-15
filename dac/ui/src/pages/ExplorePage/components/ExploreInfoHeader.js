@@ -62,8 +62,7 @@ import SaveMenu, {
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
 import FontIcon from "components/Icon/FontIcon";
 import { DatasetItemLabel } from "components/Dataset/DatasetItemLabel"; // {} for testing purposes since store is not needed here
-import Art from "@app/components/Art";
-import { Button } from "dremio-ui-lib";
+import { checkTypeToShowOverlay } from "utils/datasetUtils";
 
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
 
@@ -344,7 +343,6 @@ export class ExploreInfoHeader extends PureComponent {
       <CopyButton
         text={fullPath}
         title={this.props.intl.formatMessage({ id: "Path.Copy" })}
-        style={{ transform: "translateY(1px)" }}
       />
     ) : null;
   }
@@ -372,6 +370,8 @@ export class ExploreInfoHeader extends PureComponent {
     const typeIcon = getIconDataTypeFromDatasetType(
       !isSqlEditorTab ? dataset.get("datasetType") : SCRIPT
     );
+    const showOverlay = checkTypeToShowOverlay(dataset.get("datasetType"));
+
     const isUntitledScript = isSqlEditorTab && !this.props.activeScript.name;
     const labelText = `${nameForDisplay}${
       isEditedDataset || isUnsavedScript ? edited : ""
@@ -401,7 +401,7 @@ export class ExploreInfoHeader extends PureComponent {
               }}
               data-qa={nameForDisplay}
             >
-              {isUntitledScript ? (
+              {isUntitledScript || showOverlay ? (
                 LabelElement
               ) : (
                 <Tooltip enterDelay={1000} title={labelText}>
@@ -465,29 +465,6 @@ export class ExploreInfoHeader extends PureComponent {
   };
   openPowerBi = () => {
     this.handleShowBI(NEXT_ACTIONS.openPowerBI);
-  };
-
-  renderAnalyzeButton = (name, icon, onclick, iconSize) => {
-    const { dataset } = this.props;
-    return (
-      <Button
-        variant="outlined"
-        color="primary"
-        size="medium"
-        onClick={onclick}
-        disabled={this.getExtraSaveDisable(dataset)}
-        disableRipple
-        disableMargin
-      >
-        <Art
-          src={icon}
-          alt={name}
-          title={name}
-          style={{ height: iconSize, width: iconSize }}
-        />
-        {name}
-      </Button>
-    );
   };
 
   renderSaveButton = () => {
@@ -615,7 +592,6 @@ const style = {
     fontWeight: 500,
   },
   scriptHeader: {
-    marginLeft: 6,
     marginTop: 2,
   },
   pullout: {

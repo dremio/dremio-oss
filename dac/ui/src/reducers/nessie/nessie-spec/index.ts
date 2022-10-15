@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { initialState, NessieRootState } from "../nessie";
+import { initialState } from "../nessie";
+import { NessieRootState } from "@app/types/nessie";
 
 export const empty = { ...initialState };
 

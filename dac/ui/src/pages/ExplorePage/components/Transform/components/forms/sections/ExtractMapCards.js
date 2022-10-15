@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import Cards from "@app/pages/ExplorePage/components/Transform/components/Cards";
@@ -63,4 +62,4 @@ class ExtractMapCards extends Component {
     );
   }
 }
-export default Radium(ExtractMapCards);
+export default ExtractMapCards;

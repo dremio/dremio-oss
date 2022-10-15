@@ -25,8 +25,10 @@ import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.IfExpression.IfCondition;
 import com.dremio.common.expression.InputReference;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
@@ -67,7 +69,7 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
       if (!thisArgIsConstant) {
         allArgsAreConstant = false;
         if (holder.argConstantOnly(i)) {
-          errors.addGeneralError(String.format("Function %s expects constant input for argument number %d", holder.getName(), i));
+          errors.addGeneralError("Function %s expects constant input for argument number %d", holder.getName(), i);
         }
       }
     }
@@ -195,6 +197,16 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
   @Override
   public Boolean visitNullExpression(NullExpression e, ErrorCollector value) throws RuntimeException {
     return true;
+  }
+
+  @Override
+  public Boolean visitListAggExpression(ListAggExpression e, ErrorCollector value) throws RuntimeException {
+    return false;
+  }
+
+  @Override
+  public Boolean visitOrdering(Ordering e, ErrorCollector value) throws RuntimeException {
+    return false;
   }
 
 }

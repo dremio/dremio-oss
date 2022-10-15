@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import java.util.List;
+
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDelete;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -22,8 +24,10 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.ImmutableNullableList;
 
 import com.google.common.base.Preconditions;
 
@@ -36,15 +40,19 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlDelete.createCall() has to get 3 operands!");
+      Preconditions.checkArgument(operands.length == 4, "SqlDelete.createCall() has to get 4 operands!");
 
-      // We ignore operands[2] which contains the ALIAS since we don't allow that for now.
-      return new SqlDeleteFromTable(pos, operands[0], operands[1], (SqlIdentifier)operands[2]);
+      return new SqlDeleteFromTable(pos, operands[0], operands[1], (SqlIdentifier)operands[2], operands[3]);
     }
   };
 
-  public SqlDeleteFromTable(SqlParserPos pos, SqlNode targetTable, SqlNode condition, SqlIdentifier alias) {
+  private final SqlNode source;
+  private SqlNode sourceOperand;
+
+  public SqlDeleteFromTable(SqlParserPos pos, SqlNode targetTable, SqlNode condition, SqlIdentifier alias, SqlNode source) {
     super(pos, targetTable, condition, null, alias);
+    this.source = source;
+    this.sourceOperand = source;
   }
 
   public void extendTableWithDataFileSystemColumns() {
@@ -56,5 +64,29 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
   @Override
   public SqlOperator getOperator() {
     return OPERATOR;
+  }
+
+  @Override
+  public List<SqlNode> getOperandList() {
+    return ImmutableNullableList.of(
+      getTargetTable(),
+      getCondition(),
+      getAlias(),
+      sourceOperand);
+  }
+
+  @Override
+  public void setSourceSelect(SqlSelect sourceSelect) {
+    // sourceOperand is used to carry 'source' during SqlCall cloning.
+    // Once 'source' is passed to SourceSelect (here),
+    // we dont need 'source' appeared in operandList since Calcite will call getOperandList() in
+    // various places without knowing the existence of 'source'
+    sourceOperand = null;
+    super.setSourceSelect(sourceSelect);
+  }
+
+  @Override
+  public SqlNode getSourceTableRef() {
+    return source;
   }
 }

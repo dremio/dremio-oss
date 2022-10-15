@@ -51,6 +51,7 @@ import com.dremio.service.Service;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.usersessions.UserSessionService;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -83,6 +84,7 @@ public class DremioFlightService implements Service {
   private final Provider<OptionManager> optionManagerProvider;
   private final Provider<UserSessionService> userSessionServiceProvider;
   private final Provider<DremioFlightAuthProvider> authProvider;
+  private final Provider<CredentialsService> credentialsServiceProvider;
   private final RunQueryResponseHandlerFactory runQueryResponseHandlerFactory;
 
   private DremioFlightSessionsManager dremioFlightSessionsManager;
@@ -97,10 +99,11 @@ public class DremioFlightService implements Service {
                              Provider<TokenManager> tokenManagerProvider,
                              Provider<OptionManager> optionManagerProvider,
                              Provider<UserSessionService> userSessionServiceProvider,
-                             Provider<DremioFlightAuthProvider> authProvider) {
+                             Provider<DremioFlightAuthProvider> authProvider,
+                             Provider<CredentialsService> credentialsServiceProvider) {
     this(configProvider, bufferAllocator, userWorkerProvider,
       sabotContextProvider, tokenManagerProvider, optionManagerProvider, userSessionServiceProvider,
-      authProvider, RunQueryResponseHandlerFactory.DEFAULT);
+      authProvider, credentialsServiceProvider, RunQueryResponseHandlerFactory.DEFAULT);
   }
 
   @VisibleForTesting
@@ -112,6 +115,7 @@ public class DremioFlightService implements Service {
                       Provider<OptionManager> optionManagerProvider,
                       Provider<UserSessionService> userSessionServiceProvider,
                       Provider<DremioFlightAuthProvider> authProvider,
+                      Provider<CredentialsService> credentialsServiceProvider,
                       RunQueryResponseHandlerFactory runQueryResponseHandlerFactory
   ) {
     this.configProvider = configProvider;
@@ -123,6 +127,7 @@ public class DremioFlightService implements Service {
     this.runQueryResponseHandlerFactory = runQueryResponseHandlerFactory;
     this.userSessionServiceProvider = userSessionServiceProvider;
     this.authProvider = authProvider;
+    this.credentialsServiceProvider = credentialsServiceProvider;
   }
 
   @Override
@@ -164,7 +169,7 @@ public class DremioFlightService implements Service {
     authProvider.get().addAuthHandler(builder, dremioFlightSessionsManager);
 
     if (config.getBoolean(FLIGHT_SSL_ENABLED)) {
-      final SSLConfig sslConfig = getSSLConfig(config, new SSLConfigurator(config, FLIGHT_SSL_PREFIX, "flight"));
+      final SSLConfig sslConfig = getSSLConfig(config, new SSLConfigurator(config, credentialsServiceProvider, FLIGHT_SSL_PREFIX, "flight"));
       addTlsProperties(builder, sslConfig);
     }
 

@@ -30,13 +30,12 @@ import com.carrotsearch.hppc.LongObjectHashMap;
  * Collects stats to report CPU usage per thread during the last 5 seconds
  */
 public class ThreadsStatsCollector extends Thread implements AutoCloseable {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ThreadsStatsCollector.class);
 
   private static final long ONE_BILLION = 1000000000;
   private static final long RETAIN_INTERVAL = 5 * ONE_BILLION; // in nanoseconds
   private final long collectionIntervalInMillseconds; // in milli-seconds
   // collect every second
-  private static final long DEFAULT_COLLECTION_INTERVAL_IN_MILLIS = 1000l;
+  private static final long DEFAULT_COLLECTION_INTERVAL_IN_MILLIS = 1000L;
   private static ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
   private final CPUStat cpuStat;
   private final UserStat userStat;

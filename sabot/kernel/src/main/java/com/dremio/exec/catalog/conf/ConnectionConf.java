@@ -31,6 +31,8 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.AbstractConnectionConf;
+import com.dremio.services.credentials.CredentialsException;
+import com.dremio.services.credentials.CredentialsService;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -61,7 +63,6 @@ import io.protostuff.Schema;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
 @JsonAutoDetect(fieldVisibility=Visibility.PUBLIC_ONLY, getterVisibility=Visibility.NONE, isGetterVisibility=Visibility.NONE, setterVisibility=Visibility.NONE)
 public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends StoragePlugin> implements AbstractConnectionConf, Externalizable {
-
   private final transient Schema<T> schema;
   public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
 
@@ -134,6 +135,43 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
         throw Throwables.propagate(e);
       }
     }
+  }
+
+  /**
+   * Resolves secrets on the conf via the credentials service. This first clones the conf,
+   * then resolves the secrets on the clone, and returns the resolved (cloned) conf. The
+   * original conf should remain unchanged. The new resolved conf should be treated with
+   * care as it will contain the resolved secret (i.e. should never be persisted).
+   */
+  public T resolveSecrets(CredentialsService credentialsService) {
+    final T resolvedConf = this.clone();
+    for (Field field : FieldUtils.getAllFields(resolvedConf.getClass())) {
+      if (field.getAnnotation(Secret.class) == null) {
+        continue;
+      }
+
+      try {
+        if (field.getType().equals(String.class)) {
+          final String fieldString = (String) field.get(resolvedConf);
+          if (Strings.isNullOrEmpty(fieldString)) {
+            continue;
+          }
+          String resolvedSecret;
+          try {
+            resolvedSecret = credentialsService.lookup(fieldString);
+          } catch (IllegalArgumentException e) {
+            // If field is not a valid URI, fallback to treating it as a regular password
+            resolvedSecret = fieldString;
+          } catch (CredentialsException e) {
+            throw new RuntimeException(e);
+          }
+          field.set(resolvedConf, resolvedSecret);
+        }
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return resolvedConf;
   }
 
   public static void registerSubTypes(ObjectMapper mapper, ConnectionReader connectionReader) {

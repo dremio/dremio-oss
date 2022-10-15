@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
   <artifactId>dremio-services-namespace</artifactId>
   <name>Services - Namespace</name>
@@ -69,7 +69,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>com.hubspot.jackson</groupId>
@@ -106,12 +105,10 @@
     <dependency>
       <groupId>io.protostuff</groupId>
       <artifactId>protostuff-collectionschema</artifactId>
-      <version>${protostuff.version}</version>
     </dependency>
     <dependency>
       <groupId>io.protostuff</groupId>
       <artifactId>protostuff-runtime</artifactId>
-      <version>${protostuff.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.flatbuffers</groupId>
@@ -135,11 +132,6 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 

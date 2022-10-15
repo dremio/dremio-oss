@@ -16,7 +16,7 @@
 package com.dremio.exec.planner;
 
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlNode;
@@ -28,33 +28,35 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.resource.GroupResourceInformation;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Multimap;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 
 public class PlanCache {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlanCache.class);
 
-  private final Cache<Long, CachedPlan> cachePlans;
-  private static Multimap<String, Long> datasetMap;
+  private final Cache<String, CachedPlan> cachePlans;
+  private static Multimap<String, String> datasetMap;
 
-  public PlanCache(Cache<Long, CachedPlan> cachePlans, Multimap<String, Long> map) {
+  public PlanCache(Cache<String, CachedPlan> cachePlans, Multimap<String, String> map) {
     this.cachePlans = cachePlans;
     this.datasetMap = map;
   }
 
-  public Multimap<String, Long> getDatasetMap() {
+  public Multimap<String, String> getDatasetMap() {
     return datasetMap;
   }
 
-  public Cache<Long, CachedPlan> getCachePlans() {
+  public Cache<String, CachedPlan> getCachePlans() {
     return cachePlans;
   }
 
-  public void createNewCachedPlan(Catalog catalog, long cachedKey, String sql,
+  public void createNewCachedPlan(Catalog catalog, String cachedKey, String sql,
                                   Prel prel, String textPlan, SqlHandlerConfig config) {
     Preconditions.checkNotNull(catalog);
     boolean addedCacheToDatasetMap = false;
@@ -95,32 +97,47 @@ public class PlanCache {
       && planCache != null && config.getContext().getPlannerSettings().isPlanCacheEnabled();
   }
 
-  public static long generateCacheKey(String sql, QueryContext context) {
-    long result = sql.concat(context.getWorkloadType().name())
-      .concat(context.getContextInformation().getCurrentDefaultSchema())
-      .hashCode();
-    result = 31 * result + generateQueryContextOptionsHash(context);
-    return result;
+  public static String generateCacheKey(String sql, QueryContext context) {
+    Hasher hasher = Hashing.sha256().newHasher();
+
+    hasher.putString(sql, Charsets.UTF_8)
+      .putString(context.getWorkloadType().name(), Charsets.UTF_8)
+      .putString(context.getContextInformation().getCurrentDefaultSchema(), Charsets.UTF_8);
+
+    context.getOptions().getNonDefaultOptions()
+        .stream()
+        // A sanity filter in case an option with default value is put into non-default options
+        .filter(optionValue -> !context.getOptions().getDefaultOptions().contains(optionValue))
+        .sorted()
+        .forEach((v) -> {
+          switch(v.getKind()) {
+            case BOOLEAN:
+              hasher.putBoolean(v.getBoolVal());
+              break;
+            case DOUBLE:
+              hasher.putDouble(v.getFloatVal());
+              break;
+            case LONG:
+              hasher.putLong(v.getNumVal());
+              break;
+            case STRING:
+              hasher.putString(v.getStringVal(), Charsets.UTF_8);
+              break;
+            default:
+              throw new AssertionError("Unsupported OptionValue kind: " + v.getKind());
+          }
+        });
+
+    Optional.ofNullable(context.getGroupResourceInformation())
+      .ifPresent(v -> {
+        hasher.putInt(v.getExecutorNodeCount());
+        hasher.putLong(v.getAverageExecutorCores(context.getOptions()));
+      });
+
+    return hasher.hash().toString();
   }
 
-  public static int generateQueryContextOptionsHash(QueryContext context) {
-    int result = Objects.hash(context.getOptions().getNonDefaultOptions()
-      .stream()
-      // A sanity filter in case an option with default value is put into non-default options
-      .filter(optionValue -> !context.getOptions().getDefaultOptions().contains(optionValue))
-      .sorted()
-      .collect(Collectors.toList()));
-
-    GroupResourceInformation resourceInformation = context.getGroupResourceInformation();
-    if (resourceInformation != null) {
-      result = 31 * result + Objects.hash(resourceInformation.getExecutorNodeCount());
-      result = 31 * result + Objects.hash(resourceInformation.getAverageExecutorCores(context.getOptions()));
-    }
-
-    return result;
-  }
-
-  public CachedPlan getIfPresentAndValid(Catalog catalog, CatalogService catalogService, long cacheId) {
+  public CachedPlan getIfPresentAndValid(Catalog catalog, CatalogService catalogService, String cacheId) {
     if (cachePlans == null) {
       return null;
     }
@@ -163,13 +180,13 @@ public class PlanCache {
   }
 
   public void invalidateCacheOnDataset(String datasetId) {
-    List<Long> affectedCaches = datasetMap.get(datasetId).stream().collect(Collectors.toList());
-    for(Long cacheId: affectedCaches) {
+    List<String> affectedCaches = datasetMap.get(datasetId).stream().collect(Collectors.toList());
+    for(String cacheId: affectedCaches) {
       cachePlans.invalidate(cacheId);
     }
   }
 
-  public static void clearDatasetMapOnCacheGC(Long cacheId) {
+  public static void clearDatasetMapOnCacheGC(String cacheId) {
     synchronized (datasetMap) {
       datasetMap.entries().removeIf(datasetMapEntry -> datasetMapEntry.getValue().equals(cacheId));
     }

@@ -17,27 +17,23 @@ package com.dremio.service.autocomplete.statements.grammar;
 
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.IDENTIFIER;
 
+import com.dremio.service.autocomplete.AutocompleteEngineContext;
+import com.dremio.service.autocomplete.completions.Completions;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Path in a Catalog.
  */
-public final class CatalogPath {
+public final class CatalogPath extends LeafStatement {
   public static final CatalogPath EMPTY = new CatalogPath(ImmutableList.of(), ImmutableList.of());
-
-  private final ImmutableList<DremioToken> tokens;
   private final ImmutableList<String> pathTokens;
 
   private CatalogPath(
     ImmutableList<DremioToken> tokens,
     ImmutableList<String> pathTokens) {
-    this.tokens = tokens;
+    super(tokens);
     this.pathTokens = pathTokens;
-  }
-
-  public ImmutableList<DremioToken> getTokens() {
-    return tokens;
   }
 
   public ImmutableList<String> getPathTokens() {
@@ -66,5 +62,15 @@ public final class CatalogPath {
     }
 
     return new CatalogPath(tokensBuilder.build(), identifiersBuilder.build());
+  }
+
+  @Override
+  public Completions getCompletions(AutocompleteEngineContext autocompleteEngineContext) {
+    return Completions
+      .builder()
+      .addCatalogNodes(autocompleteEngineContext
+        .getAutocompleteSchemaProvider()
+        .getChildrenInScope(pathTokens))
+      .build();
   }
 }

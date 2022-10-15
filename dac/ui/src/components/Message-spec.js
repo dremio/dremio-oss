@@ -33,8 +33,10 @@ describe("Message", () => {
   it("renders <div .message>", () => {
     const wrapper = mount(<Message {...commonProps} />);
     expect(wrapper.find(".message")).to.have.length(1);
-    expect(wrapper.find("Art")).to.have.length(2);
-    expect(wrapper.find("Art").first().prop("alt")).to.be.equal("Warning");
+    expect(wrapper.find("dremio-icon")).to.have.length(2);
+    expect(wrapper.find("dremio-icon").first().prop("alt")).to.be.equal(
+      "Warning"
+    );
     expect(wrapper.find(".message-content").text()).to.equal(
       commonProps.message.get("message") + "."
     );
@@ -77,7 +79,7 @@ describe("Message", () => {
 
   it("hides when dismiss is clicked and shows again when it receives a new message", () => {
     const wrapper = shallow(<Message {...commonProps} />);
-    expect(wrapper.find("Art").at(1).prop("onClick")).to.equal(
+    expect(wrapper.find("dremio-icon").at(1).prop("onClick")).to.equal(
       wrapper.instance().onDismiss
     );
     wrapper.instance().onDismiss();
@@ -106,13 +108,15 @@ describe("Message", () => {
 
   it("should render close icon by default", () => {
     expect(
-      shallow(<Message {...commonProps} />).find('Art[alt="Dismiss"]')
+      shallow(<Message {...commonProps} />).find('dremio-icon[alt="Dismiss"]')
     ).to.have.length(1);
   });
 
   it("should not render close icon when message is not dissmisable", () => {
     expect(
-      shallow(<Message isDismissable={false} />).find('Art[alt="Dismiss"]')
+      shallow(<Message isDismissable={false} />).find(
+        'dremio-icon[alt="Dismiss"]'
+      )
     ).to.have.length(0);
   });
 

@@ -564,7 +564,8 @@ public class SabotNode implements AutoCloseable {
         final ConduitProvider conduitProvider = new ConduitProviderImpl(
           getProvider(NodeEndpoint.class), Optional.empty()
         );
-        bind(ConduitInProcessChannelProvider.class).toInstance(new ConduitInProcessChannelProvider(inProcessServerName));
+        bind(ConduitInProcessChannelProvider.class).toInstance(new ConduitInProcessChannelProvider(inProcessServerName,
+          getProvider(RequestContext.class)));
         bind(ConduitProvider.class).toInstance(conduitProvider);
 
         conduitServiceRegistry.registerService(new OptionNotificationService(registry.provider(SystemOptionManager.class)));
@@ -598,6 +599,8 @@ public class SabotNode implements AutoCloseable {
         bind(SystemTablePluginConfigProvider.class).toInstance(new SystemTablePluginConfigProvider());
 
         bind(SysFlightChannelProvider.class).toInstance(SysFlightChannelProvider.NO_OP);
+
+        bind(SourceVerifier.class).toInstance(SourceVerifier.NO_OP);
 
         bind(ResourceAllocator.class).toInstance(new BasicResourceAllocator(getProvider(ClusterCoordinator.class),
           getProvider(GroupResourceInformation.class)));
@@ -656,6 +659,12 @@ public class SabotNode implements AutoCloseable {
     ModifiableSchedulerService getModifiableMetadataScheduler(OptionManager optionManager) throws Exception {
       return new ModifiableLocalSchedulerService(2, "modifiable-scheduler-",
         ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, () -> optionManager);
+    }
+
+    @Provides
+    @Singleton
+    RequestContext getRequestContext() throws Exception {
+      return defaultRequestContext;
     }
 
     @Provides
@@ -730,7 +739,8 @@ public class SabotNode implements AutoCloseable {
             Provider<GlobalKeysService> globalKeysServiceProvider,
             Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
             Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
-            Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
+            Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
+            Provider<SourceVerifier> sourceVerifierProvider
     ) {
       return new ContextService(
               bootstrap,
@@ -775,7 +785,8 @@ public class SabotNode implements AutoCloseable {
               globalKeysServiceProvider,
               credentialsServiceProvider,
               conduitInProcessChannelProviderProvider,
-              sysFlightChannelProviderProvider
+              sysFlightChannelProviderProvider,
+              sourceVerifierProvider
       );
     }
 

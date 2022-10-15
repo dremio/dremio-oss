@@ -425,6 +425,7 @@ public abstract class FieldBufferPreAllocedCopier {
         copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL));
         break;
 
+      case MAP:
       case LIST:
       case STRUCT:
       case UNION:

@@ -49,7 +49,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseSingleAccumulator.class);
 
   private static final long OFF = 0;
-  private static final long ON = 0xFFFFFFFFFFFFFFFFl;
+  private static final long ON = 0xFFFFFFFFFFFFFFFFL;
 
   private FieldVector input;
   private final FieldVector output;
@@ -417,6 +417,9 @@ abstract class BaseSingleAccumulator implements Accumulator {
     // default initialization
     setNotNullAndZero(vector);
   }
+
+  @Override
+  public void compact(final int batchIndex, final int nextRecSize) { }
 
   /**
    * Take the accumulator vector (the vector that stores computed values)

@@ -32,7 +32,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -119,6 +118,7 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SimpleJobRunner;
+import com.dremio.exec.server.SourceVerifier;
 import com.dremio.exec.server.SysFlightChannelProvider;
 import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.OptionChangeBroadcaster;
@@ -268,6 +268,8 @@ import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.script.NoOpScriptServiceImpl;
+import com.dremio.service.script.NoOpScriptStoreImpl;
 import com.dremio.service.script.ScriptService;
 import com.dremio.service.script.ScriptServiceImpl;
 import com.dremio.service.script.ScriptStore;
@@ -472,10 +474,18 @@ public class DACDaemonModule implements DACModule {
             bootstrap.getExecutor()
         ));
 
+    com.dremio.services.credentials.CredentialsService credentialsService = com.dremio.services.credentials.CredentialsService.newInstance(config, scanResult);
+    registry.bind(com.dremio.services.credentials.CredentialsService.class, credentialsService);
+
     final Optional<SSLEngineFactory> conduitSslEngineFactory;
     try {
       final SSLConfigurator conduitSslConfigurator =
-        new SSLConfigurator(config, ConduitUtils.CONDUIT_SSL_PREFIX, "conduit");
+        new SSLConfigurator(
+          config,
+          registry.provider(com.dremio.services.credentials.CredentialsService.class),
+          ConduitUtils.CONDUIT_SSL_PREFIX,
+          "conduit"
+        );
 
       conduitSslEngineFactory = SSLEngineFactory.create(
         conduitSslConfigurator.getSSLConfig(false, fabricAddress));
@@ -484,21 +494,28 @@ public class DACDaemonModule implements DACModule {
       throw new RuntimeException(e);
     }
 
-    final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
-    registry.bind(ConduitServiceRegistry.class, conduitServiceRegistry);
-    final String inProcessServerName = UUID.randomUUID().toString();
-    registry.bind(ConduitServer.class,
-      new ConduitServer(
-        registry.provider(ConduitServiceRegistry.class),
-        config.getInt(DremioConfig.CONDUIT_PORT_INT),
-        conduitSslEngineFactory,
-        inProcessServerName
-      )
-    );
-
-    // should be after conduit server
-    final ConduitInProcessChannelProvider conduitInProcessChannelProvider = new ConduitInProcessChannelProvider(inProcessServerName);
-    registry.bind(ConduitInProcessChannelProvider.class, conduitInProcessChannelProvider);
+    ConduitServiceRegistry conduitServiceRegistry = null;
+    if (isCoordinator) {
+      conduitServiceRegistry = new ConduitServiceRegistryImpl();
+      registry.bind(ConduitServiceRegistry.class, conduitServiceRegistry);
+      final String inProcessServerName = UUID.randomUUID().toString();
+      registry.bind(ConduitServer.class,
+        new ConduitServer(
+          registry.provider(ConduitServiceRegistry.class),
+          config.getInt(DremioConfig.CONDUIT_PORT_INT),
+          conduitSslEngineFactory,
+          inProcessServerName
+        )
+      );
+      // should be after conduit server
+      final ConduitInProcessChannelProvider conduitInProcessChannelProvider = new ConduitInProcessChannelProvider(inProcessServerName,
+        registry.provider(RequestContext.class));
+      registry.bind(ConduitInProcessChannelProvider.class, conduitInProcessChannelProvider);
+    } else {
+      registry.bindProvider(ConduitServer.class, () -> {
+        return null;
+      });
+    }
 
     // for masterless case, this defaults to the local conduit server.
     final Provider<NodeEndpoint> conduitEndpoint;
@@ -521,7 +538,7 @@ public class DACDaemonModule implements DACModule {
     registry.bindProvider(DatasetCatalogServiceBlockingStub.class,
       () -> DatasetCatalogServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
 
-    registry.bindProvider(NessieApiV1.class, () -> getNessieClientInstance(config.getString(DremioConfig.NESSIE_SERVICE_REMOTE_URI), registry));
+    registry.bindProvider(NessieApiV1.class, () -> createNessieClientProvider(config, registry));
 
     registry.bind(
       KVStoreProvider.class,
@@ -565,9 +582,6 @@ public class DACDaemonModule implements DACModule {
         () -> bootstrap.getAllocator()
       )
     );
-
-    com.dremio.services.credentials.CredentialsService credentialsService = com.dremio.services.credentials.CredentialsService.newInstance(config, scanResult);
-    registry.bind(com.dremio.services.credentials.CredentialsService.class, credentialsService);
 
     // RPC Endpoints.
 
@@ -631,9 +645,12 @@ public class DACDaemonModule implements DACModule {
       registry.provider(GlobalKeysService.class),
       registry.provider(com.dremio.services.credentials.CredentialsService.class),
       registry.provider(ConduitInProcessChannelProvider.class),
-      registry.provider(SysFlightChannelProvider.class));
+      registry.provider(SysFlightChannelProvider.class),
+      registry.provider(SourceVerifier.class));
 
     registry.bind(SysFlightChannelProvider.class, SysFlightChannelProvider.NO_OP);
+
+    registry.bind(SourceVerifier.class, SourceVerifier.NO_OP);
 
     registry.bind(ContextService.class, contextService);
     registry.bindProvider(SabotContext.class, contextService::get);
@@ -696,16 +713,6 @@ public class DACDaemonModule implements DACModule {
       config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT),
       clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentEndPoint,
       isDistributedCoordinator));
-
-    final OptionChangeBroadcaster systemOptionChangeBroadcaster =
-      new OptionChangeBroadcaster(
-        registry.provider(ConduitProvider.class),
-        () -> registry.provider(ClusterCoordinator.class)
-          .get()
-          .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-          .getAvailableEndpoints(),
-        currentEndPoint);
-
     registry.bindProvider(UserSessionStoreProvider.class, UserSessionStoreProvider::new);
 
     final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(scanResult);
@@ -719,18 +726,26 @@ public class DACDaemonModule implements DACModule {
 
     final SystemOptionManager systemOptionManager;
     if (isCoordinator) {
+      final OptionChangeBroadcaster systemOptionChangeBroadcaster =
+        new OptionChangeBroadcaster(
+          registry.provider(ConduitProvider.class),
+          () -> registry.provider(ClusterCoordinator.class)
+            .get()
+            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+            .getAvailableEndpoints(),
+          currentEndPoint);
       systemOptionManager = new SystemOptionManager(optionValidatorListing,
         bootstrap.getLpPersistance(),
         registry.provider(LegacyKVStoreProvider.class),
         registry.provider(SchedulerService.class),
         systemOptionChangeBroadcaster,
-        !isCoordinator);
+        false);
       conduitServiceRegistry.registerService(new OptionNotificationService(registry.provider(SystemOptionManager.class)));
     } else {
       systemOptionManager = new SystemOptionManager(optionValidatorListing,
         bootstrap.getLpPersistance(),
         registry.provider(LegacyKVStoreProvider.class),
-        !isCoordinator);
+        true);
     }
 
     final OptionManagerWrapper optionManagerWrapper = OptionManagerWrapper.Builder.newBuilder()
@@ -830,21 +845,20 @@ public class DACDaemonModule implements DACModule {
         roles,
         () -> getMetadataRefreshModifiableScheduler(registry, isDistributedCoordinator)
     ));
-    conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(registry.provider(CatalogService.class),
-      bootstrap::getExecutor));
 
     if (isCoordinator) {
+      registerInformationSchemaService(conduitServiceRegistry, registry, bootstrap);
       conduitServiceRegistry.registerService(new CatalogServiceSynchronizer(registry.provider(CatalogService.class)));
       conduitServiceRegistry.registerService(new DatasetCatalogServiceImpl(
         registry.provider(CatalogService.class), registry.provider(NamespaceService.Factory.class)));
     }
 
     // Run initializers only on coordinator.
+    // Command pool is required only in the coordinator
     if (isCoordinator) {
       registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
+      registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(config, bootstrapRegistry.lookup(Tracer.class)));
     }
-
-    registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(config, bootstrapRegistry.lookup(Tracer.class)));
 
     final Provider<NamespaceService> namespaceServiceProvider = () -> sabotContextProvider.get().getNamespaceService(SYSTEM_USERNAME);
 
@@ -1290,7 +1304,8 @@ public class DACDaemonModule implements DACModule {
         registry.provider(TokenManager.class),
         registry.provider(OptionManager.class),
         registry.provider(UserSessionService.class),
-        registry.provider(DremioFlightAuthProvider.class)
+        registry.provider(DremioFlightAuthProvider.class),
+        registry.provider(com.dremio.services.credentials.CredentialsService.class)
       ));
     } else {
       logger.info("Not starting the flight service.");
@@ -1310,11 +1325,15 @@ public class DACDaemonModule implements DACModule {
       registry.bindSelf(nessieService);
     }
 
+    registry.bind(ScriptStore.class, new NoOpScriptStoreImpl());
+    registry.bind(ScriptService.class, new NoOpScriptServiceImpl());
+
     if (isCoordinator) {
       final ScriptStore scriptStore = new ScriptStoreImpl(registry.provider(KVStoreProvider.class));
-      registry.bind(ScriptStore.class, scriptStore);
+      registry.replace(ScriptStore.class, scriptStore);
 
-      registry.bind(ScriptService.class, ScriptServiceImpl.class);
+      final ScriptService scriptService = new ScriptServiceImpl(registry.provider(ScriptStore.class));
+      registry.replace(ScriptService.class, scriptService);
     }
 
     if (isCoordinator) {
@@ -1346,6 +1365,7 @@ public class DACDaemonModule implements DACModule {
       // but for userGroupService is not started yet so we cannot check for now
       registry.bind(WebServer.class, new WebServer(registry,
         dacConfig,
+        registry.provider(com.dremio.services.credentials.CredentialsService.class),
         registry.provider(RestServerV2.class),
         registry.provider(APIServer.class),
         registry.provider(DremioServer.class),
@@ -1546,7 +1566,8 @@ public class DACDaemonModule implements DACModule {
     return tablesMap;
   }
 
-  protected NessieApiV1 getNessieClientInstance(@Nullable String endpoint, final SingletonRegistry registry) {
+  private NessieApiV1 createNessieClientProvider(DremioConfig config, SingletonRegistry registry) {
+    String endpoint = config.getString(DremioConfig.NESSIE_SERVICE_REMOTE_URI);
     if (endpoint == null || endpoint.isEmpty()) {
       return GrpcClientBuilder.builder().withChannel(getOrCreateChannelToMaster(registry)).build(NessieApiV1.class);
     }
@@ -1573,5 +1594,13 @@ public class DACDaemonModule implements DACModule {
        () -> registry.provider(ClusterCoordinator.class).get(), () -> registry.provider(ClusterCoordinator.class).get(),
        () -> registry.provider(SabotContext.class).get().getEndpoint(),
        isDistributedCoordinator, ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, registry.provider(OptionManager.class));
+  }
+
+  protected void registerInformationSchemaService(ConduitServiceRegistry conduitServiceRegistry,
+                                                  SingletonRegistry registry,
+                                                  BootStrapContext bootstrap) {
+    InformationSchemaServiceImpl informationSchemaService = new InformationSchemaServiceImpl(registry.provider(CatalogService.class),
+      bootstrap::getExecutor);
+    conduitServiceRegistry.registerService(informationSchemaService);
   }
 }

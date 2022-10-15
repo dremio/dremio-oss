@@ -17,19 +17,17 @@ import jobsUtils from "@app/utils/jobsUtils";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import Immutable from "immutable";
-import Art from "@app/components/Art";
 import timeUtils from "utils/timeUtils";
+import { getIconPath } from "@app/utils/getIconPath";
+import { Tooltip } from "dremio-ui-lib";
 
 import "./Reflection.less";
 
 const renderIcon = (iconName, className) => {
   return (
-    <Art
-      src={iconName}
-      alt="Reflection Icon"
-      title="Reflection"
-      className={className}
-    />
+    <Tooltip title="Reflection">
+      <img src={getIconPath(iconName)} alt="Reflection" className={className} />
+    </Tooltip>
   );
 };
 
@@ -45,21 +43,23 @@ const Reflection = (props) => {
   const getReflectionIcon = (isStarFlake, reflectionType, isReflectionUsed) => {
     if (isStarFlake) {
       const starflakeIcon = isReflectionUsed
-        ? "StarflakeUsed.svg"
-        : "StarflakeNotUsed.svg";
+        ? "interface/starflake-used"
+        : "interface/starflake-not-used";
       const starflakeClassName = isReflectionUsed
         ? "starflakeUsed"
         : "starflakeNotUsed";
       return renderIcon(starflakeIcon, starflakeClassName);
     } else if (isReflectionUsed) {
       const reflectionUsedIcon =
-        reflectionType === "RAW" ? "Reflection.svg" : "ReflectionsUsedAgg.svg";
+        reflectionType === "RAW"
+          ? "interface/reflection"
+          : "interface/reflections-filled-agg";
       return renderIcon(reflectionUsedIcon, "reflectionIcon");
     } else if (!isReflectionUsed) {
       const reflectionNotUsedIcon =
         reflectionType === "RAW"
-          ? "ReflectionsNotUsedRaw.svg"
-          : "ReflectionsNotUsedAgg.svg";
+          ? "interface/reflections-created-raw"
+          : "interface/reflections-created-agg";
       const reflectionUsedClass =
         reflectionType === "RAW" ? "reflectionNotUsed" : "reflectionIcon";
       return renderIcon(reflectionNotUsedIcon, reflectionUsedClass);
@@ -77,7 +77,7 @@ const Reflection = (props) => {
             </div>
             {isAcceleration && (
               <span className="reflection-header__iconWrapper">
-                {renderIcon("Reflection.svg", "reflectionIcon")}
+                {renderIcon("interface/reflection", "reflectionIcon")}
                 <span>
                   {formatMessage({ id: "Reflections.Query_Accelerated" })}
                 </span>

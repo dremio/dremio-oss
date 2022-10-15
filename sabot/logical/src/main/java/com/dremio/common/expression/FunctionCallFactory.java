@@ -66,7 +66,7 @@ public class FunctionCallFactory {
 
   public static boolean isBooleanOperator(String funcName) {
     String opName = replaceOpWithFuncName(funcName);
-    return opName.equals("booleanAnd") || opName.equals("booleanOr");
+    return "booleanAnd".equals(opName) || "booleanOr".equals(opName);
   }
 
   /*

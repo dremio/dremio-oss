@@ -15,9 +15,9 @@
  */
 import { PureComponent } from "react";
 import Immutable from "immutable";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 import {
   title,
@@ -46,7 +46,10 @@ class SpaceContext extends PureComponent {
     return (
       <div>
         <h4 style={title}>About this Space</h4>
-        <div style={contextCard}>
+        <div
+          style={contextCard}
+          className={classes["contextCardPsuedoClasses"]}
+        >
           <div style={cardTitle}>Details</div>
           <ul style={contextAttrs}>
             <li
@@ -64,4 +67,4 @@ class SpaceContext extends PureComponent {
     );
   }
 }
-export default Radium(SpaceContext);
+export default SpaceContext;

@@ -15,7 +15,6 @@
  */
 package com.dremio.service.autocomplete.catalog.mock;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
@@ -31,6 +30,7 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**

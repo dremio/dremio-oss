@@ -19,6 +19,6 @@
 {
   "types": [
     "Bit", "TinyInt", "SmallInt", "Int", "BigInt", "Float4", "Float8", "DateMilli", "TimeMilli", "TimeStampMilli",
-    "IntervalYear", "IntervalDay", "Decimal", "VarBinary", "VarChar", "Map", "List", "Union"
+    "IntervalYear", "IntervalDay", "Decimal", "VarBinary", "VarChar", "Map", "List", "Union", "Struct"
   ]
 }

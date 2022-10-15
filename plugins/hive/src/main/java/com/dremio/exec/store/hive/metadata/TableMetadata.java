@@ -31,7 +31,7 @@ import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
  * Helper class to hold table metadata details used in {@link HiveStoragePlugin#getDatasetMetadata}
  * and {@link HiveStoragePlugin#listPartitionChunks}.
  */
-public class TableMetadata {
+public final class TableMetadata {
 
   private final Table table;
 

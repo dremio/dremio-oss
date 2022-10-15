@@ -16,13 +16,13 @@
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import static com.dremio.sabot.op.join.vhash.spill.slicer.Sizer.BYTE_SIZE_BITS;
-import static com.dremio.sabot.op.join.vhash.spill.slicer.Sizer.SV2_SIZE_BYTES;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -34,6 +34,7 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
+import com.dremio.sabot.op.join.vhash.spill.pool.PageSlice;
 import com.google.common.base.Preconditions;
 
 /**
@@ -49,18 +50,18 @@ public class PageBatchSlicer {
   private static final int STEP = 8;
 
   private final PagePool pool;
-  private final long sv2Addr;
+  private final ArrowBuf sv2;
   private final Sizer sizer;
   private Page currentPage;
 
-  public PageBatchSlicer(PagePool pool, long sv2Addr, VectorAccessible incoming) {
-    this(pool, sv2Addr, incoming, null);
+  public PageBatchSlicer(PagePool pool, ArrowBuf sv2, VectorAccessible incoming) {
+    this(pool, sv2, incoming, null);
   }
 
-  public PageBatchSlicer(PagePool pool, long sv2Addr, VectorAccessible incoming, ImmutableBitSet includedColumns) {
+  public PageBatchSlicer(PagePool pool, ArrowBuf sv2, VectorAccessible incoming, ImmutableBitSet includedColumns) {
     Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE);
     this.pool = pool;
-    this.sv2Addr = sv2Addr;
+    this.sv2 = sv2;
     List<Sizer> sizerList = new ArrayList<>();
 
     int index = 0;
@@ -125,9 +126,8 @@ public class PageBatchSlicer {
    * @return RecordBatch of copied data
    */
   public RecordBatchData copyToPageTillFull(Page page, int startIdx, int maxIdx) {
-    long startAddr = sv2Addr + startIdx * SV2_SIZE_BYTES;
-    PageFitResult fitResult = countRecordsToFitInPage(page.getRemainingBytes() * BYTE_SIZE_BITS, startAddr, maxIdx - startIdx + 1);
-    PagePlan plan = new PagePlan(fitResult.sizeBits, startAddr, startIdx, fitResult.recordCount, new SupplierWithCapacity(page));
+    PageFitResult fitResult = countRecordsToFitInPage(page.getRemainingBytes() * BYTE_SIZE_BITS, sv2, startIdx, maxIdx - startIdx + 1);
+    PagePlan plan = new PagePlan(fitResult.sizeBits, sv2, startIdx, fitResult.recordCount, new SupplierWithCapacity(page));
     return plan.copy();
   }
 
@@ -135,7 +135,7 @@ public class PageBatchSlicer {
 
     List<PagePlan> plans = new ArrayList<>();
 
-    long startAddr = sv2Addr;
+    int startIdx = 0;
     int remaining = totalRecordCount;
 
     sizer.reset();
@@ -143,44 +143,43 @@ public class PageBatchSlicer {
 
       // target the lesser of either the estimated count or the actual record count.
       SupplierWithCapacity current = supplier.getNextPage();
-      PageFitResult fitResult = countRecordsToFitInPage(current.getRemainingBits(), startAddr, remaining);
+      PageFitResult fitResult = countRecordsToFitInPage(current.getRemainingBits(), sv2, startIdx, remaining);
 
       // if we haven't been able to add any data to this page and there is no data in the page, we have to fail..
       if (fitResult.recordCount == 0 && !current.isPartial()) {
-        int required = sizer.computeBitsNeeded(startAddr, 1);
+        int required = sizer.computeBitsNeeded(sv2, startIdx, 1);
         throw new IllegalStateException(String.format("Even a single record will not fit in one page. Page size %d, size of 1 record %d.",
           current.getRemainingBits(), required));
       }
 
       if (fitResult.recordCount != 0) {
         // We added data until we filled up this page and have data remaining. Move to the rack and move to the next step.
-        int startIdx = (int)((startAddr - sv2Addr) / SV2_SIZE_BYTES);
-        plans.add(new PagePlan(fitResult.sizeBits, startAddr, startIdx, fitResult.recordCount, current));
+        plans.add(new PagePlan(fitResult.sizeBits, sv2, startIdx, fitResult.recordCount, current));
       }
 
-      startAddr += (fitResult.recordCount * SV2_SIZE_BYTES);
+      startIdx += fitResult.recordCount;
       remaining -= fitResult.recordCount;
     }
     return plans;
   }
 
-  private PageFitResult countRecordsToFitInPage(int availableBits, long startAddr, int remaining) {
+  private PageFitResult countRecordsToFitInPage(int availableBits, ArrowBuf sv2, int startIdx, int remaining) {
     sizer.reset();
     int recordSize = sizer.getEstimatedRecordSizeInBits();
 
     int recordCount = Math.min(recordSize == 0 ? remaining : availableBits / recordSize, remaining);
-    int sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
+    int sizeBits = sizer.computeBitsNeeded(sv2, startIdx, recordCount);
 
     // step until we can't take a full step.
     while (sizeBits < availableBits && recordCount < remaining) {
       recordCount = Math.min(recordCount + STEP, remaining);
-      sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
+      sizeBits = sizer.computeBitsNeeded(sv2, startIdx, recordCount);
     }
 
     // move backwards until we get within allowed bits.
     while (sizeBits > availableBits && recordCount > 0) {
       recordCount -= 1;
-      sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
+      sizeBits = sizer.computeBitsNeeded(sv2, startIdx, recordCount);
     }
 
     return new PageFitResult(recordCount, sizeBits);
@@ -210,12 +209,12 @@ public class PageBatchSlicer {
 
     public PagePlan(
         int expectedBits,
-        long startAddr,
+        ArrowBuf sv2,
         int startIdx,
         int count,
         SupplierWithCapacity pageSupplier) {
       this.expectedBits = expectedBits;
-      this.copier = sizer.getCopier(pool.getAllocator(), startAddr, count, output);
+      this.copier = sizer.getCopier(pool.getAllocator(), sv2, startIdx, count, output);
       this.pageSupplier = pageSupplier;
       this.startIdx = startIdx;
       this.count = count;
@@ -223,21 +222,25 @@ public class PageBatchSlicer {
 
     public RecordBatchPage copy() {
       final Page page = pageSupplier.getPage();
-      if (TRACE) {
-        int beforeBytes = page.getRemainingBytes();
-        System.out.println("Expected bits: " + expectedBits + ", available bits: " + page.getRemainingBytes() * BYTE_SIZE_BITS);
-        copier.copy(page);
-        int actual = (beforeBytes - page.getRemainingBytes()) * BYTE_SIZE_BITS;
-        if(actual > expectedBits) {
-          System.out.print("! ");
-        } else if (actual == expectedBits) {
-          System.out.print("= ");
+      try (Page capped = new PageSlice(page, expectedBits / BYTE_SIZE_BITS)) {
+        if (TRACE) {
+          int beforeBytes = page.getRemainingBytes();
+          System.out.println("Expected bits: " + expectedBits + ", available bits: " + page.getRemainingBytes() * BYTE_SIZE_BITS);
+          copier.copy(capped);
+          int actual = (beforeBytes - page.getRemainingBytes()) * BYTE_SIZE_BITS;
+          if (actual > expectedBits) {
+            System.out.print("! ");
+          } else if (actual == expectedBits) {
+            System.out.print("= ");
+          } else {
+            System.out.print("< ");
+          }
+          System.out.println("Expected bits: " + expectedBits + ", actual bits: " + (beforeBytes - page.getRemainingBytes()) * BYTE_SIZE_BITS);
         } else {
-          System.out.print("< ");
+          copier.copy(capped);
         }
-        System.out.println("Expected bits: " + expectedBits + ", actual bits: " + (beforeBytes - page.getRemainingBytes()) * BYTE_SIZE_BITS);
-      } else {
-        copier.copy(page);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
 
       // do validations
@@ -304,7 +307,6 @@ public class PageBatchSlicer {
       pages.addAll(newPages);
       return true;
     }
-
   }
 
   /**
@@ -350,5 +352,4 @@ public class PageBatchSlicer {
       return totalBits != remainingBits;
     }
   }
-
 }

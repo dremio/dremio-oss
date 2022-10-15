@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -36,6 +37,7 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserProtos.ColumnSearchability;
 import com.dremio.exec.proto.UserProtos.ColumnUpdatability;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowResp;
@@ -57,6 +59,9 @@ import com.google.protobuf.ByteString;
  */
 public class PreparedStatementProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PreparedStatementProvider.class);
+
+  // This constant represent the SQL Type Name used by older clients for Struct (which was MAP)
+  private static final String OLDER_CLIENT_STRUCT_SQL_TYPE_NAME = CompleteType.MAP.getSqlTypeName();
 
 
   /**
@@ -83,17 +88,32 @@ public class PreparedStatementProvider {
       .put(MinorType.INTERVALDAY, Period.class.getName())
       .put(MinorType.STRUCT, Object.class.getName())
       .put(MinorType.LIST, Object.class.getName())
+      .put(MinorType.MAP, Object.class.getName())
       .put(MinorType.UNION, Object.class.getName())
       .build();
 
   public static CreatePreparedStatementResp build(BatchSchema batchSchema, ServerPreparedStatementState handle,
-                                                  QueryId queryId, String catalogName) {
+                                                  QueryId queryId, String catalogName, UserProtos.RecordBatchFormat recordBatchFormat) {
     final CreatePreparedStatementResp.Builder respBuilder = CreatePreparedStatementResp.newBuilder();
     final PreparedStatement.Builder prepStmtBuilder = PreparedStatement.newBuilder();
     prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
 
+    /*
+     * Initially dremio used to map STRUCT data type to MAP minor type. Later when arrow was upgraded,
+     * MAP minor type is renamed to 'STRUCT'. SqlTypeName of this renamed STRUCT minor type was still called 'MAP',
+     * to allow backward compatibility.
+     *
+     * However, when MAP data type is introduced in dremio, a new minor type 'MAP' is created.
+     * This new minor type's SqlTypeName is decided to be kept as 'MAP'. To avoid confusion,
+     * SqlTypeName of STRUCT minor type is changed as 'STRUCT'.
+     * To allow backward compatibility, we convert SqlTypeName for STRUCT to MAP again here.
+     */
+    final Function<CompleteType, String> completeTypeToSqlTypeNameMap = isRecordBatchFormatLessThan23(recordBatchFormat)
+      ? ((type) -> type.isStruct() ? OLDER_CLIENT_STRUCT_SQL_TYPE_NAME : type.getSqlTypeName())
+      : CompleteType::getSqlTypeName;
+
     for (Field field : batchSchema) {
-      prepStmtBuilder.addColumns(serializeColumn(field, catalogName));
+      prepStmtBuilder.addColumns(serializeColumn(field, catalogName, completeTypeToSqlTypeNameMap));
     }
 
     respBuilder.setStatus(RequestStatus.OK);
@@ -104,23 +124,12 @@ public class PreparedStatementProvider {
   }
 
   public static CreatePreparedStatementArrowResp buildArrow(BatchSchema batchSchema, ServerPreparedStatementState handle,
-                                                  QueryId queryId, String catalogName) {
-    final CreatePreparedStatementArrowResp.Builder respBuilder = CreatePreparedStatementArrowResp.newBuilder();
-    final PreparedStatementArrow.Builder prepStmtBuilder = PreparedStatementArrow.newBuilder();
-    prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
-
-    final Schema arrowSchema = buildArrowSchema(batchSchema);
-
-    return getCreatePreparedStatementArrowResp(arrowSchema, prepStmtBuilder, respBuilder, queryId);
-  }
-
-  public static CreatePreparedStatementArrowResp buildArrow(BatchSchema batchSchema, ServerPreparedStatementState handle,
                                                   QueryId queryId) {
     final CreatePreparedStatementArrowResp.Builder respBuilder = CreatePreparedStatementArrowResp.newBuilder();
     final PreparedStatementArrow.Builder prepStmtBuilder = PreparedStatementArrow.newBuilder();
     prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
 
-    final Schema arrowSchema = new Schema(batchSchema.getFields());
+    final Schema arrowSchema = buildArrowSchema(batchSchema);
 
     return getCreatePreparedStatementArrowResp(arrowSchema, prepStmtBuilder, respBuilder, queryId);
   }
@@ -168,7 +177,6 @@ public class PreparedStatementProvider {
   private static Map<String, String> createTempFieldMetadata(final ArrowType arrowType) {
     final Map<String, String> flightSqlColumnMetadata = new HashMap<String, String>() {
       {
-        put("TYPE_NAME", "");
         put("SCHEMA_NAME", "");
         put("TABLE_NAME", "");
         put("IS_AUTO_INCREMENT", "false");
@@ -180,6 +188,8 @@ public class PreparedStatementProvider {
 
     if (arrowType != null) {
       final CompleteType type = new CompleteType(arrowType);
+
+      flightSqlColumnMetadata.put("TYPE_NAME", type.getSqlTypeName());
 
       Integer precision = type.getPrecision();
       if (precision != null){
@@ -200,7 +210,7 @@ public class PreparedStatementProvider {
    * @param field
    * @return
    */
-  private static ResultColumnMetadata serializeColumn(Field field, String catalogName) {
+  private static ResultColumnMetadata serializeColumn(Field field, String catalogName, Function<CompleteType, String> converter) {
     final ResultColumnMetadata.Builder builder = ResultColumnMetadata.newBuilder();
     final CompleteType type = CompleteType.fromField(field);
 //    final MajorType majorType = field.getMajorType();
@@ -234,7 +244,7 @@ public class PreparedStatementProvider {
     /*
      * Data type in string format. Value is SQL standard type.
      */
-    builder.setDataType(type.getSqlTypeName());
+    builder.setDataType(converter.apply(type));
 
     builder.setIsNullable(true);
 
@@ -290,6 +300,18 @@ public class PreparedStatementProvider {
     builder.setIsCurrency(false);
 
     return builder.build();
+  }
+
+  private static boolean isRecordBatchFormatLessThan23(UserProtos.RecordBatchFormat recordBatchFormat) {
+    switch (recordBatchFormat) {
+      case DRILL_1_0:
+      case DREMIO_0_9:
+      case DREMIO_1_4:
+      case UNKNOWN:
+        return true;
+      default:
+        return false;
+    }
   }
 
   public static class PreparedStatementHandler extends ResponseSenderHandler<CreatePreparedStatementResp> {

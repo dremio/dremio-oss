@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 import { useMemo } from "react";
-import {
-  Breadcrumbs,
-  ClickAwayListener,
-  Fade,
-  Popper,
-} from "@material-ui/core";
+import { Breadcrumbs, ClickAwayListener, Fade, Popper } from "@mui/material";
 import { bindToggle, bindPopper } from "material-ui-popup-state";
 import { usePopupState } from "material-ui-popup-state/hooks";
 

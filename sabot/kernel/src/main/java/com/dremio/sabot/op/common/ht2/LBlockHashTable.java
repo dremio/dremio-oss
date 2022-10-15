@@ -218,9 +218,11 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   }
 
   @Override
-  public void computeHash(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long outputAddr) {
-    final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
-        pivot.getBlockWidth(), numRecords, outputAddr, seed);
+  public void computeHash(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashOut8B) {
+    keyFixed.checkBytes(0, numRecords * pivot.getBlockWidth());
+    hashOut8B.checkBytes(0, numRecords * 8);
+    final BlockChunk blockChunk = new BlockChunk(keyFixed.memoryAddress(), keyVar.memoryAddress(), keyVar.capacity(), fixedOnly,
+        pivot.getBlockWidth(), numRecords, hashOut8B.memoryAddress(), seed);
     HashComputation.computeHash(blockChunk);
   }
 
@@ -229,33 +231,44 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    *
    * @param keyFixedVectorAddr starting address of fixed vector block
    * @param keyVarVectorAddr   starting address of variable vector block
+   * @param keyVarVectorSize   size of variable vector block
    * @param keyIndex           record #
    * @param keyHash            hashvalue (hashing is external to the hash table)
    * @return ordinal (of newly inserted key or existing key)
    */
-  public final int add(final long keyFixedVectorAddr, final long keyVarVectorAddr,
-                       final int keyIndex, final int keyHash) {
-    return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, true);
+  public int add(final long keyFixedVectorAddr, final long keyVarVectorAddr, final long keyVarVectorSize,
+                 final int keyIndex, final int keyHash) {
+    return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash, true);
   }
 
   /**
    * Search for a vector of keys. If any key doesn't exist, insert into the hashtable
    *
    * @param numRecords         number of records to search
-   * @param keyFixedVectorAddr starting address of fixed vector block
-   * @param keyVarVectorAddr   starting address of variable vector block
-   * @param hashVectorAddr8B   starting address of 8-byte hash vector block
-   * @param outputAddr         starting address of output vector block
+   * @param keyFixed           buffer holding fixed portion of keys
+   * @param keyVar             buffer holding variable portion of keys
+   * @param hash8B             buffer holding 8-byte hash values
+   * @param outOrdinals        hash-table ordinals (output)
    */
   @Override
-  public final int add(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long outputAddr) {
+  public int add(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals) {
     int keyIndex = 0;
 
+    keyFixed.checkBytes(0, numRecords * pivot.getBlockWidth());
+    hash8B.checkBytes(0, numRecords * 8);
+    outOrdinals.checkBytes(0, numRecords * ORDINAL_SIZE);
+
+    long outputAddr = outOrdinals.memoryAddress();
+    long hashVectorAddr8B = hash8B.memoryAddress();
+    final long keyFixedVectorAddr = keyFixed.memoryAddress();
+    final long keyVarVectorAddr = keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar.capacity();
     try {
       for (keyIndex = 0; keyIndex < numRecords; keyIndex++, outputAddr += 4, hashVectorAddr8B += 8) {
         final int keyHash = (int) PlatformDependent.getLong(hashVectorAddr8B);
 
-        PlatformDependent.putInt(outputAddr, add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+        PlatformDependent.putInt(outputAddr, add(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize,
+          keyIndex, keyHash));
       }
     } catch (OutOfMemoryException | HashTableMaxCapacityReachedException ex) {
       logger.debug(String.format("%s when trying to insert %d records (%d records were successfully inserted)",
@@ -271,24 +284,34 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   /**
    * Search for a vector of keys. If any key doesn't exist, insert into the hashtable
    *
+   * @param sv2                sv2 of valid ordinals
+   * @param pivotShift         shift to deduct in pivot block
    * @param numRecords         number of records to search
-   * @param sv2Addr            sv2Addr of valid ordinals
-   * @param keyFixedVectorAddr starting address of fixed vector block
-   * @param keyVarVectorAddr   starting address of variable vector block
-   * @param tableHashAddr4B     starting address of hash vector block
-   * @param outputAddr         starting address of output vector block
+   * @param keyFixed           buffer holding fixed portion of keys
+   * @param keyVar             buffer holding variable portion of keys
+   * @param hash4B             buffer holding 4-byte hash values
+   * @param outOrdinals        hash-table ordinals (output)
    */
-  /* XXX: Assumes, for now, that it add does not fail with OOM */
   @Override
-  public final int addSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long tableHashAddr4B, long outputAddr) {
+  public int addSv2(ArrowBuf sv2, int pivotShift, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash4B, ArrowBuf outOrdinals) {
     int index = 0;
 
+    keyFixed.checkBytes(0, numRecords * pivot.getBlockWidth());
+    hash4B.checkBytes(0, numRecords * 4);
+    outOrdinals.checkBytes(0, numRecords * ORDINAL_SIZE);
+
+    long outputAddr = outOrdinals.memoryAddress();
+    long tableHashAddr4B = hash4B.memoryAddress();
+    final long keyFixedVectorAddr = keyFixed.memoryAddress();
+    final long keyVarVectorAddr = keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar.capacity();
     try {
       for (index = 0 ; index < numRecords; index++, outputAddr += 4) {
-        final int keyIndex = SV2UnsignedUtil.read(sv2Addr, index);
-        final int keyHash = PlatformDependent.getInt(tableHashAddr4B + keyIndex * 4);
+        final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, index) - pivotShift;
+        assert keyIndex >= 0;
 
-        PlatformDependent.putInt(outputAddr, add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+        final int keyHash = PlatformDependent.getInt(tableHashAddr4B + keyIndex * 4);
+        PlatformDependent.putInt(outputAddr, add(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
       }
     } catch (OutOfMemoryException | HashTableMaxCapacityReachedException ex) {
       logger.debug(String.format("%s when trying to insert %d records (%d records were successfully inserted)",
@@ -306,31 +329,42 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    *
    * @param keyFixedVectorAddr starting address of fixed vector block
    * @param keyVarVectorAddr   starting address of variable vector block
+   * @param keyVarVectorSize   size of variable vector block
    * @param keyIndex           record #
    * @param keyHash            hashvalue (hashing is external to the hash table)
    * @return ordinal if the key exists, -1 otherwise
    * This function is used by {@link com.dremio.sabot.op.join.vhash.VectorizedHashJoinOperator}
    * since the operator has a probe only phase in which it only searches for matching keys
    */
-  public final int find(final long keyFixedVectorAddr, final long keyVarVectorAddr,
-                        final int keyIndex, final int keyHash) {
-    return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, false);
+  public int find(final long keyFixedVectorAddr, final long keyVarVectorAddr, long keyVarVectorSize,
+                  final int keyIndex, final int keyHash) {
+    return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash, false);
   }
 
   /**
    * Search for a vector of keys.
    *
    * @param numRecords         number of records to search
-   * @param keyFixedVectorAddr starting address of fixed vector block
-   * @param keyVarVectorAddr   starting address of variable vector block
-   * @param hashVectorAddr8B   starting address of 8-byte hash vector block
-   * @param outputAddr         starting address of output vector block
+   * @param keyFixed           buffer holding fixed portion of keys
+   * @param keyVar             buffer holding variable portion of keys
+   * @param hash8B             buffer holding 8-byte hash values
+   * @param outOrdinals        hash-table ordinals (output)
    */
   @Override
-  public final void find(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long outputAddr) {
+  public void find(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash8B, ArrowBuf outOrdinals) {
     NullComparator.Mode mode = nullComparator == null ? NullComparator.Mode.NONE : nullComparator.getMode();
-    int blockWidth = pivot.getBlockWidth();
-    long bitsAddr = keyFixedVectorAddr;
+
+    keyFixed.checkBytes(0, numRecords * pivot.getBlockWidth());
+    hash8B.checkBytes(0, numRecords * 8);
+    outOrdinals.checkBytes(0, numRecords * ORDINAL_SIZE);
+
+    final int blockWidth = pivot.getBlockWidth();
+    long bitsAddr = keyFixed.memoryAddress();
+    long outputAddr = outOrdinals.memoryAddress();
+    long hashVectorAddr8B = hash8B.memoryAddress();
+    final long keyFixedVectorAddr = keyFixed.memoryAddress();
+    final long keyVarVectorAddr = keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar.capacity();
 
     switch (mode) {
       default:
@@ -338,7 +372,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
         for (int keyIndex = 0; keyIndex < numRecords; keyIndex++, outputAddr += 4, hashVectorAddr8B += 8) {
           final int keyHash = (int) PlatformDependent.getLong(hashVectorAddr8B);
           PlatformDependent.putInt(outputAddr,
-            find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+            find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
         }
         break;
 
@@ -348,7 +382,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
           if ((PlatformDependent.getInt(bitsAddr) & four) == four) {
             final int keyHash = (int) PlatformDependent.getLong(hashVectorAddr8B);
             PlatformDependent.putInt(outputAddr,
-              find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+              find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
           } else {
             // the nulls are not comparable. as such, this doesn't match.
             PlatformDependent.putInt(outputAddr, SKIP);
@@ -362,7 +396,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
           if ((PlatformDependent.getLong(bitsAddr) & eight) == eight) {
             final int keyHash = (int) PlatformDependent.getLong(hashVectorAddr8B);
             PlatformDependent.putInt(outputAddr,
-              find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+              find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
           } else {
             // the nulls are not comparable. as such, this doesn't match.
             PlatformDependent.putInt(outputAddr, SKIP);
@@ -375,7 +409,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
           if (nullComparator.isComparableBigBits(bitsAddr)) {
             final int keyHash = (int) PlatformDependent.getLong(hashVectorAddr8B);
             PlatformDependent.putInt(outputAddr,
-              find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+              find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
           } else {
             // the nulls are not comparable. as such, this doesn't match.
             PlatformDependent.putInt(outputAddr, SKIP);
@@ -388,38 +422,51 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   /**
    * Search for a vector of keys.
    *
+   * @param sv2                sv2 of valid ordinals
+   * @param pivotShift         shift to be deducted to get the corresponding entry in pivot block
    * @param numRecords         number of records to search
-   * @param sv2Addr            sv2Addr of valid ordinals
-   * @param keyFixedVectorAddr starting address of fixed vector block
-   * @param keyVarVectorAddr   starting address of variable vector block
-   * @param hashVectorAddr4B   starting address of hash vector block
-   * @param outputAddr         starting address of output vector block
+   * @param keyFixed           buffer holding fixed portion of keys
+   * @param keyVar             buffer holding variable portion of keys
+   * @param hash4B             buffer holding 4-byte hash values
+   * @param outOrdinals        hash-table ordinals (output)
    */
   @Override
-  public final void findSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr4B, long outputAddr) {
+  public void findSv2(ArrowBuf sv2, int pivotShift, int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, ArrowBuf hash4B, ArrowBuf outOrdinals) {
     NullComparator.Mode mode = nullComparator == null ? NullComparator.Mode.NONE : nullComparator.getMode();
-    int blockWidth = pivot.getBlockWidth();
+
+    keyFixed.checkBytes(0, numRecords * pivot.getBlockWidth());
+    hash4B.checkBytes(0, numRecords * 4);
+    outOrdinals.checkBytes(0, numRecords * ORDINAL_SIZE);
+
+    final int blockWidth = pivot.getBlockWidth();
+    long outputAddr = outOrdinals.memoryAddress();
+    long hashVectorAddr4B = hash4B.memoryAddress();
+    final long keyFixedVectorAddr = keyFixed.memoryAddress();
+    final long keyVarVectorAddr = keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar.capacity();
 
     switch (mode) {
       default:
       case NONE:
         for (int i = 0; i < numRecords; i++, outputAddr += 4) {
-          final int keyIndex = SV2UnsignedUtil.read(sv2Addr, i);
+          final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, i) - pivotShift;
+          assert keyIndex >= 0;
           final int keyHash = PlatformDependent.getInt(hashVectorAddr4B + keyIndex * 4);
           PlatformDependent.putInt(outputAddr,
-            find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+            find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
         }
         break;
 
       case FOUR:
         int four = nullComparator.getFour();
         for (int i = 0; i < numRecords; i++, outputAddr += 4) {
-          final int keyIndex = SV2UnsignedUtil.read(sv2Addr, i);
+          final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, i) - pivotShift;
+          assert keyIndex >= 0;
           final long bitsAddr = keyFixedVectorAddr + keyIndex * blockWidth;
           if ((PlatformDependent.getInt(bitsAddr) & four) == four) {
             final int keyHash = PlatformDependent.getInt(hashVectorAddr4B + keyIndex * 4);
             PlatformDependent.putInt(outputAddr,
-              find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+              find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
           } else {
             // the nulls are not comparable. as such, this doesn't match.
             PlatformDependent.putInt(outputAddr, SKIP);
@@ -430,12 +477,13 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
       case EIGHT:
         long eight = nullComparator.getEight();
         for (int i = 0; i < numRecords; i++, outputAddr += 4) {
-          final int keyIndex = SV2UnsignedUtil.read(sv2Addr, i);
+          final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, i) - pivotShift;
+          assert keyIndex >= 0;
           final long bitsAddr = keyFixedVectorAddr + keyIndex * blockWidth;
           if ((PlatformDependent.getLong(bitsAddr) & eight) == eight) {
             final int keyHash = PlatformDependent.getInt(hashVectorAddr4B + keyIndex * 4);
             PlatformDependent.putInt(outputAddr,
-              find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+              find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
           } else {
             // the nulls are not comparable. as such, this doesn't match.
             PlatformDependent.putInt(outputAddr, SKIP);
@@ -445,12 +493,13 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
 
       case BIG:
         for (int i = 0; i < numRecords; i++, outputAddr += 4) {
-          final int keyIndex = SV2UnsignedUtil.read(sv2Addr, i);
+          final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, i) - pivotShift;
+          assert keyIndex >= 0;
           final long bitsAddr = keyFixedVectorAddr + keyIndex * blockWidth;
           if (nullComparator.isComparableBigBits(bitsAddr)) {
             final int keyHash = PlatformDependent.getInt(hashVectorAddr4B + keyIndex * 4);
             PlatformDependent.putInt(outputAddr,
-              find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+              find(keyFixedVectorAddr, keyVarVectorAddr, keyVarVectorSize, keyIndex, keyHash));
           } else {
             // the nulls are not comparable. as such, this doesn't match.
             PlatformDependent.putInt(outputAddr, SKIP);
@@ -467,7 +516,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   // operator while computing the hash. once hashjoin code is fixed like hashagg,
   // we can remove this along with add() and find() methods and directly call
   // getOrInsertWithRetry with pointers to records inside the pivot buffers, length of record etc
-  private int getOrInsert(final long keyFixedVectorAddr, final long keyVarVectorAddr,
+  private int getOrInsert(final long keyFixedVectorAddr, final long keyVarVectorAddr, long keyVarVectorSize,
                           final int keyIndex, final int keyHash, boolean insertNew) {
     final int blockWidth = pivot.getBlockWidth();
     final long keyFixedAddr = keyFixedVectorAddr + (blockWidth * keyIndex);
@@ -481,8 +530,11 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
       keyVarLen = 0;
     } else {
       dataWidth = blockWidth - VAR_OFFSET_SIZE;
-      keyVarAddr = keyVarVectorAddr + PlatformDependent.getInt(keyFixedAddr + dataWidth);
+      long keyVarOffset = PlatformDependent.getInt(keyFixedAddr + dataWidth);
+      keyVarAddr = keyVarVectorAddr + keyVarOffset;
       keyVarLen = PlatformDependent.getInt(keyVarAddr);
+      // check bound of the var section
+      Preconditions.checkState(keyVarOffset + LBlockHashTable.VAR_OFFSET_SIZE + keyVarLen <= keyVarVectorSize);
     }
 
     return getOrInsertWithRetry(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew);
@@ -584,7 +636,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
           (fixedOnly ||
            variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] +
                                          PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))) {
-          if (!insertNew || spaceCheckListener.resizeListenerHasSpace(resizeListener, dataChunkIndex, seed)) {
+          if (!insertNew || spaceCheckListener.resizeListenerHasSpace(resizeListener, dataChunkIndex, offsetInChunk, seed)) {
             return ordinal;
           }
           /* Space check have failed. Batches must have rehashed so retry again. */
@@ -604,18 +656,17 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
       keyVarAddr, keyVarLen, seed);
   }
 
-    // Get the length of the variable keys for the ordinals specified in keyVectorAddr.
+  // Get the length of the variable keys for the specified ordinals.
   @Override
-  public int getCumulativeVarKeyLength(long keyVectorAddr, int numRecords) {
+  public int getCumulativeVarKeyLength(ArrowBuf ordinals, int numRecords) {
     if (fixedOnly) {
       return 0;
     } else {
+      ordinals.checkBytes(0, numRecords * ORDINAL_SIZE);
       int size = 0;
-      long maxKeyVectorAddr = keyVectorAddr + ORDINAL_SIZE * numRecords;
-      final int blockWidth = pivot.getBlockWidth();
-
-      for (; keyVectorAddr < maxKeyVectorAddr; keyVectorAddr += ORDINAL_SIZE) {
-        final int ordinal = PlatformDependent.getInt(keyVectorAddr);
+      long maxAddr = ordinals.memoryAddress() + ORDINAL_SIZE * numRecords;
+      for (long curAddr = ordinals.memoryAddress(); curAddr < maxAddr; curAddr += ORDINAL_SIZE) {
+        final int ordinal = PlatformDependent.getInt(curAddr);
         size += getVarKeyLengthForOrdinal(ordinal);
       }
       return size;
@@ -623,19 +674,21 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   }
 
   @Override
-  public void getVarKeyLengths(long keyVectorAddr, int numRecords, long outAddr) {
+  public void getVarKeyLengths(ArrowBuf ordinals, int numRecords, ArrowBuf outLengths) {
+    ordinals.checkBytes(0, numRecords * ORDINAL_SIZE);
+    outLengths.checkBytes(0, numRecords * VAR_LENGTH_SIZE);
+
+    final long ordinalsAddr = ordinals.memoryAddress();
+    final long outAddr = outLengths.memoryAddress();
     if (fixedOnly) {
       for (int i = 0; i < numRecords; ++i) {
         PlatformDependent.putInt(outAddr + (i * VAR_LENGTH_SIZE), 0);
       }
     } else {
-      long maxKeyVectorAddr = keyVectorAddr + ORDINAL_SIZE * numRecords;
-      long curOutAddr = outAddr;
-
-      for (; keyVectorAddr < maxKeyVectorAddr; keyVectorAddr += ORDINAL_SIZE, curOutAddr += VAR_LENGTH_SIZE) {
-        final int ordinal = PlatformDependent.getInt(keyVectorAddr);
+      for (int i = 0; i < numRecords; ++i) {
+        final int ordinal = PlatformDependent.getInt(ordinalsAddr + i * ORDINAL_SIZE);
         final int size = getVarKeyLengthForOrdinal(ordinal);
-        PlatformDependent.putInt(curOutAddr, size);
+        PlatformDependent.putInt(outAddr + i * VAR_LENGTH_SIZE, size);
       }
     }
   }
@@ -650,20 +703,26 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
     return PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
   }
 
-  /* Copy the keys of the records specified in keyOffsetAddr to destination memory
-   * keyOffsetAddr contains all the ordinals of keys
-   * count is the number of keys
-   * keyFixedAddr is the destination memory for fixed keys
-   * keyVarAddr is the destination memory for variable keys
+  /**
+   * Copy the keys of the records specified to destination memory (keyFixed/keyVar).
+   *
+   * @param ordinals buffer holding ordinals
+   * @param count count of ordinals
+   * @param keyFixed dest for fixed portions of keys
+   * @param keyVar dest for variable portion of keys
    */
   @Override
-  public void copyKeysToBuffer(long keyOffsetAddr, final int count, long keyFixedAddr, long keyVarAddr) {
-    final long maxAddr = keyOffsetAddr + count * ORDINAL_SIZE;
+  public void copyKeysToBuffer(ArrowBuf ordinals, final int count, ArrowBuf keyFixed, ArrowBuf keyVar) {
+    ordinals.checkBytes(0, count * ORDINAL_SIZE);
+    keyFixed.checkBytes(0, count * pivot.getBlockWidth());
+
+    final long maxAddr = ordinals.memoryAddress() + count * ORDINAL_SIZE;
     final int blockWidth = pivot.getBlockWidth();
+    long keyFixedAddr = keyFixed.memoryAddress();
     if (fixedOnly) {
-      for (; keyOffsetAddr < maxAddr; keyOffsetAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
+      for (long ordinalAddr = ordinals.memoryAddress(); ordinalAddr < maxAddr; ordinalAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
         // Copy the fixed key that is pivoted in Pivots.pivot
-        final int ordinal = PlatformDependent.getInt(keyOffsetAddr);
+        final int ordinal = PlatformDependent.getInt(ordinalAddr);
         final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
         final int offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
         final long tableFixedAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
@@ -671,9 +730,11 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
       }
     } else {
       int varOffset = 0;
-      for (; keyOffsetAddr < maxAddr; keyOffsetAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
+      final long keyVarAddr = keyVar.memoryAddress();
+      final long keyVarBufSize = keyVar.capacity();
+      for (long ordinalAddr = ordinals.memoryAddress(); ordinalAddr < maxAddr; ordinalAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
         // Copy the fixed keys that is pivoted in Pivots.pivot
-        final int ordinal = PlatformDependent.getInt(keyOffsetAddr);
+        final int ordinal = PlatformDependent.getInt(ordinalAddr);
         final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
         final int offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
         final long tableFixedAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
@@ -685,6 +746,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
         final long tableVarOffsetAddr = tableFixedAddr + blockWidth - VAR_OFFSET_SIZE;
         final int tableVarOffset = PlatformDependent.getInt(tableVarOffsetAddr);
         final int varLen = PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
+        Preconditions.checkState(varOffset + varLen <= keyVarBufSize);
         Copier.copy(initVariableAddresses[dataChunkIndex] + tableVarOffset, keyVarAddr + varOffset, varLen);
 
         varOffset += varLen;
@@ -852,13 +914,13 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
 
     // first we need to make sure we are up to date on the
     final int dataChunkIndex = insertedOrdinal >>> BITS_IN_CHUNK;
+    final int offsetInChunk = insertedOrdinal & CHUNK_OFFSET_MASK;
 
-    if (!spaceCheckListener.resizeListenerHasSpace(resizeListener, dataChunkIndex, seed)) {
+    if (!spaceCheckListener.resizeListenerHasSpace(resizeListener, dataChunkIndex, offsetInChunk, seed)) {
       /* Space check has failed. Batches must have rehashed so retry again. */
       return RETRY_RETURN_CODE;
     }
 
-    final int offsetInChunk = insertedOrdinal & CHUNK_OFFSET_MASK;
     final long tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
 
     // set the ordinal value for the insertion.
@@ -922,6 +984,12 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    */
   public int getRecordsInBatch(final int batchIndex) {
     Preconditions.checkArgument(batchIndex < blocks(), "Error: invalid batch index");
+    /* If blockWidth == 0, there will be only one entry */
+    if (pivot.getBlockWidth() == 0) {
+      Preconditions.checkState(fixedBlocks[batchIndex].getUnderlying().readableBytes() == 0);
+      Preconditions.checkState(relativeSize() == 1 || relativeSize() == 0);
+      return relativeSize();
+    }
     final int records = LargeMemoryUtil.checkedCastToInt((fixedBlocks[batchIndex].getUnderlying().readableBytes()) / pivot.getBlockWidth());
     Preconditions.checkArgument(records <= MAX_VALUES_PER_BATCH, "Error: detected invalid number of records in batch");
     return records;
@@ -1216,7 +1284,13 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
 
   @Override
   public int size() {
-    return currentOrdinal;
+    /* Return the actual number of records are inserted */
+    return relativeSize();
+  }
+
+  @Override
+  public int getMaxOrdinal() {
+    return currentOrdinal - 1;
   }
 
   public int relativeSize() {

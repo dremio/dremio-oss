@@ -77,3 +77,11 @@ message RuntimeFilter {
   optional CompositeColumnFilter partitionColumnFilter = 3;
   repeated CompositeColumnFilter nonPartitionColumnFilter = 4;
 }
+
+/**
+ * Message sent to shrink memory usage
+ * Using a protobuf for extensibility in the future
+ */
+message ShrinkMemoryUsage {
+  optional int64 memory_in_bytes = 1;
+}

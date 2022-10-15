@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, createRef } from "react";
+import { cloneElement, Children, Component, createRef } from "react";
 
 import PropTypes from "prop-types";
 
 import { Tooltip } from "components/Tooltip";
-import HoverHelp from "components/HoverHelp";
 
-import { FormValidationMessage } from "dremio-ui-lib";
+import { FormValidationMessage, HoverHelp } from "dremio-ui-lib";
 
 import forms from "uiTheme/radium/forms";
 import classNames from "classnames";
@@ -78,7 +77,7 @@ class FieldWithError extends Component {
         style={{ ...(style || {}), position: "relative" }}
       >
         {this.renderLabel()}
-        {React.cloneElement(React.Children.only(children), { ref: "target" })}
+        {cloneElement(Children.only(children), { ref: "target" })}
         {showError && (
           <FormValidationMessage className="margin-top-half" dataQa="error">
             {error}

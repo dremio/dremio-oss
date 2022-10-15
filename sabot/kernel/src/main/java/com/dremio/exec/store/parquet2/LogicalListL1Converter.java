@@ -66,7 +66,7 @@ public class LogicalListL1Converter extends GroupConverter implements ParquetLis
     if (!isSupportedSchema(schema)) {
       throw UserException.dataReadError()
         .message("Unsupported LOGICAL LIST parquet schema")
-        .addContext("schema", schema)
+        .addContext("schema: %s", schema)
         .build(logger);
     }
 

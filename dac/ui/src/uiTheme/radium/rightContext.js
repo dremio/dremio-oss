@@ -26,9 +26,6 @@ export const cardTitle = {
 
 export const contextCard = {
   padding: 10,
-  ":hover": {
-    backgroundColor: "#fff",
-  },
 };
 
 export const contextAttrs = {

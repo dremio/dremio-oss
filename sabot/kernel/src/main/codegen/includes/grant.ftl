@@ -50,6 +50,7 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
   SqlIdentifier grantee;
   SqlLiteral granteeType;
   boolean isCatalog = true;
+  boolean isScript = false;
   boolean isGrantOnAll = false;
   boolean isDCSEntity = false;
 }
@@ -136,6 +137,14 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         isCatalog = false;
       }
       |
+      <SCRIPT> {
+        pos = getPos();
+        entity = SimpleIdentifier();
+        isDCSEntity = false;
+        isCatalog = false;
+        isScript = true;
+      }
+      |
       <ALL> <DATASETS> <IN>
       (
         (<FOLDER> | <SCHEMA>) {
@@ -169,6 +178,9 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
       }
       if (isCatalog) {
         return new SqlGrantOnCatalog(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+      }
+      if (isScript) {
+        return new SqlGrantOnScript(pos, privilegeList, entity, granteeType, grantee);
       }
 
       return new SqlGrant(pos, privilegeList, grant.getType(), grantee, granteeType);
@@ -223,6 +235,9 @@ void Privilege(List<SqlNode> list) :
     <VIEW> <REFLECTION>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.VIEW_REFLECTION, getPos())); }
     |
+    <VIEW>
+    { list.add(SqlLiteral.createSymbol(SqlGrantOnScript.Privilege.VIEW, getPos())); }
+    |
     <MODIFY>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.MODIFY, getPos())); }
     |
@@ -255,6 +270,9 @@ void Privilege(List<SqlNode> list) :
     |
     <CREATE> <PROJECT>
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_PROJECT, getPos())); }
+    |
+    <CREATE> <CATALOG>
+    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_ARCTIC_CATALOG, getPos())); }
     |
     <CONFIGURE> <SECURITY>
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CONFIGURE_SECURITY, getPos())); }
@@ -312,6 +330,7 @@ SqlNode SqlRevoke() :
   boolean isCatalog = true;
   boolean isGrantOnAll = false;
   boolean isDCSEntity = false;
+  boolean isScript = false;
 }
 {
   <REVOKE> { pos = getPos(); }
@@ -396,6 +415,14 @@ SqlNode SqlRevoke() :
         isCatalog = false;
       }
       |
+      <SCRIPT> {
+        pos = getPos();
+        entity = SimpleIdentifier();
+        isDCSEntity = false;
+        isCatalog = false;
+        isScript = true;
+      }
+      |
       <ALL> <DATASETS> <IN>
       (
         (<FOLDER> | <SCHEMA>) {
@@ -429,6 +456,9 @@ SqlNode SqlRevoke() :
       }
       if (isCatalog) {
         return new SqlRevokeOnCatalog(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+      }
+      if (isScript) {
+        return new SqlRevokeOnScript(pos, privilegeList, entity, granteeType, grantee);
       }
 
       return new SqlRevoke(pos, privilegeList, grant.getType(), grantee, granteeType);
@@ -493,6 +523,11 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
     |
     <CLOUD> {
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.CLOUD, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <CATALOG> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.ARCTIC_CATALOG, getPos()));
       entity = SimpleIdentifier();
     }
     |

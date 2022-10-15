@@ -65,7 +65,15 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
                           final String version,
                           final boolean isSecure,
                           final AsyncHttpClient asyncHttpClient) {
-    this(azureEndpoint, accountName, path, authProvider, version, isSecure, asyncHttpClient, new AsyncReadWithRetry());
+    this(azureEndpoint, accountName, path, authProvider, version, isSecure, asyncHttpClient, new AsyncReadWithRetry(throwable -> {
+      if (throwable.getMessage().contains("ConditionNotMet")) {
+        return AsyncReadWithRetry.Error.PRECONDITION_NOT_MET;
+      } else if (throwable.getMessage().contains("PathNotFound")) {
+        return AsyncReadWithRetry.Error.PATH_NOT_FOUND;
+      } else {
+        return AsyncReadWithRetry.Error.UNKNOWN;
+      }
+    }));
   }
 
   public AzureAsyncReader(final String azureEndpoint,

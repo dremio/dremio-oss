@@ -26,18 +26,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.validate.SqlValidator;
-import org.apache.calcite.sql.validate.SqlValidatorScope;
+import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 
+import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.SimpleCatalog;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 
@@ -50,12 +55,7 @@ public final class FunctionDictionary {
 
   private FunctionDictionary(ImmutableMap<String, Function> map) {
     Preconditions.checkNotNull(map);
-    ImmutableMap.Builder<String, Function> copy = new ImmutableMap.Builder<>();
-    for (String key : map.keySet()) {
-      copy.put(key.toUpperCase(), map.get(key));
-    }
-
-    this.map = copy.build();
+    this.map = map;
   }
 
   public Optional<Function> tryGetValue(String functionName) {
@@ -67,30 +67,45 @@ public final class FunctionDictionary {
   }
   public Collection<String> getKeys() { return this.map.keySet(); }
 
-  public static FunctionDictionary create(
-    List<SqlFunction> sqlFunctions,
-    SqlValidator sqlValidator,
-    SqlValidatorScope sqlValidatorScope,
-    boolean enableSignatures) {
-    Preconditions.checkNotNull(sqlFunctions);
-    Preconditions.checkNotNull(sqlValidator);
-    Preconditions.checkNotNull(sqlValidatorScope);
-
-    Map<String, Function> functionsGroupedByName = sqlFunctions
+  public static FunctionDictionary create(List<Function> functions) {
+    Map<String, Function> mergedFunctions = functions
       .stream()
-      .map(sqlFunction -> FunctionFactory.createFromSqlFunction(
-        sqlFunction,
-        sqlValidator,
-        sqlValidatorScope,
-        enableSignatures))
       .collect(
         groupingBy(
           function -> function.getName().toUpperCase(),
           collectingAndThen(
-            toList(),
-            Function::mergeOverloads)));
+            ImmutableList.toImmutableList(),
+            FunctionMerger::merge)));
+    ImmutableMap.Builder<String, Function> builder = new ImmutableMap.Builder();
+    for (String functionName : mergedFunctions.keySet()) {
+      Function function = FunctionOverrides
+        .tryGetOverride(functionName)
+        .orElse(mergedFunctions.get(functionName));
+      builder.put(functionName, function);
+    }
 
-    return new FunctionDictionary(ImmutableMap.copyOf(functionsGroupedByName));
+    return new FunctionDictionary(builder.build());
+  }
+
+  public static FunctionDictionary create(SqlOperatorTable sqlOperatorTable, SimpleCatalog<?> catalog) {
+    final DremioCatalogReader catalogReader = new DremioCatalogReader(
+      catalog,
+      JavaTypeFactoryImpl.INSTANCE);
+    final SqlOperatorTable chainedOperatorTable = ChainedSqlOperatorTable.of(
+      sqlOperatorTable,
+      catalogReader);
+
+    return FunctionDictionary.create(chainedOperatorTable
+      .getOperatorList()
+      .stream()
+      .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
+      .map(function -> (SqlFunction) function)
+      .map(sqlFunction -> FunctionDictionary.INSTANCE
+          .tryGetValue(sqlFunction.getName())
+          .orElse(ImmutableFunction.builder()
+            .name(sqlFunction.getName())
+            .build()))
+      .collect(toList()));
   }
 
   public static FunctionDictionary createFromResourceFile(String resourcePath) {
@@ -103,9 +118,12 @@ public final class FunctionDictionary {
 
     try {
       String yaml = Resources.toString(url, Charsets.UTF_8);
-      List<FunctionBaseline> baselines = new ObjectMapper(new YAMLFactory()).registerModule(new GuavaModule()).readValue(
-        yaml,
-        new TypeReference<List<FunctionBaseline>>() {});
+      List<FunctionBaseline> baselines = new ObjectMapper(new YAMLFactory())
+        .registerModule(new GuavaModule())
+        .registerModule(new Jdk8Module())
+        .readValue(
+          yaml,
+          new TypeReference<List<FunctionBaseline>>() {});
 
       ImmutableMap.Builder<String, Function> builder = new ImmutableMap.Builder<>();
       for (FunctionBaseline functionBaseline : baselines) {
@@ -117,7 +135,6 @@ public final class FunctionDictionary {
       throw new RuntimeException(e);
     }
   }
-
 
   private static final class FunctionBaseline {
     private final String description;

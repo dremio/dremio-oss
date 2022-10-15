@@ -40,7 +40,7 @@ import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchSample;
 import com.dremio.plugins.elastic.planning.rules.PredicateAnalyzer.Residue;
 
-public class ElasticFilterRule extends RelOptRule {
+public final class ElasticFilterRule extends RelOptRule {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticFilterRule.class);
 
   public static final ElasticFilterRule INSTANCE = new ElasticFilterRule();

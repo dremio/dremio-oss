@@ -66,4 +66,8 @@ public interface ReflectionOptions {
   StringValidator NESSIE_REFLECTIONS_NAMESPACE = new StringValidator("reflection.manager.nessie_iceberg_namespace", "dremio.reflections");
   BooleanValidator AUTO_REBUILD_PLAN = new BooleanValidator("reflection.manager.auto_plan_rebuild", true);
   BooleanValidator REFRESH_AFTER_DESERIALIZATION_FAILURE = new BooleanValidator("reflection.manager.auto_refresh_failed", false);
+  // should reflection settings and refresh cache be enabled during reflection manager syncs
+  BooleanValidator REFLECTION_MANAGER_SYNC_CACHE = new BooleanValidator("reflection.manager.sync.cache.enabled", true);
+  // Enable reflection tab in NESSIE and ARCTIC source dialogs
+  BooleanValidator REFLECTION_ARCTIC_ENABLED = new BooleanValidator("reflection.arctic.enabled", false);
 }

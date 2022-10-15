@@ -19,6 +19,7 @@ import static com.dremio.exec.store.hive.HiveConfFactory.HIVE_DEFAULT_CTAS_FORMA
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.DIR_LIST_INPUT_SPLIT;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.ICEBERG_MANIFEST_SPLIT;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.INPUT_SPLIT;
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils.metadataSourceAvailable;
 import static java.lang.Math.toIntExact;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
@@ -46,6 +47,7 @@ import java.util.function.Supplier;
 import javax.inject.Provider;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -97,6 +99,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.dotfile.View;
@@ -129,6 +132,7 @@ import com.dremio.exec.store.dfs.ChangeColumn;
 import com.dremio.exec.store.dfs.CreateParquetTableEntry;
 import com.dremio.exec.store.dfs.DropColumn;
 import com.dremio.exec.store.dfs.DropPrimaryKey;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.hive.exec.AsyncReaderUtils;
 import com.dremio.exec.store.hive.exec.HadoopFsCacheWrapperPluginClassLoader;
@@ -193,6 +197,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -468,14 +473,16 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
   @Override
   public TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier) {
-    IcebergHiveTableIdentifier hiveTableIdentifier = (IcebergHiveTableIdentifier) tableIdentifier;
-    DremioFileIO fileIO = new DremioFileIO(fs, (Iterable<Map.Entry<String, String>>)hiveConf, this);
-    if (hiveConf.getBoolean(HiveConfFactory.ENABLE_DML_TESTS_WITHOUT_LOCKING, false)) {
-      return new NoOpHiveTableOperations(hiveConf, getClient(SystemUser.SYSTEM_USERNAME),
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+      IcebergHiveTableIdentifier hiveTableIdentifier = (IcebergHiveTableIdentifier) tableIdentifier;
+      DremioFileIO fileIO = new DremioFileIO(fs, (Iterable<Map.Entry<String, String>>)hiveConf, this);
+      if (hiveConf.getBoolean(HiveConfFactory.ENABLE_DML_TESTS_WITHOUT_LOCKING, false)) {
+        return new NoOpHiveTableOperations(hiveConf, getClient(SystemUser.SYSTEM_USERNAME),
+          fileIO, IcebergHiveModel.HIVE, hiveTableIdentifier.getNamespace(), hiveTableIdentifier.getTableName());
+      }
+      return new HiveTableOperations(hiveConf, getClient(queryUserName),
         fileIO, IcebergHiveModel.HIVE, hiveTableIdentifier.getNamespace(), hiveTableIdentifier.getTableName());
     }
-    return new HiveTableOperations(hiveConf, getClient(queryUserName),
-      fileIO, IcebergHiveModel.HIVE, hiveTableIdentifier.getNamespace(), hiveTableIdentifier.getTableName());
   }
 
   @Override
@@ -545,7 +552,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
           // do an early check for create privileges since the createTable call will only happen after all
           // data files are written
           client.checkCreateTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
-          tableFolderLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, writerOptions.getTableLocation());
+          String tableLocation = resolveTableLocation(schemaComponents, schemaConfig, writerOptions);
+          tableFolderLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, tableLocation);
           break;
 
         case DELETE:
@@ -580,13 +588,30 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     return new CreateParquetTableEntry(schemaConfig.getUserName(), this, tableFolderPath.toString(), icebergTableProps, writerOptions, tableSchemaPath);
   }
 
+  String resolveTableLocation(HiveMetadataUtils.SchemaComponents schemaComponents, SchemaConfig schemaConfig, WriterOptions writerOptions) {
+    if (StringUtils.isNotEmpty(writerOptions.getTableLocation())) {
+      return writerOptions.getTableLocation();
+    }
+
+    if (!optionManager.getOption(ExecConstants.ENABLE_HIVE_DATABASE_LOCATION)) {
+      return null;
+    }
+
+    String dbLocationUri = getClient(schemaConfig.getUserName()).getDatabaseLocationUri(schemaComponents.getDbName());
+    if (StringUtils.isNotEmpty(dbLocationUri)) {
+      return PathUtils.removeTrailingSlash(dbLocationUri) + '/' + schemaComponents.getTableName();
+    }
+
+    return null;
+  }
 
   @Override
   public void createEmptyTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, BatchSchema batchSchema, WriterOptions writerOptions) {
     final HiveMetadataUtils.SchemaComponents schemaComponents =
       HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents(), false);
 
-    String tableLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, writerOptions.getTableLocation());
+    String tableLocation = resolveTableLocation(schemaComponents, schemaConfig, writerOptions);
+    tableLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, tableLocation);
     IcebergModel icebergModel = getIcebergModel(tableLocation, schemaComponents, schemaConfig.getUserName());
 
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(schemaComponents.getTableName(),
@@ -737,7 +762,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   public void addPrimaryKey(NamespaceKey table,
                             DatasetConfig datasetConfig,
                             SchemaConfig schemaConfig,
-                            List<Field> columns) {
+                            List<Field> columns,
+                            ResolvedVersionContext versionContext) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents(), false);
@@ -753,7 +779,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   @Override
   public void dropPrimaryKey(NamespaceKey table,
                              DatasetConfig datasetConfig,
-                             SchemaConfig schemaConfig) {
+                             SchemaConfig schemaConfig,
+                             ResolvedVersionContext versionContext) {
     HiveClient client = getClient(schemaConfig.getUserName());
     final HiveMetadataUtils.SchemaComponents schemaComponents =
         HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents(), false);
@@ -764,6 +791,50 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig,
       getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
     op.performOperation();
+  }
+
+  @Override
+  public List<String> getPrimaryKey(NamespaceKey table,
+                                    DatasetConfig datasetConfig,
+                                    SchemaConfig schemaConfig,
+                                    ResolvedVersionContext versionContext,
+                                    boolean saveInKvStore) {
+    if (datasetConfig.getPhysicalDataset() == null || // PK only supported for physical datasets
+      datasetConfig.getPhysicalDataset().getIcebergMetadata() == null) { // Physical dataset not Iceberg format
+      return null;
+    }
+
+    return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
+  }
+
+  @Override
+  public List<String> getPrimaryKeyFromMetadata(NamespaceKey table,
+                                                DatasetConfig datasetConfig,
+                                                SchemaConfig schemaConfig,
+                                                ResolvedVersionContext versionContext,
+                                                boolean saveInKvStore) {
+    final String userName = schemaConfig.getUserName();
+    HiveClient client = getClient(userName);
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+      HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents(), false);
+    client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    final IcebergModel icebergModel;
+    final String path;
+    if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
+      final FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+      icebergModel = metaStoragePlugin.getIcebergModel(metaStoragePlugin.getSystemUserFS());
+      String metadataTableName = datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
+      path = metaStoragePlugin.resolveTablePathToValidPath(metadataTableName).toString();
+    } else if (DatasetHelper.isIcebergDataset(datasetConfig)) {
+      SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(userName), datasetConfig);
+      path = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+      icebergModel = getIcebergModel(path, schemaComponents, userName);
+    } else {
+      return null;
+    }
+
+    return IcebergUtils.getPrimaryKey(icebergModel, path, table, datasetConfig, userName, this, context, saveInKvStore);
   }
 
   @Override
@@ -1056,7 +1127,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       return MetadataValidity.INVALID;
     }
     boolean includeComplexTypes = optionManager.getOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED);
-    int hiveTableHash = HiveMetadataUtils.getBatchSchema(table, hiveConf, includeComplexTypes).hashCode();
+    boolean isMapTypeEnabled = optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
+    int hiveTableHash = HiveMetadataUtils.getBatchSchema(table, hiveConf, includeComplexTypes, isMapTypeEnabled).hashCode();
     if (hiveTableHash != tableSchema.hashCode()) {
       // refresh metadata if converted schema is not same as schema in kvstore
       return MetadataValidity.INVALID;

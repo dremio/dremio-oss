@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -952,15 +953,16 @@ class RocksDBStore implements ByteStore {
     @Override
     public BlobStats getStats() {
       try {
-        final Iterator<Path> iter = Files.list(base).iterator();
         long count = 0;
         long size = 0;
-        while (iter.hasNext()) {
-          Path p = iter.next();
-          count++;
-          size += Files.size(p);
+        try (Stream<Path> stream = Files.list(base)) {
+          Iterator<Path> iter = stream.iterator();
+          while (iter.hasNext()) {
+            Path p = iter.next();
+            count++;
+            size += Files.size(p);
+          }
         }
-
         return new BlobStats(count, size);
       } catch (IOException e) {
         throw new RuntimeException(e);

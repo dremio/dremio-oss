@@ -24,13 +24,13 @@ import FontIcon from "components/Icon/FontIcon";
 import { typeToIconType } from "@app/constants/DataTypes";
 import { constructFullPath } from "utils/pathUtils";
 
-import Art from "@app/components/Art";
+import { IconButton, Tooltip } from "dremio-ui-lib";
 import {
   itemContainer,
   base,
   content,
   disabled as disabledCls,
-  icon as iconCls,
+  iconInDropdown as iconCls,
   datasetAdd,
 } from "@app/uiTheme/less/DragComponents/ColumnMenuItem.less";
 import DragSource from "./DragSource";
@@ -155,22 +155,24 @@ class ColumnMenuItem extends PureComponent {
               col4  S |P
             */}
             {item.get("isSorted") && (
-              <Art
-                dataQa="is-partitioned"
-                src="sorted.svg"
-                alt="sorted"
-                title="sorted"
-                className={iconCls}
-              />
+              <Tooltip title="Tooltip.Icon.Sorted">
+                <dremio-icon
+                  name="interface/sort"
+                  dataQa="is-partitioned"
+                  alt="sorted"
+                  class={iconCls}
+                />
+              </Tooltip>
             )}
             {item.get("isPartitioned") && (
-              <Art
-                dataQa="is-partitioned"
-                src="Partition.svg"
-                alt="partitioned"
-                title="partitioned"
-                className={iconCls}
-              />
+              <Tooltip title="Tooltip.Icon.Partitioned">
+                <dremio-icon
+                  name="sql-editor/partition"
+                  dataQa="is-partitioned"
+                  alt="partitioned"
+                  class={iconCls}
+                />
+              </Tooltip>
             )}
             {
               // need to add a empty placeholder for partition icon to keep alignment
@@ -181,13 +183,13 @@ class ColumnMenuItem extends PureComponent {
             {/* {this.renderDraggableIcon()} */}{" "}
             {/* DX-37793: This currently built with wrong icon. Correct icon has not been designed yet. */}
             {shouldAllowAdd && (
-              <Art
-                src="CirclePlus.svg"
-                alt=""
-                className={datasetAdd}
+              <IconButton
+                tooltip="Tooltip.SQL.Editor.Add"
                 onClick={() => addtoEditor(item.get("name"))}
-                title="Add to SQL editor"
-              />
+                className={datasetAdd}
+              >
+                <dremio-icon name="interface/add-small" />
+              </IconButton>
             )}
           </div>
         </DragSource>

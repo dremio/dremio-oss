@@ -18,8 +18,8 @@ import {
   getIconTypeByEntityTypeAndStatus,
 } from "utils/iconUtils";
 import FontIcon from "@app/components/Icon/FontIcon";
-import { intl } from "@app/utils/intl";
-import Art from "../Art";
+// import { intl } from "@app/utils/intl";
+// import Art from "../Art";
 import "./HoverDatasetInfoBox.less";
 
 // Starring phase 2
@@ -54,13 +54,14 @@ const HoverDatasetInfoBox = ({
         <span className={`${classname}__fileName`} title={node.get("name")}>
           {node.get("name")}
         </span>
-        <Art
+        {/* When implemented, wrap with <IconButton> insstead of adding onClick and title here
+        <dremio-icon
           className={`${classname}__linkIcon`}
-          src="ExternalLinkIcon.svg"
+          name="interface/external-link"
           alt={intl.formatMessage({ id: "Resource.Tree.Hover.Overlay" })}
           onClick={() => {}} // PHASE 2 STARRING
           title={intl.formatMessage({ id: "Resource.Tree.Hover.Overlay" })}
-        />
+        /> */}
       </div>
       <span className={`${classname}__filePath`} title={fullpath}>
         {fullpath}

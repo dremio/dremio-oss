@@ -15,10 +15,40 @@
  */
 package com.dremio.sabot.exec.context;
 
+import com.dremio.exec.proto.UserBitShared.MetricDef.AggregationType;
+import com.dremio.exec.proto.UserBitShared.MetricDef.DisplayType;
 /**
  * Interface that defines a metric. For example, {@link com.dremio.exec.physical.impl.join.HashJoinOperator.Metric}.
  */
 public interface MetricDef {
   public String name();
   public int metricId();
+
+  /**
+   * Default display type for all the stats is Never, change it if metric is important and should be
+   * displayed in operator details window by default under profile page.
+   */
+  public default DisplayType getDisplayType() {
+    return DisplayType.DISPLAY_NEVER;
+  }
+
+  /**
+   * Display code is to reflect the meaning of the metric. default value wil be empty.
+   * This will be displayed as a tool tip over metric name in operator details window under profile page.
+   * Ex: Name :JAVA_EXPRESSIONS
+   * suggested Display Code: Number of expressions evaluated completely in Java
+   */
+  public default String getDisplayCode() {
+    return "";
+  }
+
+  /**
+   * Aggregation logic of metric value across threads (Sum or Max).
+   * @return Aggregation type of the metric across threads.
+   * Default is SUM
+   */
+  public default AggregationType getAggregationType() {
+    return AggregationType.SUM;
+  }
+
 }

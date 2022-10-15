@@ -15,32 +15,12 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
-
-import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
-
 /**
  * ParquetFilters implementation for Iceberg tables which only exposes filtering capabilities supported by Iceberg.
  */
 public class IcebergParquetFilters extends ParquetFilters {
-  public IcebergParquetFilters() {
-    super();
-  }
-
-  public IcebergParquetFilters(List<ParquetFilterCondition> pushdownFilters) {
-    super(pushdownFilters);
-  }
-
-  public IcebergParquetFilters(PositionalDeleteFilter positionalDeleteFilter) {
-    super(positionalDeleteFilter);
-  }
-
-  public IcebergParquetFilters(List<ParquetFilterCondition> pushdownFilters,
-      PositionalDeleteFilter positionalDeleteFilter) {
-    super(pushdownFilters, positionalDeleteFilter);
-  }
 
   public IcebergParquetFilters(ParquetFilters filters) {
-    super(filters.getPushdownFilters(), filters.getPositionalDeleteFilter());
+    super(filters.getPushdownFilters(), filters.getPositionalDeleteFilter(), filters.getEqualityDeleteFilter());
   }
 }

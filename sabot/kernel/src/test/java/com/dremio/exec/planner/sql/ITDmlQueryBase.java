@@ -30,12 +30,18 @@ public class ITDmlQueryBase extends BaseTestQuery {
   @BeforeClass
   public static void beforeClass() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR, "true");
   }
 
   @AfterClass
   public static void afterClass() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML,
       ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE,
+      ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR,
+      ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR.getDefault().getBoolVal().toString());
   }
 
   @Before

@@ -18,23 +18,25 @@ package com.dremio.exec.store.metadatarefresh;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
-import static junit.framework.TestCase.assertTrue;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -52,12 +54,15 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
+
+import io.grpc.StatusRuntimeException;
 
 public class TestNewMetadataRefresh extends BaseTestQuery {
 
@@ -114,19 +119,34 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     //TODO: also cleanup the KV store so that if 2 tests are working on the same dataset we don't get issues.
   }
 
-  private void copy(java.nio.file.Path source, java.nio.file.Path dest) {
-    try {
-      Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
-    } catch (Exception e) {
-      throw new RuntimeException(e.getMessage(), e);
+  @Test
+  public void testConcurrentFullRefresh() throws Exception {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      int noOfConcurrentRequests = 5;
+      ExecutorService executors = Executors.newFixedThreadPool(noOfConcurrentRequests);
+      List<Future<String>> futures = new ArrayList<>();
+      for (int i = 0; i < noOfConcurrentRequests ; i++) {
+        futures.add(executors.submit(this::runRefreshQuery));
+      }
+      for (int i = 0; i < noOfConcurrentRequests; i++) {
+        while (!futures.get(i).isDone()) {
+          Thread.sleep(1000);
+        }
+        Assert.assertTrue(futures.get(i).get().isEmpty());
+      }
     }
   }
 
-  private void copyFromJar(String sourceElement, final java.nio.file.Path target) throws URISyntaxException, IOException {
-    URI resource = Resources.getResource(sourceElement).toURI();
-    java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
-    Files.walk(srcDir)
-      .forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
+  private String runRefreshQuery() {
+    final String sql = "alter table dfs.tmp.metadatarefresh.onlyFull refresh metadata";
+    try {
+      runSQL(sql);
+    } catch (Exception ex) {
+      if (ex instanceof ConcurrentModificationException || ex instanceof StatusRuntimeException ||  ex instanceof UserException) {
+        return ex.getMessage();
+      }
+    }
+    return "";
   }
 
   @Test
@@ -1053,7 +1073,8 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       runSQL("alter table dfs.tmp.metadatarefresh.maxLeafCols forget metadata");
     }
 
-    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags();
+         AutoCloseable c2 = setMaxLeafColumns(800)) {
       runSQL(sql);
       fail("Expecting exception");
     } catch (Exception e) {

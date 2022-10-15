@@ -42,7 +42,9 @@ describe("TextHighlight-spec", () => {
         .find(".TextHighlight")
         .html()
         .replace(/<!--.*?-->/g, "")
-    ).equal('<div class="TextHighlight">Some text here</div>');
+    ).equal(
+      '<div class="TextHighlight" data-mui-internal-clone-element="true">Some text here</div>'
+    );
   });
 
   it("check selected", () => {
@@ -52,6 +54,8 @@ describe("TextHighlight-spec", () => {
         .find(".TextHighlight")
         .html()
         .replace(/<!--.*?-->/g, "")
-    ).equal('<div class="TextHighlight">Some <b>text</b> here</div>');
+    ).equal(
+      '<div class="TextHighlight" data-mui-internal-clone-element="true">Some <b>text</b> here</div>'
+    );
   });
 });

@@ -69,7 +69,11 @@ export default class Property extends Component {
           <TextField {...value} style={textStyle} />
         </FieldWithError>
         {onRemove && (
-          <RemoveButton onClick={onRemove} style={styles.removeButton} />
+          <RemoveButton
+            onClick={onRemove}
+            style={styles.removeButton}
+            iconStyle={styles.removeIcon}
+          />
         )}
       </div>
     );
@@ -80,5 +84,8 @@ const styles = {
   removeButton: {
     marginTop: 41,
     paddingLeft: 20,
+  },
+  removeIcon: {
+    margin: "-10px",
   },
 };

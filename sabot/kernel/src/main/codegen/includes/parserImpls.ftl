@@ -803,6 +803,7 @@ SqlNode SqlDeleteFromTable() :
   SqlParserPos pos;
   SqlIdentifier targetTable;
   SqlIdentifier alias = null;
+  SqlNode sourceTableRef = null;
   SqlNode condition;
 }
 {
@@ -810,9 +811,10 @@ SqlNode SqlDeleteFromTable() :
   <FROM>
     targetTable = CompoundIdentifier()
     [ [ <AS> ] alias = SimpleIdentifier() ]
+    [ <USING> sourceTableRef = FromClause() ]
     condition = WhereOpt()
     {
-      return new SqlDeleteFromTable(pos, targetTable, condition, alias);
+      return new SqlDeleteFromTable(pos, targetTable, condition, alias, sourceTableRef);
     }
 }
 
@@ -826,6 +828,7 @@ SqlNode SqlUpdateTable() :
 {
   SqlIdentifier targetTable;
   SqlIdentifier alias = null;
+  SqlNode sourceTableRef = null;
   SqlNodeList targetColumnList;
   SqlNodeList sourceExpressionList;
   SqlNode condition;
@@ -857,11 +860,12 @@ SqlNode SqlUpdateTable() :
           sourceExpressionList.add(exp);
       }
   )*
+  [ <FROM> sourceTableRef = FromClause() ]
   condition = WhereOpt()
   {
       return new SqlUpdateTable(s.addAll(targetColumnList)
           .addAll(sourceExpressionList).addIf(condition).pos(), targetTable,
-          targetColumnList, sourceExpressionList, condition, alias);
+          targetColumnList, sourceExpressionList, condition, alias, sourceTableRef);
   }
 }
 
@@ -907,27 +911,33 @@ SqlUpdate DremioWhenMatchedClause(SqlNode table, SqlIdentifier alias) :
     final SqlNodeList updateColumnList = new SqlNodeList(SqlParserPos.ZERO);
     SqlNode exp;
     final SqlNodeList updateExprList = new SqlNodeList(SqlParserPos.ZERO);
+    SqlNode updateSource = null;
 }
 {
     <WHEN> { s = span(); } <MATCHED> <THEN>
-    <UPDATE> <SET> id = SimpleIdentifier() {
-        updateColumnList.add(id);
-    }
-    <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY) {
-        updateExprList.add(exp);
-    }
+    <UPDATE> <SET>
     (
-        <COMMA>
+        <STAR> { updateSource = SqlIdentifier.star(getPos()); }
+   |
         id = SimpleIdentifier() {
             updateColumnList.add(id);
         }
         <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY) {
             updateExprList.add(exp);
         }
-    )*
+        (
+            <COMMA>
+            id = SimpleIdentifier() {
+                updateColumnList.add(id);
+            }
+            <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+                updateExprList.add(exp);
+            }
+        )*
+     )
     {
         return new SqlUpdateTable(s.addAll(updateExprList).pos(), table,
-            updateColumnList, updateExprList, null, alias);
+            updateColumnList, updateExprList, null, alias, updateSource);
     }
 }
 
@@ -942,7 +952,7 @@ SqlInsert DremioWhenNotMatchedClause(SqlIdentifier table) :
     final SqlNodeList keywordList;
     SqlNodeList insertColumnList = null;
     SqlNode rowConstructor;
-    SqlNode insertValues;
+    SqlNode insertSource;
 }
 {
     <WHEN> <NOT> <MATCHED> <THEN> <INSERT> {
@@ -951,23 +961,27 @@ SqlInsert DremioWhenNotMatchedClause(SqlIdentifier table) :
     SqlInsertKeywords(keywords) {
         keywordList = new SqlNodeList(keywords, insertSpan.end(this));
     }
-    [
-        LOOKAHEAD(2)
-        insertColumnList = ParenthesizedSimpleIdentifierList()
-    ]
-    [ <LPAREN> ]
-    <VALUES> { valuesSpan = span(); }
-    rowConstructor = RowConstructor()
-    [ <RPAREN> ]
+    (
+        <STAR> { insertSource = SqlIdentifier.star(getPos()); }
+    |
+        [
+            LOOKAHEAD(2)
+            insertColumnList = ParenthesizedSimpleIdentifierList()
+        ]
+        [ <LPAREN> ]
+        <VALUES> { valuesSpan = span(); }
+        rowConstructor = RowConstructor()
+        [ <RPAREN> ]
+        {
+            // TODO zfong 5/26/06: note that extra parentheses are accepted above
+            // around the VALUES clause as a hack for unparse, but this is
+            // actually invalid SQL; should fix unparse
+            insertSource = SqlStdOperatorTable.VALUES.createCall(
+                valuesSpan.end(this), rowConstructor);
+        }
+    )
     {
-        // TODO zfong 5/26/06: note that extra parentheses are accepted above
-        // around the VALUES clause as a hack for unparse, but this is
-        // actually invalid SQL; should fix unparse
-        insertValues = SqlStdOperatorTable.VALUES.createCall(
-            valuesSpan.end(this), rowConstructor);
-
-        return new SqlInsertTable(insertSpan.end(this),
-            table, insertValues, insertColumnList);
+        return new SqlInsertTable(insertSpan.end(this),  table, insertSource, insertColumnList);
     }
 }
 

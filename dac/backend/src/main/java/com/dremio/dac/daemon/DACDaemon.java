@@ -110,7 +110,10 @@ public final class DACDaemon implements AutoCloseable {
         .withSabotValue(ExecConstants.ZK_RETRY_UNLIMITED, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_UNLIMITED))
         .withSabotValue(ExecConstants.ZK_CONNECTION_HANDLE_ENABLED, incomingConfig.getString(DremioConfig.ZK_CONNECTION_HANDLE_ENABLED))
         .withSabotValue(ExecConstants.ZK_RETRY_LIMIT, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_LIMIT))
-        .withSabotValue(ExecConstants.ZK_INITIAL_TIMEOUT_MS, incomingConfig.getString(DremioConfig.ZK_CLIENT_INITIAL_TIMEOUT_MS));
+        .withSabotValue(ExecConstants.ZK_INITIAL_TIMEOUT_MS, incomingConfig.getString(DremioConfig.ZK_CLIENT_INITIAL_TIMEOUT_MS))
+        .withSabotValue(ExecConstants.ZK_SUPERVISOR_INTERVAL_MS, incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_INTERVAL_MS))
+        .withSabotValue(ExecConstants.ZK_SUPERVISOR_READ_TIMEOUT_MS, incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_READ_TIMEOUT_MS))
+        .withSabotValue(ExecConstants.ZK_SUPERVISOR_MAX_FAILURES, incomingConfig.getString(DremioConfig.ZK_SUPERVISOR_MAX_FAILURES));
 
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);

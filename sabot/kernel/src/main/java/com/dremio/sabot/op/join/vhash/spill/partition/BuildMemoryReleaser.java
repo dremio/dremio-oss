@@ -32,6 +32,7 @@ import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.MemoryReleaser;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
 import com.dremio.sabot.op.join.vhash.spill.io.SpillChunk;
+import com.dremio.sabot.op.join.vhash.spill.io.SpillFileDescriptor;
 import com.dremio.sabot.op.join.vhash.spill.io.SpillSerializable;
 import com.dremio.sabot.op.join.vhash.spill.list.ArrayOfEntriesView;
 import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap;
@@ -43,8 +44,6 @@ import com.dremio.sabot.op.sort.external.SpillManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
-import io.netty.util.internal.PlatformDependent;
 
 /**
  * Memory releaser for the in-memory hash-table, linked list & carry-overs.
@@ -58,7 +57,7 @@ import io.netty.util.internal.PlatformDependent;
 public class BuildMemoryReleaser implements MemoryReleaser {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BuildMemoryReleaser.class);
   private static final int MAX_ENTRIES_PER_CHUNK = 4096;
-  private final SpillManager.SpillFile spillFile;
+  private final SpillFileDescriptor spillFile;
   private final PageListMultimap pageListMultimap;
   private final JoinTable joinTable;
   private final List<VectorContainer> listFromHyperContainer;
@@ -71,9 +70,11 @@ public class BuildMemoryReleaser implements MemoryReleaser {
   private final SpillSerializable serializable;
   private SpillManager.SpillOutputStream outputStream;
   private int cursor;
+  private long recordsWritten;
+  private long batchesWritten;
 
   BuildMemoryReleaser(JoinSetupParams setupParams,
-                      SpillManager.SpillFile spillFile,
+                      SpillFileDescriptor spillFile,
                       PageListMultimap pageListMultimap,
                       JoinTable joinTable,
                       ExpandableHyperContainer hyperContainer,
@@ -92,13 +93,12 @@ public class BuildMemoryReleaser implements MemoryReleaser {
     this.allEntries = pageListMultimap.findAll();
     this.cursor = allEntries.getFirstValidIndex();
     this.spillPagePool = setupParams.getSpillPagePool();
-    this.serializable = new SpillSerializable();
+    this.serializable = setupParams.getSpillSerializable(true /*isBuild*/);
   }
 
   @Override
   public int run() throws Exception {
-    int recordsWritten = writeOneChunk();
-    logger.trace("written {} records", recordsWritten);
+    recordsWritten += writeOneChunk();
     return 0;
   }
 
@@ -109,7 +109,7 @@ public class BuildMemoryReleaser implements MemoryReleaser {
 
   private int writeOneChunk() throws Exception {
     if (outputStream == null) {
-      outputStream = spillFile.create(true);
+      outputStream = spillFile.getFile().create(true);
     }
     if (isFinished()) {
       return 0;
@@ -122,7 +122,7 @@ public class BuildMemoryReleaser implements MemoryReleaser {
          MiscBuffers buffers = new MiscBuffers(spillPagePool.newPage())) {
       int pickedRecords = pickMaxPivotedRecordsInBatch(curBatchId, pivotedPage.getPageSize(), buffers);
       Preconditions.checkState(pickedRecords > 0);
-      PageBatchSlicer slicer = new PageBatchSlicer(spillPagePool, buffers.getSv2Addr(), listFromHyperContainer.get(curBatchId));
+      PageBatchSlicer slicer = new PageBatchSlicer(spillPagePool, buffers.getSv2(), listFromHyperContainer.get(curBatchId));
 
       // copy unpivoted records that will fit into a page.
       try (RecordBatchData batchData = slicer.copyToPageTillFull(unpivotedPage, 0, pickedRecords - 1)) {
@@ -133,6 +133,7 @@ public class BuildMemoryReleaser implements MemoryReleaser {
         try (SpillChunk chunk = new SpillChunk(pickedRecords, dstBufs[0], dstBufs[1], batchData.getContainer(), ImmutableList.of())) {
           serializable.writeChunkToStream(chunk, outputStream);
           recordsDone += batchData.getRecordCount();
+          ++batchesWritten;
         }
       }
       cursor += pickedRecords;
@@ -147,9 +148,9 @@ public class BuildMemoryReleaser implements MemoryReleaser {
   }
 
   private int pickMaxPivotedRecordsInBatch(int targetBatchId, int maxCumulativeSize, MiscBuffers buffers) {
-    final long keyOrdinalsAddr = buffers.getKeyOrdinalsBufAddr();
-    final long outKeyLengthsAddr = buffers.getOutKeyLengthsBufAddr();
-    final long sv2Addr = buffers.getSv2Addr();
+    final ArrowBuf keyOrdinalsBuf = buffers.getKeyOrdinalsBuf();
+    final ArrowBuf outKeyLengthsBuf = buffers.getOutKeyLengthsBuf();
+    final ArrowBuf sv2 = buffers.getSv2();
     int localCursor = cursor;
 
     // walk through the linked list & get the hash-table ordinals (only for current batchId).
@@ -168,9 +169,9 @@ public class BuildMemoryReleaser implements MemoryReleaser {
         break;
       }
 
-      SV2UnsignedUtil.write(sv2Addr + (long) (numKeysInIteration) * SelectionVector2.RECORD_SIZE,
+      SV2UnsignedUtil.writeAtOffset(sv2,  (numKeysInIteration) * SelectionVector2.RECORD_SIZE,
         PageListMultimap.getRecordIndexFromLong(carryAlongId));
-      PlatformDependent.putInt(keyOrdinalsAddr + ((long) numKeysInIteration * VAR_OFFSET_SIZE), tableOrdinal);
+      keyOrdinalsBuf.setInt(numKeysInIteration * VAR_OFFSET_SIZE, tableOrdinal);
       ++numKeysInIteration;
       ++localCursor;
     }
@@ -178,11 +179,11 @@ public class BuildMemoryReleaser implements MemoryReleaser {
     // fetch the var lengths for the selected ordinals from the hash-table
     int numEntriesPicked = 0;
     int cumulativeSizeOfPickedRecords = 0;
-    joinTable.getVarKeyLengths(keyOrdinalsAddr, numKeysInIteration, outKeyLengthsAddr);
+    joinTable.getVarKeyLengths(keyOrdinalsBuf, numKeysInIteration, outKeyLengthsBuf);
 
     // pick as many records as will fit in the requested threshold (maxCumulativeSize)
     for (int i = 0; i < numKeysInIteration; ++i) {
-      int varEntrySz = PlatformDependent.getInt(outKeyLengthsAddr + (long) i * VAR_LENGTH_SIZE);
+      int varEntrySz = outKeyLengthsBuf.getInt(i * VAR_LENGTH_SIZE);
       if (cumulativeSizeOfPickedRecords + pivotSize + varEntrySz <= maxCumulativeSize) {
         cumulativeSizeOfPickedRecords += (pivotSize + varEntrySz);
         ++numEntriesPicked;
@@ -196,16 +197,16 @@ public class BuildMemoryReleaser implements MemoryReleaser {
   }
 
   private ArrowBuf[] copyPivoted(Page dstPage, int numRecords, MiscBuffers buffers) {
-    final long keyOrdinalsAddr = buffers.getKeyOrdinalsBufAddr();
+    final ArrowBuf keyOrdinalsBuf = buffers.getKeyOrdinalsBuf();
     for (int i = 0; i < numRecords; ++i) {
       final int tableOrdinal = allEntries.getKey(cursor + i);
-      PlatformDependent.putInt(keyOrdinalsAddr + (long) i * VAR_OFFSET_SIZE, tableOrdinal);
+      keyOrdinalsBuf.setInt(i * VAR_OFFSET_SIZE, tableOrdinal);
     }
-    int cumulativeVarSize = joinTable.getCumulativeVarKeyLength(keyOrdinalsAddr, numRecords);
+    int cumulativeVarSize = joinTable.getCumulativeVarKeyLength(keyOrdinalsBuf, numRecords);
     ArrowBuf dstFixedBuf = dstPage.slice(numRecords * pivotSize);
     ArrowBuf dstVarBuf = dstPage.slice(cumulativeVarSize);
 
-    joinTable.copyKeysToBuffer(keyOrdinalsAddr, numRecords, dstFixedBuf.memoryAddress(), dstVarBuf.memoryAddress());
+    joinTable.copyKeysToBuffer(keyOrdinalsBuf, numRecords, dstFixedBuf, dstVarBuf);
     return new ArrowBuf[]{dstFixedBuf, dstVarBuf};
   }
 
@@ -226,6 +227,10 @@ public class BuildMemoryReleaser implements MemoryReleaser {
 
   @Override
   public void close() throws Exception {
+    if (outputStream != null) {
+      spillFile.update(recordsWritten, outputStream.getWriteBytes());
+      logger.debug("spilled to {} records {} batches {} size {}", spillFile.getFile().getPath().getName(), recordsWritten, batchesWritten, outputStream.getWriteBytes());
+    }
     AutoCloseables.close(listFromHyperContainer, slicedBatchPages, Lists.newArrayList(joinTable, pageListMultimap, outputStream),
       closeables, Lists.newArrayList(allocatorToRelease));
   }
@@ -246,21 +251,21 @@ public class BuildMemoryReleaser implements MemoryReleaser {
       this.sv2 = page.slice(MAX_ENTRIES_PER_CHUNK * SelectionVector2.RECORD_SIZE);
     }
 
-    long getKeyOrdinalsBufAddr() {
-      return keyOrdinalsBuf.memoryAddress();
+    ArrowBuf getKeyOrdinalsBuf() {
+      return keyOrdinalsBuf;
     }
 
-    long getOutKeyLengthsBufAddr() {
-      return outKeyLengthsBuf.memoryAddress();
+    ArrowBuf getOutKeyLengthsBuf() {
+      return outKeyLengthsBuf;
     }
 
-    long getSv2Addr() {
-      return sv2.memoryAddress();
+    ArrowBuf getSv2() {
+      return sv2;
     }
 
     @Override
     public void close() throws Exception {
       AutoCloseables.close(keyOrdinalsBuf, outKeyLengthsBuf, sv2, page);
     }
-  };
+  }
 }

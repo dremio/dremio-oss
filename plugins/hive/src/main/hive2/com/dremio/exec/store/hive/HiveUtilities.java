@@ -32,7 +32,7 @@ import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentImpl;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.SerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
@@ -98,14 +98,14 @@ public class HiveUtilities {
    * Utility method which creates a SerDe object for given SerDe class name and properties.
    *
    * @param jobConf Configuration to use when creating SerDe class
-   * @param sLib {@link SerDe} class name
+   * @param sLib {@link AbstractSerDe} class name
    * @param properties SerDe properties
    * @return
    * @throws Exception
    */
-  public static final SerDe createSerDe(final JobConf jobConf, final String sLib, final Properties properties) throws Exception {
-    final Class<? extends SerDe> c = Class.forName(sLib).asSubclass(SerDe.class);
-    final SerDe serde = c.getConstructor().newInstance();
+  public static final AbstractSerDe createSerDe(final JobConf jobConf, final String sLib, final Properties properties) throws Exception {
+    final Class<? extends AbstractSerDe> c = Class.forName(sLib).asSubclass(AbstractSerDe.class);
+    final AbstractSerDe serde = c.getConstructor().newInstance();
     serde.initialize(jobConf, properties);
 
     return serde;
@@ -209,8 +209,7 @@ public class HiveUtilities {
       case BOOLEAN:
         return MinorType.BIT;
       case DECIMAL: {
-
-        if (options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal() == false) {
+        if (!options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal()) {
           throw UserException.unsupportedError()
               .message(ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG)
               .build(logger);
@@ -255,7 +254,7 @@ public class HiveUtilities {
     return deserializedSplit;
   }
 
-  public static StructObjectInspector getStructOI(final SerDe serDe) throws Exception {
+  public static StructObjectInspector getStructOI(final AbstractSerDe serDe) throws Exception {
     ObjectInspector oi = serDe.getObjectInspector();
     if (oi.getCategory() != Category.STRUCT) {
       throw new UnsupportedOperationException(String.format("%s category not supported", oi.getCategory()));

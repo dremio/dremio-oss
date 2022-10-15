@@ -65,8 +65,8 @@
     height: 100%;
 
     &__header {
-      border-left: 1px solid @DARK_200;
-      border-bottom: 1px solid @DARK_200;
+      border-left: 1px solid var(--dremio--color--neutral--150);
+      border-bottom: 1px solid var(--dremio--color--neutral--150);
       align-items: center;
       display: flex;
       gap: 1rem;
@@ -101,7 +101,7 @@
 
     // Catalog, Graph, Reflections content area
     &__content {
-      border-left: 1px solid @DARK_200;
+      border-left: 1px solid var(--dremio--color--neutral--150);
       height: 100%;
     }
 
@@ -119,6 +119,11 @@
 
   // SQL content column is less than 1000px wide
   // Text will be removed from buttons
+  .dremioContent__content.--minimal {
+    .noText {
+      display: none;
+    }
+  }
   .dremioContent__content.--minimal {
     .ExploreHeader__left,
     .dremioContent__table .left-controls {

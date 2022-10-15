@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog.udf;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -53,6 +54,20 @@ public class FunctionParameterImpl implements FunctionParameter {
 
   @Override public boolean isOptional() {
     return false;
+  }
+
+  @Override public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    } else if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    FunctionParameterImpl that = (FunctionParameterImpl) o;
+    return ordinal == that.ordinal && name.equals(that.name) && type.equals(that.type);
+  }
+
+  @Override public int hashCode() {
+    return Objects.hash(ordinal, name, type);
   }
 
   public static List<FunctionParameter> createParameters(List<UserDefinedFunction.FunctionArg> args) {

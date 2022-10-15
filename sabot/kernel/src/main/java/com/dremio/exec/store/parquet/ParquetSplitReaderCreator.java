@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,7 +24,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import org.apache.arrow.util.AutoCloseables;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 
@@ -39,6 +40,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.SplitReaderCreator;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.iceberg.deletes.EqualityDeleteFilter;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -50,8 +52,10 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
 /**
  * A lightweight object used to manage the creation of a reader. Allows pre-initialization of data before reader
@@ -140,8 +144,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     this.tablePath = tablePath;
     if (!fs.supportsPath(path)) {
       throw UserException.invalidMetadataError()
-        .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), path))
-        .addContext("File", path)
+        .addContext("%s: Invalid FS for file '%s'", fs.getScheme(), path)
         .setAdditionalExceptionContext(
           new InvalidMetadataErrorContext(
             ImmutableList.copyOf(tablePath)))
@@ -246,7 +249,8 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
 
         SchemaDerivationHelper.Builder schemaHelperBuilder = SchemaDerivationHelper.builder()
                 .readInt96AsTimeStamp(readInt96AsTimeStamp)
-                .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, columns, autoCorrectCorruptDates));
+                .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, columns, autoCorrectCorruptDates))
+                .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE));
 
         if (formatSettings.getType() == FileType.ICEBERG || formatSettings.getType() == FileType.DELTA) {
           schemaHelperBuilder.noSchemaLearning(fullSchema);
@@ -254,33 +258,10 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
 
         final SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();
         Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
-        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields, isConvertedIcebergDataset, context);
+        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields, isConvertedIcebergDataset, context, fullSchema);
         RecordReader inner;
         if (!isConvertedIcebergDataset && DatasetHelper.isIcebergFile(formatSettings)) {
-          IcebergParquetReader innerIcebergParquetReader = new IcebergParquetReader(
-                  context,
-                  readerFactory,
-                  fullSchema,
-                  projectedColumns,
-                  globalDictionaryEncodedColumns,
-                  new IcebergParquetFilters(filters),
-                  splitXAttr,
-                  fs,
-                  footer,
-                  globalDictionaries,
-                  schemaHelper,
-                  vectorize,
-                  enableDetailedTracing,
-                  supportsColocatedReads,
-                  inputStreamProvider,
-                  isConvertedIcebergDataset
-          );
-          Map<String, Field> fieldsByName = CaseInsensitiveMap.newHashMap();
-          fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
-          RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
-            projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema,
-            new FileTypeCoercion(fieldsByName), filters);
-          inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
+          inner = createIcebergRecordReader(footer, projectedColumns, schemaHelper);
         } else if (DatasetHelper.isDeltaLake(formatSettings)) {
           DeltaLakeParquetReader innerDeltaParquetReader = new DeltaLakeParquetReader(
                   context,
@@ -348,4 +329,50 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     inputStreamProvider = null;
   }
 
+  private RecordReader createIcebergRecordReader(MutableParquetMetadata footer,
+      ParquetScanProjectedColumns projectedColumns, SchemaDerivationHelper schemaHelper) {
+    // If there is an equality delete filter, ensure the set of projected columns passed to the inner
+    // IcebergParquetReader contains all columns used in equality delete conditions.  This is only required for the
+    // inner reader - the outer ParquetCoercionReader maintains the original set of projected columns.
+    ParquetScanProjectedColumns innerProjectedColumns = filters.hasEqualityDeleteFilter() ?
+        addEqualityDeleteFilterFieldsToProjectedColumns(projectedColumns, filters.getEqualityDeleteFilter()) :
+        projectedColumns;
+
+    IcebergParquetReader innerIcebergParquetReader = new IcebergParquetReader(
+        context,
+        readerFactory,
+        fullSchema,
+        innerProjectedColumns,
+        globalDictionaryEncodedColumns,
+        new IcebergParquetFilters(filters),
+        splitXAttr,
+        fs,
+        footer,
+        globalDictionaries,
+        schemaHelper,
+        vectorize,
+        enableDetailedTracing,
+        supportsColocatedReads,
+        inputStreamProvider,
+        isConvertedIcebergDataset
+    );
+    Map<String, Field> fieldsByName = CaseInsensitiveMap.newHashMap();
+    fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
+    RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
+        projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema,
+        new FileTypeCoercion(fieldsByName), filters);
+    return readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
+  }
+
+  private ParquetScanProjectedColumns addEqualityDeleteFilterFieldsToProjectedColumns(
+      ParquetScanProjectedColumns projectedColumns, EqualityDeleteFilter equalityDeleteFilter) {
+    // create a new list of projected columns which includes all equality fields that weren't already present
+    Set<SchemaPath> projectedSet = new HashSet<>(projectedColumns.getBatchSchemaProjectedColumns());
+    Set<SchemaPath> equalityFieldsSet = new HashSet<>(equalityDeleteFilter.getAllEqualityFields());
+    Set<SchemaPath> missingEqualityFields = Sets.difference(equalityFieldsSet, projectedSet);
+    List<SchemaPath> projectedColumnsWithEqualityFields =
+        new ArrayList<>(projectedColumns.getBatchSchemaProjectedColumns());
+    projectedColumnsWithEqualityFields.addAll(missingEqualityFields);
+    return projectedColumns.cloneForSchemaPaths(projectedColumnsWithEqualityFields, false);
+  }
 }

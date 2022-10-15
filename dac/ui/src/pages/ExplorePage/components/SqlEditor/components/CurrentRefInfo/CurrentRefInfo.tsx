@@ -16,7 +16,7 @@
 import FontIcon from "@app/components/Icon/FontIcon";
 import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
 import { TagContent } from "@app/pages/HomePage/components/BranchPicker/components/BranchPickerTag/BranchPickerTag";
-import { NessieRootState } from "@app/reducers/nessie/nessie";
+import { NessieRootState } from "@app/types/nessie";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import { connect } from "react-redux";
 

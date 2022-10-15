@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet2;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
 import org.apache.arrow.vector.complex.writer.BitWriter;
@@ -36,6 +37,7 @@ interface WriterProvider {
 
   //TODO I should probably just pass a StructOrListWriter
   StructWriter struct(String name);
+  MapWriter map(String name);
   ListWriter list(String name);
   IntWriter integer(String name);
   DecimalWriter decimal(String name, int scale, int precision);
@@ -60,6 +62,11 @@ interface WriterProvider {
     @Override
     public StructWriter struct(String name) {
       return structWriter.struct(name);
+    }
+
+    @Override
+    public MapWriter map(String name) {
+      return structWriter.map(name, false);
     }
 
     @Override
@@ -141,6 +148,11 @@ interface WriterProvider {
     }
 
     @Override
+    public MapWriter map(String name) {
+      return listWriter.map();
+    }
+
+    @Override
     public ListWriter list(String name) {
       return listWriter.list();
     }
@@ -203,6 +215,89 @@ interface WriterProvider {
     @Override
     public VarCharWriter varChar(String name) {
       return listWriter.varChar();
+    }
+  }
+
+  class MapWriterProvider implements WriterProvider {
+    private final MapWriter mapWriter;
+
+    MapWriterProvider(MapWriter mapWriter) {
+      this.mapWriter = mapWriter;
+    }
+
+    @Override
+    public StructWriter struct(String name) {
+      return mapWriter.struct();
+    }
+
+    @Override
+    public MapWriter map(String name) {
+      return mapWriter.map(false);
+    }
+
+    @Override
+    public ListWriter list(String name) {
+      return mapWriter.list();
+    }
+
+    @Override
+    public IntWriter integer(String name) {
+      return mapWriter.integer();
+    }
+
+    @Override
+    public DecimalWriter decimal(String name, int scale, int precision) {
+      return mapWriter.decimal();
+    }
+
+    @Override
+    public DecimalWriter decimal(String name) {
+      return mapWriter.decimal();
+    }
+
+    @Override
+    public DateMilliWriter date(String name) {
+      return mapWriter.dateMilli();
+    }
+
+    @Override
+    public TimeMilliWriter time(String name) {
+      return mapWriter.timeMilli();
+    }
+
+    @Override
+    public BigIntWriter bigInt(String name) {
+      return mapWriter.bigInt();
+    }
+
+    @Override
+    public TimeStampMilliWriter timeStamp(String name) {
+      return mapWriter.timeStampMilli();
+    }
+
+    @Override
+    public VarBinaryWriter varBinary(String name) {
+      return mapWriter.varBinary();
+    }
+
+    @Override
+    public Float4Writer float4(String name) {
+      return mapWriter.float4();
+    }
+
+    @Override
+    public Float8Writer float8(String name) {
+      return mapWriter.float8();
+    }
+
+    @Override
+    public BitWriter bit(String name) {
+      return mapWriter.bit();
+    }
+
+    @Override
+    public VarCharWriter varChar(String name) {
+      return mapWriter.varChar();
     }
   }
 }

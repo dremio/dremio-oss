@@ -39,6 +39,7 @@ import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.datastore.SearchTypes;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
@@ -118,7 +119,7 @@ public final class VersionedDatasetAdapter {
 
     final ViewVersionMetadata viewVersionMetadata = viewHandle.getViewVersionMetadata();
     Preconditions.checkNotNull(viewVersionMetadata);
-    final SchemaConverter schemaConverter = new SchemaConverter(String.join(".", viewKeyPath));
+    final SchemaConverter schemaConverter = SchemaConverter.getBuilder().setMapTypeEnabled(optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).setTableName(String.join(".", viewKeyPath)).build();
     //Convert from Iceberg to Arrow schema
     final BatchSchema batchSchema = schemaConverter.fromIceberg(viewVersionMetadata.definition().schema());
 
@@ -134,7 +135,7 @@ public final class VersionedDatasetAdapter {
     final View view = Views.fieldTypesToView(Iterables.getLast(viewKeyPath),
       viewVersionMetadata.definition().sql(),
       viewFieldTypesList,
-      viewKeyPath.subList(0, viewKeyPath.size()-1),
+      viewConfig.getVirtualDataset().getContextList(),
       batchSchema);
 
     // TODO: DX-48432 View ownership should set the view owner to the view/dataset creator
@@ -149,7 +150,8 @@ public final class VersionedDatasetAdapter {
                                                           ViewVersionMetadata viewVersionMetadata,
                                                           List<ViewFieldType> viewFieldTypesList) {
     final VirtualDataset virtualDataset = new VirtualDataset();
-    virtualDataset.setContextList(viewKeyPath.subList(0, viewKeyPath.size()-1));
+    List<String> workspaceSchemaPath = viewVersionMetadata.definition().sessionNamespace();
+    virtualDataset.setContextList(workspaceSchemaPath);
     virtualDataset.setSql(viewVersionMetadata.definition().sql());
     virtualDataset.setVersion(DatasetVersion.newVersion());
     virtualDataset.setCalciteFieldsList(viewFieldTypesList);
@@ -183,11 +185,31 @@ public final class VersionedDatasetAdapter {
     final TableMetadata tableMetadata = new TableMetadataImpl(storagePluginId,
       versionedDatasetConfig,
       accessUserName,
-      splitsPointer);
+      splitsPointer,
+      getPrimaryKey(storagePlugin, versionedDatasetConfig, new NamespaceKey(versionedDatasetConfig.getFullPathList()), accessUserName, versionContext));
 
     return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
   }
 
+  private List<String> getPrimaryKey(StoragePlugin plugin,
+                                     DatasetConfig datasetConfig,
+                                     NamespaceKey versionedTableKey,
+                                     String userName,
+                                     ResolvedVersionContext versionContext) {
+    List<String> primaryKey = null;
+    if (plugin instanceof MutablePlugin) {
+      MutablePlugin mutablePlugin = (MutablePlugin) plugin;
+      try {
+        primaryKey = mutablePlugin.getPrimaryKey(versionedTableKey, datasetConfig,
+          null /* Don't care for versioned datasets */,
+          versionContext,
+          false);
+      } catch (Exception ex) {
+        logger.debug("Failed to get primary key", ex);
+      }
+    }
+    return primaryKey;
+  }
 
   private DatasetConfig getMutatedVersionedConfig(String nessieKey,
                                                   ResolvedVersionContext versionContext,

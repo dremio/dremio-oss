@@ -23,7 +23,6 @@ import java.util.Map;
 
 import javax.inject.Provider;
 
-import org.apache.arrow.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +43,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
+import com.google.common.base.Preconditions;
 
 /**
  * Plugin for Google Cloud Storage.
@@ -128,7 +128,7 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
     final String containerName = tableSchemaPath.getPathComponents().get(1);
     if (tableSchemaPath.size() == 2) {
       throw UserException.validationError()
-          .message("Creating buckets is not supported.", containerName)
+          .message("Creating buckets is not supported (name: %s)", containerName)
           .build(logger);
     }
 

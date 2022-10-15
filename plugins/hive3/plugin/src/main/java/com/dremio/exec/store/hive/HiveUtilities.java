@@ -209,8 +209,7 @@ public class HiveUtilities {
       case BOOLEAN:
         return MinorType.BIT;
       case DECIMAL: {
-
-        if (options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal() == false) {
+        if (!options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal()) {
           throw UserException.unsupportedError()
               .message(ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG)
               .build(logger);

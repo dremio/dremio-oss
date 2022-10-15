@@ -65,6 +65,7 @@ enum MinorType {
     GENERIC_OBJECT = 41;
     UNION = 42;
     DECIMAL = 43;
+    MAP = 44;
 }
 
 message MajorType {

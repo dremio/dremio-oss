@@ -20,9 +20,11 @@ import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 import java.io.IOException;
 
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordReader;
@@ -38,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 public class ManifestScanTableFunction extends AbstractTableFunction {
   private final OperatorStats operatorStats;
   private final ManifestFileProcessor manifestFileProcessor;
+  private final ManifestContent manifestContent;
 
   private VarBinaryVector inputManifestFiles;
 
@@ -46,6 +49,8 @@ public class ManifestScanTableFunction extends AbstractTableFunction {
     super(context, functionConfig);
     this.operatorStats = context.getStats();
     this.manifestFileProcessor = manifestFileProcessor;
+    this.manifestContent = functionConfig.getFunctionContext(ManifestScanTableFunctionContext.class)
+        .getManifestContent();
   }
 
   @Override
@@ -91,7 +96,8 @@ public class ManifestScanTableFunction extends AbstractTableFunction {
   @VisibleForTesting
   ManifestFile getManifestFile(int manifestFileIndex) throws IOException, ClassNotFoundException {
     ManifestFile manifestFile = IcebergSerDe.deserializeFromByteArray(inputManifestFiles.get(manifestFileIndex));
-    operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_MANIFEST_FILE, 1);
+    operatorStats.addLongStat(manifestContent == ManifestContent.DATA ?
+        TableFunctionOperator.Metric.NUM_MANIFEST_FILE : TableFunctionOperator.Metric.NUM_DELETE_MANIFESTS, 1);
     return manifestFile;
   }
 }

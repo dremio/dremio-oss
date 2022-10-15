@@ -49,8 +49,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.MaterializedSplitsPointer;
@@ -78,6 +79,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Unit tests for PushJoinFilterIntoProjectRule
  */
+@RunWith(MockitoJUnitRunner.class)
 public class TestPushJoinFilterIntoProjectRule extends DremioTest {
   @Mock
   private StoragePluginId pluginId;
@@ -117,7 +119,6 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
 
   @Before
   public void setUp() {
-    MockitoAnnotations.initMocks(this);
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
@@ -127,7 +128,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
     planner = new VolcanoPlanner(plannerSettings);
     cluster = RelOptCluster.create(planner, builder);
 
-    metadata = new TableMetadataImpl(pluginId, datasetConfig, "testuser", MaterializedSplitsPointer.of(0, Collections.emptyList(), 0));
+    metadata = new TableMetadataImpl(pluginId, datasetConfig, "testuser", MaterializedSplitsPointer.of(0, Collections.emptyList(), 0), null);
     SourceType newType = mock(SourceType.class);
     when(newType.value()).thenReturn("TestSource");
     when(pluginId.getType()).thenReturn(newType);
@@ -170,7 +171,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
 
     // Join conditions before transformation
     assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($3, 300), =($4, 400))", joinConditionWithoutCast.toString());
-    assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($3, CAST('300'):INTEGER NOT NULL), =($4, CAST('400'):INTEGER NOT NULL))", joinConditionWithCast.toString());
+    assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($3, CAST('300':VARCHAR(3)):INTEGER NOT NULL), =($4, CAST('400':VARCHAR(3)):INTEGER NOT NULL))", joinConditionWithCast.toString());
 
     // After transformation, the constants should be pushed below on left side, which should shift all the right fields
     String expected = "AND(=($0, $4), =($1, $5), =($2, $6), =($3, $7))";
@@ -219,7 +220,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
 
     // Join condition2 before transformation
     assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, 100), =($2, 200))", joinConditionWithoutCast.toString());
-    assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, CAST('100'):INTEGER NOT NULL), =($2, CAST('200'):INTEGER NOT NULL))", joinConditionWithCast.toString());
+    assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, CAST('100':VARCHAR(3)):INTEGER NOT NULL), =($2, CAST('200':VARCHAR(3)):INTEGER NOT NULL))", joinConditionWithCast.toString());
 
     String expected = "AND(=($0, $4), =($1, $5), =($2, $6), =($3, $7))";
 
@@ -275,7 +276,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
 
     // Join conditions before transformation
     assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, 100), =($2, 200), =($3, 300), =($4, 400))", joinConditionWithoutCast.toString());
-    assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, CAST('100'):INTEGER NOT NULL), =($2, CAST('200'):INTEGER NOT NULL), =($3, CAST('300'):INTEGER NOT NULL), =($4, CAST('400'):INTEGER NOT NULL))", joinConditionWithCast.toString());
+    assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, CAST('100':VARCHAR(3)):INTEGER NOT NULL), =($2, CAST('200':VARCHAR(3)):INTEGER NOT NULL), =($3, CAST('300':VARCHAR(3)):INTEGER NOT NULL), =($4, CAST('400':VARCHAR(3)):INTEGER NOT NULL))", joinConditionWithCast.toString());
 
     // After transformation, the constants should be pushed below on both sides, which should shift all the right fields
     String expected = "AND(=($0, $5), =($1, $6), =($2, $7), =($3, $8), =($4, $9))";

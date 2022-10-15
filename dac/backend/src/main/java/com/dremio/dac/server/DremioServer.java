@@ -21,6 +21,7 @@ import java.security.KeyStore;
 import java.util.EnumSet;
 import java.util.function.Consumer;
 
+import javax.inject.Provider;
 import javax.servlet.DispatcherType;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -37,6 +38,7 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 
 import com.dremio.service.SingletonRegistry;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.telemetry.api.tracing.http.ServerTracingFilter;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -48,6 +50,7 @@ public class DremioServer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioServer.class);
 
   private final Server embeddedJetty;
+  private Provider<CredentialsService> credentialsServiceProvider;
 
   private KeyStore trustStore;
   private AccessLogFilter accessLogFilter;
@@ -67,9 +70,11 @@ public class DremioServer {
   public void startDremioServer(
     SingletonRegistry registry,
     DACConfig config,
+    Provider<CredentialsService> credentialsServiceProvider,
     String uiType,
     Consumer<ServletContextHandler> servletRegistrer
   ) throws Exception {
+    this.credentialsServiceProvider = credentialsServiceProvider;
     try {
       if (!embeddedJetty.isRunning()) {
         createConnector(config);
@@ -114,11 +119,14 @@ public class DremioServer {
     if (config.webSSLEnabled()) {
       Pair<ServerConnector, KeyStore> connectorTrustStorePair =
         new HttpsConnectorGenerator().createHttpsConnector(embeddedJetty, config.getConfig(),
+          credentialsServiceProvider,
           config.thisNode, InetAddress.getLocalHost().getCanonicalHostName());
       serverConnector = connectorTrustStorePair.getLeft();
       trustStore = connectorTrustStorePair.getRight();
     } else {
-      serverConnector = new ServerConnector(embeddedJetty, new HttpConnectionFactory(new HttpConfiguration()));
+      final HttpConfiguration configuration = new HttpConfiguration();
+      configuration.setSendServerVersion(false);
+      serverConnector = new ServerConnector(embeddedJetty, new HttpConnectionFactory(configuration));
     }
     if (!config.autoPort) {
       serverConnector.setPort(config.getHttpPort());
@@ -150,6 +158,7 @@ public class DremioServer {
     final ErrorHandler errorHandler = new ErrorHandler();
     errorHandler.setShowStacks(true);
     errorHandler.setShowMessageInTitle(true);
+    errorHandler.setShowServlet(false);
     embeddedJetty.setErrorHandler(errorHandler);
   }
 

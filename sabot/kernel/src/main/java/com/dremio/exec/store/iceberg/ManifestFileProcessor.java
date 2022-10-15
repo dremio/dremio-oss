@@ -26,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DremioManifestReaderUtils;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
+import org.apache.iceberg.FileContent;
 import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
@@ -167,7 +168,26 @@ public class ManifestFileProcessor implements AutoCloseable {
 
   private void nextDataFile() {
     currentManifestEntry = iterator.next();
-    operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_DATA_FILE, 1);
+    incrementFileCountMetric();
+  }
+
+  private void incrementFileCountMetric() {
+    TableFunctionOperator.Metric metric;
+    FileContent content = currentManifestEntry.file().content();
+    switch (content) {
+      case DATA:
+        metric = TableFunctionOperator.Metric.NUM_DATA_FILE;
+        break;
+      case POSITION_DELETES:
+        metric = TableFunctionOperator.Metric.NUM_POS_DELETE_FILES;
+        break;
+      case EQUALITY_DELETES:
+        metric = TableFunctionOperator.Metric.NUM_EQ_DELETE_FILES;
+        break;
+      default:
+        throw new IllegalStateException(String.format("Unknown FileContent type: %s", content));
+    }
+    operatorStats.addLongStat(metric, 1);
   }
 
   private void resetCurrentDataFile() {

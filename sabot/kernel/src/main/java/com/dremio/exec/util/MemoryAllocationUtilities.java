@@ -165,12 +165,14 @@ public final class MemoryAllocationUtilities {
         logger.info(getOpMemoryDetailsString(ep, consideredOps.get(ep), nonConsideredOps.get(ep)));
         throw UserException.memoryError()
           .message("Query was cancelled because it exceeded the memory limits set by the administrator. " +
-              "Expected at least %s bytes, but only had %s available. " + System.lineSeparator() +
-              "Size requirement for memory intensive ops is %s bytes. " + System.lineSeparator() +
+              "Expected at least %s bytes, but only had %s available.%s" +
+              "Size requirement for memory intensive ops is %s bytes.%s" +
               "Missing memory = %s bytes, Number of Memory intensive ops = %d, Other ops = %d, Endpoint = %s",
             PrettyPrintUtils.bytePrint(outsideReserve, true),
             PrettyPrintUtils.bytePrint(maxMemoryPerNodePerQuery, true),
+            System.lineSeparator(),
             PrettyPrintUtils.bytePrint(consideredOpsReserve, true),
+            System.lineSeparator(),
             PrettyPrintUtils.bytePrint(Math.abs(memoryForHeavyOperations), true),
             consideredOps.size(), nonConsideredOps.size(), ep.getAddress())
           .build(logger);

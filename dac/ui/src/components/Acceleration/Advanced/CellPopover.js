@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { Popover } from "@app/components/Popover";
-import MenuItem from "@material-ui/core/MenuItem";
+import MenuItem from "@mui/material/MenuItem";
 import { get } from "lodash/object";
 
 import "@app/uiTheme/less/Acceleration/Acceleration.less";

@@ -18,6 +18,7 @@ import Immutable from "immutable";
 import { connect } from "react-redux";
 
 import PropTypes from "prop-types";
+import { intl } from "@app/utils/intl";
 
 import EllipsedText from "components/EllipsedText";
 import { formLabel, formDescription } from "uiTheme/radium/typography";
@@ -92,9 +93,7 @@ export class JoinTables extends PureComponent {
           <Spinner style={styles.emptyTable} iconStyle={{ color: "gray" }} />
         ) : (
           <div style={{ ...styles.emptyTable, ...formDescription }}>
-            {la(
-              "Please add one or more join conditions to preview matching records."
-            )}
+            {intl.formatMessage({ id: "Join.Condition.Validation" })}
           </div>
         );
       return customTableContent;
@@ -111,6 +110,7 @@ export class JoinTables extends PureComponent {
         location={location}
         sqlSize={sqlSize}
         rightTreeVisible={rightTreeVisible}
+        shouldRenderInvisibles
       />
     );
   }
@@ -142,6 +142,7 @@ export class JoinTables extends PureComponent {
             sqlSize={sqlSize}
             rightTreeVisible={rightTreeVisible}
             exploreViewState={exploreViewState}
+            shouldRenderInvisibles
           />
         </div>
         <div
@@ -158,7 +159,10 @@ export class JoinTables extends PureComponent {
             }}
           >
             <EllipsedText
-              text={this.props.joinDatasetFullPath || la("No table selected.")}
+              text={
+                this.props.joinDatasetFullPath ||
+                intl.formatMessage({ id: "No.Table.Selected" })
+              }
             />
           </div>
           {this.renderSecondTable()}

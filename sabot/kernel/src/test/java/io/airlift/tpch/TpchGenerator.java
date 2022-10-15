@@ -23,9 +23,12 @@ import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -116,6 +119,14 @@ public abstract class TpchGenerator implements Generator {
     AutoCloseables.close((AutoCloseable) all, returned);
   }
 
+  private <T extends ValueVector> T addOrGet(Field field){
+    T vector = all.addOrGet(field);
+    if(included.contains(field.getName()) || included.isEmpty()){
+      returned.add(vector);
+    }
+    return vector;
+  }
+
   private <T extends ValueVector> T addOrGet(String name, MajorType type, Class<T> clazz){
     T vector = all.addOrGet(name, type, clazz);
     if(included.contains(name) || included.isEmpty()){
@@ -127,6 +138,18 @@ public abstract class TpchGenerator implements Generator {
   protected BigIntVector int8(String name){
     return addOrGet(name, Types.optional(MinorType.BIGINT), BigIntVector.class);
   }
+
+  protected FieldVector complexType(Field map){
+
+    return addOrGet(map);
+  }
+
+  protected ListVector variableSizedList(String name){
+
+    return addOrGet(name, Types.optional(MinorType.LIST), ListVector.class);
+
+  }
+
 
   protected IntVector int4(String name){
     return addOrGet(name, Types.optional(MinorType.INT), IntVector.class);
@@ -180,24 +203,30 @@ public abstract class TpchGenerator implements Generator {
   /**
    * Create a monolithic partition generator.
    * @param table
-   * @param target
    * @param scale
+   * @param allocator
+   * @param includedColumns
    * @return
    */
   public static TpchGenerator singleGenerator(GenerationDefinition.TpchTable table, double scale, BufferAllocator allocator, String... includedColumns) {
     GenerationDefinition def = new GenerationDefinition(scale, Long.MAX_VALUE);
     switch(table){
-    case CUSTOMER:
-      return new CustomerGenerator(allocator, def, 1, TpchTable.CUSTOMER, includedColumns);
-    case CUSTOMER_LIMITED:
-      return new CustomerGenerator(allocator, def, 1, TpchTable.CUSTOMER_LIMITED, includedColumns);
-    case REGION:
-      return new RegionGenerator(allocator, def, includedColumns);
-    case NATION:
-      return new NationGenerator(allocator, def, includedColumns);
-
-    default:
-      throw new UnsupportedOperationException();
+      case CUSTOMER:
+        return new CustomerGenerator(allocator, def, 1, TpchTable.CUSTOMER, includedColumns);
+      case TEMPERATURE:
+        return new TemperatureGenerator(allocator, def, 1, TpchTable.TEMPERATURE, includedColumns);
+      case WORD_GROUPS:
+        return new WordGroupsGenerator(allocator, def, 1, TpchTable.WORD_GROUPS, includedColumns);
+      case MIXED_GROUPS:
+        return new MixedGroupGenerator(allocator, def, 1, TpchTable.MIXED_GROUPS, includedColumns);
+      case CUSTOMER_LIMITED:
+        return new CustomerGenerator(allocator, def, 1, TpchTable.CUSTOMER_LIMITED, includedColumns);
+      case REGION:
+        return new RegionGenerator(allocator, def, includedColumns);
+      case NATION:
+        return new NationGenerator(allocator, def, includedColumns);
+      default:
+        throw new UnsupportedOperationException();
     }
   }
 }

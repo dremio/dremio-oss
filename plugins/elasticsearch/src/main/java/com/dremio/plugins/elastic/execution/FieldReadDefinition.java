@@ -50,7 +50,7 @@ import com.google.common.collect.Multimap;
  * in Elastic should be provided by this file.
  */
 public class FieldReadDefinition {
-  static class VariableFieldReadDefinition extends FieldReadDefinition {
+  static final class VariableFieldReadDefinition extends FieldReadDefinition {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldReadDefinition.class);
     private final int maxCellSize;
     public static final String FORMATTER_DEFAULT_CLASS = "DateFormats.FormatterAndType";

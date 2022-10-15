@@ -151,7 +151,29 @@ public class BoundedPivots {
     return outputRecordIdx;
   }
 
+  private static void resetPivotStructures(PivotDef pivotDef, int count, FixedBlockVector fixedBlock, VariableBlockVector variable) {
+    fixedBlock.getBuf().readerIndex(0);
+    fixedBlock.getBuf().writerIndex(0);
+    variable.getBuf().readerIndex(0);
+    variable.getBuf().writerIndex(0);
+
+    // Zero-out the fixed block for the impacted entries only - this is typically much smaller than the fixedBlock
+    // capacity. The zero-out is required for two reasons :
+    // - When setting validity bits in the pivot block, the code uses OR operations i.e. it assumes that they were zero-initialized.
+    // - Some fields in the pivot block are word-aligned and if the pad regions are not zero-initialized, the hash-computation
+    //   can give non-deterministic results. Same for the mem-compare during hash lookup.
+    //
+    // There is no need to zero out the variable block.
+    fixedBlock.getBuf().setZero(0, Long.min(count * pivotDef.getBlockWidth(), fixedBlock.getCapacity()));
+  }
+
   public static int pivot(PivotDef pivot, int start, int count, FixedBlockVector fixedBlock, VariableBlockVector variable) {
+    resetPivotStructures(pivot, count, fixedBlock, variable);
+
+    if (pivot.getBlockWidth() == 0) {
+      return count;
+    }
+
     // We are constrained by the capacity of variable block vector and count.
     // First fill the variable width vectors to find how many records we can fit in.
     if (pivot.getVariableCount() > 0) {
@@ -159,6 +181,7 @@ public class BoundedPivots {
       Preconditions.checkState(updatedCount <= count);
       count = updatedCount;
     }
+    count = Integer.min(fixedBlock.getCapacity() / fixedBlock.getBlockWidth(), count);
 
     for(VectorPivotDef def : pivot.getFixedPivots()){
       switch(def.getType()){
@@ -219,8 +242,8 @@ public class BoundedPivots {
            i < maxCopy;
            remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength, i++) {
         // Valid and value bits are next to each other. Setting them together
-        int valid = (int)(remainingValidity & 0x01l);
-        int isSet = (int)(remainingValue & 0x01l);
+        int valid = (int)(remainingValidity & 0x01L);
+        int isSet = (int)(remainingValue & 0x01L);
         int bitPair = (((isSet * valid) << 1) | valid) << bitOffset;
         PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
       }
@@ -254,8 +277,8 @@ public class BoundedPivots {
              remainingValidity != 0;
              remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength) {
           // Valid and value bits are next to each other. Setting them together
-          int valid = (int)(remainingValidity & 0x01l);
-          int isSet = (int)(remainingValue & 0x01l);
+          int valid = (int)(remainingValidity & 0x01L);
+          int isSet = (int)(remainingValue & 0x01L);
           int bitPair = (((isSet * valid) << 1) | valid) << bitOffset;
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }
@@ -277,8 +300,8 @@ public class BoundedPivots {
              i < remainCount;
              remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength, i++) {
           // Valid and value bits are next to each other. Setting them together
-          int valid = (int)(remainingValidity & 0x01l);
-          int isSet = (int)(remainingValue & 0x01l);
+          int valid = (int)(remainingValidity & 0x01L);
+          int isSet = (int)(remainingValue & 0x01L);
           int bitPair = (((isSet * valid) << 1) | valid) << bitOffset;
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }

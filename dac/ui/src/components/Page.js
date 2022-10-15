@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from "react";
+import { cloneElement, Component } from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 
-import SideNav from "@app/components/SideNav/SideNav";
 import { flexColumnContainer, fullHeight } from "@app/uiTheme/less/layout.less";
 import { Suspense } from "@app/components/Lazy";
 
 import { page } from "uiTheme/radium/general";
 import { pageContent } from "./Page.less";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 
 //todo (DX-17781) we should migrate all the pages to use MainMasterPage
 export default class Page extends Component {
@@ -32,7 +32,7 @@ export default class Page extends Component {
 
   render() {
     const { children } = this.props;
-    return React.cloneElement(children, {
+    return cloneElement(children, {
       style: { ...children.style, ...page },
     });
   }
@@ -48,7 +48,7 @@ export class MainMasterPage extends Component {
     return (
       <div className={classNames(fullHeight, flexColumnContainer, "mainPage")}>
         <div className={pageContent}>
-          <SideNav />
+          <SonarSideNav />
           <Suspense>{children}</Suspense>
         </div>
       </div>

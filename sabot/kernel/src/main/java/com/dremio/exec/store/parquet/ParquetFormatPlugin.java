@@ -192,6 +192,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
           .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))
           .dateCorruptionStatus(dateStatus)
           .allowMixedDecimals(true)
+          .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
           .build();
       this.codec = CodecFactory.createDirectCodecFactory(new Configuration(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
 

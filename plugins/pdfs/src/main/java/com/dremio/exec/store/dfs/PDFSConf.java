@@ -24,6 +24,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
@@ -33,6 +34,14 @@ import io.protostuff.Tag;
  */
 @SourceType(value = "PDFS", configurable = false)
 public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin<PDFSConf>> {
+
+  @VisibleForTesting
+  public PDFSConf(String path) {
+    this.path = path;
+  }
+
+  public PDFSConf() {
+  }
 
   @Tag(1)
   public String path;
@@ -65,6 +74,11 @@ public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin<PDFSConf
   @Override
   public FileSystemPlugin<PDFSConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
+  }
+
+  @Override
+  public boolean isInternal() {
+    return true;
   }
 
   @Override

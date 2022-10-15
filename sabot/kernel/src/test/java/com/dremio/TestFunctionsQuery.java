@@ -598,7 +598,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("round_bigint", "round_int", "round_float_1", "round_float_2", "round_double_1", "round_double_2")
-        .baselineValues(8124674407369523212l, 9999999, 23.0f, 24.0f, new BigDecimal
+        .baselineValues(8124674407369523212L, 9999999, 23.0f, 24.0f, new BigDecimal
             ("8124674407369"), new BigDecimal("8124674407370"))
         .go();
   }
@@ -900,7 +900,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("NEG")
-        .baselineValues(-2l)
+        .baselineValues(-2L)
         .go();
   }
 
@@ -923,8 +923,8 @@ public class TestFunctionsQuery extends BaseTestQuery {
     String query = "select to_timestamp(cast('800120400.12312' as decimal(38, 5))) as DEC38_TS, to_timestamp(200120400) as INT_TS " +
         "from cp.\"employee.json\" where employee_id < 2";
 
-    LocalDateTime result1 = new LocalDateTime(800120400123l, UTC);
-    LocalDateTime result2 = new LocalDateTime(200120400000l, UTC);
+    LocalDateTime result1 = new LocalDateTime(800120400123L, UTC);
+    LocalDateTime result2 = new LocalDateTime(200120400000L, UTC);
 
     testBuilder()
         .sqlQuery(query)
@@ -1051,7 +1051,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .sqlQuery("select \"integer\" i, \"float\" f from cp.\"jsoninput/input1.json\" where \"float\" = '1.2'")
         .unOrdered()
         .baselineColumns("i", "f")
-        .baselineValues(2001l, 1.2d)
+        .baselineValues(2001L, 1.2d)
         .go();
   }
 

@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -233,6 +234,7 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
 
   @Override
   public void close() throws Exception {
+    addDisplayStatsWithZeroValue(context, EnumSet.allOf(Metric.class));
     updateStats();
     AutoCloseables.close(table, accumulator, outgoing);
   }

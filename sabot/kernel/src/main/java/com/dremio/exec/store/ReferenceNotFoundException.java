@@ -28,4 +28,8 @@ public class ReferenceNotFoundException extends RuntimeException {
   public ReferenceNotFoundException(Throwable cause) {
     super(cause);
   }
+
+  public ReferenceNotFoundException(String message) {
+    super(message);
+  }
 }

@@ -16,9 +16,9 @@
 import React from "react";
 import { shallow } from "enzyme";
 
-import MuiSelect from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import { ReactComponent as ExpandMoreIcon } from "../../art/ArrowDown.svg";
+import MuiSelect from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import { ReactComponent as ExpandMoreIcon } from "../../art/CaretDown.svg";
 
 import Label from "../Label";
 

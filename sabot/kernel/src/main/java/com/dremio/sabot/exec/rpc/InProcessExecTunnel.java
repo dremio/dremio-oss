@@ -81,6 +81,9 @@ public class InProcessExecTunnel implements ExecTunnel {
     // increment so we don't get false returns.
     ack.increment();
     ExecRPC.FragmentRecordBatch header = batch.getHeader();
+    header = ExecRPC.FragmentRecordBatch.newBuilder(header)
+      .setRecvEpochTimestamp(System.currentTimeMillis())
+      .build();
 
     long dataBufLen = batch.getByteCount();
     try (ArrowBuf dBodyBuf = allocator.buffer(dataBufLen)) {

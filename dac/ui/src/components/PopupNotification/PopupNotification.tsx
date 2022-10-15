@@ -17,7 +17,7 @@
 import { useState } from "react";
 // @ts-ignore
 import ReactDOM from "react-dom";
-import { IconButton, Snackbar } from "@material-ui/core";
+import { IconButton, Snackbar } from "@mui/material";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import FontIcon from "../Icon/FontIcon";

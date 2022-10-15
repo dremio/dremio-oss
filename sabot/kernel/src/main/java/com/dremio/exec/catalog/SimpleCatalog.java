@@ -79,6 +79,13 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
   T resolveCatalog(NamespaceKey newDefaultSchema);
 
   /**
+   * Return a new Catalog contextualized to the provided version context
+   * @param  sourceVersionMapping
+   * @return A new catalog contextualized to the provided version context.
+   */
+  T resolveCatalog(Map<String, VersionContext>  sourceVersionMapping);
+
+  /**
    * Validate if there is a violation of cross source selection
    */
   void validateSelection();

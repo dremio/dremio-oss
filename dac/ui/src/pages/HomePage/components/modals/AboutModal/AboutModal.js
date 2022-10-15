@@ -25,14 +25,13 @@ import ApiUtils from "@app/utils/apiUtils/apiUtils";
 import metrics from "@app/metrics";
 
 import Modal from "components/Modals/Modal";
-import Art from "components/Art";
 import Spinner from "components/Spinner";
 
 import { getEdition, getAboutMode } from "@inject/utils/versionUtils";
 import timeUtils from "utils/timeUtils";
 
 import { TabsNavigationItem } from "dremio-ui-lib";
-import { clusterData } from "./AboutModal.less";
+import { clusterData, dremioLogo } from "./AboutModal.less";
 
 const numDaysBack = 7;
 
@@ -299,16 +298,14 @@ export default class AboutModal extends Component {
         modalHeight={isBeta ? "560px" : "540px"}
       >
         <div style={styles.container}>
-          <div style={{ ...styles.logoPane, ...betaStyles }}>
-            <Art
-              className="dremioLogo"
-              src={
-                isBeta
-                  ? "Narwhal-Logo-With-Name-Light-Beta.svg"
-                  : "NarwhalLogo.svg"
-              }
-              style={{ width: 150 }}
+          <div
+            style={{ ...styles.logoPane, ...betaStyles }}
+            className="dremioLogoWithTextContainer"
+          >
+            <dremio-icon
+              name={isBeta ? "corporate/dremio-beta-light" : "corporate/dremio"}
               alt={la("Dremio Narwhal")}
+              class={`${dremioLogo} dremioLogoWithText`}
             />
           </div>
           <div style={styles.pane}>

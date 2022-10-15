@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.common.expression.BooleanOperator;
@@ -38,8 +40,11 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.join.BaseTestJoin;
+import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.VectorizedHashJoinOperator;
 
 public class TestVHashJoin extends BaseTestJoin {
@@ -101,6 +106,17 @@ public class TestVHashJoin extends BaseTestJoin {
 
   private static final Fixtures.HeaderRow TH = th(ALL_SCHEMA);
   private static final Fixtures.Table EMPTY_TABLE = t(TH, true, tr(combine(NULL_LEFT, NULL_RIGHT)));
+  private final OptionManager options = testContext.getOptions();
+
+  @Before
+  public void before() {
+    options.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), false));
+  }
+
+  @After
+  public void after() {
+    options.setOption(HashJoinOperator.ENABLE_SPILL.getDefault());
+  }
 
   @Override
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {

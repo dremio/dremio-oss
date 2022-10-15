@@ -31,7 +31,6 @@ import com.google.common.collect.Lists;
  * This class uses reflection of a Java class to construct a {@link com.dremio.exec.store.RecordDataType}.
  */
 public class PojoDataType extends RecordDataType {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PojoDataType.class);
 
   private final List<SqlTypeName> types = Lists.newArrayList();
   private final List<String> names = Lists.newArrayList();

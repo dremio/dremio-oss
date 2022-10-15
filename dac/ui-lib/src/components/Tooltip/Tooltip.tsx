@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 import React from "react";
-import Tooltip from "@material-ui/core/Tooltip";
-// @ts-ignore
+import Tooltip, {
+  TooltipProps as MuiTooltipProps,
+} from "@mui/material/Tooltip";
 import { FormattedMessage } from "react-intl";
 
-type TooltipMuiTypes = {
-  arrow?: boolean;
-  enterDelay?: number;
-  enterNextDelay?: number;
-  title: string | React.ReactNode;
-  interactive?: boolean;
-  children: any;
+import "./Tooltip.scss";
+
+type TooltipProps = MuiTooltipProps & {
+  type?: "tooltip" | "richTooltip";
 };
 
 const TooltipMui = ({
@@ -32,23 +30,24 @@ const TooltipMui = ({
   enterDelay = 500,
   enterNextDelay = 500,
   title = "",
-  interactive = false,
   children,
+  type = "tooltip",
   ...props
-}: TooltipMuiTypes) => {
+}: TooltipProps) => {
+  const classes = { tooltip: type };
   return (
     <Tooltip
       title={
-        interactive || typeof title !== "string" ? (
+        typeof title !== "string" ? (
           title
         ) : (
           <FormattedMessage id={title} defaultMessage={title} />
         )
       }
+      classes={classes}
       enterDelay={enterDelay}
       enterNextDelay={enterNextDelay}
       arrow={arrow}
-      interactive={interactive}
       {...props}
     >
       {children}

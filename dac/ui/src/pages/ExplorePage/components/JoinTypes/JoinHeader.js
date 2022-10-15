@@ -21,8 +21,6 @@ import { injectIntl } from "react-intl";
 import { getExploreState } from "@app/selectors/explore";
 import classNames from "classnames";
 
-import Art from "components/Art";
-
 import {
   RECOMMENDED_JOIN,
   CUSTOM_JOIN,
@@ -67,11 +65,12 @@ export class JoinHeader extends Component {
   getCloseIcon() {
     const handler = this.props.closeIconHandler;
     const icon = this.props.closeIcon ? (
-      <Art
-        src={"XBig.svg"}
+      <dremio-icon
+        name="interface/close-big"
         alt={this.props.intl.formatMessage({ id: "Common.Close" })}
-        onClick={handler}
         style={styles.icon}
+        onClick={handler}
+        class={classes["join-header-tab__closeIcon"]}
       />
     ) : null;
     return icon;
@@ -151,6 +150,7 @@ const styles = {
     height: 24,
     fontSize: 18,
     cursor: "pointer",
+    color: "var()",
   },
 };
 

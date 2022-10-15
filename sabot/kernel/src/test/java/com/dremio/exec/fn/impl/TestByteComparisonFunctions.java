@@ -27,7 +27,6 @@ import org.junit.Test;
 import com.dremio.exec.ExecTest;
 
 public class TestByteComparisonFunctions extends ExecTest {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestByteComparisonFunctions.class);
 
   private static VarCharHolder hello;
   private static VarCharHolder goodbye;

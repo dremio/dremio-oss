@@ -27,4 +27,14 @@ interface Wrapped<T> extends Operator, AutoCloseable {
   int getOperatorId();
   T getInner();
   OperatorContext getContext();
+
+  /**
+   * Shrink memory usage by the given number of bytes
+   * @param memoryUsed The amount of memory in bytes to reduce
+   * @return
+   * @throws Exception
+   */
+  default boolean shrinkMemory(long memoryUsed) throws Exception {
+    throw new UnsupportedOperationException("Operation not supported");
+  }
 }

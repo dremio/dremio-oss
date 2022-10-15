@@ -46,7 +46,7 @@ public class TestInequalityConditionHashJoin extends PlanTestBase {
       "ON o.o_orderkey = l.l_orderkey\n" +
       "AND o.o_totalprice / l.l_quantity > 100.0";
     testPlanMatchingPatterns(query, new String[]{
-        Pattern.quote("HashJoin(condition=[=($0, $16)], joinType=[right], extraCondition=[>(/($19, $4), 100.0)])")
+        Pattern.quote("HashJoin(condition=[=($0, $16)], joinType=[right], extraCondition=[>(/($19, $4), 100.0:DECIMAL(4, 1))])")
       },
       "NestedLoopJoin");
   }
@@ -58,7 +58,7 @@ public class TestInequalityConditionHashJoin extends PlanTestBase {
       "ON o.o_orderkey = l.l_orderkey\n" +
       "AND o.o_totalprice / l.l_quantity > 100.0";
     testPlanMatchingPatterns(query, new String[]{
-        Pattern.quote("HashJoin(condition=[=($0, $16)], joinType=[left], extraCondition=[>(/($19, $4), 100.0)])")
+        Pattern.quote("HashJoin(condition=[=($0, $16)], joinType=[left], extraCondition=[>(/($19, $4), 100.0:DECIMAL(4, 1))])")
       },
       "NestedLoopJoin");
   }
@@ -73,7 +73,7 @@ public class TestInequalityConditionHashJoin extends PlanTestBase {
       "INNER JOIN cp.\"tpch/nation.parquet\" n ON c.c_nationkey = n.n_nationkey";
     testPlanMatchingPatterns(query, new String[]{
         Pattern.quote("HashJoin(condition=[=($3, $4)], joinType=[inner])"),
-        Pattern.quote("HashJoin(condition=[=($1, $5)], joinType=[right], extraCondition=[>(/($0, $6), 100.0)])"),
+        Pattern.quote("HashJoin(condition=[=($1, $5)], joinType=[right], extraCondition=[>(/($0, $6), 100.0:DECIMAL(4, 1))])"),
         Pattern.quote("HashJoin(condition=[=($0, $2)], joinType=[right], extraCondition=[<($4, $1)])")
       },
       "NestedLoopJoin");
@@ -106,7 +106,7 @@ public class TestInequalityConditionHashJoin extends PlanTestBase {
       "AND o.o_custkey = 63190\n" +
       "AND o.o_totalprice / l.l_quantity > 100.0";
     testPlanMatchingPatterns(query, new String[]{
-        Pattern.quote("HashJoin(condition=[=($0, $16)], joinType=[right], extraCondition=[AND($25, >(/($19, $4), 100.0))])")
+        Pattern.quote("HashJoin(condition=[=($0, $16)], joinType=[right], extraCondition=[AND($25, >(/($19, $4), 100.0:DECIMAL(4, 1)))])")
       },
       "NestedLoopJoin");
   }

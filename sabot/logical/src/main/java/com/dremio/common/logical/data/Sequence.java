@@ -19,9 +19,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.logical.data.Sequence.De;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -52,8 +49,7 @@ import com.google.common.collect.Iterators;
 @Deprecated
 @JsonDeserialize(using = De.class)
 @JsonTypeName("sequence")
-public class Sequence extends LogicalOperatorBase {
-  static final Logger logger = LoggerFactory.getLogger(Sequence.class);
+public final class Sequence extends LogicalOperatorBase {
 
   private Sequence() {}
 

@@ -76,7 +76,9 @@
     justify-content: space-between;
     font-weight: 600;
     font-size: 14px;
+    width: 100%;
     overflow: hidden;
+
     &__pipe {
       padding-left: 10px;
       cursor: col-resize;
@@ -84,8 +86,15 @@
     }
   }
   .draggableHeaderInnerText {
+    display: flex;
     white-space: nowrap;
     overflow: hidden;
+
+    &--alignRight {
+      justify-content: flex-end;
+      text-align: right;
+      width: 100%;
+    }
   }
   .rightAlignedEllipsesText {
     white-space: nowrap;

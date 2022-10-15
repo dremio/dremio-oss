@@ -15,8 +15,8 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -37,7 +37,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentMatchers;
 
 import com.dremio.common.config.SabotConfig;
@@ -69,9 +68,6 @@ public class BlockJoinTableTest {
 
   @Rule
   public final AllocatorRule defaultAllocatorRule = AllocatorRule.defaultAllocator();
-
-  @Rule
-  public final ExpectedException expectOomExceptionRule = ExpectedException.none();
 
   @Before
   public void setupBeforeTest() {
@@ -105,13 +101,10 @@ public class BlockJoinTableTest {
     ExecProtos.FragmentHandle fragmentHandle = ExecProtos.FragmentHandle.newBuilder().setMinorFragmentId(1).build();
     OperatorContext context = mockOpContext(fragmentHandle, defaultAllocator);
 
-    expectOomExceptionRule.expect(OutOfMemoryException.class);
-    expectOomExceptionRule.expectMessage("Only 3 records");
-
     // Mocks
     HashTable mockedHashTable = mock(HashTable.class);
 
-    when(mockedHashTable.add(anyInt(), anyLong(), anyLong(), anyLong(), anyLong())).
+    when(mockedHashTable.add(anyInt(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())).
       thenReturn(3);
 
     doReturn(mockedHashTable).when(sabotConfig).getInstance(
@@ -121,14 +114,14 @@ public class BlockJoinTableTest {
     );
 
     // Instantiation
-    BlockJoinTable table = new BlockJoinTable(buildPivot, probePivot, defaultAllocator, comparator, 0,
-      INITIAL_VAR_FIELD_AVERAGE_SIZE, context.getConfig(), context.getOptions());
+    try (BlockJoinTable table = new BlockJoinTable(buildPivot, probePivot, defaultAllocator, comparator, 0,
+      INITIAL_VAR_FIELD_AVERAGE_SIZE, context.getConfig(), context.getOptions(), false)) {
 
-    // ACT
-    table.insert(0, 10);
-
-    // CLEAN UP
-    table.close();
+      // ACT
+      assertThatThrownBy(() -> table.insert(null, 10))
+        .isInstanceOf(OutOfMemoryException.class)
+        .hasMessageContaining("Only 3 records");
+    }
   }
 
   private SabotConfig mockSabotConfig() {
@@ -140,7 +133,7 @@ public class BlockJoinTableTest {
   private OptionManager mockOptionManager() {
     OptionManager optionManager = mock(OptionManager.class);
 
-    when(optionManager.getOption(eq(ExecConstants.RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE))).thenReturn(1000l);
+    when(optionManager.getOption(eq(ExecConstants.RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE))).thenReturn(1000L);
     when(optionManager.getOption(eq(ExecConstants.ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET))).thenReturn(true);
 
     return optionManager;

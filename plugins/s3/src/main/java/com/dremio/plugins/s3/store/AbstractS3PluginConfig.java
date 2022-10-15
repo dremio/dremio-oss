@@ -57,7 +57,7 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
   @Tag(3)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Encrypt connection")
-  public boolean secure;
+  public boolean secure = true;
 
   @Tag(4)
   @DisplayMetadata(label = "Buckets")

@@ -1,0 +1,206 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "DATE_ADD"
+signatures:
+ -
+  returnType: "DATE"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "givenDate"
+    description: "String-formatted DATE, of the form 'YYYY-MM-DD'"
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "nrDays"
+    description: "Integer number of days to be added (or subtracted) from the givenDate.  To subtract days, pass a negative number."
+  description: "Add or subtract whole days to a DATE value encoded as a STRING"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add('2021-04-01', 2)"
+    result: "2021-04-03"
+   -
+    call: "SELECT DATE_add('2021-04-01', 2)"
+    result: "2021-04-03"
+ -
+  returnType: "DATE"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "DATE"
+    name: "givenDate"
+    description: "Date value to which to add days (either a database column in DATE format, or literal value explicitly converted to DATE)"
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "nrDays"
+    description: "Integer number of days to be added (or subtracted) from the givenDate.  To subtract days, pass a negative number."
+  description: "Add or subtract whole days to a DATE value"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add(to_DATE('2021-04-01'), 2)"
+    result: "2021-04-03"
+ -
+  returnType: "TIMESTAMP"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "givenTimestamp"
+    description: "String-formatted TIMESTAMP, of the form 'YYYY-MM-DD HH24:MI:SS'"
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "nrDays"
+    description: "Floating point (fractional) number of days to be added (or subtracted) from the givenDate.  To subtract days, pass a negative number."
+  description: "Add or subtract days (whole or fractional) to TIMESTAMP value encoded as a STRING"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add('2021-04-01 01:00:00.000', 2.5)"
+    result: "2021-04-03 13:00:00.000"
+ -
+  returnType: "TIMESTAMP"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "TIMESTAMP"
+    name: "givenTimestamp"
+    description: "Date value to which to add days (either a database column in DATE format, or literal value explicitly converted to DATE)"
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "nrDays"
+    description: "Floating point (fractional) number of days to be added (or subtracted) from the givenDate.  To subtract days, pass a negative number."
+  description: "Add or subtract days (whole or fractional) to TIMESTAMP value"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add(to_TIMESTAMP('2021-04-01 01:00:00.000'), 2.5)"
+    result: "2021-04-03 13:00:00.000"
+ -
+  returnType: "DATE"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "givenDate"
+    description: "String-formatted DATE, of the form 'YYYY-MM-DD'"
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "TIMEInterval"
+    description: "Single-quoted STRING representing a TIMENUMERICerval.  Expressed as a number, followed by one of the following STRINGs - 'year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second'"
+  description: "Add or subtract anNUMERICerval to/from a DATE value encoded as a STRING"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add('2021-04-01', '2 days')"
+    result: "2021-04-03"
+ -
+  returnType: "DATE"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "DATE"
+    name: "givenDate"
+    description: "String-formatted DATE, of the form 'YYYY-MM-DD'"
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "TIMEInterval"
+    description: "Single-quoted STRING representing a TIMENUMERICerval.  Expressed as a number, followed by one of the following STRINGs - 'year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second'"
+  description: "Add or subtract anNUMERICerval to/from a DATE value encoded as a DATE"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add(to_DATE('2021-04-01'), '2 days')"
+    result: "2021-04-03"
+ -
+  returnType: "TIMESTAMP"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "givenTimestamp"
+    description: "String-formatted TIMESTAMP, of the form 'YYYY-MM-DD HH24:MI:SS'"
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "TIMEInterval"
+    description: "Single-quoted STRING representing a TIMENUMERICerval.  Expressed as a number, followed by one of the following STRINGs - 'year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second'"
+  description: "Add or subtract anNUMERICerval to/from a TIMESTAMP value encoded as a STRING"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add('2021-04-01 00:00:00', '2 days')"
+    result: "2021-04-03 00:00:00"
+ -
+  returnType: "TIMESTAMP"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "TIMESTAMP"
+    name: "givenTimetamp"
+    description: "String-formatted DATE, of the form 'YYYY-MM-DD'"
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "TIMEInterval"
+    description: "String-formatted DATE, of the form 'YYYY-MM-DD'"
+  description: "Add or subtract anNUMERICerval to/from a TIMESTAMP value encoded as a TIMESTAMP"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add(to_TIMESTAMP('2021-04-01 00:00:00', '2 days')"
+    result: "2021-04-03 00:00:00.000"
+ -
+  returnType: "TIME"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "givenTime"
+    description: "String-formatted TIME, of the form 'HH24:MI:SS'"
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "TIMEInterval"
+    description: "Single-quoted STRING representing a TIMENUMERICerval.  Expressed as a number, followed by one of the following STRINGs - 'year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second'"
+  description: "Add or subtract anNUMERICerval to/from a TIME value encoded as a STRING"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add('00:00:00', '2 minutes')"
+    result: "00:02:00"
+ -
+  returnType: "TIME"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "TIME"
+    name: "givenTime"
+    description: "String-formatted DATE, of the form 'YYYY-MM-DD'"
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "TIMEInterval"
+    description: "Single-quoted STRING representing a TIMENUMERICerval.  Expressed as a number, followed by one of the following STRINGs - 'year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second'"
+  description: "Add or subtract anNUMERICerval to/from a TIME value encoded as a TIME"
+  sampleCodes:
+   -
+    call: "SELECT DATE_add(to_TIME('00:00:00'), '2 minutes')"
+    result: "00:02:00"
+dremioVersion: "1.0+"
+functionCategories:
+ - "DATETIME"
+description: "Add (or subract) days from a DATE/TIMESTAMP value or column\n"

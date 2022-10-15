@@ -121,4 +121,5 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   public String getDefaultCtasFormat() {
     return defaultCtasFormat.getDefaultCtasFormat();
   }
+
 }

@@ -132,6 +132,7 @@ final class ProfileMerger {
         .setEndpoint(executorProfile.getEndpoint())
         .setMaxMemoryUsed(status.getMaxMemoryUsed())
         .setTimeEnqueuedBeforeSubmitMs(status.getTimeEnqueuedBeforeSubmitMs())
+        .setNumberOfCores(status.getNumberOfCores())
         .build()
     );
   }

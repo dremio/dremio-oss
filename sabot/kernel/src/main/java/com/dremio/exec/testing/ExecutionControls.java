@@ -20,13 +20,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.arrow.util.VisibleForTesting;
-
+import com.dremio.common.VM;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.testing.InjectionSite.InjectionSiteKeyDeserializer;
-import com.dremio.exec.util.AssertionUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
@@ -36,6 +34,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Tracks the simulated controls that will be injected for testing purposes.
@@ -146,7 +145,7 @@ public class ExecutionControls {
   public ExecutionControls(final OptionManager options, final NodeEndpoint endpoint) {
     this.endpoint = endpoint;
 
-    if (!AssertionUtil.isAssertionsEnabled()) {
+    if (!VM.areAssertsEnabled()) {
       return;
     }
 

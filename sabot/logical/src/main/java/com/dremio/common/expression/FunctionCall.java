@@ -67,7 +67,30 @@ public class FunctionCall extends LogicalExpressionBase implements Iterable<Logi
   public String toString() {
     final int maxLen = 10;
     return "FunctionCall [func=" + name + ", args="
-        + (args != null ? args.subList(0, Math.min(args.size(), maxLen)) : null) + "]";
+        + (args != null ? getArgumentsListAsString() : null) + "]";
+  }
+
+  private String getArgumentsListAsString() {
+    final int maxLen = 10;
+    StringBuilder sb = new StringBuilder();
+    int currArgNum=1;
+    try {
+      for (LogicalExpression arg : args) {
+        if(currArgNum >maxLen) {
+          //only maxLen number of arguments are appended
+          break;
+        }
+        if(currArgNum>1) {
+          sb.append(", ");
+        }
+        sb.append(arg.getCompleteType().getType().toString());
+        currArgNum++;
+      }
+    } catch (Exception e) {
+      sb = new StringBuilder();
+      sb.append("There was an error while constructing the args list");
+    }
+    return sb.toString();
   }
 
 }

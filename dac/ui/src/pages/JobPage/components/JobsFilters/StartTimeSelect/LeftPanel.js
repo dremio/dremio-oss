@@ -49,7 +49,7 @@ class LeftPanel extends PureComponent {
   static getIntervals = getIntervalsUtil; //TODO Remove static
 
   renderIntervals = () =>
-    Intervals.map((item, index) =>
+    Intervals().map((item, index) =>
       item.label !== undefined && item.time !== undefined ? (
         <div
           className={classNames(classes["jobFiltersLeftPanel__interval"], {

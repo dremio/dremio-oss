@@ -33,6 +33,7 @@ export class DatasetSettingsModal extends Component {
     entityId: PropTypes.string,
     fullPath: PropTypes.string,
     tab: PropTypes.string,
+    entityName: PropTypes.string,
     // connected from FormUnsavedWarningHOC
     updateFormDirtyState: PropTypes.func,
     location: PropTypes.object,
@@ -40,12 +41,26 @@ export class DatasetSettingsModal extends Component {
   };
 
   render() {
-    const { isOpen, updateFormDirtyState, intl, ...datasetSettingsProps } =
-      this.props;
+    const {
+      isOpen,
+      updateFormDirtyState,
+      intl,
+      entityName,
+      ...datasetSettingsProps
+    } = this.props;
+
+    const modalTitle = entityName
+      ? `${intl.formatMessage({
+          id: "Dataset.Settings.for",
+        })} ${entityName}`
+      : intl.formatMessage({
+          id: "Dataset.Settings",
+        });
+
     return (
       <Modal
         size="large"
-        title={intl.formatMessage({ id: "Dataset.Settings" })}
+        title={modalTitle}
         isOpen={isOpen}
         hide={datasetSettingsProps.hide}
       >

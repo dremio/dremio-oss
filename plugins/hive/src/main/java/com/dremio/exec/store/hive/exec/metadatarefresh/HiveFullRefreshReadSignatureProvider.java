@@ -21,12 +21,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.metadatarefresh.committer.AbstractReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.hive.proto.HiveReaderProto;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 

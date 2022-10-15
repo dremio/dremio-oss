@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 import { COMMIT_TYPE, NESSIE_REF_PREFIX } from "@app/constants/nessie";
-import { NESSIE } from "@app/constants/sourceTypes";
-import { NessieRootState, NessieState } from "@app/reducers/nessie/nessie";
+import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
+import { NessieRootState, NessieState } from "@app/types/nessie";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import { Branch } from "@app/services/nessie/client";
 import { store } from "@app/store/store";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import moize from "moize";
@@ -26,9 +27,9 @@ export function getShortHash(hash: string) {
 }
 
 export function getIconByType(refType: string, hash?: string | null) {
-  if (hash) return "NessieCommit.svg";
-  else if (refType === "TAG") return "NessieTag.svg";
-  else return "GitBranch.svg";
+  if (hash) return "vcs/commit";
+  else if (refType === "TAG") return "vcs/tag";
+  else return "vcs/branch";
 }
 
 export function getFullPathByType(refName: string, hash?: string | null) {
@@ -45,10 +46,13 @@ export function getTypeAndValue(state?: NessieState | null) {
       type: COMMIT_TYPE,
       value: state.hash,
     };
-  } else if (state.reference) {
+  } else if (
+    state.reference &&
+    ["BRANCH", "TAG"].includes(state.reference.type)
+  ) {
     value = {
       type: state.reference.type,
-      value: state.reference.name,
+      value: (state.reference as Branch).name,
     };
   }
   return value;
@@ -136,6 +140,13 @@ export function getProjectUrl(id?: string) {
   })}`;
 }
 
+export function getArcticProjectUrl(id?: string) {
+  //@ts-ignore
+  return `${window.location.protocol}${apiUtils.getAPIVersion("ARCTIC", {
+    projectId: id,
+  })}`;
+}
+
 export function getProjectIdFromUrl(url?: any) {
   if (!url || typeof url !== "string") return "";
   const value = url.substring(url.lastIndexOf("/") + 1, url.length) || "";
@@ -157,11 +168,29 @@ export const getSourceByName = moize(function (
   sources?: Array<{ name: string; type: string }>
 ) {
   return (sources || []).find(
-    (cur) => cur.type === NESSIE && cur.name === name
+    (cur) => [NESSIE, ARCTIC].includes(cur.type) && cur.name === name
   );
 });
 
 export function parseNamespaceUrl(url: string, path: string) {
   if (url === "/") return undefined;
   return url.replace(`/${path}/`, "").split("/");
+}
+
+type CatalogSourceConfig = { arcticCatalogId: string };
+type NessieSourceConfig = { nessieEndpoint: string };
+function isArcticCatalogConfig(
+  config: CatalogSourceConfig | NessieSourceConfig
+): config is CatalogSourceConfig {
+  return (config as CatalogSourceConfig).arcticCatalogId != null;
+}
+
+export function getEndpointFromSourceConfig(
+  config: CatalogSourceConfig | NessieSourceConfig
+) {
+  if (isArcticCatalogConfig(config)) {
+    return getArcticProjectUrl(config.arcticCatalogId);
+  } else {
+    return config.nessieEndpoint;
+  }
 }

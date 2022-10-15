@@ -19,7 +19,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
@@ -27,6 +26,7 @@ import org.apache.arrow.vector.FieldVector;
 import com.dremio.sabot.op.common.ht2.PivotBuilder.FieldMode;
 import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 
 import io.netty.util.internal.PlatformDependent;

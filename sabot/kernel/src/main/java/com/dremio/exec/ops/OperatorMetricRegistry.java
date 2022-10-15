@@ -54,7 +54,6 @@ import com.dremio.sabot.op.writer.WriterOperator;
  * Registry of operator metrics.
  */
 public class OperatorMetricRegistry {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorMetricRegistry.class);
 
   private static final CoreOperatorTypeMetricsMap CORE_OPERATOR_TYPE_METRICS_MAP;
   private static final String[][] OPERATOR_METRICS_NAMES = new String[CoreOperatorType.values().length][];
@@ -115,7 +114,10 @@ public class OperatorMetricRegistry {
     for (int i = 0; i < enumConstants.size(); i++) {
       metricsDefBuilder.addMetricDef(UserBitShared.MetricDef.newBuilder()
         .setId(enumConstants.get(i).metricId())
-        .setName(enumConstants.get(i).name()).build()
+        .setName(enumConstants.get(i).name())
+        .setDisplayType(enumConstants.get(i).getDisplayType())
+        .setAggregationType(enumConstants.get(i).getAggregationType())
+        .setDisplayCode(enumConstants.get(i).getDisplayCode()).build()
       );
       names[i] = enumConstants.get(i).name();
     }

@@ -15,6 +15,10 @@
  */
 package com.dremio.dac.model.sources;
 
+import static com.dremio.exec.store.CatalogService.DEFAULT_AUTHTTLS_MILLIS;
+import static com.dremio.exec.store.CatalogService.DEFAULT_EXPIRE_MILLIS;
+import static com.dremio.exec.store.CatalogService.DEFAULT_REFRESH_MILLIS;
+
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.UpdateMode;
@@ -82,10 +86,30 @@ public class UIMetadataPolicy {
       @JsonProperty("autoPromoteDatasets") Boolean autoPromoteDatasets) {
     super();
     this.updateMode = updateMode;
-    this.namesRefreshMillis = namesRefreshMillis;
-    this.authTTLMillis = authTTLMillis;
-    this.datasetDefinitionRefreshAfterMillis = datasetDefinitionRefreshAfterMillis;
-    this.datasetDefinitionExpireAfterMillis = datasetDefinitionExpireAfterMillis;
+    if (namesRefreshMillis == 0) {
+      this.namesRefreshMillis = DEFAULT_REFRESH_MILLIS;
+    } else {
+      this.namesRefreshMillis = namesRefreshMillis;
+    }
+
+    if (authTTLMillis == 0) {
+     this.authTTLMillis = DEFAULT_AUTHTTLS_MILLIS;
+    } else {
+      this.authTTLMillis = authTTLMillis;
+    }
+
+    if (datasetDefinitionRefreshAfterMillis == 0) {
+      this.datasetDefinitionRefreshAfterMillis = DEFAULT_REFRESH_MILLIS;
+    } else {
+      this.datasetDefinitionRefreshAfterMillis = datasetDefinitionRefreshAfterMillis;
+    }
+
+    if (datasetDefinitionExpireAfterMillis == 0) {
+      this.datasetDefinitionExpireAfterMillis = DEFAULT_EXPIRE_MILLIS;
+    } else {
+      this.datasetDefinitionExpireAfterMillis = datasetDefinitionExpireAfterMillis;
+    }
+
     this.deleteUnavailableDatasets = !Boolean.FALSE.equals(deleteUnavailableDatasets); // true, unless 'false'
     this.autoPromoteDatasets = Boolean.TRUE.equals(autoPromoteDatasets); // false, unless 'true'
   }

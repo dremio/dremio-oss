@@ -48,12 +48,14 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.glassfish.jersey.media.multipart.ContentDisposition;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -89,6 +91,9 @@ public class TestTableauMessageBodyGenerator {
     };
   }
 
+  @Rule
+  public final MockitoRule mockitoRule = MockitoJUnit.rule();
+
   private static final NodeEndpoint ENDPOINT = NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
 
   private final DatasetPath path;
@@ -112,7 +117,6 @@ public class TestTableauMessageBodyGenerator {
 
   @Before
   public void setUp() {
-    MockitoAnnotations.initMocks(this);
     when(optionManager.getOption(EXTRA_CONNECTION_PROPERTIES)).thenReturn(customProperties);
   }
 

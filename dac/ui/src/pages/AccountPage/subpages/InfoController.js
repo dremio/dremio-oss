@@ -30,6 +30,10 @@ export class InfoController extends PureComponent {
 
   static propTypes = {
     updateFormDirtyState: PropTypes.func, // comes from updateFormDirtyState
+    leftAlignFooter: PropTypes.bool,
+    hideCancel: PropTypes.bool,
+    isModal: PropTypes.bool,
+    cancelFunc: PropTypes.func,
   };
 
   submit = (submitPromise) => {
@@ -39,15 +43,24 @@ export class InfoController extends PureComponent {
   };
 
   cancel = () => {
-    this.context.router.goBack();
+    const { cancelFunc } = this.props;
+    if (cancelFunc) {
+      cancelFunc();
+    } else {
+      this.context.router.goBack();
+    }
   };
 
   render() {
+    const { leftAlignFooter, hideCancel, isModal } = this.props;
     return (
       <Info
         updateFormDirtyState={this.props.updateFormDirtyState}
         onFormSubmit={this.submit}
         cancel={this.cancel}
+        leftAlignFooter={leftAlignFooter}
+        hideCancel={hideCancel}
+        isModal={isModal}
       />
     );
   }

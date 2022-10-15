@@ -38,6 +38,7 @@ import com.google.common.base.Stopwatch;
 import io.netty.util.internal.PlatformDependent;
 
 public class VectorizedHashAggPartition implements SpaceCheckListener, AutoCloseable {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggPartition.class);
   boolean spilled;
   final LBlockHashTable hashTable;
   final AccumulatorSet accumulator;
@@ -48,7 +49,10 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
   private String identifier;
   private final boolean decimalV2Enabled;
   private int varFieldLen = 0;
+  private int varFieldCount = 0;
+
   private int[] batchSpaceUsage;
+  private int[] batchValueCount;
   private final Stopwatch forceAccumTimer = Stopwatch.createUnstarted();
   private int numForceAccums = 0;
 
@@ -79,6 +83,7 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
     this.buffer = buffer;
     this.decimalV2Enabled = decimalV2Enabled;
     batchSpaceUsage = new int[0];
+    batchValueCount = new int[0];
     buffer.getReferenceManager().retain(1);
   }
 
@@ -190,7 +195,7 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
   public void resetRecords() {
     records = 0;
     /* Reset the batchSpaceUsage as well */
-    resetBatchUsedSpace();
+    resetBatchSpaceAndCount();
   }
 
   /**
@@ -254,7 +259,6 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
       } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.SUM0.ordinal()) {
         updateSumZeroAccumulator(deserializedAccumulator, partitionAccumulators,
                                  i, computationVectorAllocator);
-
       } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.HLL.ordinal()) {
         /*
          * HLL NDV results are serialized and saved in variable width vector. In order to
@@ -267,9 +271,28 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
           /* This never fail */
           partitionAccumulator.close();
         } catch (Exception e) {
+          logger.error("An unexpected error was thrown while closing partitionAccumulator", e);
           e.printStackTrace();
         }
       } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal()) {
+        partitionAccumulators[i].setInput(deserializedAccumulator);
+      } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.LISTAGG.ordinal() ||
+                 accumulatorType == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal()) {
+        /*
+         * LISTAGG results are saved as ListVector on top of BaseVariableWidthVector. In order to
+         * merge them across spilled batches, need to call LISTAGG_MERGE.
+         */
+        partitionAccumulators[i] = new ListAggMergeAccumulator((ListAggAccumulator) partitionAccumulator, deserializedAccumulator,
+          hashTable.getActualValuesPerBatch(), computationVectorAllocator,
+          accumulatorType == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal());
+        try {
+          /* This never fail */
+          partitionAccumulator.close();
+        } catch (Exception e) {
+          logger.error("An unexpected error was thrown while closing partitionAccumulator", e);
+          e.printStackTrace();
+        }
+      } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
         partitionAccumulators[i].setInput(deserializedAccumulator);
       } else {
         /* handle MIN, MAX */
@@ -535,47 +558,67 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
     return accumulator;
   }
 
-  private void reallocateBatchUsedSpace() {
-    int[] newBatches = new int[batchSpaceUsage.length + 64];
+  private void reallocateBatchSpaceAndCount() {
+    final int[] newBatches = new int[batchSpaceUsage.length + 64];
+    final int[] newBatchCounts = new int[batchValueCount.length + 64];
+
     for (int i = 0 ; i < batchSpaceUsage.length; ++i) {
       newBatches[i] = batchSpaceUsage[i];
+      newBatchCounts[i] = batchValueCount[i];
     }
     batchSpaceUsage = newBatches;
+    batchValueCount = newBatchCounts;
   }
 
   private int getBatchUsedSpace(int batchIndex) {
     if (batchIndex >= batchSpaceUsage.length) {
-      reallocateBatchUsedSpace();
+      reallocateBatchSpaceAndCount();
       Preconditions.checkArgument(batchIndex < batchSpaceUsage.length);
     }
     return batchSpaceUsage[batchIndex];
   }
 
-  public void addBatchUsedSpace(int batchIndex, int space) {
-    /* When this function called, batchSpaceUsage already allocated */
+  private int getBatchValueCounts(final int batchIndex) {
+    if (batchIndex >= batchValueCount.length) {
+      reallocateBatchSpaceAndCount();
+      Preconditions.checkArgument(batchIndex < batchValueCount.length);
+    }
+    return batchValueCount[batchIndex];
+
+  }
+
+  public void addToBatchSpaceAndCount(final int batchIndex, final int space, final int count) {
+    /* When this function called, batchSpaceUsage and batchValueCount already allocated */
     batchSpaceUsage[batchIndex] += space;
+    batchValueCount[batchIndex] += count;
   }
 
-  private void resetBatchUsedSpace() {
+  private void resetBatchSpaceAndCount() {
     Arrays.fill(batchSpaceUsage, 0);
+    Arrays.fill(batchValueCount, 0);
   }
 
-  public void setVarFieldLen(int varFieldLen) {
+
+  public void setVarFieldLengthAndCount(final int varFieldLen, final int varFieldCount) {
     this.varFieldLen = varFieldLen;
+    this.varFieldCount = varFieldCount;
   }
 
   @Override
-  public boolean resizeListenerHasSpace(ResizeListener resizeListener, final int batchIndex, long seed) {
-    if (varFieldLen == 0) {
+  public boolean resizeListenerHasSpace(ResizeListener resizeListener, final int batchIndex, final int offsetInBatch, long seed) {
+    if (varFieldLen == -1) {
       return true;
     }
 
-    if (resizeListener.hasSpace(varFieldLen + getBatchUsedSpace(batchIndex), batchIndex)) {
+    if (resizeListener.hasSpace(varFieldLen + getBatchUsedSpace(batchIndex), varFieldCount + getBatchValueCounts(batchIndex),
+      batchIndex, offsetInBatch)) {
       return true;
     }
+
     /* Not enough space, so try force accumulate all the saved records and recheck it resizer has enough space. */
-    if (forceAccum(resizeListener) &&
-      resizeListener.hasSpace(varFieldLen + getBatchUsedSpace(batchIndex), batchIndex)) {
+    forceAccumulateAndCompact(resizeListener, batchIndex, varFieldLen);
+    if (resizeListener.hasSpace(varFieldLen + getBatchUsedSpace(batchIndex), varFieldCount + getBatchValueCounts(batchIndex),
+      batchIndex, offsetInBatch)) {
       return true;
     }
 
@@ -584,24 +627,26 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
     return false;
   }
 
-  private boolean forceAccum(ResizeListener resizeListener) {
+  private void forceAccumulateAndCompact(ResizeListener resizeListener, final int batchIndex, final int nextRecSize) {
+    ++numForceAccums;
+    forceAccumTimer.start();
+
     if (getRecords() > 0) {
-      ++numForceAccums;
-      forceAccumTimer.start();
       resizeListener.accumulate(getBuffer().memoryAddress(), getRecords(),
         hashTable.getBitsInChunk(), hashTable.getChunkOffsetMask());
-      forceAccumTimer.stop();
       resetRecords();
-      return true;
     }
-    return false;
+
+    resizeListener.compact(batchIndex, nextRecSize);
+
+    forceAccumTimer.stop();
   }
 
   public int getForceAccumCount() {
     return numForceAccums;
   }
 
-  public long getForceAccumTime(TimeUnit unit){
+  public long getForceAccumTime(TimeUnit unit) {
     return forceAccumTimer.elapsed(unit);
   }
 }

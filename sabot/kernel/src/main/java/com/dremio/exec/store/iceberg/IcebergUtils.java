@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -87,6 +88,7 @@ import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsMetadataReader;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Term;
@@ -105,6 +107,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.SourceCatalog;
@@ -119,15 +122,22 @@ import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.dfs.PrimaryKeyOperations;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
@@ -139,6 +149,8 @@ import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -444,7 +456,7 @@ public class IcebergUtils {
       if (existingIcebergSchema != null) {
         schema = existingIcebergSchema;
       } else {
-        SchemaConverter schemaConverter = new SchemaConverter();
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
         schema = schemaConverter.toIcebergSchema(batchSchema);
       }
 
@@ -497,7 +509,7 @@ public class IcebergUtils {
       if (existingIcebergSchema != null) {
         schema = existingIcebergSchema;
       } else {
-        SchemaConverter schemaConverter = new SchemaConverter();
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
         schema = schemaConverter.toIcebergSchema(batchSchema);
       }
       PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
@@ -712,7 +724,7 @@ public class IcebergUtils {
       if (physicalDataset.getIcebergMetadata() != null) {
         return physicalDataset.getIcebergMetadata().getJsonSchema();
       } else {
-        return serializedSchemaAsJson(new SchemaConverter().toIcebergSchema(batchSchema));
+        return serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema));
       }
   }
 
@@ -948,5 +960,68 @@ public class IcebergUtils {
 
   private static boolean isValidSpecForSchema(PartitionSpec partitionSpec, Set<Integer> sourceIds) {
     return partitionSpec.fields().stream().map(partitionField -> partitionField.sourceId()).allMatch(sourceId -> sourceIds.contains(sourceId));
+  }
+
+  public static List<String> validateAndGeneratePrimaryKey(MutablePlugin plugin, SabotContext context, NamespaceKey table,
+                                                           DatasetConfig datasetConfig, SchemaConfig schemaConfig,
+                                                           ResolvedVersionContext versionContext, boolean saveInKvStore) {
+    if (datasetConfig.getPhysicalDataset().getPrimaryKey() != null) {
+      // Return PK from KV store.
+      return datasetConfig.getPhysicalDataset().getPrimaryKey().getColumnList();
+    }
+
+    // Cache the PK in the KV store.
+    try {
+      if (saveInKvStore) { // If we are not going to save in KV store, no point of validating this
+        // Verify if the user has permission to write to the KV store.
+        MetadataRequestOptions options = MetadataRequestOptions.of(schemaConfig);
+
+        Catalog catalog = context.getCatalogService().getCatalog(options);
+        catalog.validatePrivilege(table, SqlGrant.Privilege.ALTER);
+      }
+    } catch (UserException | java.security.AccessControlException ex) {
+      if (ex instanceof java.security.AccessControlException ||
+        ((UserException) ex).getErrorType() == UserBitShared.DremioPBError.ErrorType.PERMISSION) {
+        return null; // The user does not have permission.
+      }
+      throw ex;
+    }
+
+    return plugin.getPrimaryKeyFromMetadata(table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
+  }
+
+  public static List<String> getPrimaryKey(IcebergModel icebergModel, String path, NamespaceKey table,
+                                           DatasetConfig datasetConfig, String userName, StoragePlugin storagePlugin,
+                                           SabotContext context, boolean saveInKvStore) {
+    final IcebergTableIdentifier tableIdentifier = icebergModel.getTableIdentifier(path);
+    final Table icebergTable = icebergModel.getIcebergTable(tableIdentifier);
+
+    final List<String> primaryKey = getPrimaryKeyFromTableMetadata(icebergTable);
+    // This can happen if the table already had PK in the metadata, and we just promoted this table.
+    // The key will not be in the KV store for that.
+    // Even if PK is empty, we need to save to KV, so next time we know PK is unset and don't check from metadata again.
+    if (saveInKvStore) {
+      PrimaryKeyOperations.saveInKvStore(table, datasetConfig, userName, storagePlugin, context, primaryKey);
+    }
+    return primaryKey;
+  }
+
+  public static List<String> getPrimaryKeyFromTableMetadata(Table icebergTable) {
+    ObjectMapper mapper = new ObjectMapper();
+    BatchSchema batchSchema;
+    try {
+      batchSchema = mapper.readValue(
+        icebergTable.properties().getOrDefault(
+          PrimaryKeyOperations.DREMIO_PRIMARY_KEY,
+          BatchSchema.EMPTY.toJson()),
+        BatchSchema.class);
+    } catch (JsonProcessingException e) {
+      String error = "Unexpected error occurred while deserializing primary keys";
+      logger.error(error, e);
+      throw UserException.dataReadError(e).addContext(error).build(logger);
+    }
+    return batchSchema.getFields().stream()
+      .map(f -> f.getName().toLowerCase(Locale.ROOT))
+      .collect(Collectors.toList());
   }
 }

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import FontIcon from "components/Icon/FontIcon";
 
@@ -98,4 +97,4 @@ const styles = {
     },
   },
 };
-export default Radium(Avatars);
+export default Avatars;

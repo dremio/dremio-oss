@@ -36,6 +36,7 @@ import com.dremio.service.Service;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.tokens.TokenManager;
+import com.dremio.services.credentials.CredentialsService;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -111,6 +112,7 @@ public class WebServer implements Service {
   private final Provider<APIServer> apiServerProvider;
   private final DremioServer server;
   private final DACConfig config;
+  private final Provider<CredentialsService> credentialsServiceProvider;
   private final DremioBinder dremioBinder;
   private final String uiType;
   private final boolean isInternalUS;
@@ -118,14 +120,16 @@ public class WebServer implements Service {
   public WebServer(
       SingletonRegistry registry,
       DACConfig config,
+      Provider<CredentialsService> credentialsServiceProvider,
       Provider<RestServerV2> restServer,
       Provider<APIServer> apiServer,
       Provider<DremioServer> server,
       DremioBinder dremioBinder,
       String uiType,
       boolean isInternalUS) {
-    this.config = config;
     this.registry = registry;
+    this.config = config;
+    this.credentialsServiceProvider = credentialsServiceProvider;
     this.restServerProvider = restServer;
     this.apiServerProvider = apiServer;
     this.dremioBinder = dremioBinder;
@@ -143,6 +147,7 @@ public class WebServer implements Service {
     server.startDremioServer(
       registry,
       config,
+      credentialsServiceProvider,
       uiType,
       this::registerEndpoints
     );

@@ -15,7 +15,6 @@
  */
 package com.dremio.service.autocomplete.catalog.mock;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalTableScan;
@@ -34,6 +33,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.autocomplete.columns.Column;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 

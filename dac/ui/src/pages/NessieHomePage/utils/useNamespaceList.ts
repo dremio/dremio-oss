@@ -17,6 +17,7 @@ import moize from "moize";
 import { getEntries } from "@app/services/nessie/impl/TreeApi";
 import { useMemo } from "react";
 import { usePromise } from "react-smart-promise";
+import { DefaultApi } from "@app/services/nessie/client";
 
 const QUERY_POSTFIX = "(\\\\.|$)";
 
@@ -36,24 +37,30 @@ function useNamespaceList({
   reference,
   hash: hashOnRef,
   path,
+  api,
 }: {
   reference: string;
   hash?: string | null;
   path?: string[];
+  api?: DefaultApi;
 }) {
+  const args = useMemo(
+    () => ({
+      ref: reference,
+      ...(hashOnRef && { hashOnRef }),
+      namespaceDepth: path ? path.length + 1 : 1,
+      filter: formatQuery(path),
+    }),
+    [hashOnRef, path, reference]
+  );
   return usePromise(
     useMemo(
       () =>
         !reference
           ? null
-          : () =>
-              memoGetEntries({
-                ref: reference,
-                ...(hashOnRef && { hashOnRef }),
-                namespaceDepth: path ? path.length + 1 : 1,
-                filter: formatQuery(path),
-              }),
-      [reference, hashOnRef, path]
+          : () => (api ? api.getEntries(args) : memoGetEntries(args)),
+
+      [api, reference, args]
     )
   );
 }

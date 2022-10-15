@@ -16,9 +16,9 @@
 
 package com.dremio.exec.util;
 
-import static org.apache.arrow.util.Preconditions.checkArgument;
-import static org.apache.arrow.util.Preconditions.checkNotNull;
-import static org.apache.arrow.util.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,11 +27,11 @@ import java.util.List;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.AutoCloseables;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 
 import com.dremio.common.expression.fn.impl.MurmurHash3;
 import com.dremio.sabot.op.common.ht2.Copier;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Helps to prepare value list with unique values in a sorted fashion.
@@ -180,6 +180,10 @@ public class ValueListFilterBuilder implements AutoCloseable{
     public ValueListFilterBuilder setFieldName(String name) {
         this.valueListFilter.setFieldName(name);
         return this;
+    }
+
+    public String getFieldName() {
+        return this.valueListFilter.getFieldName();
     }
 
     public ValueListFilterBuilder setFixedWidth(boolean isFixedWidth) {

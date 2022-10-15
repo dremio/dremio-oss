@@ -17,8 +17,11 @@ package com.dremio.service.reflection;
 
 import java.util.Iterator;
 
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
+import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 
 /**
@@ -27,6 +30,9 @@ import com.dremio.service.reflection.proto.ReflectionId;
 public interface ReflectionStatusService {
 
   ReflectionStatus getReflectionStatus(ReflectionId reflectionId);
+
+  ReflectionStatus getReflectionStatus(ReflectionGoal goal, com.google.common.base.Optional<Materialization> lastDoneMaterialization,
+                                       DremioTable table);
 
   ExternalReflectionStatus getExternalReflectionStatus(ReflectionId reflectionId);
 
@@ -38,6 +44,12 @@ public interface ReflectionStatusService {
 
     @Override
     public ReflectionStatus getReflectionStatus(ReflectionId reflectionId) {
+      throw new UnsupportedOperationException("getReflectionStatus");
+    }
+
+    @Override
+    public ReflectionStatus getReflectionStatus(ReflectionGoal goal, com.google.common.base.Optional<Materialization> lastDoneMaterialization,
+                                                DremioTable table) {
       throw new UnsupportedOperationException("getReflectionStatus");
     }
 

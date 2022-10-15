@@ -599,7 +599,7 @@ class SourceMetadataManager implements AutoCloseable {
       handle = sourceMetadata.getDatasetHandle((entityPath), options.asGetDatasetOptions(null));
 
       if (!handle.isPresent()) { // dataset is not in the source either
-        throw new DatasetNotFoundException(entityPath);
+        throw new DatasetNotFoundException(String.format("Dataset [%s] not found.", datasetKey), entityPath);
       }
       try {
         //try to get the  config with the fully resolved name

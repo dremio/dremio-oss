@@ -39,6 +39,7 @@ import classNames from "classnames";
 import TransformForm, { formWrapperProps } from "./../../forms/TransformForm";
 import { transformProps } from "./../../forms/TransformationPropTypes";
 import NonMatchingValues from "./../NonMatchingValues";
+import { intl } from "@app/utils/intl";
 
 const SECTIONS = [NewFieldSection];
 
@@ -89,23 +90,24 @@ export class SingleTypeForm extends Component {
 
   renderNonMatchingActions() {
     const { actionForNonMatchingValue, defaultValue } = this.props.fields;
+    const { formatMessage } = intl;
     return (
       <div>
         <div className={sectionTitle}>
-          {la("Action for Non-matching Values")}
+          {formatMessage({ id: "Action.ForNonMatchingValues" })}
         </div>
         <Radio
           {...actionForNonMatchingValue}
           onChange={this.selectNonMatchingActions}
           className={radioStacked}
-          label="Delete records"
+          label={formatMessage({ id: "Delete.Rows" })}
           radioValue="DELETE_RECORDS"
         />
         <Radio
           {...actionForNonMatchingValue}
           onChange={this.selectNonMatchingActions}
           className={radioStacked}
-          label="Replace values with null"
+          label={formatMessage({ id: "Replace.Values.WithNull" })}
           radioValue="REPLACE_WITH_NULL"
         />
         <div>
@@ -113,7 +115,7 @@ export class SingleTypeForm extends Component {
             {...actionForNonMatchingValue}
             onChange={this.selectNonMatchingActions}
             className={radioStacked}
-            label="Replace values with:"
+            label={formatMessage({ id: "Replace.ValuesWith" })}
             radioValue="REPLACE_WITH_DEFAULT"
           />
           <TextField
@@ -130,6 +132,7 @@ export class SingleTypeForm extends Component {
 
   render() {
     const { submit, fields, singles } = this.props;
+    const { formatMessage } = intl;
     const desiredTypeItems = SingleTypeForm.getDesiredTypeItems(
       singles,
       fields.castWhenPossible.value
@@ -145,7 +148,9 @@ export class SingleTypeForm extends Component {
         <div className={columnsContainer}>
           <div className={firstColumn}>
             <div>
-              <div className={title}>{la("Desired Type")}</div>
+              <div className={title}>
+                {formatMessage({ id: "Desired.Type" })}
+              </div>
               <div className={classNames([rowOfInputs, rowMargin])}>
                 <Select
                   {...fields.desiredType}
@@ -155,7 +160,7 @@ export class SingleTypeForm extends Component {
                 />
                 <Checkbox
                   {...fields.castWhenPossible}
-                  label={la("Cast when possible")}
+                  label={formatMessage({ id: "Cast.When.Possible" })}
                 />
               </div>
             </div>
@@ -176,7 +181,7 @@ export class SingleTypeForm extends Component {
   }
 }
 
-function mapStateToProps(state, props) {
+function mapStateToProps(props) {
   const { columnName } = props || {};
   const desiredTypeItem = SingleTypeForm.getDesiredTypeItems(
     props.singles,

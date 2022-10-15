@@ -1,0 +1,77 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.dremio-modal-container {
+  // Height should aim for only the most space needed by the content, or smaller if available vertical space is restricted
+  block-size: max-content;
+
+  // Don't allow the container to ever grow larger than the available window size (minus some additional margin)
+  max-block-size: calc(100% - var(--dremio--modal-container--window-margin));
+  inline-size: calc(100% - var(--dremio--modal-container--window-margin));
+
+  // Allow the content to dictate maximum width
+  max-inline-size: max-content;
+
+  // Allow the content of the modal to handle overflow
+  overflow: hidden;
+
+  // Center the modal in the window
+  margin: auto !important;
+  background: var(--dremio--modal-container--background);
+  border: var(--dremio-modal-container--border);
+  border-radius: var(--dremio--modal-container--border-radius);
+  box-shadow: var(--dremio--modal-container--shadow);
+
+  &[open],
+  &--open {
+    // Allow the children to derive their adjusted height from the parent if vertical space is restricted
+    display: flex;
+  }
+}
+
+@keyframes dremio-modal-container-fadein {
+  from {
+    background: rgba(0 0 0 / 0%);
+    /* stylelint-disable-next-line property-no-unknown */
+    backdrop-filter: blur(0);
+  }
+
+  to {
+    background: rgba(41 56 73 / 50%);
+    /* stylelint-disable-next-line property-no-unknown */
+    background-filter: blur(2px);
+  }
+}
+
+// Override default <dialog> styles
+dialog.dremio-modal-container {
+  padding: 0;
+}
+
+.dremio-modal-container {
+  --dremio--modal-container--background: white;
+  --dremio--modal-container--backdrop--background: rgba(41 56 73 / 50%);
+  --dremio--modal-container--backdrop--blur: 2px;
+  --dremio--modal-container--border: 1px solid
+    var(--dremio--color--neutral--150);
+  --dremio--modal-container--border-radius: var(--dremio--radius--1);
+  --dremio--modal-container--shadow: var(--dremio--shadow--layer-1);
+  --dremio--modal-container--window-margin: 30px;
+
+  &::backdrop {
+    animation: dremio-modal-container-fadein 100ms forwards;
+  }
+}

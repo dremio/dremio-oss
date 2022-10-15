@@ -115,7 +115,8 @@ public class HiveFullRefreshDatasetPlanBuilder extends AbstractRefreshPlanBuilde
     tableRootPath = hiveDatasetMetadata.getMetadataAccumulator().getTableLocation();
 
     SplitsPointer splitsPointer = MaterializedSplitsPointer.of(0, chunkMetadata, chunkMetadata.size());
-    refreshExecTableMetadata = new RefreshExecTableMetadata(storagePluginId, datasetConfig, userName, splitsPointer, tableSchema);
+    refreshExecTableMetadata = new RefreshExecTableMetadata(storagePluginId, datasetConfig, userName, splitsPointer, tableSchema,
+      null);
     final NamespaceTable nsTable = new NamespaceTable(refreshExecTableMetadata, true);
     final DremioCatalogReader catalogReader = SqlValidatorAndToRelContext.builder(config.getConverter())
       .build().getDremioCatalogReader();

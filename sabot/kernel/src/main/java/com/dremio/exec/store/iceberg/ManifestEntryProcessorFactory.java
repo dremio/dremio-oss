@@ -45,7 +45,7 @@ public class ManifestEntryProcessorFactory {
         SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
         return new SplitGeneratingDatafileProcessor(context, plugin, props, functionConfig.getFunctionContext());
       case ICEBERG_MANIFEST_SCAN:
-        return new PathGeneratingManifestEntryProcessor(
+        return new PathGeneratingManifestEntryProcessor(context,
             functionConfig.getFunctionContext(ManifestScanTableFunctionContext.class));
       default:
         throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());

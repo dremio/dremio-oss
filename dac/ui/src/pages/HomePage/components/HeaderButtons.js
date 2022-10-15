@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import { Link } from "react-router";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
@@ -27,7 +27,7 @@ import HeaderButtonsMixin from "dyn-load/pages/HomePage/components/HeaderButtons
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import HeaderButtonAddActions from "./HeaderButtonAddActions.tsx";
-import { NESSIE } from "@app/constants/sourceTypes";
+import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 
 import * as classes from "./HeaderButtonAddActions.module.less";
 
@@ -44,6 +44,7 @@ export class HeaderButtons extends Component {
     user: PropTypes.string,
     rightTreeVisible: PropTypes.bool,
     intl: PropTypes.object.isRequired,
+    canUploadFile: PropTypes.bool,
     isSonarSource: PropTypes.bool,
   };
 
@@ -98,7 +99,7 @@ export class HeaderButtons extends Component {
 
   getIconAltText(iconType) {
     const messages = {
-      "interface/format-folder": "Folder.FolderConvert",
+      "interface/format-folder": "Folder.FolderFormat",
       "navigation-bar/sql-runner": "Job.Query",
       "interface/settings": "Common.Settings",
     };
@@ -114,7 +115,7 @@ export class HeaderButtons extends Component {
 
     let link = (
       <IconButton
-        as={Link}
+        as={LinkWithRef}
         className="button-white"
         data-qa={`${qa}-button`}
         to={to ? to : "."}
@@ -138,8 +139,15 @@ export class HeaderButtons extends Component {
   };
 
   canAddInHomeSpace(rootEntityType) {
+    const { canUploadFile: cloudCanUploadFile } = this.props;
+
     const isHome = rootEntityType === ENTITY_TYPES.home;
-    const canUploadFile = localStorageUtils.getUserPermissions()?.canUploadFile;
+
+    // software permission for uploading a file is stored in localstorage,
+    // while the permission on cloud is stored in Redux
+    const canUploadFile =
+      localStorageUtils.getUserPermissions()?.canUploadFile ||
+      cloudCanUploadFile;
 
     return isHome && canUploadFile;
   }
@@ -194,13 +202,10 @@ export class HeaderButtons extends Component {
             menu={
               <HeaderButtonAddActions
                 context={this.context}
-                allowFileUpload={
-                  entityType !== ENTITY_TYPES.folder &&
-                  rootEntityType === ENTITY_TYPES.home
-                }
+                allowFileUpload={rootEntityType === ENTITY_TYPES.home}
                 allowTable={
                   entityType === ENTITY_TYPES.source &&
-                  entity.get("type") === NESSIE
+                  [NESSIE, ARCTIC].includes(entity.get("type"))
                 }
                 canUploadFile={canAddInHomeSpace}
               />

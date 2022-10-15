@@ -27,7 +27,9 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.exec.cache.AbstractStreamSerializable;
 import com.dremio.exec.proto.UserBitShared;
@@ -65,7 +67,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   private VectorizedHashAggPartition hashAggPartition;
   private final PartitionToLoadSpilledData partitionToLoadSpilledData;
   private static final int IO_CHUNK_SIZE = 32 * 1024;
-  private byte ioBuffer[] = new byte[IO_CHUNK_SIZE];
+  private byte[] ioBuffer = new byte[IO_CHUNK_SIZE];
   private long numBatchesSpilled;
   private long numRecordsSpilled;
   private long spilledDataSize;
@@ -193,7 +195,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
         "ERROR: read incorrect length of variable width data from spilled chunk");
 
       /* STEP 8: read data for accumulator vectors from spilled chunk */
-      final long length = readAccumulators(accumulatorBatchDef, input);
+      final long length = readAccumulators(accumulatorBatchDef, accumulatorTypes, input);
 
       final long elapsed = watch.elapsed(TimeUnit.MILLISECONDS);
       if (elapsed >= this.warnMaxSpillTime) {
@@ -207,6 +209,67 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     }
   }
 
+  /* This only need for ArrowBuf's in ListVector */
+  private void resetArrowBufIndexes(final ArrowBuf arrowBuf) {
+    arrowBuf.readerIndex(0);
+    arrowBuf.writerIndex(0);
+  }
+
+  private void readVariableWidthVector(UserBitShared.SerializedField metaData,
+                                       final FieldVector vector,
+                                       final InputStream input) throws IOException {
+    final UserBitShared.SerializedField bitsField = metaData.getChild(0);
+    final ArrowBuf validityBuffer = vector.getValidityBuffer();
+    readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
+
+    final UserBitShared.SerializedField valuesField = metaData.getChild(1);
+    final ArrowBuf dataBuffer = vector.getDataBuffer();
+
+    final UserBitShared.SerializedField offsetField = valuesField.getChild(0);
+    final ArrowBuf offsetBuffer = vector.getOffsetBuffer();
+    readIntoArrowBuf(offsetBuffer, offsetField.getBufferLength(), input);
+
+    readIntoArrowBuf(dataBuffer, (valuesField.getBufferLength() - offsetField.getBufferLength()), input);
+
+    ((BaseVariableWidthVector) vector).setLastSet(metaData.getValueCount() - 1);
+    vector.setValueCount(metaData.getValueCount());
+  }
+
+  private void readListVector(UserBitShared.SerializedField metaData,
+                             final FieldVector vector,
+                             final InputStream input) throws IOException {
+    final UserBitShared.SerializedField offsetField = metaData.getChild(0);
+    final ArrowBuf offsetBuffer = vector.getOffsetBuffer();
+    readIntoArrowBuf(offsetBuffer, offsetField.getBufferLength(), input);
+
+    final UserBitShared.SerializedField bitsField = metaData.getChild(1);
+    final ArrowBuf validityBuffer = vector.getValidityBuffer();
+    readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
+
+    final UserBitShared.SerializedField dataVectorField = metaData.getChild(2);
+    BaseVariableWidthVector dataVector = (BaseVariableWidthVector)((ListVector) vector).addOrGetVector(
+      FieldType.nullable(Types.MinorType.VARCHAR.getType())).getVector();
+
+    readVariableWidthVector(dataVectorField, dataVector, input);
+
+    ((ListVector) vector).setLastSet(metaData.getValueCount() - 1);
+    vector.setValueCount(metaData.getValueCount());
+  }
+
+  private void readFixedWidthVector(UserBitShared.SerializedField metaData,
+                             final FieldVector vector,
+                             final InputStream input) throws IOException {
+    final UserBitShared.SerializedField bitsField = metaData.getChild(0);
+    final ArrowBuf validityBuffer = vector.getValidityBuffer();
+    readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
+
+    final UserBitShared.SerializedField dataField = metaData.getChild(1);
+    final ArrowBuf dataBuffer = vector.getDataBuffer();
+    readIntoArrowBuf(dataBuffer, dataField.getBufferLength(), input);
+
+    vector.setValueCount(metaData.getValueCount());
+  }
+
   /**
    * Read accumulator vectors from spilled batch into memory. The memory for de-serializing comes
    * from{@link PartitionToLoadSpilledData} that has pre-allocated memory for all the structures
@@ -217,6 +280,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * @throws IOException
    */
   private long readAccumulators(final UserBitShared.RecordBatchDef batchDef,
+                                final byte[] accumulatorTypes,
                                 final InputStream input) throws IOException {
     final FieldVector[] vectorList = partitionToLoadSpilledData.getPostSpillAccumulatorVectors();
     final List<UserBitShared.SerializedField> fieldList = batchDef.getFieldList();
@@ -229,25 +293,17 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
       final int rawDataLength = metaData.getBufferLength();
       length += rawDataLength;
 
-      final UserBitShared.SerializedField bitsField = metaData.getChild(0);
-      final UserBitShared.SerializedField valuesField = metaData.getChild(1);
-      final ArrowBuf validityBuffer = vector.getValidityBuffer();
-      final ArrowBuf dataBuffer = vector.getDataBuffer();
-
-      readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
-
       final Types.MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(vector.getField().getType());
-      if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
-        final ArrowBuf offsetBuffer = vector.getOffsetBuffer();
-        final UserBitShared.SerializedField offsetField = valuesField.getChild(0);
-        readIntoArrowBuf(offsetBuffer, offsetField.getBufferLength(), input);
-        readIntoArrowBuf(dataBuffer, (valuesField.getBufferLength() - offsetField.getBufferLength()), input);
-        /* TODO: Seems hacky however needed. Fina a better way. */
-        ((BaseVariableWidthVector)vector).setLastSet(metaData.getValueCount() - 1);
+
+      if (accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG.ordinal() ||
+          accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal() ||
+          accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
+        readListVector(metaData, vector, input);
+     } else if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
+        readVariableWidthVector(metaData, vector, input);
       } else {
-        readIntoArrowBuf(dataBuffer, valuesField.getBufferLength(), input);
+        readFixedWidthVector(metaData, vector, input);
       }
-      vector.setValueCount(metaData.getValueCount());
       count++;
     }
     return length;
@@ -264,6 +320,8 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    */
   private void readIntoArrowBuf(final ArrowBuf buffer, final int bufferLength,
                                 final InputStream input) throws IOException {
+    resetArrowBufIndexes(buffer);
+
     int numBytesToRead = bufferLength;
     while (numBytesToRead > 0) {
       final int lenghtToRead = Math.min(ioBuffer.length, numBytesToRead);
@@ -305,7 +363,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     final HashAggPartitionWritableBatch hashTableWritableBatch =
       new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
                                         hashAggPartition.blockWidth, hashAggPartition.accumulator,
-                                        hashTable.size(), hashTable.getMaxValuesPerBatch());
+                                        hashTable.getMaxValuesPerBatch());
     HashAggPartitionBatchDefinition batchDefinition;
     /* spill entire partition -- one batch at a time */
     while ((batchDefinition = hashTableWritableBatch.getNextWritableBatch()) != null) {
@@ -361,7 +419,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
                                   "ERROR: inconsistent number of buffers in hash table");
       inProgressWritableBatch = new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
                                                                   hashAggPartition.blockWidth, hashAggPartition.accumulator,
-                                                                  hashTable.size(), hashTable.getMaxValuesPerBatch());
+                                                                  hashTable.getMaxValuesPerBatch());
     }
 
     HashAggPartitionBatchDefinition batchDefinition = inProgressWritableBatch.getNextWritableBatch();

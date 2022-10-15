@@ -41,6 +41,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
@@ -107,7 +108,6 @@ import com.google.common.collect.Maps;
 // TODO - consider re-name to PlanningContext, as the query execution context actually appears
 // in fragment contexts
 public class QueryContext implements AutoCloseable, ResourceSchedulingContext, OptimizerRulesContext {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryContext.class);
 
   private final SabotContext sabotContext;
   private final UserSession session;
@@ -251,7 +251,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
     final ImmutableMetadataRequestOptions.Builder requestOptions = MetadataRequestOptions.newBuilder()
         .setSchemaConfig(schemaConfig)
-        .setSourceVersionMapping(session.getSourceVersionMapping());
+        .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(session.getSourceVersionMapping()));
     checkMetadataValidity.ifPresent(requestOptions::setCheckValidity);
     this.catalog = sabotContext.getCatalogService()
         .getCatalog(requestOptions.build());

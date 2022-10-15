@@ -57,7 +57,7 @@ export const typeToIconType = {
   [DATETIME]: "TypeDateTime",
   [TIMESTAMP]: "TypeDateTime",
   [LIST]: "TypeList",
-  [STRUCT]: "TypeMap",
+  [STRUCT]: "TypeStruct",
   [MAP]: "TypeMap",
   [GEO]: "TypeGeo",
   [OTHER]: "TypeOther",
@@ -142,6 +142,9 @@ const typesToTransformType = {
     //list is special cased
   },
   [MAP]: {
+    [TEXT]: "ConvertToJSON",
+  },
+  [STRUCT]: {
     [TEXT]: "ConvertToJSON",
   },
 };

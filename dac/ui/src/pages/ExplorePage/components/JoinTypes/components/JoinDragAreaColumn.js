@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 import Immutable from "immutable";
 
 import DragAreaColumn from "components/oldDragComponents/DragAreaColumn";
@@ -67,7 +66,7 @@ class JoinDragAreaColumn extends PureComponent {
   render() {
     const { item, index } = this.props;
     return (
-      <div className="drag-measure-column" style={[styles.base]}>
+      <div className="drag-measure-column" style={{ ...styles.base }}>
         <DragAreaColumn
           dragColumntableType={this.props.dragColumntableType}
           ownDragColumntableType="default"
@@ -133,4 +132,4 @@ const styles = {
   },
 };
 
-export default Radium(JoinDragAreaColumn);
+export default JoinDragAreaColumn;

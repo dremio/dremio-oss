@@ -107,8 +107,8 @@ public class RegexpUtil {
     } catch (RegexException e) {
       throw errCtx.error()
         .message(e.getMessage())
+        .addContext("position %d", e.getPosition())
         .addContext("pattern", e.getPattern())
-        .addContext("position", e.getPosition())
         .build();
     }
   }
@@ -292,7 +292,7 @@ public class RegexpUtil {
     } catch (RegexException e) {
       throw errCtx.error()
         .message(e.getMessage())
-        .addContext("position", e.getPosition())
+        .addContext("position %d", e.getPosition())
         .addContext("pattern", e.getPattern())
         .build();
     }
@@ -304,7 +304,7 @@ public class RegexpUtil {
     } catch (RegexException e) {
       throw errCtx.error()
         .message(e.getMessage())
-        .addContext("position", e.getPosition())
+        .addContext("position %d", e.getPosition())
         .addContext("pattern", e.getPattern())
         .build();
     }

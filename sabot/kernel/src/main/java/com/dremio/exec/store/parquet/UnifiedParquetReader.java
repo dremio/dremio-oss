@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +36,7 @@ import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.hadoop.conf.Configuration;
@@ -239,7 +241,8 @@ public class UnifiedParquetReader implements RecordReader {
     // removed in a second pass.  The copiers are initialized after we process any delegate readers so that any
     // columns they add are included in the copies - e.g. path/rownum columns for DML.
     boolean requiresInvalidRowRemoval = filterColumns.size() > 1 ||
-        (filterColumns.size() == 1 && filters.hasPositionalDeleteFilter());
+        (filterColumns.size() == 1 && filters.hasPositionalDeleteFilter()) ||
+        filters.hasEqualityDeleteFilter();
     if (requiresInvalidRowRemoval) {
       this.validityBuf = context.getAllocator().buffer(maxValidityBufSize);
     }
@@ -259,6 +262,11 @@ public class UnifiedParquetReader implements RecordReader {
       copiers = CopierFactory.getInstance(context.getConfig(), context.getOptions())
         .getTwoByteCopiers(outputFieldVectors, outputFieldVectors, false);
       sv2 = context.getAllocator().buffer(context.getTargetBatchSize() * SelectionVector2.RECORD_SIZE);
+    }
+
+    // init the equality delete filter if one is present
+    if (filters.hasEqualityDeleteFilter()) {
+      filters.getEqualityDeleteFilter().setup(outputMutator, validityBuf);
     }
 
     context.getStats().setLongStat(Metric.PARQUET_EXEC_PATH, execPath.ordinal());
@@ -365,6 +373,12 @@ public class UnifiedParquetReader implements RecordReader {
       validityBuf.setOne(0, maxValidityBufSize);
       totalRecords = readEnsuringReadersReturnSameNumberOfRecords();
     }
+
+    // if there is an equality delete filter, call it to filter out records that match its delete conditions
+    if (totalRecords > 0 && filters.hasEqualityDeleteFilter()) {
+      filters.getEqualityDeleteFilter().filter(totalRecords);
+    }
+
     // remove invalid rows if present
     if (totalRecords > 0 && BitVectorHelper.getNullCount(validityBuf, totalRecords) != 0) {
       totalRecords = useCopiersToRemoveInvalidRows ? removeInvalidRowsWithCopiers(totalRecords) : removeInvalidRows(totalRecords);
@@ -539,14 +553,19 @@ public class UnifiedParquetReader implements RecordReader {
     final Map<String, ColumnChunkMetaData> fieldsWithEncodingsSupportedByVectorizedReader = new HashMap<>();
     final List<Type> nonVectorizableTypes = new ArrayList<>();
     final List<Type> vectorizableTypes = new ArrayList<>();
+    Set<String> fieldsWithPartialOrNoEncodingsSupportedByVectorizedReader = new HashSet<>();
 
     for (ColumnChunkMetaData c : block.getColumns()) {
+      String field = c.getPath().iterator().next();
       if (!readerFactory.isSupported(c)) {
         // we'll skip columns we can't read.
-         continue;
+        fieldsWithPartialOrNoEncodingsSupportedByVectorizedReader.add(field);
+        fieldsWithEncodingsSupportedByVectorizedReader.remove(field);
+        continue;
       }
-
-      fieldsWithEncodingsSupportedByVectorizedReader.put(c.getPath().iterator().next(), c);
+      if (!fieldsWithPartialOrNoEncodingsSupportedByVectorizedReader.contains(field)) {
+        fieldsWithEncodingsSupportedByVectorizedReader.put(field, c);
+      }
     }
 
     MessageType schema = footer.getFileMetaData().getSchema();
@@ -638,6 +657,8 @@ public class UnifiedParquetReader implements RecordReader {
         }
       }
       return true;
+    } else if (vector instanceof MapVector) {
+      return isTypeVectorizable(((MapVector) vector).getDataVector(), isArrowSchemaPresent, parquetField.asGroupType().getType(0), false);
     } else if (vector instanceof ListVector) {
       if (parquetField.getOriginalType() != OriginalType.LIST && !isParentTypeMap) {
         // if we get a listvector for non list parquet element, use rowise reader

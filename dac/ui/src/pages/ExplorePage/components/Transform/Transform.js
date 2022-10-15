@@ -35,7 +35,7 @@ import {
 } from "actions/explore/recommended";
 import { resetViewState } from "actions/resources";
 
-import { MAP, LIST } from "@app/constants/DataTypes";
+import { MAP, LIST, STRUCT } from "@app/constants/DataTypes";
 
 import TransformView from "./TransformView";
 
@@ -189,6 +189,8 @@ export class Transform extends PureComponent {
     switch (columnType) {
       case MAP:
         return `${transformType}_map`;
+      case STRUCT:
+        return `${transformType}_struct`; // DX-56859: TODO: CHECK IF THIS WORKS FINE FOR STRUCT TYPE
       case LIST:
         return `${transformType}_list`;
       default:

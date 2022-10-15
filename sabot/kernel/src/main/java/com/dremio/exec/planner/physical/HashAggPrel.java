@@ -32,6 +32,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.ExecConstants;
@@ -154,7 +155,7 @@ public class HashAggPrel extends AggregatePrel implements Prel{
   }
 
   private boolean canVectorize(PhysicalPlanCreator creator, PhysicalOperator child){
-    if(canVectorize == null){
+    if (canVectorize == null) {
       canVectorize = initialCanVectorize(creator, child);
     }
     return canVectorize;
@@ -171,18 +172,23 @@ public class HashAggPrel extends AggregatePrel implements Prel{
     if (!canVectorize(creator, child)) {
       return false;
     }
+
     boolean useSpill = true;
     final boolean isNdvSpillEnabled = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_NDV_ACCUMULATOR);
     final boolean isVarLenMinMaxSpillEnabled = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR);
     final BatchSchema childSchema = child.getProps().getSchema();
     for (NamedExpression ne : aggExprs) {
       final LogicalExpression expr = ExpressionTreeMaterializer.materializeAndCheckErrors(ne.getExpr(), childSchema, creator.getContext().getFunctionRegistry());
+      /*
+       * ListAggExpression is not an instance of FunctionHolderExpr so it will be skipped here.
+       * ListAgg support spilling so no additional config options are necessary
+       */
       if (expr != null && (expr instanceof FunctionHolderExpr)) {
         final String functionName = ((FunctionHolderExpr) expr).getName();
         final boolean isMinMaxFn = (functionName.equals("min") || functionName.equals("max"));
         final boolean isNDVFn = (functionName.equals("hll") || functionName.equals("hll_merge"));
         if ((isNDVFn && !isNdvSpillEnabled) ||
-            (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar() && !isVarLenMinMaxSpillEnabled)) {
+          (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar() && !isVarLenMinMaxSpillEnabled)) {
           useSpill = false;
           break;
         }
@@ -192,18 +198,17 @@ public class HashAggPrel extends AggregatePrel implements Prel{
   }
 
   private boolean initialCanVectorize(PhysicalPlanCreator creator, PhysicalOperator child){
-    if(!creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG)){
+    if (!creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG)) {
       return false;
     }
 
     final BatchSchema childSchema = child.getProps().getSchema();
 
-    for(NamedExpression ne : keys){
+    for (NamedExpression ne : keys) {
       // these should all be simple.
-
       LogicalExpression expr = ExpressionTreeMaterializer.materializeAndCheckErrors(ne.getExpr(), childSchema, creator.getContext().getFunctionRegistry());
 
-      if(expr == null || !(expr instanceof ValueVectorReadExpression) ){
+      if (expr == null || !(expr instanceof ValueVectorReadExpression)) {
         return false;
       }
 
@@ -231,10 +236,18 @@ public class HashAggPrel extends AggregatePrel implements Prel{
     final boolean enabledSpillNdv = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_NDV_ACCUMULATOR);
     final boolean enabledSpillVarchar = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR);
 
-    for(NamedExpression ne : aggExprs){
+    for (NamedExpression ne : aggExprs) {
       final LogicalExpression expr = ExpressionTreeMaterializer.materializeAndCheckErrors(ne.getExpr(), childSchema, creator.getContext().getFunctionRegistry());
 
-      if(expr == null || !(expr instanceof FunctionHolderExpr) ){
+      /*
+       * ListAggExpression is not an instance of FunctionHolderExpr.
+       * ListAgg is vectorized so no additional config options are necessary
+       */
+      if (expr != null && (expr instanceof ListAggExpression)) {
+        continue;
+      }
+
+      if (expr == null || !(expr instanceof FunctionHolderExpr)) {
         return false;
       }
 
@@ -242,63 +255,63 @@ public class HashAggPrel extends AggregatePrel implements Prel{
       ImmutableList<LogicalExpression> exprs = ImmutableList.copyOf(expr);
 
       // COUNT(1)
-      if(func.getName().equals("count")){
+      if (func.getName().equals("count")) {
         continue;
       }
 
-      if((exprs.size() != 1 ||  !(exprs.get(0) instanceof ValueVectorReadExpression))){
+      if (exprs.size() != 1 || !(exprs.get(0) instanceof ValueVectorReadExpression)) {
         return false;
       }
 
       final CompleteType inputType = exprs.get(0).getCompleteType();
 
       switch(func.getName()){
-      case "$sum0":
-      case "sum":
-        switch(inputType.toMinorType()){
-          case BIGINT:
-          case FLOAT4:
-          case FLOAT8:
-          case INT:
-          case DECIMAL:
-            continue;
-        }
+        case "$sum0":
+        case "sum":
+          switch(inputType.toMinorType()){
+            case BIGINT:
+            case FLOAT4:
+            case FLOAT8:
+            case INT:
+            case DECIMAL:
+              continue;
+          }
 
-        return false;
+          return false;
 
-      case "min":
-      case "max":
-        switch(inputType.toMinorType()){
-        case VARCHAR:
-        case VARBINARY:
-          if (!enabledSpillVarchar && !enabledVarcharNdv) {
+        case "min":
+        case "max":
+          switch(inputType.toMinorType()){
+            case VARCHAR:
+            case VARBINARY:
+              if (!enabledSpillVarchar && !enabledVarcharNdv) {
+                return false;
+              }
+            case BIGINT:
+            case FLOAT4:
+            case FLOAT8:
+            case INT:
+            case BIT:
+            case DATE:
+            case INTERVALDAY:
+            case INTERVALYEAR:
+            case TIME:
+            case TIMESTAMP:
+            case DECIMAL:
+              continue;
+          }
+
+          return false;
+
+        case "hll":
+        case "hll_merge":
+          if (!enabledVarcharNdv && !enabledSpillNdv) {
             return false;
           }
-        case BIGINT:
-        case FLOAT4:
-        case FLOAT8:
-        case INT:
-        case BIT:
-        case DATE:
-        case INTERVALDAY:
-        case INTERVALYEAR:
-        case TIME:
-        case TIMESTAMP:
-        case DECIMAL:
           continue;
-        }
 
-        return false;
-
-      case "hll":
-      case "hll_merge":
-        if (!enabledVarcharNdv && !enabledSpillNdv) {
+        default:
           return false;
-        }
-        continue;
-
-      default:
-        return false;
       }
     }
 
@@ -308,14 +321,13 @@ public class HashAggPrel extends AggregatePrel implements Prel{
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     PhysicalOperator child = ((Prel) this.getInput()).getPhysicalOperator(creator);
-
     final BatchSchema childSchema = child.getProps().getSchema();
     List<NamedExpression> exprs = new ArrayList<>();
     exprs.addAll(keys);
     exprs.addAll(aggExprs);
     BatchSchema schema = ExpressionTreeMaterializer.materializeFields(exprs, childSchema, creator.getFunctionLookupContext())
-        .setSelectionVectorMode(SelectionVectorMode.NONE)
-        .build();
+      .setSelectionVectorMode(SelectionVectorMode.NONE)
+      .build();
 
     boolean canVectorize = canVectorize(creator, child);
     boolean canSpill = canUseSpill(creator, child);
@@ -335,18 +347,18 @@ public class HashAggPrel extends AggregatePrel implements Prel{
       hashTableBatchSize = estimator.getHashTableBatchSize();
     }
     return new HashAggregate(
-        creator.props(this, null, schema, reservation, LIMIT, lowLimit)
-          .cloneWithBound(creator.getOptionManager().getOption(BOUNDED) && canSpill && canVectorize)
-          .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
-          .cloneWithMemoryExpensive(true)
-        ,
-        child,
-        keys,
-        aggExprs,
-        canVectorize,
-        canSpill,
-        1.0f,
-        hashTableBatchSize);
+      creator.props(this, null, schema, reservation, LIMIT, lowLimit)
+        .cloneWithBound(creator.getOptionManager().getOption(BOUNDED) && canSpill && canVectorize)
+        .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
+        .cloneWithMemoryExpensive(true)
+      ,
+      child,
+      keys,
+      aggExprs,
+      canVectorize,
+      canSpill,
+      1.0f,
+      hashTableBatchSize);
   }
 
 

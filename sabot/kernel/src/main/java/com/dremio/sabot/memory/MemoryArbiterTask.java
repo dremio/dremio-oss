@@ -15,6 +15,10 @@
  */
 package com.dremio.sabot.memory;
 
+import java.util.List;
+
+import com.dremio.sabot.op.spi.Operator;
+
 /**
  * Tasks managed by the MemoryArbiter should implement this interface. This
  * interface contains methods that the MemoryArbiter needs to manage tasks
@@ -44,4 +48,41 @@ public interface MemoryArbiterTask {
    * @param memoryGrantInBytes Memory grant assigned in bytes
    */
   void setMemoryGrant(long memoryGrantInBytes);
+
+  /**
+   * @return Return a non-empty list shrinkable operators associated with this task.
+   * If there are no shrinkable operators, return an empty list
+   */
+  List<MemoryTaskAndShrinkableOperator> getShrinkableOperators();
+
+  /**
+   * Request the shrinkable operator to shrink memory usage
+   *
+   * @param shrinkableOperator The operator that needs to shrink memory usage
+   * @param currentShrinkableMemory The amount of shrinkable memory reported by the shrinkable operator
+   * @throws Exception
+   */
+  void shrinkMemory(Operator.ShrinkableOperator shrinkableOperator, long currentShrinkableMemory) throws Exception;
+
+  /**
+   * Returns true if the shrinkable operator is already shrinking memory
+   *
+   * @param shrinkableOperator The operator that is being queried
+   * @return
+   */
+  default boolean isOperatorShrinkingMemory(Operator.ShrinkableOperator shrinkableOperator) {
+    return false;
+  }
+
+  /**
+   * This task is blocked on memory
+   */
+  default void blockOnMemory() {
+  }
+
+  /**
+   * Memory may be available and this task is now unblocked
+   */
+  default void unblockOnMemory() {
+  }
 }

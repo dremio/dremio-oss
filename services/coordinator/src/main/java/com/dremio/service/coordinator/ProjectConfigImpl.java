@@ -80,9 +80,15 @@ public class ProjectConfigImpl implements ProjectConfig {
       if (store.get().getDataCredentials().hasKeys()) {
         dataCredentials =
           DataCredentials.newBuilder().setKeys(store.get().getDataCredentials().getKeys()).build();
-      } else{
+      } else if (store.get().getDataCredentials().hasDataRole()) {
         dataCredentials =
           DataCredentials.newBuilder().setDataRole(store.get().getDataCredentials().getDataRole()).build();
+      } else if (store.get().getDataCredentials().hasClientAccess()) {
+        dataCredentials =
+          DataCredentials.newBuilder().setClientAccess(store.get().getDataCredentials().getClientAccess()).build();
+      } else if (store.get().getDataCredentials().hasSharedAccessKey()) {
+        dataCredentials =
+          DataCredentials.newBuilder().setSharedAccessKey(store.get().getDataCredentials().getSharedAccessKey()).build();
       }
     }
     return new DistPathConfig(path, dataCredentials);

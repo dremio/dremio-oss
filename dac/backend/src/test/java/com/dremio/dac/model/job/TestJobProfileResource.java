@@ -16,6 +16,7 @@
 package com.dremio.dac.model.job;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -34,12 +35,51 @@ public class TestJobProfileResource extends BaseTestServer {
 
   @Test
   public void testGetJobProfileOperator() throws Exception {
-    JobProfileOperatorInfo jobProfileOperatorInfo = new JobProfileOperatorInfo(queryProfile,0,0);
+    JobProfileOperatorInfo jobProfileOperatorInfo = new JobProfileOperatorInfo(queryProfile,0,1);
 
-    assertEquals("00", jobProfileOperatorInfo.getOperatorId());
+    assertEquals("01", jobProfileOperatorInfo.getOperatorId());
     assertEquals("00",jobProfileOperatorInfo.getPhaseId());
-    assertEquals("SCREEN",jobProfileOperatorInfo.getOperatorName());
-    assertEquals(13,jobProfileOperatorInfo.getOperatorType());
-    assertEquals( 1,jobProfileOperatorInfo.getOperatorMetricsMap().size());
+    assertEquals("PROJECT",jobProfileOperatorInfo.getOperatorName());
+    assertEquals(10,jobProfileOperatorInfo.getOperatorType());
+    assertTrue(jobProfileOperatorInfo.getOperatorMetricsMap().size()>0);
+  }
+
+  @Test
+  public void testOutputRecordsOperatorTableFunction() throws Exception {
+    JobProfileOperatorInfo jobProfileOperatorInfo = new JobProfileOperatorInfo(queryProfile,0,6);
+    assertEquals("06", jobProfileOperatorInfo.getOperatorId());
+    assertEquals("00",jobProfileOperatorInfo.getPhaseId());
+    assertEquals("TABLE_FUNCTION",jobProfileOperatorInfo.getOperatorName());
+    assertEquals(3, jobProfileOperatorInfo.getOutputRecords());
+  }
+
+  @Test
+  public void testOutputBytesInJobProfileOperator() throws Exception {
+    JobProfileOperatorInfo jobProfileOperatorInfo = new JobProfileOperatorInfo(queryProfile,0,5);
+    assertEquals("05", jobProfileOperatorInfo.getOperatorId());
+    assertEquals("00",jobProfileOperatorInfo.getPhaseId());
+    assertEquals("PROJECT",jobProfileOperatorInfo.getOperatorName());
+    assertEquals(25, jobProfileOperatorInfo.getOutputBytes());
+  }
+
+  @Test
+  public void testGetJobProfileOperatorMetricsMap() {
+    JobProfileOperatorInfo jobProfileOperatorInfo = new JobProfileOperatorInfo(queryProfile,0,1);
+
+    assertEquals("01", jobProfileOperatorInfo.getOperatorId());
+    assertEquals("00",jobProfileOperatorInfo.getPhaseId());
+    assertEquals("PROJECT",jobProfileOperatorInfo.getOperatorName());
+    assertEquals(null,jobProfileOperatorInfo.getMetricsDetailsMap().get("Java_Build_Time"));
+  }
+
+  @Test
+  public void testGetJobProfileOperatorMetricsMapWithDisplayFlagSet() {
+    JobProfileOperatorInfo jobProfileOperatorInfo = new JobProfileOperatorInfo(queryProfile,0,1);
+
+    assertEquals("01", jobProfileOperatorInfo.getOperatorId());
+    assertEquals("00",jobProfileOperatorInfo.getPhaseId());
+    assertEquals("PROJECT",jobProfileOperatorInfo.getOperatorName());
+    assertEquals(true,jobProfileOperatorInfo.getMetricsDetailsMap().get("Java_Expressions").getIsDisplayed());
+    assertTrue("Java_Expressions Metric value", Integer.valueOf(jobProfileOperatorInfo.getOperatorMetricsMap().get("Java_Expressions")) >= 0);
   }
 }

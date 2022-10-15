@@ -113,6 +113,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
   private static final String RPC_COMPATIBILITY_ENCODER = "rpc-compatibility-encoder";
   private static final String DRILL_COMPATIBILITY_ENCODER = "backward-compatibility-encoder";
+  private static final String DREMIO14_COMPATIBILITY_ENCODER = "dremio14-backward";
 
   private final Provider<UserService> userServiceProvider;
   private final Provider<NodeEndpoint> nodeEndpointProvider;
@@ -266,7 +267,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
     try {
       RecordBatchFormat recordBatchFormat = Ordering
-          .explicit(RecordBatchFormat.UNKNOWN, RecordBatchFormat.DREMIO_0_9, RecordBatchFormat.DREMIO_1_4)
+          .explicit(RecordBatchFormat.UNKNOWN, RecordBatchFormat.DREMIO_0_9, RecordBatchFormat.DREMIO_1_4, RecordBatchFormat.DREMIO_23_0)
           .max(supportedRecordBatchFormatsList);
 
       // If unknown is the max value, it means client only supports format we don't know about yet.
@@ -753,7 +754,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
             /*
              * From Dremio 1.4 onwards we have moved to Little Endian Decimal format. We need to
              * add a new encoder in the netty pipeline when talking to old (1.3 and less) Dremio
-             * Jdbc drivers.
+             * clients.
              */
             final BufferAllocator bcAllocator = allocator.newChildAllocator(connection.uuid.toString()
                 + "-dremio09-backward", 0, Long.MAX_VALUE);
@@ -765,7 +766,23 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
           }
           break;
 
-          case DREMIO_1_4:
+          case DREMIO_1_4: {
+            /*
+             * From Dremio 23.0 onwards we started representing MAP data using MapVectors. We need to
+             * add a new encoder when talking to old (22.0 and less) Dremio clients.
+             * We convert the map vectors to list vectors.
+             */
+            final BufferAllocator bcAllocator = allocator.newChildAllocator(connection.uuid.toString()
+              + "-dremio14-backward", 0, Long.MAX_VALUE);
+            logger.debug("Adding dremio 14 backwards compatibility encoder");
+            connection.getChannel()
+              .pipeline()
+              .addAfter(PROTOCOL_ENCODER, DREMIO14_COMPATIBILITY_ENCODER,
+                new BackwardsCompatibilityEncoder(new Dremio14BackwardCompatibilityHandler(bcAllocator)));
+          }
+          break;
+
+          case DREMIO_23_0:
           default:
 
           }

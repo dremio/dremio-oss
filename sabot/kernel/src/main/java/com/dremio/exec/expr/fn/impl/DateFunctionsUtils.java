@@ -84,7 +84,7 @@ public class DateFunctionsUtils {
         .message("Failure parsing the formatting string at column %d of: %s", e.getErrorOffset(), formatString)
         .addContext("Details", e.getMessage())
         .addContext("Format String", formatString)
-        .addContext("Error Offset", e.getErrorOffset())
+        .addContext("Error Offset %d", e.getErrorOffset())
         .build();
     }
 

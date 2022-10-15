@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -32,6 +33,8 @@ import org.apache.calcite.tools.RelConversionException;
 
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.StarColumnHelper;
+import com.dremio.exec.planner.physical.FilterPrel;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectPrel;
@@ -70,6 +73,21 @@ public class SplitUpComplexExpressions {
       } else {
         return accepted;
       }
+    }
+
+    @Override
+    public Prel visitFilter(FilterPrel filterPrel, Object unused) throws RelConversionException {
+      PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(filterPrel.getCluster());
+      if(plannerSettings.isSplitComplexFilterExpressionEnabled()) {
+        RelNode transformedInput = ((Prel) filterPrel.getInput()).accept(this, null);
+        Prel accepted = (Prel) SplitUpComplexExpressions.visitFilter(filterPrel, transformedInput, funcReg);
+        if (accepted == null) {
+          return (Prel) filterPrel.copy(filterPrel.getTraitSet(), Lists.newArrayList(transformedInput));
+        } else {
+          return accepted;
+        }
+      }
+      return visitPrel(filterPrel, unused);
     }
 
   }
@@ -138,6 +156,51 @@ public class SplitUpComplexExpressions {
       relDataTypes.add(new RelDataTypeFieldImpl("EXPR$" + index, allExprs.size(), factory.createSqlType(SqlTypeName.ANY) ));
     }
     return project.copy(project.getTraitSet(), input, exprList, new RelRecordType(origRelDataTypes));
+  }
+
+
+  private static RelNode visitFilter(Filter filter, RelNode input, FunctionImplementationRegistry funcReg) throws RelConversionException {
+    final RelDataTypeFactory factory = filter.getCluster().getTypeFactory();
+
+    // Create Expressions based on input reference
+    List<RexNode> origExprs = Lists.newArrayList();
+    List<RelDataTypeField> origRelDataTypes = new ArrayList<>();
+
+    for (RelDataTypeField field : input.getRowType().getFieldList()) {
+      origRelDataTypes.add(field);
+      RexNode expr = input.getCluster().getRexBuilder().makeInputRef(field.getType(), field.getIndex());
+      origExprs.add(expr);
+    }
+
+    final int lastColumnReferenced = PrelUtil.getLastUsedColumnReference(origExprs);
+    final int lastRexInput = lastColumnReferenced + 1;
+    RexVisitorComplexExprSplitter topLevelComplexFilterExpression = new RexVisitorComplexExprSplitter.
+      TopLevelComplexFilterExpression(filter.getCluster(), funcReg, lastRexInput);
+    RexNode updatedFilterCondition = filter.getCondition().accept(topLevelComplexFilterExpression);
+    List<RexNode> complexExprs = topLevelComplexFilterExpression.getComplexExprs();
+    if(complexExprs.size() == 0){
+      return null;
+    }
+    List<RexNode> underlyingProjectExprs = new ArrayList<>(origExprs);
+    underlyingProjectExprs.addAll(topLevelComplexFilterExpression.getComplexExprs());
+
+    List<RelDataTypeField> underlyingProjectDataTypes = new ArrayList<>(origRelDataTypes);
+    // Add the new complex fields used
+    for(int i = lastColumnReferenced+1; i<topLevelComplexFilterExpression.lastUsedIndex; i++){
+      underlyingProjectDataTypes.add(new RelDataTypeFieldImpl("EXPR$" + i, i, factory.createSqlType(SqlTypeName.ANY)));
+    }
+
+    // Create new Project+ Filter + Project and visit underlying project since we only split top level complex expressions
+    RelNode underlyingProject = visitProject(
+      ProjectPrel.
+      create(input.getCluster(), input.getTraitSet(), input,
+      underlyingProjectExprs , new RelRecordType(underlyingProjectDataTypes)),
+      input, funcReg);
+   return ProjectPrel.create(
+     filter.getCluster(), filter.getTraitSet(),
+     filter.copy(filter.getTraitSet(), underlyingProject, updatedFilterCondition),
+     origExprs, filter.getRowType());
+
   }
 
   /**

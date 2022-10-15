@@ -35,7 +35,6 @@ import com.google.common.base.Preconditions;
  * ...
  */
 public class BoundedExponentialDelay implements RetryPolicy {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BoundedExponentialDelay.class);
 
   private final int baseSleepTimeMs;
   private final int maxSleepMs;

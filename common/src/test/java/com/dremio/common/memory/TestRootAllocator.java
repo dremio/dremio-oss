@@ -93,7 +93,7 @@ public class TestRootAllocator {
         .isInstanceOf(OutOfMemoryException.class);
     }
 
-    assertEquals(5l, rootAllocator.getAvailableBuffers());
+    assertEquals(5L, rootAllocator.getAvailableBuffers());
 
   }
 
@@ -103,7 +103,7 @@ public class TestRootAllocator {
       BufferAllocator alloc = closeables.add(this.rootAllocator.newChildAllocator("child", 0, Long.MAX_VALUE));
       closeables.add(alloc.buffer(1));
     }
-    assertEquals(5l, rootAllocator.getAvailableBuffers());
+    assertEquals(5L, rootAllocator.getAvailableBuffers());
   }
 
   @Test
@@ -126,7 +126,7 @@ public class TestRootAllocator {
         // ignore.
       }
     }
-    assertEquals(5l, rootAllocator.getAvailableBuffers());
+    assertEquals(5L, rootAllocator.getAvailableBuffers());
   }
 
   /**

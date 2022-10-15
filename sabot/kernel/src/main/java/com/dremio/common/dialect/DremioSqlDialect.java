@@ -57,7 +57,7 @@ import com.dremio.common.dialect.arp.transformer.NoOpTransformer;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.rel2sql.DremioRelToSqlConverter;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
-import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
 
 /**
  * DremioSqlDialect is an extension of Calcite's SqlDialect with
@@ -132,7 +132,7 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     // Non-ARP dialects do not allow UDFs but do allow everything else.
     // TODO: DX-13199. Some functions such as Flatten are Dremio functions but not subclasses
     // of SqlOperatorImpl so they could pass this check and we'll try to push them down.
-    return !(operator instanceof SqlOperatorImpl);
+    return !(operator instanceof SqlFunctionImpl);
   }
 
   @Override

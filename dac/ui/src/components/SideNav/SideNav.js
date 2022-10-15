@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { useEffect } from "react";
 import { connect } from "react-redux";
 import { useIntl } from "react-intl";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { compose } from "redux";
 import { withRouter } from "react-router";
-import { useEffect } from "react";
 
 /****************************************************/
 /*                                                  */
@@ -45,8 +44,13 @@ import localStorageUtils, {
 } from "@inject/utils/storageUtils/localStorageUtils";
 import getIconColor from "@app/utils/getIconColor";
 import getUserIconInitials from "@app/utils/userIcon";
-import { getProjects } from "@inject/selectors/projects";
-import { fetchProjects } from "@inject/actions/admin";
+import ProjectActivationHOC from "@inject/containers/ProjectActivationHOC";
+import { getEdition } from "@inject/actions/edition";
+import {
+  fetchCurrentProjectPrivileges,
+  fetchOrgPrivileges,
+} from "@inject/actions/privileges";
+import { isDcsEdition } from "dyn-load/utils/versionUtils";
 
 import SideNavHoverMenu from "./SideNavHoverMenu";
 import AccountMenu from "./AccountMenu";
@@ -54,10 +58,14 @@ import "@app/components/IconFont/css/DremioIcons-old.css";
 import "@app/components/IconFont/css/DremioIcons.css";
 
 import { isActive } from "./SideNavUtils";
-import { PROJECT_STATES } from "@inject/pages/SettingPage/subpages/projects/ProjectConst";
 import HelpMenu from "./HelpMenu";
 import { TopAction } from "./components/TopAction";
 import "./SideNav.less";
+import clsx from "clsx";
+import * as PATHS from "../../exports/paths";
+import CatalogsMenu from "./CatalogsMenu";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
 
 const SideNav = (props) => {
   const {
@@ -67,8 +75,14 @@ const SideNav = (props) => {
     location,
     currentSql,
     narwhalOnly,
-    fetchProjects,
-    projectList,
+    isProjectInactive,
+    className,
+    headerAction,
+    actions = null,
+    showOrganization = true,
+    getEditions: dispatchGetEditions,
+    fetchCurrentProjectPrivileges: dispatchFetchCurrentProjectPrivileges,
+    fetchOrgPrivileges: dispatchFetchOrgPrivileges,
   } = props;
 
   const loc = location.pathname;
@@ -77,7 +91,7 @@ const SideNav = (props) => {
   const isDDPOnly = localStorageUtils
     ? localStorageUtils.isDataPlaneOnly(ctx)
     : false;
-  const logoSVG = isDDPOnly ? "DremioLogoDDP.svg" : "DremioLogo32x32.svg";
+  const logoSVG = isDDPOnly ? "corporate/dremio-ddp" : "corporate/dremio";
 
   const { backgroundColor: userBgColor, color: userColor } = getIconColor(
     user.get("userId")
@@ -120,13 +134,18 @@ const SideNav = (props) => {
   };
 
   useEffect(() => {
-    if (fetchProjects) {
-      fetchProjects();
+    if (isDcsEdition()) {
+      dispatchGetEditions();
+      dispatchFetchCurrentProjectPrivileges().catch(() => undefined);
+      dispatchFetchOrgPrivileges().catch(() => undefined);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    dispatchFetchCurrentProjectPrivileges,
+    dispatchFetchOrgPrivileges,
+    dispatchGetEditions,
+  ]);
 
-  const LogoAction = (
+  const LogoAction = headerAction || (
     <TopAction
       url="/"
       icon={logoSVG}
@@ -135,6 +154,8 @@ const SideNav = (props) => {
       tooltip={false}
       socketIsOpen={socketIsOpen}
       tooltipProps={{ placement: "right" }}
+      className="dremioLogoWithTextContainer"
+      iconClassName="dremioLogoWithText"
     />
   );
 
@@ -147,46 +168,27 @@ const SideNav = (props) => {
     );
   }
 
-  const currentProject =
-    localStorageUtils.getProjectContext &&
-    localStorageUtils.getProjectContext();
-  let isProjectInactive = false;
-
-  if (currentProject) {
-    const filteredProject = projectList.filter(
-      (pr) => pr.id === currentProject.id
-    )[0];
-    if (filteredProject && filteredProject.state === PROJECT_STATES.ACTIVE) {
-      isProjectInactive = false;
-    } else if (
-      filteredProject &&
-      (filteredProject.state === PROJECT_STATES.INACTIVE ||
-        filteredProject.state === PROJECT_STATES.ACTIVATING)
-    ) {
-      isProjectInactive = true;
-    }
-  }
-
   return (
-    <div className="sideNav">
+    <div className={clsx("sideNav", className)}>
       <div className="sideNav__topSection">
         {LogoAction}
-        {!isProjectInactive && (
+        {actions}
+        {actions === null && !isProjectInactive && (
           <TopAction
             tooltipProps={{ placement: "right" }}
             active={isActive({ name: "/", dataset: true, loc, isDDPOnly })}
             url="/"
-            icon="SideNav-table.svg"
+            icon="navigation-bar/dataset"
             alt="SideNav.Datasets"
           />
         )}
-        {!isDDPOnly && !isProjectInactive && (
+        {actions === null && !isDDPOnly && !isProjectInactive && (
           <>
             <TopAction
               tooltipProps={{ placement: "right" }}
               active={isActive({ name: "/new_query", loc, sql: true })}
               url={getNewQueryHref()}
-              icon="SideNav-newQuery.svg"
+              icon="navigation-bar/sql-runner"
               alt="SideNav.NewQuery"
               data-qa="new-query-button"
               onClick={() => handleClick}
@@ -195,38 +197,87 @@ const SideNav = (props) => {
               tooltipProps={{ placement: "right" }}
               active={isActive({ loc, jobs: true })}
               url="/jobs"
-              icon="SideNav-activity.svg"
+              icon="navigation-bar/jobs"
               alt="SideNav.Jobs"
               data-qa="select-jobs"
+            />
+            <FeatureSwitch
+              flag={ORGANIZATION_LANDING}
+              renderEnabled={() => (
+                <TopAction
+                  tooltipProps={{ placement: "right" }}
+                  active={isActive({ loc, admin: true })}
+                  url="/admin/general"
+                  icon="interface/settings"
+                  alt="SideNav.AdminMenuProjectSetting"
+                  data-qa="select-admin-settings"
+                />
+              )}
             />
           </>
         )}
       </div>
 
       <div className="sideNav__bottomSection">
-        <SideNavExtra />
-        <SideNavAdmin user={user} />
+        <FeatureSwitch
+          flag={ORGANIZATION_LANDING}
+          renderEnabled={() => null}
+          renderDisabled={() => <SideNavExtra />}
+        />
+        <FeatureSwitch
+          flag={ORGANIZATION_LANDING}
+          renderEnabled={() => (
+            <SideNavHoverMenu
+              tooltipStringId="SideNav.DremioServices"
+              menu={<CatalogsMenu />}
+              icon="navigation-bar/go-to-catalogs"
+              isDCS={true}
+            />
+          )}
+        />
+        <FeatureSwitch
+          flag={ORGANIZATION_LANDING}
+          renderEnabled={() => {
+            if (!showOrganization) {
+              return null;
+            }
+
+            return (
+              <TopAction
+                tooltipProps={{ placement: "right" }}
+                url={PATHS.organization()}
+                icon="navigation-bar/organization"
+                alt={intl.formatMessage({ id: "SideNav.Organization" })}
+                data-qa="go-to-landing-page"
+              />
+            );
+          }}
+        />
+
+        <FeatureSwitch
+          flag={ORGANIZATION_LANDING}
+          renderEnabled={() => null}
+          renderDisabled={() => <SideNavAdmin user={user} />}
+        />
         <SideNavHoverMenu
           tooltipStringId={"SideNav.Help"}
           menu={<HelpMenu />}
-          icon={"SideNav-help.svg"}
-          menuDisplayUp
+          icon={"interface/help"}
         />
         <SideNavHoverMenu
+          aria-label="User options"
           tooltipString={userTooltip}
           menu={<AccountMenu />}
-          menuDisplayUp
           isActive={isActive({ name: "/account/info", loc })}
           divBlob={
-            <div className={"sideNav-item__customHoverMenu"}>
+            <div className="sideNav-item__customHoverMenu">
               <div className="sideNav-items">
-                <div className="sideNav__customOuter">
-                  <div
-                    className="sideNav__user sideNav-item__dropdownIcon"
-                    style={{ backgroundColor: userBgColor, color: userColor }}
-                  >
-                    <span>{userNameFirst2}</span>
-                  </div>
+                <div
+                  className="sideNav__user sideNav-item__dropdownIcon"
+                  style={{ backgroundColor: userBgColor, color: userColor }}
+                  data-qa="navigation-bar/user-settings"
+                >
+                  <span>{userNameFirst2}</span>
                 </div>
               </div>
             </div>
@@ -245,12 +296,18 @@ SideNav.propTypes = {
   socketIsOpen: PropTypes.bool.isRequired,
   showConfirmationDialog: PropTypes.func,
   resetNewQuery: PropTypes.func,
-  projectList: PropTypes.array,
-  fetchProjects: PropTypes.func,
+  isProjectInactive: PropTypes.bool,
   router: PropTypes.shape({
     isActive: PropTypes.func,
     push: PropTypes.func,
   }),
+  className: PropTypes.string,
+  headerAction: PropTypes.any,
+  actions: PropTypes.any,
+  showOrganization: PropTypes.bool,
+  getEditions: PropTypes.func,
+  fetchCurrentProjectPrivileges: PropTypes.func,
+  fetchOrgPrivileges: PropTypes.func,
 };
 
 const mapStateToProps = (state) => {
@@ -259,7 +316,6 @@ const mapStateToProps = (state) => {
     user: state.account.get("user"),
     socketIsOpen: state.serverStatus.get("socketIsOpen"),
     location: getLocation(state),
-    projectList: getProjects ? getProjects(state) : [],
     currentSql: explorePage ? explorePage.view.currentSql : null,
   };
 };
@@ -267,10 +323,12 @@ const mapStateToProps = (state) => {
 const mapDispatchToProps = {
   showConfirmationDialog,
   resetNewQuery,
-  fetchProjects,
+  getEditions: getEdition,
+  fetchCurrentProjectPrivileges,
+  fetchOrgPrivileges,
 };
 
 export default compose(
   withRouter,
   connect(mapStateToProps, mapDispatchToProps)
-)(SideNav);
+)(ProjectActivationHOC(SideNav));

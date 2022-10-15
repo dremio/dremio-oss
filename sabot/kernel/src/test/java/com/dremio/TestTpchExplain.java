@@ -106,7 +106,7 @@ public class TestTpchExplain extends PlanTestBase {
       new String[]{
         "HashJoin",
         "TableFunction.*lineitem.parquet.*",
-        "Filter.*LIKE\\(\\$1, \\'\\%yellow\\%\\'\\)",
+        "Filter.*LIKE\\(\\$1, \\'\\%yellow\\%\\'.*\\)",
         "TableFunction.*part.parquet"},
       null);
   }

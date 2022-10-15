@@ -16,6 +16,7 @@
 package com.dremio.dac.api;
 
 import static java.util.Arrays.asList;
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,8 +28,10 @@ import static org.junit.Assert.assertTrue;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.ws.rs.client.Entity;
@@ -46,6 +49,7 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.model.common.Field;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BaseTestServer;
@@ -58,6 +62,8 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.exec.store.dfs.PDFSConf;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.service.job.JobSummary;
@@ -979,6 +985,46 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   @Test
+  public void testCreateSourceWithInternalConnectionConfTypes() {
+    String location = Path.of("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testCreateSourceWithInternalConnectionConfTypes/").toString();
+    Set<ConnectionConf<?, ?>> internalConnectionConfs = new HashSet<ConnectionConf<?, ?>>() {{
+      add(new PDFSConf(location));
+      add(new HomeFileConf(location, "localhost"));
+    }};
+
+    for (ConnectionConf<?, ?> conf : internalConnectionConfs) {
+      final String sourceName = UUID.randomUUID().toString();
+      Source source = new Source();
+      source.setName(sourceName);
+      source.setType(conf.getType());
+      source.setConfig(conf);
+
+      expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(source)));
+    }
+  }
+
+  @Test
+  public void testUpdateSourceWithInternalConnectionConfTypes() {
+    String location = Path.of("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testUpdateSourceWithInternalConnectionConfTypes/").toString();
+    Set<ConnectionConf<?, ?>> internalConnectionConfs = new HashSet<ConnectionConf<?, ?>>() {{
+      add(new PDFSConf(location));
+      add(new HomeFileConf(location, "localhost"));
+    }};
+
+    Source source = createSource();
+
+    for (ConnectionConf<?, ?> conf : internalConnectionConfs) {
+      source.setType(conf.getType());
+      source.setConfig(conf);
+
+      expectStatus(BAD_REQUEST,
+        getBuilder(getPublicAPI(3)
+          .path(CATALOG_PATH).path(PathUtils.encodeURIComponent(source.getId())))
+          .buildPut(Entity.json(source)));
+    }
+  }
+
+  @Test
   public void testSourceBrowsing() throws Exception {
     Source source = createSource();
 
@@ -1053,12 +1099,20 @@ public class TestCatalogResource extends BaseTestServer {
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
 
     ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
-    dataset = createPDS(folder.getPath(), parquetFileConfig);
+    Dataset.RefreshSettings refreshSettings = new Dataset.RefreshSettings(null, 3600000L, 10800000L, RefreshMethod.INCREMENTAL, false, false);
+    dataset = createPDS(folder.getPath(), parquetFileConfig, refreshSettings);
 
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
+    Dataset datasetPromoted = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
 
     // load the promoted dataset
-    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(), new GenericType<Dataset>() {});
+    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(datasetPromoted.getId())).buildGet(), new GenericType<Dataset>() {});
+
+    // Verify the response from POST matches the response from GET
+    assertEquals(dataset.getId(), datasetPromoted.getId());
+    assertEquals(RefreshMethod.INCREMENTAL, dataset.getAccelerationRefreshPolicy().getMethod());
+    assertEquals(RefreshMethod.INCREMENTAL, datasetPromoted.getAccelerationRefreshPolicy().getMethod());
+    assertEquals(dataset.getAccelerationRefreshPolicy().getRefreshPeriodMs(), datasetPromoted.getAccelerationRefreshPolicy().getRefreshPeriodMs());
+    assertEquals(dataset.getAccelerationRefreshPolicy().getGracePeriodMs(), datasetPromoted.getAccelerationRefreshPolicy().getGracePeriodMs());
 
     // unpromote the folder
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());

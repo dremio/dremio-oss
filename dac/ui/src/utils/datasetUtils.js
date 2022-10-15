@@ -15,6 +15,7 @@
  */
 import invariant from "invariant";
 import { isEqual } from "lodash";
+import { DATASET_SUMMARY_ENTITY_TYPES } from "@app/constants/Constants";
 
 const FORMATTED_ENTITY_TYPES = new Set(["file", "folder"]);
 
@@ -68,3 +69,7 @@ export function hasReferencesChanged(cur, next) {
   const nextReferences = next || {};
   return !isEqual(references, nextReferences);
 }
+
+export const checkTypeToShowOverlay = (type) => {
+  return DATASET_SUMMARY_ENTITY_TYPES.has(type);
+};

@@ -35,7 +35,6 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Charsets;
 
 public class TestRepeated extends ExecTest {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestRepeated.class);
 
 //  @Test
 //  public void repeatedMap() {

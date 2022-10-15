@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 import uuid from "uuid";
 
 import PropTypes from "prop-types";
@@ -125,4 +124,4 @@ const styles = {
     paddingLeft: 10,
   },
 };
-export default Radium(FieldValues);
+export default FieldValues;

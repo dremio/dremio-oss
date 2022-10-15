@@ -118,7 +118,8 @@ public class HiveTextReader extends HiveAbstractReader {
 
     while (recordCount < numRowsPerBatch) {
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
-        boolean hasNext = reader.next(key, value = skipRecordsInspector.getNextValue());
+        value = skipRecordsInspector.getNextValue();
+        boolean hasNext = reader.next(key, value);
         if (!hasNext) {
           break;
         }

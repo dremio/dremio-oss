@@ -16,7 +16,8 @@
 const noop = () => {};
 let log = noop;
 if (process.env.NODE_ENV !== "production") {
-  log = (...args) => {
+  // log = (...args) => {
+  log = () => {
     /* the method is based on chrome format. And works well only for chrome.
         Here is an format example:
         ---
@@ -35,7 +36,7 @@ if (process.env.NODE_ENV !== "production") {
       const endIndex = caller.indexOf("$");
       caller = caller.substr(startIndex, endIndex - startIndex);
     }
-    console.log(`${caller}:`, ...args); // eslint-disable-line no-console
+    // console.log(`${caller}:`, ...args); // eslint-disable-line no-console
   };
 }
 

@@ -76,10 +76,10 @@ public final class LBlockHashTableEight implements AutoCloseable {
   // The index of null key in FixedBlockVector, used to optimize rehash for null key
   private int nullKeyIndex = -1;
 
-  private long freeValue = Long.MIN_VALUE + 474747l;
+  private long freeValue = Long.MIN_VALUE + 474747L;
 
   private FixedBlockVector[] fixedBlocks = new FixedBlockVector[0];
-  private long tableFixedAddresses[] = new long[0];
+  private long[] tableFixedAddresses = new long[0];
 
   private int rehashCount = 0;
   private final Stopwatch rehashTimer = Stopwatch.createUnstarted();

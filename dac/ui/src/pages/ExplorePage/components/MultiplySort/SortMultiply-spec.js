@@ -47,6 +47,6 @@ describe("SortMultiply", () => {
 
     expect(wrapper.find("SortDragArea")).to.length(1);
     expect(wrapper.find("DragColumnMenu")).to.length(1);
-    expect(wrapper.find("FontIcon")).to.length(1);
+    expect(wrapper.find("dremio-icon")).to.length(1);
   });
 });

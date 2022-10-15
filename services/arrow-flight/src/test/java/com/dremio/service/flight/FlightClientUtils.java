@@ -36,7 +36,7 @@ import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.service.flight.utils.TestConnectionProperties;
 
 /**
  * Utility class for working with FlightClients
@@ -47,25 +47,69 @@ public final class FlightClientUtils {
    */
   public static final class FlightClientWrapper implements AutoCloseable {
     private final BufferAllocator allocator;
-    private final FlightClient client;
-    private final FlightSqlClient sqlClient;
+    private FlightClient client;
+    private FlightSqlClient sqlClient;
     private final String authMode;
     private final Collection<CallOption> options;
+    private final TestConnectionProperties clientProperties;
     private CredentialCallOption tokenCallOption;
 
     public FlightClientWrapper(BufferAllocator allocator, FlightClient client,
-                               String authMode, Collection<CallOption> options) {
+                               String authMode, TestConnectionProperties clientProperties) {
+      this(allocator, client, authMode, Collections.emptyList(), clientProperties);
+    }
+
+    public FlightClientWrapper(BufferAllocator allocator, FlightClient client,
+                               String authMode, Collection<CallOption> options,
+                               TestConnectionProperties clientProperties) {
       this.allocator = allocator;
       this.client = client;
       this.sqlClient = new FlightSqlClient(this.client);
       this.authMode = authMode;
       this.tokenCallOption = null;
       this.options = new ArrayList<>(options);
+      this.clientProperties = clientProperties;
     }
 
-    public FlightClientWrapper(BufferAllocator allocator, FlightClient client,
-                               String authMode) {
-      this(allocator, client, authMode, Collections.emptyList());
+    public void resetClient() throws Exception {
+      final FlightClientType clientType = clientProperties.getClientType();
+      final String host = clientProperties.getHost();
+      final Integer port = clientProperties.getPort();
+      final String user = clientProperties.getUser();
+      final String password = clientProperties.getPassword();
+
+      switch (clientType) {
+        case FlightClient:
+          sqlClient.close();
+
+          client = openFlightClient(port, user, password, allocator, authMode).getClient();
+          sqlClient = new FlightSqlClient(client);
+          break;
+        case EncryptedFlightClient:
+          sqlClient.close();
+
+          final InputStream trustedCerts = clientProperties.getTrustedCerts();
+
+          client =
+            openEncryptedFlightClient(host, port, user, password, trustedCerts, allocator, authMode).getClient();
+          sqlClient = new FlightSqlClient(client);
+          break;
+        case FlightClientWithOptions:
+          sqlClient.close();
+
+          client = openFlightClientWithOptions(port, user, password, allocator, authMode, options).getClient();
+          sqlClient = new FlightSqlClient(client);
+          break;
+        default:
+          throw new UnsupportedOperationException("Missing resetClient implementation for clientType: " + clientType);
+      }
+    }
+
+    @Override
+    public void close() throws Exception {
+      // NOTE: client must close first as it came from a child allocator from the input allocator.
+      AutoCloseables.close(sqlClient, allocator);
+      tokenCallOption = null;
     }
 
     public CallOption[] getOptions() {
@@ -100,23 +144,29 @@ public final class FlightClientUtils {
       this.tokenCallOption = tokenCallOption;
     }
 
-    @Override
-    public void close() throws Exception {
-      // Note - client must close first as it creates a child allocator from
-      // the input allocator.
-      AutoCloseables.close(sqlClient, allocator);
-      tokenCallOption = null;
+    public enum FlightClientType {
+      FlightClient,
+      EncryptedFlightClient,
+      FlightClientWithOptions
     }
   }
 
   public static FlightClientWrapper openFlightClient(int port, String user, String password,
-                                                     SabotContext context, String authMode) throws Exception {
-    final BufferAllocator allocator = context.getAllocator().newChildAllocator("flight-client-allocator", 0, Long.MAX_VALUE);
+                                                     BufferAllocator allocator, String authMode) throws Exception {
+    final String host = "localhost";  // TODO: Can this come from dremioConfig.getNode() in BaseFlightQueryTest?
     FlightClient.Builder builder = FlightClient.builder()
       .allocator(allocator)
-      .location(Location.forGrpcInsecure("localhost", port));
+      .location(Location.forGrpcInsecure(host, port));
 
-    final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode);
+    final TestConnectionProperties clientProperties = new TestConnectionProperties(
+      FlightClientWrapper.FlightClientType.FlightClient,
+      host,
+      port,
+      user,
+      password,
+      null);
+
+    final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode, clientProperties);
 
     try {
       if (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
@@ -146,8 +196,7 @@ public final class FlightClientUtils {
 
   public static FlightClientWrapper openEncryptedFlightClient(String host, int port, String user,
                                                               String password, InputStream trustedCerts,
-                                                              SabotContext context, String authMode) throws Exception {
-    final BufferAllocator allocator = context.getAllocator().newChildAllocator("flight-client-allocator", 0, Long.MAX_VALUE);
+                                                              BufferAllocator allocator, String authMode) throws Exception {
     final FlightClient.Builder builder = FlightClient.builder()
       .allocator(allocator)
       .useTls()
@@ -157,7 +206,15 @@ public final class FlightClientUtils {
       builder.trustedCertificates(trustedCerts);
     }
 
-    final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode);
+    final TestConnectionProperties clientProperties = new TestConnectionProperties(
+      FlightClientWrapper.FlightClientType.EncryptedFlightClient,
+      host,
+      port,
+      user,
+      password,
+      trustedCerts);
+
+    final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode, clientProperties);
 
     try {
       if (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
@@ -186,14 +243,27 @@ public final class FlightClientUtils {
   }
 
   public static FlightClientWrapper openFlightClientWithOptions(int port, String user, String password,
-                                                                SabotContext context, String authMode,
+                                                                BufferAllocator allocator, String authMode,
                                                                 Collection<CallOption> options) throws Exception {
-    final BufferAllocator allocator = context.getAllocator().newChildAllocator("flight-client-allocator", 0, Long.MAX_VALUE);
+    final String host = "localhost";  // TODO: Can this come from dremioConfig.getNode() in BaseFlightQueryTest?
     FlightClient.Builder builder = FlightClient.builder()
       .allocator(allocator)
-      .location(Location.forGrpcInsecure("localhost", port));
+      .location(Location.forGrpcInsecure(host, port));
 
-    final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode, options);
+    final TestConnectionProperties clientProperties = new TestConnectionProperties(
+      FlightClientWrapper.FlightClientType.FlightClientWithOptions,
+      host,
+      port,
+      user,
+      password,
+      null);
+
+    final FlightClientWrapper wrapper = new FlightClientWrapper(
+      allocator,
+      builder.build(),
+      authMode,
+      options,
+      clientProperties);
 
     try {
       if (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {

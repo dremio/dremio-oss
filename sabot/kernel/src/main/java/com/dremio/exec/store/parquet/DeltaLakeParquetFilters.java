@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
-
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  * ParquetFilters implementation for Delta Lake tables which only exposes filtering capabilities supported by
@@ -25,16 +23,8 @@ import org.apache.arrow.util.Preconditions;
  */
 public class DeltaLakeParquetFilters extends ParquetFilters {
 
-  public DeltaLakeParquetFilters() {
-    super();
-  }
-
-  public DeltaLakeParquetFilters(List<ParquetFilterCondition> pushdownFilters) {
-    super(pushdownFilters, null);
-  }
-
   public DeltaLakeParquetFilters(ParquetFilters filters) {
     super(filters.getPushdownFilters());
-    Preconditions.checkArgument(!filters.hasPositionalDeleteFilter());
+    Preconditions.checkArgument(!filters.hasPositionalDeleteFilter() && !filters.hasEqualityDeleteFilter());
   }
 }

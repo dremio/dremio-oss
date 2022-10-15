@@ -50,7 +50,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.service.nessie.DatastoreDatabaseAdapter;
+import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.protobuf.ByteString;
@@ -80,7 +80,10 @@ class TestRebuildKeyList {
       .maxKeyListSize(0) // force key list entities to be used even for small keys (i.e. prevent in-commit key lists)
       .maxKeyListEntitySize(0)
       .build();
-    adapter = new DatastoreDatabaseAdapter(adapterCfg, nessieDatastore, worker);
+    adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+      .withConnector(nessieDatastore)
+      .withConfig(adapterCfg)
+      .build(worker);
     adapter.initializeRepo("main");
   }
 

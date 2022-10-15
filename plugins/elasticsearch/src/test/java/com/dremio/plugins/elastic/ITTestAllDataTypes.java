@@ -230,8 +230,8 @@ public class ITTestAllDataTypes extends ElasticBaseTestQuery {
       .sqlQuery(sqlQuery)
       .unOrdered()
       .baselineColumns(SPECIAL_COLUMNS_IN_BACKTICKS)
-      .baselineValues(1l, 3l, 5l, 7l)
-      .baselineValues(2l, 4l, 6l, 8l)
+      .baselineValues(1L, 3L, 5L, 7L)
+      .baselineValues(2L, 4L, 6L, 8L)
       .go();
   }
 

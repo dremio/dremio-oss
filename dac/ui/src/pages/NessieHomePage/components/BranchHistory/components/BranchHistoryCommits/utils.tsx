@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-import React from "react";
+import * as React from "react";
 import { FormattedMessage } from "react-intl";
 
-import { Avatar } from "@material-ui/core";
+import { Avatar } from "@mui/material";
 import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
 
-import {
-  DefaultApi,
-  LogEntry,
-  LogResponse,
-  Reference,
-} from "@app/services/nessie/client";
-import { convertISOString } from "../../../RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import { DefaultApi, LogEntry, LogResponse } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
+
+import { convertISOStringWithTooltip } from "../../../RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
 
 export const columns = [
   {
@@ -159,7 +156,7 @@ const createTableRow = (
               <div className="commit-timestamp">
                 {entry.commitMeta &&
                   entry.commitMeta.commitTime &&
-                  convertISOString(
+                  convertISOStringWithTooltip(
                     {} as Reference,
                     entry.commitMeta.commitTime as any
                   )}

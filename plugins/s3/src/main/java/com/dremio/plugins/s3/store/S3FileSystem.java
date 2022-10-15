@@ -46,7 +46,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -83,6 +82,7 @@ import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerFileSystem;
 import com.dremio.plugins.util.ContainerNotFoundException;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -207,6 +207,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     //Use builder pattern for S3Client(AWS SDK1.x) initialization.
     S3ClientFactory.S3ClientCreationParameters parameters = new S3ClientFactory.S3ClientCreationParameters()
       .withCredentialSet(credentialsProvider)
+      .withPathStyleAccess(s3Config.getBoolean(Constants.PATH_STYLE_ACCESS, false))
       .withEndpoint(s3Config.get(ENDPOINT, CENTRAL_ENDPOINT)); //If endpoint is not given use s3.amazonaws.com for s3
     final AmazonS3 s3Client = clientFactory.createS3Client(S3_URI, parameters);
 
@@ -347,12 +348,14 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     pathStr = (pathStr.startsWith("/")) ? pathStr.substring(1) : pathStr;
     boolean ssecUsed = isSsecUsed();
     String sseCustomerKey = getCustomerSSEKey(ssecUsed);
-    if ("false".equals(options.get(S3_NATIVE_ASYNC_CLIENT.getOptionName()))) {
-      // default value of ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK is true
+    //If proxy is enabled.
+    // Use SyncClient to do async byte read.
+    //Once AWS-SDK-2.x upgrade happened with aws-sdk-2.17+, This can be handled with S3AsyncClient.
+    //https://dremio.atlassian.net/browse/DX-49510?focusedCommentId=545929
+    if (ApacheHttpConnectionUtil.isProxyEnabled(getConf()) || "false".equals(options.get(S3_NATIVE_ASYNC_CLIENT.getOptionName()))) {
       return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, pathStr,
               version, isRequesterPays(), ssecUsed, sseCustomerKey, "true".equals(options.get(ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK.getOptionName())));
     }
-    // default value of ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK is true
     return new S3AsyncByteReader(getAsyncClient(bucket), bucket, pathStr,
             version, isRequesterPays(), ssecUsed, sseCustomerKey, "true".equals(options.get(ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK.getOptionName())));
   }

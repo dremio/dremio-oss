@@ -15,7 +15,6 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import Art from "components/Art";
 import { actionBtn, actionIcon } from "./actionButtons.less";
 
 export class EditButton extends Component {
@@ -40,7 +39,7 @@ export class EditButton extends Component {
         title={title}
         data-qa={dataQa}
       >
-        <Art className={actionIcon} alt={title} src="Edit.svg" />
+        <dremio-icon name="interface/edit" alt={title} class={actionIcon} />
       </button>
     );
   }

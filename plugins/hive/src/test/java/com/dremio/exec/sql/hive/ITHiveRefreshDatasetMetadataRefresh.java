@@ -68,6 +68,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     BaseTestQuery.setupDefaultTestCluster();
     LazyDataGeneratingHiveTestBase.generateHiveWithoutData();
 
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_test_mapColumn_" + formatType + "(col1 INT, col2 MAP<STRING,STRING>) STORED AS " + formatType);
     dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_" + formatType + "(col1 INT, col2 STRING) STORED AS " + formatType);
     dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_partition_" + formatType + "(id INT) PARTITIONED BY (year INT, month STRING) STORED AS " + formatType);
     // By default will create TextFileFormat table which is not supported in refresh dataset flow
@@ -89,6 +90,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
 
   @AfterClass
   public static void dropTables() throws Exception {
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_test_mapColumn_" + formatType);
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_" + formatType );
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_partition_" + formatType);
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_invalid_" + formatType);
@@ -226,8 +228,10 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
       runSQL(String.format(FORGET, HIVE + tableName));
     }
 
-    assertThatThrownBy(() -> runSQL(sql))
-      .hasMessageContaining("Number of fields in dataset exceeded the maximum number of fields of 800");
+    try (AutoCloseable c1 = setMaxLeafColumns(800)) {
+      assertThatThrownBy(() -> runSQL(sql))
+          .hasMessageContaining("Number of fields in dataset exceeded the maximum number of fields of 800");
+    }
   }
 
   @Test
@@ -305,6 +309,48 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
       .baselineColumns("id", "month", "year")
       .baselineValues(2, "Jan", 2021)
       .go();
+  }
+
+  @Test
+  public void testRefreshWithMapColumn() throws Exception {
+    try (AutoCloseable c1 = enableHiveParquetComplexTypes();
+         AutoCloseable c2 = enableMapDataType()) {
+      final String tableName = "refresh_test_mapColumn_" + formatType;
+      final String insertCmd = "INSERT INTO " + tableName + " SELECT 1, map('a','aa')";
+      final String selectQuery = "SELECT col2['a'] as m1 FROM " + HIVE + tableName;
+
+      dataGenerator.executeDDL(insertCmd); // insert 1st row
+
+      final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+
+      runSQL(sql);
+
+      testBuilder()
+        .sqlQuery(selectQuery)
+        .unOrdered()
+        .baselineColumns("m1")
+        .baselineValues("aa")
+        .go();
+
+      dataGenerator.executeDDL(insertCmd); // insert 2nd row
+
+      testBuilder()
+        .sqlQuery(selectQuery)
+        .unOrdered()
+        .baselineColumns("m1")
+        .baselineValues("aa")  // only 1st row is returned since we didn't run refresh metadata
+        .go();
+
+      runSQL(sql); //running refresh metadata query
+
+      testBuilder()
+        .sqlQuery(selectQuery)
+        .unOrdered()
+        .baselineColumns("m1")
+        .baselineValues("aa") // 2 rows are returned after alter table refresh metadata query.
+        .baselineValues("aa")
+        .go();
+    }
   }
 
   private static boolean isDirEmpty(final java.nio.file.Path directory) throws IOException {

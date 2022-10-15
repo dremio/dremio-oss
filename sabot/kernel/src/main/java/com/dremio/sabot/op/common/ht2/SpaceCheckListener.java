@@ -18,10 +18,10 @@ package com.dremio.sabot.op.common.ht2;
 public interface SpaceCheckListener {
   SpaceCheckListener NO_OP = new SpaceCheckListener() {
     @Override
-    public boolean resizeListenerHasSpace(final ResizeListener listener, final int batchIndex, final long seed) {
+    public boolean resizeListenerHasSpace(final ResizeListener listener, final int batchIndex, final int offsetInBatch, final long seed) {
       return true;
     }
   };
 
-  boolean resizeListenerHasSpace(final ResizeListener listener, final int batchIndex, long seed);
+  boolean resizeListenerHasSpace(final ResizeListener listener, final int batchIndex, final int offsetInBatch, long seed);
 }

@@ -27,7 +27,6 @@ import com.dremio.common.util.TestTools;
 
 
 public class TestTpchPlanning extends BaseTestQuery {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTpchPlanning.class);
 
   @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 

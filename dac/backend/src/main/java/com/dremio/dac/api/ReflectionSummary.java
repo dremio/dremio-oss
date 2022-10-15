@@ -33,6 +33,7 @@ public class ReflectionSummary {
   private final String name;
   @JsonISODateTime
   private final long createdAt;
+
   @JsonISODateTime
   private final long updatedAt;
   private final long currentSizeBytes;
@@ -89,5 +90,53 @@ public class ReflectionSummary {
 
   public boolean isArrowCachingEnabled() {
     return arrowCachingEnabled;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public ReflectionType getType() {
+    return type;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public long getCreatedAt() {
+    return createdAt;
+  }
+
+  public long getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public long getCurrentSizeBytes() {
+    return currentSizeBytes;
+  }
+
+  public long getTotalSizeBytes() {
+    return totalSizeBytes;
+  }
+
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  public String getDatasetId() {
+    return datasetId;
+  }
+
+  public Dataset.DatasetType getDatasetType() {
+    return datasetType;
+  }
+
+  public List<String> getDatasetPath() {
+    return datasetPath;
+  }
+
+  public ReflectionStatusUI getStatus() {
+    return status;
   }
 }

@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.junit.Test;
 
+import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.SqlQueryTokenizer;
 import com.dremio.service.autocomplete.tokens.SqlQueryUntokenizer;
@@ -53,6 +54,51 @@ public final class SqlQueryTokenizerTests {
       .add(
         "IDENTIFIER WITH MULTIPLE CONSECUTIVE SPACES",
         GoldenFileTestBuilder.MultiLineString.create("SELECT \"SOME IDENTIFIER  WITH    MULTIPLE      CONSECUTIVE          SPACES\" FROM EMP"))
+      .runTests();
+  }
+
+  @Test
+  public void testSingleQuoteIsTreatedAsStringLiteral() {
+    new GoldenFileTestBuilder<>(SqlQueryTokenizerTests::executeTest)
+      .add(
+        "CLOSED SINGLE QUOTE",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT '123' FROM EMP"))
+      .add(
+        "DOUBLE QUOTES INSIDE SINGLE QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT 'TEST \"ME\" HERE' FROM EMP"))
+      .add(
+        "UNCLOSED SINGLE QUOTE",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT '123 FROM EMP"))
+      .add(
+        "UNEVEN NUMBER OF SINGLE QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT '123 FROM EMP WHERE x = 'test'"))
+      .runTests();
+  }
+
+  @Test
+  public void testDoubleQuoteIsTreatedAsIdentifier() {
+    new GoldenFileTestBuilder<>(SqlQueryTokenizerTests::executeTest)
+      .add(
+        "CLOSED DOUBLE QUOTE",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"EMP\""))
+      .add(
+        "SINGLE QUOTES INSIDE DOUBLE QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"TEST 'ME' HERE\""))
+      .add(
+        "UNCLOSED DOUBLE QUOTE",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"EMP WHERE 1 = 1"))
+      .add(
+        "UNEVEN NUMBER OF DOUBLE QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT \"name FROM \"EMP\""))
+      .add(
+        "CURSOR AT THE END OF THE QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create(String.format("SELECT * FROM \"EMP%s\" WHERE 1 = 1", Cursor.CURSOR_CHARACTER)))
+      .add(
+        "CURSOR IN THE MIDDLE DISCARDS THE REST OF THE IDENTIFIER",
+        GoldenFileTestBuilder.MultiLineString.create(String.format("SELECT * FROM \"EMP%sLO BOOOM\" WHERE 1 = 1", Cursor.CURSOR_CHARACTER)))
+      .add(
+        "CURSOR IN EMPTY STRING BETWEEN QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create(String.format("SELECT * FROM \"%s\"", Cursor.CURSOR_CHARACTER)))
       .runTests();
   }
 

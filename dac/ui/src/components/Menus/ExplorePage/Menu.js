@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
 
-import MenuList from "@material-ui/core/MenuList";
+import MenuList from "@mui/material/MenuList";
 
 class ExploreMenu extends PureComponent {
   static propTypes = {

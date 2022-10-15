@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, createRef } from "react";
+import { Component, createRef } from "react";
 import { FormattedMessage } from "react-intl";
 
 import PropTypes from "prop-types";
@@ -109,6 +109,7 @@ export class SqlAutoComplete extends Component {
         preview: "CTRL + Enter",
         comment: "CTRL + /",
         find: "CTRL + F",
+        autocomplete: "CTRL + Space",
       },
     };
   }
@@ -177,7 +178,7 @@ export class SqlAutoComplete extends Component {
   };
 
   getMonacoEditorInstance() {
-    return this.sqlAutoCompleteRef.monacoEditorComponent.editor;
+    return this.sqlAutoCompleteRef?.monacoEditorComponent?.editor;
   }
 
   getMonaco() {
@@ -351,8 +352,9 @@ export class SqlAutoComplete extends Component {
 
   updateCode() {
     if (this.props.onChange) {
-      const value = this.getMonacoEditorInstance().getValue();
+      const value = this.getMonacoEditorInstance()?.getValue();
       this.props.onChange(value);
+      this.getMonacoEditorInstance()?.pushUndoStop();
     }
   }
 
@@ -519,6 +521,7 @@ export class SqlAutoComplete extends Component {
           preview: "⌘↵",
           comment: "⌘/",
           find: "⌘F",
+          autocomplete: "⌃ Space",
         },
       });
     }
@@ -649,6 +652,10 @@ export class SqlAutoComplete extends Component {
                     <FormattedMessage id="KeyboardShortcuts.Find" />
                     <span>{this.state.keyboardShortcuts.find}</span>
                   </li>
+                  <li>
+                    <FormattedMessage id="KeyboardShortcuts.Autocomplete" />
+                    <span>{this.state.keyboardShortcuts.autocomplete}</span>
+                  </li>
                 </ul>
               </Tooltip>
             </span>
@@ -665,6 +672,10 @@ export class SqlAutoComplete extends Component {
             customTheme
             theme={this.state.isContrast ? "vs-dark" : "vs"}
             background={this.state.isContrast ? "#333333" : "#FFFFFF"}
+            selectionBackground={this.state.isContrast ? "#304D6D" : "#B5D5FB"}
+            inactiveSelectionBackground={
+              this.state.isContrast ? "#505862" : "#c6e9ef"
+            }
             customDecorations={customDecorations}
           />
           {this.props.children}

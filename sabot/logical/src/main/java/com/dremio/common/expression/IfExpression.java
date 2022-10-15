@@ -17,14 +17,10 @@ package com.dremio.common.expression;
 
 import java.util.Iterator;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.base.Preconditions;
 
-public class IfExpression extends LogicalExpressionBase {
-  static final Logger logger = LoggerFactory.getLogger(IfExpression.class);
+public final class IfExpression extends LogicalExpressionBase {
   public static final boolean ALLOW_MIXED_DECIMALS = true;
 
   public final IfCondition ifCondition;

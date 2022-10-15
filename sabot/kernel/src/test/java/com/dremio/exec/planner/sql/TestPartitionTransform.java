@@ -142,7 +142,7 @@ public class TestPartitionTransform {
   public void testCreateBucketTransform() {
     PartitionTransform transform = PartitionTransform.from(createSqlTransform("x", "bucket",
       ImmutableList.of(createLiteral(42))));
-    Assert.assertEquals("BUCKET(42,x)", transform.toString());;
+    Assert.assertEquals("BUCKET(42,x)", transform.toString());
     assertThat(PartitionTransform.Type.BUCKET).isEqualTo(transform.getType());
     assertThat("x").isEqualTo(transform.getColumnName());
     assertThat(42).isEqualTo((int) transform.getArgumentValue(0, Integer.class));

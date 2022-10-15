@@ -78,7 +78,6 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
-import org.apache.parquet.Strings;
 import org.slf4j.helpers.MessageFormatter;
 
 import com.dremio.common.exceptions.UserException;
@@ -138,6 +137,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
@@ -150,9 +150,9 @@ public class HiveMetadataUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveMetadataUtils.class);
 
   private static final String EMPTY_STRING = "";
-  private static final Long ONE = Long.valueOf(1l);
+  private static final Long ONE = 1L;
   private static final int INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM = 16;
-  private static final long MAX_NAMENODE_FS_CALL_TIMEOUT = 2000l;
+  private static final long MAX_NAMENODE_FS_CALL_TIMEOUT = 2000L;
   private static final Joiner PARTITION_FIELD_SPLIT_KEY_JOINER = Joiner.on("__");
   public static final String TABLE_TYPE = "table_type";
   public static final String ICEBERG = "iceberg";
@@ -204,7 +204,7 @@ public class HiveMetadataUtils {
 
         // invalid. Guarded against at both entry points.
         throw UserException.connectionError()
-          .message("Dataset path '{}' is invalid.", pathComponents)
+          .message("Dataset path '%s' is invalid.", pathComponents)
           .build(logger);
     }
   }
@@ -218,7 +218,7 @@ public class HiveMetadataUtils {
         String warehouseLocation = HiveConf.getVar(conf, HiveConf.ConfVars.METASTOREWAREHOUSE);
         if(StringUtils.isEmpty(warehouseLocation) || HiveConf.ConfVars.METASTOREWAREHOUSE.getDefaultValue().equals(warehouseLocation)) {
           logger.error("Advanced Property {} not set. Please set it to have a valid location to create table.", HiveConf.ConfVars.METASTOREWAREHOUSE.varname);
-          throw UserException.unsupportedError().message("Unable to create Table. Please set the default ware house location").buildSilently();
+          throw UserException.unsupportedError().message("Unable to create table. Please set the default warehouse location").buildSilently();
         }
 
         warehouseLocation = com.dremio.common.utils.PathUtils.removeTrailingSlash(warehouseLocation);
@@ -229,7 +229,7 @@ public class HiveMetadataUtils {
         return Utilities.getQualifiedPath(conf, new Path(tableLocation));
       } catch (HiveException e) {
         throw UserException.ioExceptionError()
-          .message("Location given to create table {} is invalid {}.", schemaComponents.getTableName(), tableLocation)
+          .message("Location given to create table %s is invalid %s.", schemaComponents.getTableName(), tableLocation)
           .buildSilently();
       }
     }
@@ -302,11 +302,11 @@ public class HiveMetadataUtils {
     return true;
   }
 
-  public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf, boolean includeComplexParquetCols) {
+  public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf, boolean includeComplexParquetCols, boolean isMapTypeEnabled) {
     InputFormat<?, ?> format = getInputFormat(table, hiveConf);
     final List<Field> fields = new ArrayList<>();
     final List<String> partitionColumns = new ArrayList<>();
-    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols);
+    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols, isMapTypeEnabled);
     return BatchSchema.newBuilder().addFields(fields).build();
   }
 
@@ -354,17 +354,18 @@ public class HiveMetadataUtils {
     final List<Field> fields,
     final List<String> partitionColumns,
     InputFormat<?, ?> format,
-    final boolean includeComplexParquetCols) {
+    final boolean includeComplexParquetCols,
+    final boolean isMapTypeEnabled) {
     for (FieldSchema hiveField : table.getSd().getCols()) {
       final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols);
+      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols, isMapTypeEnabled);
       if (f != null) {
         fields.add(f);
       }
     }
     for (FieldSchema field : table.getPartitionKeys()) {
       Field f = HiveSchemaConverter.getArrowFieldFromHiveType(field.getName(),
-        TypeInfoUtils.getTypeInfoFromTypeString(field.getType()), format, includeComplexParquetCols);
+        TypeInfoUtils.getTypeInfoFromTypeString(field.getType()), format, includeComplexParquetCols, isMapTypeEnabled);
       if (f != null) {
         fields.add(f);
         partitionColumns.add(field.getName());
@@ -372,11 +373,11 @@ public class HiveMetadataUtils {
     }
   }
 
-  private static List<ColumnInfo> buildColumnInfo(final Table table, final InputFormat<?, ?> format, final boolean includeComplexParquetCols) {
+  private static List<ColumnInfo> buildColumnInfo(final Table table, final InputFormat<?, ?> format, final boolean includeComplexParquetCols, final boolean isMapTypeEnabled) {
     final List<ColumnInfo> columnInfos = new ArrayList<>();
     for (FieldSchema hiveField : table.getSd().getCols()) {
       final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols);
+      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols, isMapTypeEnabled);
       if (f != null) {
         columnInfos.add(getColumnInfo(typeInfo));
       }
@@ -535,8 +536,9 @@ public class HiveMetadataUtils {
       if (isIcebergTable(table)) {
         tableMetadata = getTableMetadataFromIceberg(hiveConf, datasetPath, table, tableProperties, timeTravelOption, plugin);
       } else {
+        final boolean isMapTypeEnabled = plugin.getSabotContext().getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
         tableMetadata = getTableMetadataFromHMS(table, tableProperties, datasetPath,
-          maxMetadataLeafColumns, maxNestedLevels, includeComplexParquetCols, hiveConf);
+          maxMetadataLeafColumns, maxNestedLevels, includeComplexParquetCols, hiveConf, isMapTypeEnabled);
       }
       HiveMetadataUtils.injectOrcIncludeFileIdInSplitsConf(tableMetadata.getTableStorageCapabilities(), tableProperties);
       return tableMetadata;
@@ -591,13 +593,15 @@ public class HiveMetadataUtils {
         .buildSilently();
     }
 
-    if (numEqualityDeletes > 0) {
+    if (numEqualityDeletes > 0 &&
+      !plugin.getSabotContext().getOptionManager().getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE)) {
       throw UserException.unsupportedError()
-          .message("Iceberg V2 tables with equality deletes are not supported.")
-          .buildSilently();
+        .message("Iceberg V2 tables with equality deletes are not supported.")
+        .buildSilently();
     }
 
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.getTableName())
+        .setMapTypeEnabled(plugin.getSabotContext().getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
     BatchSchema batchSchema = schemaConverter.fromIceberg(schema);
     Map<Integer, PartitionSpec> specsMap = icebergTable.specs();
     specsMap = IcebergUtils.getPartitionSpecMapBySchema(specsMap, schema);
@@ -638,7 +642,8 @@ public class HiveMetadataUtils {
                                                        final int maxMetadataLeafColumns,
                                                        final int maxNestedLevels,
                                                        final boolean includeComplexParquetCols,
-                                                       final HiveConf hiveConf) throws ConnectorException {
+                                                       final HiveConf hiveConf,
+                                                       final boolean isMapTypeEnabled) throws ConnectorException {
 
 
     final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
@@ -648,12 +653,12 @@ public class HiveMetadataUtils {
     final List<Field> fields = new ArrayList<>();
     final List<String> partitionColumns = new ArrayList<>();
 
-    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols);
+    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols, isMapTypeEnabled);
     HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
-    HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels);
+    HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels, isMapTypeEnabled);
     final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
-    final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, includeComplexParquetCols);
+    final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, includeComplexParquetCols, isMapTypeEnabled);
 
     return TableMetadata.newBuilder()
       .table(table)
@@ -762,7 +767,7 @@ public class HiveMetadataUtils {
     if (partitionMetadata.getDirListInputSplit() == null) {
       throw UserException
         .dataReadError()
-        .message("Splits expected but not available for table: '{}', partition: '{}'",
+        .message("Splits expected but not available for table: '%s', partition: '%s'",
           tableMetadata.getTable().getTableName(),
           getPartitionValueLogString(partitionMetadata.getPartition()))
         .build(logger);
@@ -781,7 +786,7 @@ public class HiveMetadataUtils {
     if (!partitionMetadata.getInputSplitBatchIterator().hasNext()) {
       throw UserException
         .dataReadError()
-        .message("Splits expected but not available for table: '{}', partition: '{}'",
+        .message("Splits expected but not available for table: '%s', partition: '%s'",
           tableMetadata.getTable().getTableName(),
           getPartitionValueLogString(partitionMetadata.getPartition()))
         .build(logger);
@@ -912,7 +917,7 @@ public class HiveMetadataUtils {
             root = path.getParent().getParent();
           }
           size += orcSplit.getLength();
-          bucket = AcidUtils.parseBaseBucketFilename(orcSplit.getPath(), conf).getBucket();
+          bucket = AcidUtils.parseBaseOrDeltaBucketFilename(orcSplit.getPath(), conf).getBucket();
         } else {
           root = path;
           bucket = (int) orcSplit.getStart();
@@ -1223,7 +1228,7 @@ public class HiveMetadataUtils {
     } else {
       throw UserException
         .unsupportedError()
-        .message("File Format Type not support. Input File Format is {}", inputFormat.toString())
+        .message("File Format Type not support. Input File Format is %s", inputFormat.toString())
         .buildSilently();
     }
   }

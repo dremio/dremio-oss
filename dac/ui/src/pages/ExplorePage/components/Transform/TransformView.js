@@ -15,13 +15,12 @@
  */
 import { Component } from "react";
 import Immutable from "immutable";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 
 import Tabs from "components/Tabs";
 
-import { LIST, MAP } from "@app/constants/DataTypes";
+import { LIST, MAP, STRUCT } from "@app/constants/DataTypes";
 
 import { methodTitle, methodTab } from "uiTheme/radium/exploreTransform";
 import { PALE_BLUE } from "uiTheme/radium/colors";
@@ -34,6 +33,7 @@ import ReplaceCustomForm from "./components/forms/ReplaceCustomForm";
 import ReplaceExactForm from "./components/forms/ReplaceExactForm";
 import ReplaceRangeForm from "./components/forms/ReplaceRangeForm";
 import SplitForm from "./components/forms/SplitForm";
+
 import "./TransformView.less";
 
 export class TransformView extends Component {
@@ -86,7 +86,7 @@ export class TransformView extends Component {
     ) {
       return (
         <div
-          style={[methodTab, { backgroundColor: "rgba(0,0,0,0.05)" }]}
+          style={{ ...methodTab, backgroundColor: "rgba(0,0,0,0.05)" }}
           key={subtitle.id}
         >
           {subtitle.name}
@@ -146,7 +146,9 @@ export class TransformView extends Component {
     const { transform, location } = this.props;
     const columnType = transform.get("columnType");
     const initializeColumnTypeForExtract =
-      columnType === LIST || columnType === MAP ? columnType : "default";
+      columnType === LIST || columnType === MAP || columnType === STRUCT
+        ? columnType
+        : "default";
 
     const formProps = this.getFormProps();
 
@@ -156,6 +158,8 @@ export class TransformView extends Component {
           <ExtractTextForm tabId="default" {...formProps} />
           <ExtractListForm tabId={LIST} {...formProps} />
           <ExtractMapForm tabId={MAP} location={location} {...formProps} />
+          {/* DX-56859: TODO:// CHECK IF THE BELOW ONE WORKS SAME FOR THE STRUCT */}
+          <ExtractMapForm tabId={STRUCT} location={location} {...formProps} />
         </Tabs>
         <div tabId="replace">{this.renderReplace()}</div>
         <Tabs tabId="split" activeTab="split">
@@ -213,4 +217,4 @@ const styles = {
     marginBottom: 2,
   },
 };
-export default Radium(TransformView);
+export default TransformView;

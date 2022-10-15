@@ -719,7 +719,7 @@ public class CatalogServiceHelper {
       throw new UnsupportedOperationException(String.format("Can only promote a folder or a file but found [%s]", catalogItem.get().getType()));
     }
 
-    return toDatasetAPI(namespaceService.getEntityByPath(namespaceKey), null);
+    return toDatasetAPI(namespaceService.getEntityByPath(namespaceKey), dataset.getAccelerationRefreshPolicy());
   }
 
   private void updateDataset(Dataset dataset, NamespaceAttribute... attributes) throws NamespaceException, IOException {

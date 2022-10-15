@@ -115,7 +115,6 @@ import com.google.common.collect.Iterables;
  * Basic integration tests to ensure the reflection services and its components work as expected
  */
 public class BaseTestReflection extends BaseTestServer {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestReflection.class);
 
   private static AtomicInteger queryNumber = new AtomicInteger(0);
 

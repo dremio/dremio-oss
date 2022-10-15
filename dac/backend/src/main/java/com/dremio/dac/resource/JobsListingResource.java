@@ -31,6 +31,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobInfoDetailsUI;
@@ -46,11 +47,13 @@ import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.escape.Escaper;
 import com.google.common.net.UrlEscapers;
@@ -211,5 +214,66 @@ public class JobsListingResource {
 
   private static String esc(String str) {
     return ESCAPER.escape(str);
+  }
+
+
+  // Get jobs of a reflection
+  @GET
+  @Path("/{reflectionId}/reflection")
+  @Produces(APPLICATION_JSON)
+  public JobsListingUI getReflectionJobs(
+    @PathParam("reflectionId") String reflectionId,
+    @QueryParam("offset") @DefaultValue("0") int offset,
+    @QueryParam("limit") @DefaultValue("100") int limit
+  ) {
+
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .buildSilently();
+    }
+
+    final SearchReflectionJobsRequest.Builder requestBuilder = SearchReflectionJobsRequest.newBuilder();
+    requestBuilder.setUserName(securityContext.getUserPrincipal().getName())
+      .setLimit(limit)
+      .setOffset(offset)
+      .setReflectionId(reflectionId);
+
+    List<JobSummary> jobs = ImmutableList.copyOf(jobsService.get().searchReflectionJobs(requestBuilder.build()));
+    jobs = ObfuscationUtils.obfuscate(jobs, ObfuscationUtils::obfuscate);
+
+    return new JobsListingUI(
+      jobs,
+      jobService,
+      getNextReflectionJobs(offset, limit, reflectionId, jobs.size())
+    );
+  }
+
+
+
+  private String getNextReflectionJobs(
+    final int offset,
+    final int limit,
+    final String reflectionId,
+    int previousReturn
+  ) {
+    // only return a next if we returned a full list.
+    if(previousReturn != limit){
+      return null;
+    }
+    StringBuilder sb = getNextReflectionJobs(offset, limit, reflectionId);
+    return sb.toString();
+  }
+
+  private StringBuilder getNextReflectionJobs(int offset, int limit, String reflectionId){
+    StringBuilder sb = new StringBuilder();
+    sb.append("/apiv2/jobs-listing/v1.0/reflection/");
+    sb.append(reflectionId);
+    sb.append("/?");
+    sb.append("offset=");
+    sb.append(offset+limit);
+    sb.append("&limit=");
+    sb.append(limit);
+    return sb;
   }
 }

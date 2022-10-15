@@ -15,6 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
+import clsx from "clsx";
 import Modal from "components/Modals/Modal";
 import { modalContent } from "uiTheme/radium/modal";
 import fileABug from "utils/fileABug";
@@ -26,6 +27,7 @@ import config from "dyn-load/utils/config";
 
 import { modalFooter } from "uiTheme/radium/modal";
 import { formDescription } from "uiTheme/radium/typography";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export default class ProdErrorModal extends Component {
   static propTypes = {
@@ -40,9 +42,9 @@ export default class ProdErrorModal extends Component {
     return (
       !config.outsideCommunicationDisabled && (
         <CopyButton
-          style={{ marginLeft: "0.5em" }}
           text={valueToCopy}
-          title={la("Copy")}
+          title={"Common.Copy"}
+          buttonStyle={styles.copyButton}
         />
       )
     );
@@ -98,6 +100,7 @@ export default class ProdErrorModal extends Component {
               data-qa="goHome"
               type="button"
               buttonStyle="secondary"
+              className={clsx(classes["secondaryButtonPsuedoClasses"])}
               onClick={() => (window.location = "/")}
             >
               {la("Go Home")}
@@ -108,6 +111,7 @@ export default class ProdErrorModal extends Component {
               data-qa="fileABug"
               type="button"
               buttonStyle="secondary"
+              className={clsx(classes["secondaryButtonPsuedoClasses"])}
               onClick={() => fileABug(error)}
             >
               {la("File a Bug")}
@@ -117,6 +121,7 @@ export default class ProdErrorModal extends Component {
             data-qa="reload"
             type="button"
             buttonStyle="primary"
+            className={clsx(classes["primaryButtonPsuedoClasses"])}
             onClick={() => window.location.reload()}
           >
             {la("Reload")}
@@ -135,5 +140,11 @@ const styles = {
   leftSide: {
     padding: 10,
     width: 80,
+  },
+  copyButton: {
+    height: "20px",
+    width: "20px",
+    padding: "2px",
+    marginLeft: "var(--dremio--spacing--05)",
   },
 };

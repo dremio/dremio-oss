@@ -15,7 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-import static org.apache.arrow.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import javax.inject.Provider;
 

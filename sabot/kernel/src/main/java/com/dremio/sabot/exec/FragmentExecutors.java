@@ -543,6 +543,9 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
           @Override
           public void close() throws Exception {
             numRunningFragments.decrementAndGet();
+            if (useMemoryArbiter) {
+              memoryArbiter.taskDone(executor);
+            }
             handler.invalidate();
 
             maestroProxy.markQueryAsDone(handler.getHandle().getQueryId());

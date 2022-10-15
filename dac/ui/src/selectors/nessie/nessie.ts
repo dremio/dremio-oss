@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 import { DEFAULT_REF_REQUEST } from "@app/actions/nessie/nessie";
-import {
-  initialState,
-  NessieRootState,
-  NessieState,
-} from "@app/reducers/nessie/nessie";
+import { initialState } from "@app/reducers/nessie/nessie";
+import { NessieRootState, NessieState } from "@app/types/nessie";
 import { createLoadingSelector } from "../createLoadingSelector";
 
 export const isDefaultReferenceLoading = createLoadingSelector([

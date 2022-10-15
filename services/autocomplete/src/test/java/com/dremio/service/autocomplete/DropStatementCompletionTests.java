@@ -25,6 +25,8 @@ public final class DropStatementCompletionTests extends AutocompleteEngineTests 
     new GoldenFileTestBuilder<>(this::executeTestWithRootContext)
       .add("Empty name",
         GoldenFileTestBuilder.MultiLineString.create("DROP TABLE ^"))
+      .add("Works with completed path",
+        GoldenFileTestBuilder.MultiLineString.create("DROP TABLE \"space\".\"folder\".EMP ^"))
       .add("Works with folder name",
         GoldenFileTestBuilder.MultiLineString.create("DROP TABLE \"space\".^"))
       .add("Works with folder with spaces",

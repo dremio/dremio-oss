@@ -85,4 +85,11 @@ public interface TableMetadata {
   String getVersion();
 
   DatasetConfig getDatasetConfig();
+
+  /**
+   * Get primary key
+   *
+   * @return Primary key
+   */
+  List<String> getPrimaryKey();
 }

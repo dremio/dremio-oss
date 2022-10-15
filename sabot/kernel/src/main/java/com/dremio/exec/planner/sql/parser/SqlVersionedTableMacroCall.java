@@ -16,10 +16,12 @@
 package com.dremio.exec.planner.sql.parser;
 
 import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlUnresolvedFunction;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.exec.catalog.TableVersionContext;
@@ -62,4 +64,13 @@ public class SqlVersionedTableMacroCall extends SqlBasicCall {
     }
     super.setOperator(operator);
   }
+
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+    SqlCharStringLiteral tableLiteral = (SqlCharStringLiteral)getOperands()[0] ;
+    writer.print(tableLiteral.getNlsString().getValue() + " ");
+    writer.keyword("AT");
+    getTableVersionSpec().unparseVersionSpec(writer, leftPrec, rightPrec);
+  }
+
 }

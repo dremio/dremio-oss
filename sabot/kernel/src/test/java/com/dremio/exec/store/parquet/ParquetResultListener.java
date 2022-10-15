@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
@@ -43,14 +44,14 @@ public class ParquetResultListener implements UserResultsListener {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetResultListener.class);
 
   private final SettableFuture<Void> future = SettableFuture.create();
-  int count = 0;
-  int totalRecords;
+  private int count = 0;
+  private int totalRecords;
 
   private boolean testValues;
   private final BufferAllocator allocator;
 
-  int batchCounter = 1;
-  private final HashMap<String, Integer> valuesChecked = new HashMap<>();
+  private int batchCounter = 1;
+  private final Map<String, Integer> valuesChecked = new HashMap<>();
   private final ParquetTestProperties props;
 
   ParquetResultListener(BufferAllocator allocator, ParquetTestProperties props,
@@ -120,7 +121,8 @@ public class ParquetResultListener implements UserResultsListener {
 
     // print headers.
     if (schemaChanged) {
-    } // do not believe any change is needed for when the schema changes, with the current mock scan use case
+      // do not believe any change is needed for when the schema changes, with the current mock scan use case
+    }
 
     for (final VectorWrapper vw : batchLoader) {
       final ValueVector vv = vw.getValueVector();
@@ -157,26 +159,27 @@ public class ParquetResultListener implements UserResultsListener {
     result.release();
   }
 
+  @SuppressWarnings("AssertionFailureIgnored")
   private void checkLastChunk() {
     int recordsInBatch = -1;
     // ensure the right number of columns was returned, especially important to ensure selective column read is working
     if (testValues) {
       assertEquals( "Unexpected number of output columns from parquet scan.", props.fields.keySet().size(), valuesChecked.keySet().size() );
     }
+    assertTrue(valuesChecked.keySet().size() > 0);
     for (final String s : valuesChecked.keySet()) {
       try {
+        int recordCount = valuesChecked.get(s).intValue();
         if (recordsInBatch == -1 ){
-          recordsInBatch = valuesChecked.get(s);
+          recordsInBatch = recordCount;
         } else {
-          assertEquals("Mismatched record counts in vectors.", recordsInBatch, valuesChecked.get(s).intValue());
+          assertEquals("Mismatched record counts in vectors.", recordsInBatch, recordCount);
         }
-        assertEquals("Record count incorrect for column: " + s, totalRecords, (long) valuesChecked.get(s));
+        assertEquals("Record count incorrect for column: " + s, totalRecords, recordCount);
       } catch (AssertionError e) {
         submissionFailed(UserException.systemError(e).build(logger));
       }
     }
-
-    assertTrue(valuesChecked.keySet().size() > 0);
     future.set(null);
   }
 

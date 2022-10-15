@@ -80,6 +80,10 @@ export default class APICall {
     return this;
   }
 
+  projectScope(enabled) {
+    return this;
+  }
+
   /**
    * Returns the path as a string.  Does not include the api version!
    */

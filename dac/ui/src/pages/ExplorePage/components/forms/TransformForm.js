@@ -144,6 +144,7 @@ export class TransformForm extends Component {
       .onFormSubmit(previewValues, "autoPeek")
       .catch(function (e) {
         if (!e || !e._error) {
+          // eslint-disable-next-line promise/no-return-wrap
           return Promise.reject(e);
         }
       }); // skip handleSubmit to not set submitting

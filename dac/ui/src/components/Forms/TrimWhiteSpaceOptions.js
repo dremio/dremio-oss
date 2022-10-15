@@ -18,8 +18,6 @@ import { Component } from "react";
 import { formLabel } from "uiTheme/radium/typography";
 import Radio from "components/Fields/Radio";
 
-import Radium from "radium";
-
 import PropTypes from "prop-types";
 
 class TrimWhiteSpaceOptions extends Component {
@@ -49,9 +47,9 @@ class TrimWhiteSpaceOptions extends Component {
       fields: { action },
     } = this.props;
     return (
-      <div style={[styles.base]}>
-        <h3 style={[styles.title, formLabel]}>{la("Options")}</h3>
-        <div style={[styles.items]}>
+      <div style={{ ...styles.base }}>
+        <h3 style={{ ...styles.title, ...formLabel }}>{la("Options")}</h3>
+        <div style={{ ...styles.items }}>
           <Radio {...action} radioValue="BOTH" label="Trim from both sides" />
           <Radio
             {...action}
@@ -80,4 +78,4 @@ const styles = {
     flexDirection: "column",
   },
 };
-export default Radium(TrimWhiteSpaceOptions);
+export default TrimWhiteSpaceOptions;

@@ -21,7 +21,6 @@ import {
   typeToIconType,
   typeToFormatMessageId,
 } from "@app/constants/DataTypes";
-import Art from "@app/components/Art";
 import { name as nameCls, icon as iconCls, wrapper } from "./DataColumn.less";
 
 export const columnPropTypes = {
@@ -37,13 +36,16 @@ export class DataColumn extends PureComponent {
 
   render() {
     const { type, name, className } = this.props;
+    const label = `data-types/${typeToIconType[type]}`;
+    const alt = typeToFormatMessageId?.[type] ?? typeToFormatMessageId["ANY"];
 
     return (
       <div className={classNames(wrapper, className)}>
-        <Art
-          src={`types/${typeToIconType[type]}.svg`}
-          alt={formatMessage(`${typeToFormatMessageId[type]}`)}
-          className={iconCls}
+        <dremio-icon
+          name={label}
+          data-qa={label}
+          alt={formatMessage(alt)}
+          class={iconCls}
         />
         <div className={nameCls}>{name}</div>
       </div>

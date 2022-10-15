@@ -34,11 +34,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "EXISTS"
      - "("
+     - "NOT"
      - "+"
      - "-"
-     - "?"
-     - "ARRAY"
  -
   description: "NOT"
   input: "SELECT * FROM EMP WHERE NOT "
@@ -49,8 +49,8 @@
      - "CASE"
      - "EXISTS"
      - "("
+     - "NULL"
      - "+"
-     - "-"
  -
   description: "IS"
   input: "SELECT * FROM EMP WHERE EMP.blah IS "
@@ -58,11 +58,11 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
+     - "NOT"
      - "A"
      - "DISTINCT"
      - "EMPTY"
      - "FALSE"
-     - "NOT"
  -
   description: "IS FALSE"
   input: "SELECT * FROM EMP WHERE EMP.blah IS FALSE "
@@ -82,8 +82,8 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
-     - "NULL"
      - "A"
+     - "NULL"
      - "DISTINCT"
      - "EMPTY"
      - "FALSE"

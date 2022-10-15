@@ -27,14 +27,14 @@ import com.dremio.exec.vector.ObjectVector;
 import com.google.common.base.Preconditions;
 
 public class TypedFieldId {
-  final CompleteType finalType;
-  final CompleteType secondaryFinal;
-  final CompleteType intermediateType;
-  final int[] fieldIds;
-  final boolean isHyperReader;
-  final boolean isListVector;
-  final boolean isListOrUnionInPath;
-  final PathSegment remainder;
+  private final CompleteType finalType;
+  private final CompleteType secondaryFinal;
+  private final CompleteType intermediateType;
+  private final int[] fieldIds;
+  private final boolean isHyperReader;
+  private final boolean isListVector;
+  private final boolean isListOrUnionInPath;
+  private final PathSegment remainder;
 
   public TypedFieldId(CompleteType type, int... fieldIds) {
     this(type, type, type, false, null, false, fieldIds);
@@ -132,15 +132,15 @@ public class TypedFieldId {
   }
 
   public static class Builder{
-    final ArrayList<Integer> ids = new ArrayList<>();
-    CompleteType finalType;
-    CompleteType intermediateType;
-    CompleteType secondaryFinal;
-    PathSegment remainder;
-    boolean hyperReader = false;
-    boolean withIndex = false;
-    boolean isListVector = false;
-    boolean isListOrUnionInPath = false;
+    private final ArrayList<Integer> ids = new ArrayList<>();
+    private CompleteType finalType;
+    private CompleteType intermediateType;
+    private CompleteType secondaryFinal;
+    private PathSegment remainder;
+    private boolean hyperReader = false;
+    private boolean withIndex = false;
+    private boolean isListVector = false;
+    private boolean isListOrUnionInPath = false;
 
     public Builder addId(int id) {
       ids.add(id);

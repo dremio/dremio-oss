@@ -53,6 +53,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
+import com.dremio.sabot.op.sender.SenderLatencyTracker;
 import com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metric;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -69,6 +70,7 @@ public abstract class PartitionerTemplate implements Partitioner {
   private final Constructor<OutgoingRecordBatch> innerConstructor;
 
   private int minOutgoingBatchRecordCount;
+  private SenderLatencyTracker latencyTracker;
 
   /** how much memory should a partition use */
   private int targetOutgoingBatchSize;
@@ -114,6 +116,7 @@ public abstract class PartitionerTemplate implements Partitioner {
                           OperatorStats stats,
                           OperatorContext context,
                           TunnelProvider tunnelProvider,
+                          SenderLatencyTracker latencyTracker,
                           int numPartitions,
                           int start, int end) {
 
@@ -121,6 +124,7 @@ public abstract class PartitionerTemplate implements Partitioner {
     this.stats = stats;
     this.start = start;
     this.end = end;
+    this.latencyTracker = latencyTracker;
     doSetup(context.getFunctionContext(), incoming, null);
 
     final OptionManager options = context.getOptions();
@@ -337,7 +341,7 @@ public abstract class PartitionerTemplate implements Partitioner {
       }
 
       updateStats(writableBatch);
-      tunnel.sendRecordBatch(writableBatch);
+      tunnel.sendRecordBatch(writableBatch, latencyTracker.getLatencyObserver());
 
       // reset values and reallocate the buffer for each value vector based on the incoming batch.
       // NOTE: the value vector is directly referenced by generated code; therefore references

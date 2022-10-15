@@ -15,13 +15,13 @@
  */
 package com.dremio.service.autocomplete.catalog.mock;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**

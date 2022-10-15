@@ -20,7 +20,8 @@ import * as ActionTypes from "actions/ui/ui";
 const initialState = Immutable.fromJS({
   rightTreeVisible: false,
   externalSourcesExpanded: false,
-  internalSourcesExpanded: false,
+  metastoreSourcesExpanded: false,
+  objectStorageSourcesExpanded: false,
   dataplaneSourcesExpanded: false,
   datasetsExpanded: false,
   resourceTree: {
@@ -54,10 +55,15 @@ export default function ui(state = initialState, action) {
         "externalSourcesExpanded",
         !state.get("externalSourcesExpanded")
       );
-    case ActionTypes.TOGGLE_INTERNAL_SOURCES_EXPANDED:
+    case ActionTypes.TOGGLE_METASTORE_EXPANDED:
       return state.set(
-        "internalSourcesExpanded",
-        !state.get("internalSourcesExpanded")
+        "metastoreSourcesExpanded",
+        !state.get("metastoreSourcesExpanded")
+      );
+    case ActionTypes.TOGGLE_OBJECT_STORAGE_EXPANDED:
+      return state.set(
+        "objectStorageSourcesExpanded",
+        !state.get("objectStorageSourcesExpanded")
       );
     case ActionTypes.TOGGLE_DATAPLANE_SOURCES_EXPANDED:
       return state.set(

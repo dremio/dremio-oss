@@ -25,11 +25,16 @@ export default class TextHighlight extends Component {
     tooltipPlacement: PropTypes.string,
     tooltipEnterDelay: PropTypes.number,
     tooltipEnterNextDelay: PropTypes.number,
+    showTooltip: PropTypes.bool,
   };
 
   render() {
-    const { tooltipPlacement, tooltipEnterDelay, tooltipEnterNextDelay } =
-      this.props;
+    const {
+      showTooltip = true,
+      tooltipPlacement,
+      tooltipEnterDelay,
+      tooltipEnterNextDelay,
+    } = this.props;
     const inputValue = this.props.inputValue || "";
     const text = this.props.text || "";
 
@@ -53,7 +58,7 @@ export default class TextHighlight extends Component {
       }
     }
 
-    return (
+    return showTooltip ? (
       <Tooltip
         title={text}
         placement={tooltipPlacement}
@@ -62,6 +67,8 @@ export default class TextHighlight extends Component {
       >
         <div className="TextHighlight">{nodes}</div>
       </Tooltip>
+    ) : (
+      <div className="TextHighlight">{nodes}</div>
     );
   }
 }

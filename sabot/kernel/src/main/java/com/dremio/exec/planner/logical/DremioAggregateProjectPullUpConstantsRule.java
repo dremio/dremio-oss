@@ -72,28 +72,6 @@ import org.apache.calcite.util.Pair;
 public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
   //~ Static fields/initializers ---------------------------------------------
 
-  /** The singleton. */
-  public static final DremioAggregateProjectPullUpConstantsRule INSTANCE =
-      new DremioAggregateProjectPullUpConstantsRule(LogicalAggregate.class,
-          LogicalProject.class, RelFactories.LOGICAL_BUILDER,
-          "AggregateProjectPullUpConstantsRule");
-
-  /** More general instance that matches any relational expression. */
-  public static final DremioAggregateProjectPullUpConstantsRule INSTANCE2 =
-      new DremioAggregateProjectPullUpConstantsRule(LogicalAggregate.class,
-          RelNode.class, RelFactories.LOGICAL_BUILDER,
-          "AggregatePullUpConstantsRule");
-
-  /**
-   * Instance that matches aggregate on top of a project.
-   * Removes all constant keys.
-   */
-  public static final DremioAggregateProjectPullUpConstantsRule INSTANCE_REMOVE_ALL =
-          new DremioAggregateProjectPullUpConstantsRule(LogicalAggregate.class,
-                  LogicalProject.class, RelFactories.LOGICAL_BUILDER,
-                  "AggregateProjectPullUpAllConstantsRule",
-                  true);
-
   /**
    * More general instance that matches any relational expression.
    * Removes all constant keys.
@@ -101,28 +79,9 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
   public static final DremioAggregateProjectPullUpConstantsRule INSTANCE2_REMOVE_ALL =
           new DremioAggregateProjectPullUpConstantsRule(LogicalAggregate.class,
                   RelNode.class, RelFactories.LOGICAL_BUILDER,
-                  "AggregatePullUpAllConstantsRule",
-                  true);
-
-  /**  Whether to remove the last column. */
-  private final boolean removeAll;
+                  "DremioAggregatePullUpAllConstantsRule");
 
   //~ Constructors -----------------------------------------------------------
-
-  /**
-   * Creates an AggregateProjectPullUpConstantsRule.
-   *
-   * @param aggregateClass Aggregate class
-   * @param inputClass Input class, such as {@link LogicalProject}
-   * @param relBuilderFactory Builder for relational expressions
-   * @param description Description, or null to guess description
-   */
-  public DremioAggregateProjectPullUpConstantsRule(
-      Class<? extends Aggregate> aggregateClass,
-      Class<? extends RelNode> inputClass,
-      RelBuilderFactory relBuilderFactory, String description) {
-    this(aggregateClass, inputClass, relBuilderFactory, description, false);
-  }
 
   /**
    * Creates an AggregateProjectPullUpConstantsRule that removes all constant keys.
@@ -131,18 +90,15 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
    * @param inputClass Input class, such as {@link LogicalProject}
    * @param relBuilderFactory Builder for relational expressions
    * @param description Description, or null to guess description
-   * @param removeAll option for whether to force removing the last column
    */
   public DremioAggregateProjectPullUpConstantsRule(
           Class<? extends Aggregate> aggregateClass,
           Class<? extends RelNode> inputClass,
-          RelBuilderFactory relBuilderFactory, String description,
-          boolean removeAll) {
+          RelBuilderFactory relBuilderFactory, String description) {
     super(
             operand(aggregateClass, null, Aggregate.IS_SIMPLE,
                     operand(inputClass, any())),
             relBuilderFactory, description);
-    this.removeAll = removeAll;
   }
 
   //~ Methods ----------------------------------------------------------------
@@ -150,14 +106,6 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final Aggregate aggregate = call.rel(0);
     final RelNode input = call.rel(1);
-
-    final int groupCount = aggregate.getGroupCount();
-    if (groupCount == 1 && !removeAll) {
-      // Default behavior:
-      //   No room for optimization since we cannot convert from non-empty
-      //   GROUP BY list to the empty one.
-      return;
-    }
 
     final RexBuilder rexBuilder = aggregate.getCluster().getRexBuilder();
     final RelMetadataQuery mq = call.getMetadataQuery();
@@ -180,16 +128,6 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
       return;
     }
 
-    if (groupCount == map.size() && !removeAll) {
-      // Default behavior:
-      //   At least a single item in group by is required.
-      //   Otherwise "GROUP BY 1, 2" might be altered to "GROUP BY ()".
-      //   Removing of the first element is not optimal here,
-      //   however it will allow us to use fast path below (just trim
-      //   groupCount).
-      map.remove(map.navigableKeySet().first());
-    }
-
     ImmutableBitSet newGroupSet = aggregate.getGroupSet();
     for (int key : map.keySet()) {
       newGroupSet = newGroupSet.clear(key);
@@ -200,6 +138,8 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
     // reduce the group count.
     final RelBuilder relBuilder = call.builder();
     relBuilder.push(input);
+
+    final int groupCount = aggregate.getGroupCount();
 
     // Clone aggregate calls.
     final List<AggregateCall> newAggCalls = new ArrayList<>();
@@ -245,20 +185,18 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
         if (!originalType.equals(expr.getType())) {
           expr = rexBuilder.makeCast(originalType, expr, true);
         }
-      } else if (map.containsKey(i)) {
-        // Re-generate the constant expression in the project.
-        RelDataType originalType =
-            aggregate.getRowType().getFieldList().get(projects.size()).getType();
-        if (!originalType.equals(map.get(i).getType())) {
-          expr = rexBuilder.makeCast(originalType, map.get(i), true);
-        } else {
-          expr = map.get(i);
+      }else{
+        int pos = aggregate.getGroupSet().nth(i);
+        if(map.containsKey(pos)){
+          expr = map.get(pos);
+          RelDataType originalType =
+            field.getType();
+          if (!originalType.equals(expr.getType())) {
+            expr = rexBuilder.makeCast(originalType, expr, true);
+          }
+        }else{
+          expr = relBuilder.field(source++);
         }
-      } else {
-        // Project the aggregation expression, in its original
-        // position.
-        expr = relBuilder.field(source);
-        ++source;
       }
       projects.add(Pair.of(expr, field.getName()));
     }

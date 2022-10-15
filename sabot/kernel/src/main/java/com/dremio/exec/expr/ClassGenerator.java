@@ -26,6 +26,7 @@ import java.util.Map;
 
 import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.sig.CodeGeneratorArgument;
@@ -90,6 +91,7 @@ public class ClassGenerator<T> {
   private int index = 0;
   private int labelIndex = 0;
   private MappingSet mappings;
+  private FieldReference currentReference;
 
   public static MappingSet getDefaultMapping() {
     return new MappingSet("inIndex", "outIndex", DEFAULT_CONSTANT_MAP, DEFAULT_SCALAR_MAP);
@@ -318,6 +320,10 @@ public class ClassGenerator<T> {
     return addExpr(ex, false);
   }
 
+  public HoldingContainer addExpr(LogicalExpression ex, FieldReference currentReference) {
+    return addExpr(ex, BlockCreateMode.NEW_BLOCK, false, currentReference);
+  }
+
   public HoldingContainer addExpr(LogicalExpression ex, boolean allowInnerMethods) {
     // default behavior is always to put expression into new block.
     return addExpr(ex, BlockCreateMode.NEW_BLOCK, allowInnerMethods);
@@ -328,6 +334,11 @@ public class ClassGenerator<T> {
   }
 
   public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
+    return addExpr(ex, mode, allowInnerMethods, null);
+  }
+
+  public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods,
+                                  FieldReference ref) {
     Preconditions.checkState(!isLazyExpressionsAddOn, "Lazy Expression evaluation is on, must not be adding exps directly");
     if (mode == BlockCreateMode.NEW_BLOCK || mode == BlockCreateMode.NEW_IF_TOO_LARGE) {
       rotateBlock(mode);
@@ -337,7 +348,12 @@ public class ClassGenerator<T> {
       b.getLast().incCounter();
     }
 
+    this.currentReference = ref;
     return evaluationVisitor.addExpr(ex, this, allowInnerMethods);
+  }
+
+  public String getOutputReferenceName() {
+    return currentReference == null? "col" : currentReference.getRootSegment().getPath();
   }
 
   public int getFunctionErrorContextsCount() {
@@ -363,10 +379,15 @@ public class ClassGenerator<T> {
   }
 
   public void lazyAddExp(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
+    lazyAddExp(ex, mode, allowInnerMethods, null);
+  }
+
+  public void lazyAddExp(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods,
+                         FieldReference currentReference) {
     Preconditions.checkState(codeGenerator.getFunctionContext().getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED),
       "Lazy Expression evaluation is set to false");
     isLazyExpressionsAddOn = true;
-    ExpressionEvalInfo expressionEvalInfo = new ExpressionEvalInfo(ex, mode, allowInnerMethods);
+    ExpressionEvalInfo expressionEvalInfo = new ExpressionEvalInfo(ex, mode, allowInnerMethods, currentReference);
     expressionEvalInfos.add(expressionEvalInfo);
   }
 
@@ -376,11 +397,10 @@ public class ClassGenerator<T> {
     while (iterator.hasNext()) {
       ExpressionEvalInfo expressionEvalInfo = iterator.next();
       addExpr(expressionEvalInfo.getExp(), expressionEvalInfo.getMode(),
-        expressionEvalInfo.isAllowInnerMethods());
+        expressionEvalInfo.isAllowInnerMethods(), expressionEvalInfo.getCurrentReference());
       iterator.remove();
     }
   }
-
 
   public void rotateBlock() {
     // default behavior is always to create new block.

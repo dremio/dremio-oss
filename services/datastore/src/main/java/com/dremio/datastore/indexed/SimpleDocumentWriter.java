@@ -17,7 +17,6 @@ package com.dremio.datastore.indexed;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
 import org.apache.lucene.document.DoublePoint;
@@ -33,6 +32,7 @@ import org.apache.lucene.util.BytesRef;
 
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.api.DocumentWriter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Utf8;
 

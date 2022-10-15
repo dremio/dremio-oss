@@ -15,7 +15,7 @@
  */
 
 import { withRouter } from "react-router";
-import { Tabs } from "@material-ui/core";
+import { Tabs } from "@mui/material";
 import { QueryStatusType, renderTabs } from "./utils";
 
 import "./SqlQueryTabs.less";
@@ -57,6 +57,8 @@ function SqlQueryTabs({
     >
       {queryStatuses.length > 0 && (
         <Tabs
+          indicatorColor="primary"
+          textColor="inherit"
           value={tabNumber}
           onChange={handleChange}
           aria-label="sql-query-tabs"

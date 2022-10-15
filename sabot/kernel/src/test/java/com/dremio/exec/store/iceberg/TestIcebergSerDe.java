@@ -128,7 +128,7 @@ public class TestIcebergSerDe extends BaseTestQuery {
     byte[] ManifestFileBytes = IcebergSerDe.serializeManifestFile(manifestFile);
     ManifestFile mf = IcebergSerDe.deserializeManifestFile(ManifestFileBytes);
     Assert.assertEquals("wasbs://testdir@azurev1databricks2.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro", mf.path());
-    Assert.assertEquals(5000l, mf.length());
+    Assert.assertEquals(5000L, mf.length());
     Assert.assertEquals((Integer) 2, mf.addedFilesCount());
   }
 
@@ -165,7 +165,7 @@ public class TestIcebergSerDe extends BaseTestQuery {
     partitionValues.add(PartitionValue.of("doubleCol", new Double("40.2342")));
     partitionValues.add(PartitionValue.of("bitCol", true));
     partitionValues.add(PartitionValue.of("varCharCol", "tempVarCharValue"));
-    partitionValues.add(PartitionValue.of("bigIntCol", 200000000l));
+    partitionValues.add(PartitionValue.of("bigIntCol", 200000000L));
 
     BigDecimal bd = new BigDecimal("-12345.6789");
     BigInteger bi = bd.movePointRight(bd.scale()).unscaledValue();
@@ -174,7 +174,7 @@ public class TestIcebergSerDe extends BaseTestQuery {
     byte[] bytes = "randomString".getBytes("UTF-8");
     partitionValues.add(PartitionValue.of("varBinaryCol", ByteBuffer.wrap(bytes)));
 
-    partitionValues.add(PartitionValue.of("timeStampCol", 23412341l));
+    partitionValues.add(PartitionValue.of("timeStampCol", 23412341L));
 
     //Convert to partitionProtos
     List<PartitionProtobuf.PartitionValue> partitionValueProtos = partitionValues.stream()
@@ -189,14 +189,14 @@ public class TestIcebergSerDe extends BaseTestQuery {
     Assert.assertEquals((Double)partitionData.get(2, Double.class), Double.valueOf(40.2342));
     Assert.assertEquals((Boolean)partitionData.get(3, Boolean.class),true);
     Assert.assertEquals((String)partitionData.get(4, String.class), "tempVarCharValue");
-    Assert.assertEquals((Long)partitionData.get(5, Long.class), Long.valueOf(200000000l));
+    Assert.assertEquals((Long)partitionData.get(5, Long.class), Long.valueOf(200000000L));
     Assert.assertEquals((BigDecimal)partitionData.get(6, BigDecimal.class), new BigDecimal("-12345.6789"));
 
     ByteBuffer b =  partitionData.get(7, ByteBuffer.class);
     String s = UTF_8.decode(b).toString();
     Assert.assertEquals(s, "randomString");
 
-    Assert.assertEquals((Long)partitionData.get(8, Long.class),Long.valueOf(23412341000l));
+    Assert.assertEquals((Long)partitionData.get(8, Long.class),Long.valueOf(23412341000L));
     Assert.assertEquals("struct<1000: integerCol: optional int, 1001: floatCol: optional float, 1002: doubleCol: optional double, 1003: bitCol: optional boolean, 1004: varCharCol: optional string, 1005: bigIntCol: optional long, 1006: decimalCol: optional decimal(0, 4), 1007: varBinaryCol: optional binary, 1008: timeStampCol: optional timestamptz>",partitionData.getPartitionType().toString());
   }
 

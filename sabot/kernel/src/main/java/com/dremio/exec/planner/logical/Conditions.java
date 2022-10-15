@@ -73,7 +73,8 @@ public final class Conditions {
         return
           "case".equals(call.getOperator().getName().toLowerCase())
           || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName())
-          || "dot".equals(call.getOperator().getName().toLowerCase());
+          || "dot".equals(call.getOperator().getName().toLowerCase())
+          || "item".equals(call.getOperator().getName().toLowerCase());
       }
       return false;
     }

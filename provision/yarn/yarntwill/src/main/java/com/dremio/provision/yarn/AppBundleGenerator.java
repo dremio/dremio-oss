@@ -50,6 +50,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.errorprone.annotations.MustBeClosed;
 
 /**
  * An application bundle generator to be used with {@code DremioTwillRunner}
@@ -183,7 +184,13 @@ public class AppBundleGenerator {
       // First add prefix classpath entries
       // Second, add content of classpath to bundle jar
       // Then add extra classpath entries
-      List<URI> jarEntries = addPathsToBundle(jarGenerator, Stream.concat(toPathStream(classPathPrefix), Stream.concat(toPathStream(classLoader), toPathStream(classPath))));
+      List<URI> jarEntries;
+      try (Stream<Path> prefixStream = toPathStream(classPathPrefix);
+        Stream<Path> classLoaderStream = toPathStream(classLoader);
+        Stream<Path> classPathStream = toPathStream(classPath)) {
+        jarEntries = addPathsToBundle(jarGenerator,
+          Stream.concat(prefixStream, Stream.concat(classLoaderStream, classPathStream)));
+      }
 
       // After that add native libraries
       List<URI> nativeLibrariesEntries = addPathsToBundle(jarGenerator, nativeLibraryPath.stream().map(Paths::get));
@@ -270,6 +277,8 @@ public class AppBundleGenerator {
         .map(Paths::get);
   }
 
+  @SuppressWarnings("StreamResourceLeak")
+  @MustBeClosed
   @VisibleForTesting
   static Stream<Path> toPathStream(List<String> classpathJars) {
     return classpathJars.stream().flatMap(classpathJar -> {

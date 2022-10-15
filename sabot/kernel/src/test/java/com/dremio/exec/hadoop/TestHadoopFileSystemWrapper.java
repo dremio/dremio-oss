@@ -185,6 +185,7 @@ public class TestHadoopFileSystemWrapper {
 
       byte[] buf = new byte[8000];
       while (is.read(buf, 0, buf.length) != -1) {
+        // read until end
       }
     } finally {
       stats.stopProcessing();
@@ -308,6 +309,7 @@ public class TestHadoopFileSystemWrapper {
 
       byte[] buf = new byte[8000];
       while (is.read(buf, 0, buf.length) != -1) {
+        // read until end
       }
     } finally {
       stats.stopProcessing();

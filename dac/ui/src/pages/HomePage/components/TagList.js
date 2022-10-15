@@ -13,126 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from "react";
-import PropTypes from "prop-types";
+/* eslint-disable react/prop-types */
+import { useRef } from "react";
 import TagsModal from "pages/HomePage/components/modals/TagsModal/TagsModal";
 import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
-import ImmutablePropTypes from "react-immutable-proptypes";
+import { useOverflowIndex } from "dremio-ui-lib/dist-esm";
+import clsx from "clsx";
 
-import { tag as tagClass } from "./TagList.less";
+import classes from "./TagList.less";
 
-export class TagListView extends Component {
-  static propTypes = {
-    tags: ImmutablePropTypes.listOf(PropTypes.string).isRequired,
-    visibleTagsNumber: PropTypes.number,
-    onTagClick: PropTypes.func, // (tagName) => void
-    className: PropTypes.string,
-    style: PropTypes.object,
-    onMainContainerRef: PropTypes.func,
-  };
-
-  render() {
-    const {
-      tags,
-      visibleTagsNumber,
-      onTagClick,
-      className,
-      style,
-      onMainContainerRef,
-    } = this.props;
-
-    const showModal = tags.size > visibleTagsNumber;
-    const visible = showModal ? tags.slice(0, visibleTagsNumber) : tags;
-    const modalTags = showModal ? tags.slice(visibleTagsNumber) : null;
-    return (
-      <div ref={onMainContainerRef} className={className} style={style}>
-        {visible.map((tag) => (
+export const TagList = (props) => {
+  const { className, style, tags, onTagClick } = props;
+  const parentRef = useRef(null);
+  const [overflowIndex, overflowedElement] = useOverflowIndex(parentRef);
+  return (
+    <div
+      className={clsx(className, classes["tag-list"])}
+      style={style}
+      ref={parentRef}
+    >
+      {tags.map((tag, i) => {
+        return (
           <Tag
-            key={tag}
             onClick={onTagClick ? () => onTagClick(tag) : null}
-            className={tagClass}
+            className={classes["tag"]}
             text={tag}
             title
+            key={tag}
+            style={{
+              ...(i >= overflowIndex ? { visibility: "hidden" } : {}),
+            }}
           />
-        ))}
-        {showModal && (
+        );
+      })}
+      {overflowIndex && (
+        <span
+          style={{
+            position: "absolute",
+            left: overflowedElement.offsetLeft,
+          }}
+        >
           <TagsModal
             key="tagsModal"
-            tags={modalTags.toJS()}
+            tags={tags.slice(overflowIndex).toJS()}
             onTagClick={onTagClick}
-            mainTagClass={tagClass}
+            mainTagClass={classes["tag"]}
           />
-        )}
-      </div>
-    );
-  }
-}
-
-// supports calculation of visible tags count depending on component width.
-export class TagList extends Component {
-  static propTypes = {
-    tags: ImmutablePropTypes.listOf(PropTypes.string).isRequired,
-    onTagClick: PropTypes.func, // (tagName) => void
-    className: PropTypes.string,
-    style: PropTypes.object,
-  };
-
-  state = {
-    el: { clientWidth: null },
-  };
-
-  onRef = (el) => {
-    this.setState({
-      el,
-    });
-  };
-
-  countVisibleTags = () => {
-    const { tags } = this.props;
-    //These constants are used only in this method and are mostly based on tagClass css
-    const MAX_TAG_WIDTH = 100,
-      DEFAULT_TAGS_WIDTH_PX = 800,
-      PX_PER_CHAR = 6,
-      TAG_PADDING_PX = 22,
-      MIN_TAG_WIDTH_PX = 35; // width for '...' button
-
-    let remainingWidth = this.state.el.clientWidth || DEFAULT_TAGS_WIDTH_PX;
-
-    const totalCount = tags.size;
-    let i;
-
-    for (i = 0; i < totalCount; i++) {
-      const tag = tags.get(i);
-      const currentTagWidth = Math.min(
-        tag.length * PX_PER_CHAR + TAG_PADDING_PX,
-        MAX_TAG_WIDTH
-      );
-
-      if (currentTagWidth > remainingWidth) {
-        // no more space
-        if (remainingWidth >= MIN_TAG_WIDTH_PX) {
-          //there is enough space to show '...'
-          return i;
-        }
-        // not enough space for '...' button, so do not include current tag in result. I assume that
-        // current tag has width more than '...' button
-        return i === 0 ? 0 : i - 1;
-      }
-
-      remainingWidth -= currentTagWidth;
-    }
-
-    // all tags could be displayed
-    return totalCount;
-  };
-
-  render() {
-    return (
-      <TagListView
-        onMainContainerRef={this.onRef}
-        {...this.props}
-        visibleTagsNumber={this.countVisibleTags()}
-      />
-    );
-  }
-}
+        </span>
+      )}
+    </div>
+  );
+};

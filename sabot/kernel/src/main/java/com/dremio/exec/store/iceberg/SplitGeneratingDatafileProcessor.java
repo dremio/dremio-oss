@@ -25,7 +25,6 @@ import static com.dremio.exec.store.iceberg.model.IcebergConstants.FILE_VERSION;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,11 +32,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -49,7 +46,6 @@ import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.StructLike;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.slf4j.Logger;
@@ -57,7 +53,6 @@ import org.slf4j.LoggerFactory;
 
 import com.amazonaws.util.CollectionUtils;
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.LegacyProtobufSerializer;
@@ -76,7 +71,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
@@ -90,7 +85,7 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
   private final List<String> partitionCols;
   private final Map<String, Field> nameToFieldMap;
   private final BlockBasedSplitGenerator splitGenerator;
-  private final HashMap<Field, ValueVector> valueVectorMap = new HashMap<>();
+  private final Map<Field, ValueVector> valueVectorMap = new HashMap<>();
   private final Set<String> invalidColumnsForPruning;
   private byte[] extendedProperty;
 
@@ -226,45 +221,6 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
   }
 
   @VisibleForTesting
-  PartitionProtobuf.NormalizedPartitionInfo getDataFilePartitionInfo(DataFile currentDataFile, long version) {
-    PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1));
-
-    // get table partition spec
-    StructLike partitionStruct = currentDataFile.partition();
-    for (int partColPos = 0; partColPos < partitionStruct.size(); ++partColPos) {
-      PartitionField field = icebergPartitionSpec.fields().get(partColPos);
-      /**
-       * we can not send partition column value for 1. nonIdentity columns or 2. columns which was not partition but later added as partition columns.
-       * because in case 1. information will be partial and scan will get incorrect values
-       * in case2. initially when column was not partition we don't have value.
-       */
-      if(invalidColumnsForPruning != null && invalidColumnsForPruning.contains(fileSchema.findField(field.sourceId()).name())) {
-        continue;
-      }
-
-      if(!field.transform().isIdentity()) {
-        continue;
-      }
-
-      PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
-      String partColName = fileSchema.findColumnName(field.sourceId());
-      partitionValueBuilder.setColumn(partColName);
-      Object value = partitionStruct.get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
-      writePartitionValue(partitionValueBuilder, value, nameToFieldMap.get(partColName.toLowerCase()));
-      partitionInfoBuilder.addValues(partitionValueBuilder.build());
-    }
-    addImplicitCols(partitionInfoBuilder, version);
-    return partitionInfoBuilder.build();
-  }
-
-  private void addImplicitCols(PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder, long version) {
-    PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
-    partitionValueBuilder.setColumn(IncrementalUpdateUtils.UPDATE_COLUMN);
-    partitionValueBuilder.setLongValue(version);
-    partitionInfoBuilder.addValues(partitionValueBuilder.build());
-  }
-
-  @VisibleForTesting
   Map<String, Object> getDataFileStats(DataFile currentDataFile, long version) {
     Map<String, Object> requiredStats = new HashMap<>();
 
@@ -339,45 +295,16 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
     }
   }
 
-  private void writePartitionValue(PartitionProtobuf.PartitionValue.Builder partitionValueBuilder, Object value, Field field) {
-    if (value == null) {
-      return;
-    }
-    if (value instanceof Long) {
-      if (field.getType().equals(CompleteType.TIMESTAMP.getType())) {
-        partitionValueBuilder.setLongValue((Long) value / 1_000);
-      } else if (field.getType().equals(CompleteType.TIME.getType())) {
-        partitionValueBuilder.setIntValue((int) ((Long) value / 1_000));
-      } else {
-        partitionValueBuilder.setLongValue((Long) value);
-      }
-    } else if (value instanceof Integer) {
-      if (field.getType().equals(CompleteType.DATE.getType())) {
-        partitionValueBuilder.setLongValue(TimeUnit.DAYS.toMillis((Integer) value));
-      } else {
-        partitionValueBuilder.setIntValue((Integer) value);
-      }
-    } else if (value instanceof String) {
-      partitionValueBuilder.setStringValue((String) value);
-    } else if (value instanceof Double) {
-      partitionValueBuilder.setDoubleValue((Double) value);
-    } else if (value instanceof Float) {
-      partitionValueBuilder.setFloatValue((Float) value);
-    } else if (value instanceof Boolean) {
-      partitionValueBuilder.setBitValue((Boolean) value);
-    } else if (value instanceof BigDecimal) {
-      partitionValueBuilder.setBinaryValue(ByteString.copyFrom(((BigDecimal) value).unscaledValue().toByteArray()));
-    } else if (value instanceof ByteBuffer) {
-      partitionValueBuilder.setBinaryValue(ByteString.copyFrom(((ByteBuffer) value).array()));
-    } else {
-      throw new UnsupportedOperationException("Unexpected partition column value type: " + value.getClass());
-    }
-  }
-
   private void initialiseDatafileInfo(DataFile dataFile, long version) {
     if (currentDataFileOffset == 0) {
       dataFilePartitionAndStats = getDataFileStats(dataFile, version);
-      dataFilePartitionInfo = getDataFilePartitionInfo(dataFile, version);
+      dataFilePartitionInfo = ManifestEntryProcessorHelper.getDataFilePartitionInfo(
+        icebergPartitionSpec,
+        invalidColumnsForPruning,
+        fileSchema,
+        nameToFieldMap,
+        dataFile,
+        version);
     }
   }
 

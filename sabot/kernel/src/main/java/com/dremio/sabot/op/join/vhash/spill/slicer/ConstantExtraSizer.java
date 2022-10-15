@@ -17,6 +17,7 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 
@@ -42,12 +43,17 @@ class ConstantExtraSizer implements Sizer {
   }
 
   @Override
-  public int computeBitsNeeded(long sv2Addr, int count) {
+  public int computeBitsNeeded(ArrowBuf sv2, int startIdx, int count) {
     return (sizeInBytes * BYTE_SIZE_BITS) * count;
   }
 
   @Override
-  public Copier getCopier(BufferAllocator allocator, long sv2Addr, int count, List<FieldVector> vectorOutput) {
+  public int getSizeInBitsStartingFromOrdinal(int ordinal, int len) {
+    return (sizeInBytes * BYTE_SIZE_BITS) * len;
+  }
+
+  @Override
+  public Copier getCopier(BufferAllocator allocator, ArrowBuf sv2, int startIdx, int count, List<FieldVector> vectorOutput) {
     return page -> page.deadSlice(count * sizeInBytes);
   }
 

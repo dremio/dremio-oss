@@ -51,5 +51,8 @@ export const redirectOnReferenceActions = (
   newName: string,
   baseUrl?: string
 ) => {
-  browserHistory.replace(`${baseUrl}/branches${newName ? "/" + newName : ""}`);
+  const encodedName = encodeURIComponent(newName);
+  browserHistory.replace(
+    `${baseUrl}/branches${encodedName ? "/" + encodedName : ""}`
+  );
 };

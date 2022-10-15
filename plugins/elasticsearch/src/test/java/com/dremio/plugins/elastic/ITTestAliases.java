@@ -32,15 +32,11 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.common.util.TestTools;
 import com.google.common.collect.ImmutableMap;
 
 public class ITTestAliases extends ElasticBaseTestQuery {
-
-  private static final Logger logger = LoggerFactory.getLogger(ITTestAliases.class);
 
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
@@ -645,7 +641,9 @@ public class ITTestAliases extends ElasticBaseTestQuery {
 
     elastic.load(schema1, table, data);
 
-    String schema2 = schema = schemaName();
+    String schema2 = schemaName();
+    schema = schema2;
+
     data = new ElasticsearchCluster.ColumnData[]{
             new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
                     {"New York"},
@@ -905,7 +903,7 @@ public class ITTestAliases extends ElasticBaseTestQuery {
       .sqlQuery(sql)
       .unOrdered()
       .baselineColumns("cnt1", "cnt2", "total")
-      .baselineValues(1l, 1l, 11l)
+      .baselineValues(1L, 1L, 11L)
       .go();
   }
 

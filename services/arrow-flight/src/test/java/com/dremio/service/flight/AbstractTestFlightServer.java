@@ -17,6 +17,7 @@ package com.dremio.service.flight;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -65,12 +66,25 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightClientEncryptedServerUnencrypted() throws Exception {
-    openEncryptedFlightClient(DUMMY_USER, DUMMY_PASSWORD, null, getAuthMode());
+    try (final FlightClient ignored = openEncryptedFlightClient(
+      DUMMY_USER,
+      DUMMY_PASSWORD,
+      null,
+      getAuthMode())
+    ) {
+      assertNotNull(ignored);
+    }
   }
 
   @Test(expected = FlightRuntimeException.class)
   public void testBadCredentials() throws Exception {
-    openFlightClient(DUMMY_USER, "bad password", getAuthMode());
+    try (final FlightClient ignored = openFlightClient(
+      DUMMY_USER,
+      "bad password",
+      getAuthMode())
+    ) {
+      assertNotNull(ignored);
+    }
   }
 
   @Test
@@ -105,11 +119,8 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   @Test
   public void testFlightClientQueryCancellationAfterStreamIsRetrieved() throws Exception {
     try (final FlightStream stream = executeQuery(SELECT_QUERY)) {
-      //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-      while (stream.next()) {
-        // Draining the stream before cancellation.
-      }
-      //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+      drainStream(stream);
+
       stream.cancel("Query is cancelled after stream is retrieved.",
         new Exception("Testing query data retrieval cancellation."));
       stream.getRoot().clear();
@@ -132,17 +143,17 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   @Test
   public void testFlightClientCloseAfterStreamIsRetrieved() throws Exception {
     FlightStream stream = executeQuery(SELECT_QUERY);
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-    while (stream.next()) {
-      // Draining the stream before closing.
-    }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+    drainStream(stream);
     stream.close();
   }
 
   @Test
   public void testFlightClientWithInvalidQuery() {
-    assertThatThrownBy(() -> executeQuery("SELECT * from non_existent_table"))
+    assertThatThrownBy(() -> {
+      try (final FlightStream stream = executeQuery("SELECT * from non_existent_table")) {
+        drainStream(stream);
+      }
+    })
       .isInstanceOf(FlightRuntimeException.class)
       .extracting("status")
       .extracting("code")
@@ -166,7 +177,7 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     // Assert
     assertEquals(actualStringResults.size(), 1);
     assertTrue(actualStringResults.get(0).contains(
-      "Project(col_int=[1], col_string=['foobar']) : rowType =" +
+      "Project(col_int=[1], col_string=['foobar':VARCHAR(6)]) : rowType =" +
         " RecordType(INTEGER col_int, VARCHAR(6) col_string): rowcount = 1.0"));
   }
 

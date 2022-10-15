@@ -22,6 +22,7 @@ import java.util.List;
 import com.dremio.service.grpc.CloseableBindableService;
 
 import io.grpc.BindableService;
+import io.grpc.ServerServiceDefinition;
 
 
 /**
@@ -31,10 +32,12 @@ public class ConduitServiceRegistryImpl implements ConduitServiceRegistry {
 
   private final List<BindableService> serviceList;
   private final List<CloseableBindableService> closeableServiceList;
+  private final List<ServerServiceDefinition> serverServiceDefinitionList;
 
   public ConduitServiceRegistryImpl() {
     this.serviceList = new ArrayList<>();
     this.closeableServiceList = new ArrayList<>();
+    this.serverServiceDefinitionList = new ArrayList<>();
   }
 
   @Override
@@ -47,12 +50,21 @@ public class ConduitServiceRegistryImpl implements ConduitServiceRegistry {
     closeableServiceList.add(bindableService);
   }
 
+  @Override
+  public void registerServerService(ServerServiceDefinition serverServiceDefinition) {
+    serverServiceDefinitionList.add(serverServiceDefinition);
+  }
+
   List<BindableService> getServiceList() {
     return serviceList;
   }
 
   List<CloseableBindableService> getCloseableServiceList() {
     return closeableServiceList;
+  }
+
+  List<ServerServiceDefinition> getServerServiceDefinitionList() {
+    return serverServiceDefinitionList;
   }
 
 }

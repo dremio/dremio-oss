@@ -36,7 +36,7 @@ public class MinAccumulatorsNoSpill {
   private MinAccumulatorsNoSpill(){};
 
   public static class IntMinAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
-    private static final long INIT = 0x7fffffff7fffffffl;
+    private static final long INIT = 0x7fffffff7fffffffL;
     private static final int WIDTH = 4;
 
     public IntMinAccumulatorNoSpill(FieldVector input, FieldVector output) {
@@ -129,7 +129,7 @@ public class MinAccumulatorsNoSpill {
   }
 
   public static class FloatMinAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
-    private static final long INIT = 0x7f7fffff7f7fffffl;
+    private static final long INIT = 0x7f7fffff7f7fffffL;
     private static final int WIDTH = 4;
 
     public FloatMinAccumulatorNoSpill(FieldVector input, FieldVector output) {
@@ -326,7 +326,7 @@ public class MinAccumulatorsNoSpill {
   }
 
   public static class BitMinAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
-    private static final long INIT = -1l;           // == 0xffffffffffffffff
+    private static final long INIT = -1L;           // == 0xffffffffffffffff
     private static final int WIDTH_LONG = 8;        // operations done on long boundaries
     private static final int BITS_PER_LONG_SHIFT = 6;  // (1<<6) bits per long
     private static final int BITS_PER_LONG = (1<<BITS_PER_LONG_SHIFT);
@@ -401,7 +401,7 @@ public class MinAccumulatorsNoSpill {
   }
 
   public static class IntervalDayMinAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
-    private static final long INIT = 0x7fffffff7fffffffl;
+    private static final long INIT = 0x7fffffff7fffffffL;
     private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
     private static final int WIDTH_INPUT = 8;       // pair-of-ints inputs
     private static final int WIDTH_ACCUMULATOR = 8; // pair-of-ints pair accumulators

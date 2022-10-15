@@ -24,11 +24,12 @@ import java.util.Set;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.google.common.collect.ImmutableMap;
 
-public class ResolverTypePrecedence {
+@SuppressWarnings("checkstyle:InnerAssignment")
+public final class ResolverTypePrecedence {
 
   public static final ImmutableMap<MinorType, Integer> PRECEDENCE_MAP;
   public static final ImmutableMap<MinorType, Set<MinorType>> SECONDARY_IMPLICIT_CAST_RULES;
-  public static int MAX_IMPLICIT_CAST_COST;
+  public static final int MAX_IMPLICIT_CAST_COST;
 
   static {
     /* The precedenceMap is used to decide whether it's allowed to implicitly "promote"
@@ -65,6 +66,7 @@ public class ResolverTypePrecedence {
     precMap.put(MinorType.INTERVALYEAR, i+= 2);
     precMap.put(MinorType.UNION, i += 2);
     precMap.put(MinorType.FIXEDSIZEBINARY, i += 2);
+    precMap.put(MinorType.MAP, i += 2);
     precMap.put(MinorType.LIST, i += 2);
     precMap.put(MinorType.STRUCT, i += 2);
     PRECEDENCE_MAP = ImmutableMap.copyOf(precMap);
@@ -84,7 +86,7 @@ public class ResolverTypePrecedence {
      * need any cost associated with it, if we add more of these that may collide we can add costs.
      */
     Map<MinorType, Set<MinorType>> secondaryImplicitCastRules = new HashMap<>();
-    HashSet<MinorType> rule = new HashSet<>();
+    Set<MinorType> rule = new HashSet<>();
 
     // Following cast functions should exist
     rule.add(MinorType.TINYINT);
@@ -120,4 +122,7 @@ public class ResolverTypePrecedence {
     SECONDARY_IMPLICIT_CAST_RULES = ImmutableMap.copyOf(secondaryImplicitCastRules);
   }
 
+  private ResolverTypePrecedence() {
+    // Utility class
+  }
 }

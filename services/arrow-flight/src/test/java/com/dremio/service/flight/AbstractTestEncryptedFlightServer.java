@@ -15,6 +15,8 @@
  */
 package com.dremio.service.flight;
 
+import static org.junit.Assert.assertNotNull;
+
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.junit.Test;
@@ -27,41 +29,35 @@ public abstract class AbstractTestEncryptedFlightServer extends BaseFlightQueryT
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightEncryptedClientNoCerts() throws Exception {
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
     try (final FlightClient ignored = openFlightClient(
       DUMMY_USER,
       DUMMY_PASSWORD,
       getAuthMode()))
     {
-      // no-op
+      assertNotNull(ignored);
     }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
   }
 
   @Test
   public void testFlightEncryptedClientWithServerCerts() throws Exception {
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
     try (final FlightClient ignored = openEncryptedFlightClient(
       DUMMY_USER,
       DUMMY_PASSWORD,
       getCertificateStream(),
       getAuthMode()))
     {
-      // no-op
+      assertNotNull(ignored);
     }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
   }
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightClientUnencryptedServerEncrypted() throws Exception {
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
     try (final FlightClient ignored = openFlightClient(
       DUMMY_USER,
       DUMMY_PASSWORD,
       getAuthMode()))
     {
-      // no-op
+      assertNotNull(ignored);
     }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
   }
 }

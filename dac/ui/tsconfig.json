@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["./src/**/*"],
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@app/*": ["./*"],
+      "dyn-load/*": ["./*"],
+      "@dcs/*": ["./*"],
+      "@inject/*": [
+        "{@dcs}/*",
+        "{dyn-load}/*",
+        "./*",
+        "../scripts/stubModule.js"
+      ]
+    }
+  }
+}

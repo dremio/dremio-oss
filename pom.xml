@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>22.1.1-202208230402290397-a7010f28</version>
+  <version>23.0.1-202210141019030815-c1de8bcc</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -37,9 +37,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>8.0.0-20220615173757-4698c877a6-dremio</arrow.version>
+    <arrow.version>9.0.0-20220922165652-3a8c29faef-dremio</arrow.version>
     <avatica.version>1.18.0</avatica.version>
-    <calcite.version>1.16.0-202207212212440996-a0708ff8</calcite.version>
+    <calcite.version>1.16.0-202208240106140505-1a728e5</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -52,8 +52,8 @@
     <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
 
     <hadoop.version>3.3.2-dremio-202207041927090255-61c2bd1</hadoop.version>
-    <avro.version>1.9.2</avro.version>
-    <iceberg.version>0.13-4d6b6b4-202208160450030995-a1fb78dc</iceberg.version>
+    <avro.version>1.10.1</avro.version>
+    <iceberg.version>0.14-9ab94f87d-202209010034370342-049dcd8b</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.3-202107080930050113-179a837</plugin.hive2.azure-datalake.version>
@@ -61,15 +61,15 @@
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
-    <plugin.hive2.hive.version>2.1.1-dremio-202111110700250786-bf21359</plugin.hive2.hive.version>
+    <plugin.hive2.hive.version>2.3.9-dremio-202209010951150429-1c467b2</plugin.hive2.hive.version>
     <plugin.hive2.datanucleus-api-jdo.version>4.2.1</plugin.hive2.datanucleus-api-jdo.version>
     <plugin.hive2.datanucleus-core.version>4.1.6</plugin.hive2.datanucleus-core.version>
     <plugin.hive2.datanucleus-rdbms.version>4.1.7</plugin.hive2.datanucleus-rdbms.version>
     <plugin.hive2.datanucleus-jdo.version>3.2.0-m3</plugin.hive2.datanucleus-jdo.version>
     <plugin.hive2.jdo-api.version>3.0.1</plugin.hive2.jdo-api.version>
-    <plugin.hive2.mapr.hadoop.version>2.7.0-mapr-1803</plugin.hive2.mapr.hadoop.version>
-    <plugin.hive2.mapr.hive.version>2.1.1-mapr-1803-202112221639140828-cb8c82b</plugin.hive2.mapr.hive.version>
-    <plugin.hive2.mapr.maprfs.version>6.0.1-mapr-client-dremio-20190717</plugin.hive2.mapr.maprfs.version>
+    <plugin.hive2.mapr.hadoop.version>2.7.6.200-eep-810</plugin.hive2.mapr.hadoop.version>
+    <plugin.hive2.mapr.hive.version>2.3.9.0-eep-810-dremio-202209201008370278-fccf6db</plugin.hive2.mapr.hive.version>
+    <plugin.hive2.mapr.maprfs.version>6.2.0.20-mapr</plugin.hive2.mapr.maprfs.version>
     <plugin.hive2.aws.glue.version>1.10.0-202202240321510927-4ec4bff</plugin.hive2.aws.glue.version>
 
     <!-- [DX-18063] HBase versions older than 1.1.7 get version info using package-info.class
@@ -94,13 +94,15 @@
     <plugin.hive3.datanucleus-jdo.version>3.2.0-m3</plugin.hive3.datanucleus-jdo.version>
     <plugin.hive3.jdo-api.version>3.0.1</plugin.hive3.jdo-api.version>
     <plugin.hive3.hikaricp.version>2.6.1</plugin.hive3.hikaricp.version>
-
+    <gcs-connector-version>2.2.2-dremio-202207131637570177-eaa4eef</gcs-connector-version>
 
     <errorprone.version>2.10.0</errorprone.version>
     <errorprone.type>jar</errorprone.type>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
+    <errorprone-slf4j.version>0.1.13</errorprone-slf4j.version>
     <errorprone.args.jdk11></errorprone.args.jdk11>
-    <errorprone.args>-Xplugin:ErrorProne -Xep:PreconditionsCheckNotNullRepeated:ERROR -Xep:PreconditionsInvalidPlaceholder:ERROR ${errorprone.args.jdk11} -XepExcludedPaths:${project.build.directory}/.*generated-(test-)?sources/.*</errorprone.args>
+    <errorprone.args>-Xplugin:ErrorProne -Xep:LockNotBeforeTry:ERROR -Xep:OrphanedFormatString:ERROR -Xep:NonAtomicVolatileUpdate:ERROR -Xep:ComplexBooleanConstant:ERROR -Xep:AssertionFailureIgnored:ERROR -Xep:UnnecessaryAssignment:ERROR -Xep:UseCorrectAssertInTests:ERROR -Xep:StreamResourceLeak:ERROR -Xep:DoubleCheckedLocking:ERROR -Xep:InconsistentHashCode:ERROR -Xep:ArgumentSelectionDefectChecker:ERROR -Xep:ModifyCollectionInEnhancedForLoop:ERROR -Xep:EqualsIncompatibleType:ERROR -Xep:OptionalNotPresent:ERROR -Xep:JUnitAmbiguousTestClass:ERROR -Xep:ShortCircuitBoolean:ERROR -Xep:PreconditionsCheckNotNullRepeated:ERROR -Xep:PreconditionsInvalidPlaceholder:ERROR ${errorprone.args.jdk11} -XepExcludedPaths:${project.build.directory}/.*generated-(test-)?sources/.*</errorprone.args>
+
     <mysql.dist.version>5.6.14</mysql.dist.version>
     <!--
          Note about -Djdk.attach.allowAttachSelf=true:
@@ -120,17 +122,17 @@
     </surefire.argLine>
 
     <hsqldb.version>2.3.1</hsqldb.version>
-    <immutables.version>2.8.8</immutables.version>
+    <immutables.version>2.9.1</immutables.version>
     <jackson.version>2.13.2.20220328</jackson.version>
     <jersey.version>2.35</jersey.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
-    <junit.version>4.13.2</junit.version>
-    <junit.jupiter.version>5.8.2</junit.jupiter.version>
-    <junit.mockito.jupiter.version>3.12.4</junit.mockito.jupiter.version>
+    <junit4.version>4.13.2</junit4.version>
+    <junit5.version>5.8.2</junit5.version>
+    <mockito.version>4.6.1</mockito.version>
+    <assertj.version>3.23.1</assertj.version>
     <lilith.version>8.2.0</lilith.version>
-    <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
-    <logback.version>1.2.9</logback.version>
+    <logback.version>1.2.11</logback.version>
     <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
     <nessie-cel.version>0.2.4</nessie-cel.version>
@@ -142,8 +144,8 @@
     <netty.boringssl.version>2.0.43.Final</netty.boringssl.version>
     <parquet.version>1.12.0-202205191717350594-a60d369</parquet.version>
     <pf4j.version>3.6.0</pf4j.version>
-    <postgresql.version>42.3.4</postgresql.version>
-    <protobuf.version>3.19.0</protobuf.version>
+    <postgresql.version>42.4.1</postgresql.version>
+    <protobuf.version>3.19.4</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
     <slf4j.version>1.7.28</slf4j.version>
@@ -157,17 +159,18 @@
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
     <fbs.version>1.12.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
-    <opencensus.version>0.24.0</opencensus.version>
+    <opencensus.version>0.31.1</opencensus.version>
     <grpc.version>1.45.0</grpc.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <guava.version>31.0.1-jre</guava.version>
     <guice.version>4.2.2</guice.version>
-    <redis.clients.jedis.version>3.4.1</redis.clients.jedis.version>
+    <redis.clients.jedis.version>4.2.3</redis.clients.jedis.version>
     <opentelemetry.version>1.0.1</opentelemetry.version>
     <scim2-sdk.version>2.3.5</scim2-sdk.version>
     <openapitools.plugin.version>5.4.0</openapitools.plugin.version>
     <swagger-annotations-version>1.6.4</swagger-annotations-version>
     <threeten-version>1.7.0</threeten-version>
+    <bouncycastle.version>1.64</bouncycastle.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
     <elasticsearch.version>6.8.23</elasticsearch.version>
@@ -187,9 +190,8 @@
     <dremio.ui.intercom.appid>z8apq4co</dremio.ui.intercom.appid>
     <npm.registry.url>https://registry.npmjs.org</npm.registry.url>
     <npm.buildscript>build</npm.buildscript>
-    <npm.installscript>install --no-save --prefer-offline --no-audit</npm.installscript>
     <pnpm.installscript>install --frozen-lockfile --prefer-offline --reporter=silent</pnpm.installscript>
-    <yarn.installscript>install --frozen-lockfile --prefer-offline --no-audit --network-timeout 300000</yarn.installscript>
+    <pnpm.execinstallscript>pnpm@7.2.1 ${pnpm.installscript}</pnpm.execinstallscript>
     <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
     <dremio.beta>false</dremio.beta>
@@ -201,7 +203,6 @@
     -->
     <project.sentry.token>NO_TOKEN</project.sentry.token>
     <project.sentry.skip>true</project.sentry.skip>
-    <assertj.version>3.22.0</assertj.version>
     <rerunFailingTestsCount>3</rerunFailingTestsCount>
   </properties>
 
@@ -215,8 +216,12 @@
       </activation>
       <properties>
         <skip.installnodenpm>true</skip.installnodenpm>
-        <skip.installyarn>true</skip.installyarn>
         <skip.npm>true</skip.npm>
+        <skip.installnodepnpm>true</skip.installnodepnpm>
+        <skip.pnpm>true</skip.pnpm>
+        <skip.installnodenpx>true</skip.installnodenpx>
+        <skip.npx>true</skip.npx>
+        <skip.installyarn>true</skip.installyarn>
         <skip.yarn>true</skip.yarn>
       </properties>
     </profile>
@@ -458,11 +463,11 @@
     <profile>
       <id>errorprone-jdk11</id>
       <activation>
-        <jdk>11</jdk>
+        <jdk>[11,)</jdk>
       </activation>
       <properties>
-        <errorprone.version>2.13.1</errorprone.version>
-        <errorprone.args.jdk11>-Xep:DoubleBraceInitialization:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN</errorprone.args.jdk11>
+        <errorprone.version>2.15.0</errorprone.version>
+        <errorprone.args.jdk11>-Xep:AlreadyChecked:ERROR -Xep:DoubleBraceInitialization:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</errorprone.args.jdk11>
       </properties>
       <build>
         <plugins>
@@ -473,7 +478,8 @@
                 <path>
                   <groupId>jp.skypencil.errorprone.slf4j</groupId>
                   <artifactId>errorprone-slf4j</artifactId>
-                  <version>0.1.11</version>
+                  <version>${errorprone-slf4j.version}</version>
+                  <type>${errorprone.type}</type>
                 </path>
               </annotationProcessorPaths>
             </configuration>
@@ -504,30 +510,37 @@
         </property>
       </activation>
       <properties>
-        <plugin.hive2.hive.version>2.1.1-mapr-1803-202108260419510455-06e6301</plugin.hive2.hive.version>
-        <hadoop.version>2.7.0-mapr-1803</hadoop.version>
-        <!-- hadoop-yarn-common jar is updated in MapR patch 6.0.1 repository, it is updated to be
-        compatible with maprfs jar from the same patch. This jar is taken from client package folder
-        from MapR's patch fix repository, v6.0.1/rpm, mapr-patch-6.0.1.20180404222005.GA-20190625140628.x86_64.rpm-->
-        <yarn.common.version>2.7.0-mapr-1803-dremio-20190717</yarn.common.version>
-        <!-- This maprfs jar is taken from MapR 6.0.1 client package directly.
-          This jar is taken from client package folder from MapR's patch fix repository,
-          v6.0.1/rpm, mapr-patch-6.0.1.20180404222005.GA-20190625140628.x86_64.rpm -->
-        <maprfs.version>6.0.1-mapr-client-dremio-20190717</maprfs.version>
+        <maven.compiler.release>11</maven.compiler.release>
+        <forbiddenapis.skip>true</forbiddenapis.skip>
+        <!-- All mapr-hive dependencies versions below correspond to EEP-8.1
+             The hive version is built using dremio/hive-private:2.3.9.0-eep-810 branch
+        -->
+        <plugin.hive2.hive.version>2.3.9.0-eep-810-dremio-202209201008370278-fccf6db</plugin.hive2.hive.version>
+        <hadoop.version>2.7.6.200-eep-810</hadoop.version>
+        <yarn.common.version>2.7.4.0-mapr-700</yarn.common.version>
+        <maprfs.version>6.2.0.20-mapr</maprfs.version>
         <!-- This jar is a dependency of com.mapr.hadoop:maprfs jar.
              For some reason it is not packaged by the assembly plugin. Include it explicitly. -->
         <org.json.version>20080701</org.json.version>
-        <zookeeper.version>3.4.5-mapr-1710</zookeeper.version>
+        <zookeeper.version>3.5.6.0-mapr-2009</zookeeper.version>
         <!-- The version of protobuf to shade with MapR FS -->
-        <maprfs.protobuf.version>2.5.0</maprfs.protobuf.version>
+        <maprfs.protobuf.version>3.11.1</maprfs.protobuf.version>
+        <hbase.version>1.4.13.200-eep-810</hbase.version>
+
+        <plugin.hive2.datanucleus-api-jdo.version>5.2.4</plugin.hive2.datanucleus-api-jdo.version>
+        <plugin.hive2.datanucleus-core.version>5.2.3</plugin.hive2.datanucleus-core.version>
+        <plugin.hive2.datanucleus-rdbms.version>5.2.3</plugin.hive2.datanucleus-rdbms.version>
+        <plugin.hive2.datanucleus-jdo.version>3.2.0-m13</plugin.hive2.datanucleus-jdo.version>
+
         <argLine>
-              -Djava.security.auth.login.config=${WORKSPACE}/oss/common/src/test/resources/maprtest/testconfig/login.conf
+              -Djava.security.auth.login.config=${WORKSPACE}/oss/common/src/test/resources/maprtest/conf/login.conf
               -Dzookeeper.sasl.clientconfig=Client_simple
               -Dzookeeper.saslprovider=com.mapr.security.simplesasl.SimpleSaslProvider
               -Dzookeeper.sasl.serverconfig=Server_simple
               -Dzookeeper.authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
               -Dzookeeper.authMech=SIMPLE-SECURITY
-              -Dmapr.home.dir=${WORKSPACE}/oss/common/src/test/resources/maprtest/testconfig
+              -Dzookeeper.4lw.commands.whitelist=stat
+              -Dmapr.home.dir=${WORKSPACE}/oss/common/src/test/resources/maprtest/
               -Ddremio.mapr.profile=true
         </argLine>
         <dremio.mapr.distribution>mapr</dremio.mapr.distribution>
@@ -555,6 +568,13 @@
                 <artifactId>hadoop-annotations</artifactId>
               </exclusion>
             </exclusions>
+          </dependency>
+          <!-- needed to run hive tests in mapr profile -->
+          <dependency>
+            <groupId>com.jolbox</groupId>
+            <artifactId>bonecp</artifactId>
+            <version>0.8.0.RELEASE</version>
+            <scope>test</scope>
           </dependency>
         </dependencies>
       </dependencyManagement>
@@ -661,7 +681,7 @@
       <plugin>
         <groupId>de.thetaphi</groupId>
         <artifactId>forbiddenapis</artifactId>
-        <version>3.2</version>
+        <version>3.3</version>
         <configuration>
           <failOnMissingClasses>false</failOnMissingClasses>
           <ignoreSignaturesOfMissingClasses>true</ignoreSignaturesOfMissingClasses>
@@ -1159,6 +1179,7 @@ limitations under the License.
             <exclude>**/yarn.lock</exclude>
             <exclude>**/.env</exclude>
             <exclude>**/microsoft-logo.svg</exclude>
+            <exclude>**/.npmrc</exclude>
 
             <!-- by directory name -->
             <exclude>**/node_modules/**</exclude>
@@ -1229,6 +1250,11 @@ limitations under the License.
     <pluginManagement>
       <plugins>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-wrapper-plugin</artifactId>
+          <version>3.1.1</version>
+        </plugin>
+        <plugin>
           <artifactId>maven-clean-plugin</artifactId>
           <version>3.0.0</version>
         </plugin>
@@ -1242,7 +1268,7 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.8.1</version>
+          <version>3.10.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-enforcer-plugin</artifactId>
@@ -1254,7 +1280,7 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.0.0-M5</version>
+          <version>3.0.0-M7</version>
           <configuration>
             <argLine>
               ${surefire.argLine}
@@ -1277,6 +1303,7 @@ limitations under the License.
               <user.country>US</user.country>
               <user.variant/>
               <user.timezone>GMT</user.timezone>
+              <hive.log.dir>${project.build.directory}</hive.log.dir>
             </systemPropertyVariables>
             <additionalClasspathElements>
               <additionalClasspathElement>${maven.multiModuleProjectDirectory}/src/test/log-config</additionalClasspathElement>
@@ -1286,7 +1313,7 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>3.0.0-M5</version>
+          <version>3.0.0-M7</version>
           <configuration>
             <trimStackTrace>false</trimStackTrace>
             <additionalClasspathElements>
@@ -1301,6 +1328,7 @@ limitations under the License.
               <user.country>US</user.country>
               <user.variant/>
               <user.timezone>GMT</user.timezone>
+              <hive.log.dir>${project.build.directory}</hive.log.dir>
             </systemPropertyVariables>
             <rerunFailingTestsCount>${rerunFailingTestsCount}</rerunFailingTestsCount>
           </configuration>
@@ -1399,16 +1427,14 @@ limitations under the License.
           <version>1.12.1</version>
 
           <configuration>
-            <nodeVersion>v14.19.2</nodeVersion>
+            <nodeVersion>v16.15.0</nodeVersion>
             <npmVersion>7.7.5</npmVersion>
-            <pnpmVersion>7.0.0</pnpmVersion>
-            <yarnVersion>v1.22.10</yarnVersion>
+            <pnpmVersion>7.2.1</pnpmVersion>
             <installDirectory>${project.build.directory}/frontend</installDirectory>
             <workingDirectory>${project.build.directory}</workingDirectory>
             <environmentVariables>
               <!-- TODO: Figure a way to ignore resolved links in lock files as it prevents mirror settings to be ignored -->
               <NPM_CONFIG_REGISTRY>${npm.registry.url}</NPM_CONFIG_REGISTRY>
-              <YARN_REGISTRY>${npm.registry.url}</YARN_REGISTRY>
               <DREMIO_VERSION>${project.version}</DREMIO_VERSION>
               <SENTRY_AUTH_TOKEN>${project.sentry.token}</SENTRY_AUTH_TOKEN>
               <SKIP_SENTRY_STEP>${project.sentry.skip}</SKIP_SENTRY_STEP>
@@ -1420,7 +1446,7 @@ limitations under the License.
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.8.7</version>
+          <version>0.8.8</version>
         </plugin>
         <plugin>
           <groupId>com.dremio.tools</groupId>
@@ -1508,6 +1534,11 @@ limitations under the License.
           <version>0.6.1</version>
           <configuration>
             <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+            <!--
+            this avoids copying the protoc artifacts multiple times:
+            https://github.com/xolstice/protobuf-maven-plugin/blob/protobuf-maven-plugin-0.6.1/src/main/java/org/xolstice/maven/plugin/protobuf/AbstractProtocMojo.java#L1094-L1098
+            -->
+            <protocPluginDirectory>${java.io.tmpdir}/dremio_protoc</protocPluginDirectory>
           </configuration>
         </plugin>
         <plugin>
@@ -1531,7 +1562,7 @@ limitations under the License.
         <plugin>
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
-          <version>2.22.0</version>
+          <version>2.22.8</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -1550,6 +1581,11 @@ limitations under the License.
       <artifactId>error_prone_annotations</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>javax.annotation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- Test Dependencies -->
     <dependency>
@@ -1562,6 +1598,11 @@ limitations under the License.
         as long as Mockito _contains_ older Hamcrest classes. -->
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -1597,7 +1638,7 @@ limitations under the License.
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
-      <version>4.0.2</version>
+      <version>4.2.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -1881,6 +1922,11 @@ limitations under the License.
         <version>3.1.4</version>
       </dependency>
       <dependency>
+        <groupId>javax.annotation</groupId>
+        <artifactId>javax.annotation-api</artifactId>
+        <version>1.3.2</version>
+      </dependency>
+      <dependency>
         <groupId>org.mariadb.jdbc</groupId>
         <artifactId>mariadb-java-client</artifactId>
         <version>${mariadb.connector.version}</version>
@@ -1919,7 +1965,17 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-access</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
         <artifactId>logback-classic</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
         <version>${logback.version}</version>
       </dependency>
       <dependency>
@@ -2184,6 +2240,11 @@ limitations under the License.
         <version>${protostuff.version}</version>
       </dependency>
       <dependency>
+        <groupId>io.protostuff</groupId>
+        <artifactId>protostuff-collectionschema</artifactId>
+        <version>${protostuff.version}</version>
+      </dependency>
+      <dependency>
         <groupId>javax.validation</groupId>
         <artifactId>validation-api</artifactId>
         <version>2.0.1.Final</version>
@@ -2191,19 +2252,19 @@ limitations under the License.
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
-        <version>${junit.version}</version>
+        <version>${junit4.version}</version>
       </dependency>
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>${junit.jupiter.version}</version>
+        <version>${junit5.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-junit-jupiter</artifactId>
-        <version>${junit.mockito.jupiter.version}</version>
+        <version>${mockito.version}</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
@@ -3140,6 +3201,14 @@ limitations under the License.
             <groupId>org.slf4j</groupId>
           </exclusion>
           <exclusion>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-web</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>mapr-log4j-slf4j-impl</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>jline</groupId>
             <artifactId>jline</artifactId>
           </exclusion>
@@ -3324,15 +3393,41 @@ limitations under the License.
         <artifactId>zookeeper</artifactId>
         <version>${zookeeper.version}</version>
       </dependency>
+      <!-- No BOM for bouncycastle -->
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk15on</artifactId>
-        <version>1.64</version>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcutil-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
       </dependency>
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcprov-jdk15on</artifactId>
-        <version>1.64</version>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bctls-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bc-fips</artifactId>
+        <version>1.0.2.3</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bctls-fips</artifactId>
+        <version>1.0.13</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-fips</artifactId>
+        <version>1.0.6</version>
       </dependency>
       <dependency>
         <groupId>org.assertj</groupId>
@@ -3347,22 +3442,17 @@ limitations under the License.
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>3.12.4</version>
+        <version>${mockito.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
-        <version>2.0.9</version>
-      </dependency>
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito2</artifactId>
-        <version>2.0.9</version>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
+        <version>${mockito.version}</version>
       </dependency>
       <dependency>
         <groupId>com.github.tomakehurst</groupId>
         <artifactId>wiremock-jre8</artifactId>
-        <version>2.32.0</version>
+        <version>2.33.2</version>
       </dependency>
       <dependency>
         <groupId>org.javassist</groupId>
@@ -3437,7 +3527,7 @@ limitations under the License.
       <dependency>
         <groupId>xerces</groupId>
         <artifactId>xercesImpl</artifactId>
-        <version>2.12.0</version>
+        <version>2.12.2</version>
       </dependency>
       <dependency>
         <groupId>xalan</groupId>
@@ -3671,6 +3761,22 @@ limitations under the License.
         <groupId>org.threeten</groupId>
         <artifactId>threeten-extra</artifactId>
         <version>${threeten-version}</version>
+      </dependency>
+      <!-- Note: iceberg-bundled-guava should be in sync with core Iceberg jars. -->
+      <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-bundled-guava</artifactId>
+        <version>${iceberg.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-api</artifactId>
+        <version>${iceberg.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-core</artifactId>
+        <version>${iceberg.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

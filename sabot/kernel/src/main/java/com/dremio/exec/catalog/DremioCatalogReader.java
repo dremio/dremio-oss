@@ -90,9 +90,11 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     this.typeFactory = (JavaTypeFactory) typeFactory;
 
     ImmutableList.Builder<List<String>> schemaPaths = ImmutableList.builder();
-    if (catalog.getDefaultSchema() != null) {
+    if (catalog.getDefaultSchema() != null && !catalog.getDefaultSchema().getPathComponents().isEmpty()) {
+      // If not empty, this is the schema set by the UI
       schemaPaths.add(ImmutableList.copyOf(catalog.getDefaultSchema().getPathComponents()));
     }
+    // No schema to support fully qualified table names in SQL
     schemaPaths.add(ImmutableList.of());
     this.schemaPaths = schemaPaths.build();
   }
@@ -239,11 +241,6 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   public DremioCatalogReader withSchemaPath(List<String> newNamespacePath) {
     NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
     return new DremioCatalogReader(catalog.resolveCatalog(withSchemaPath), typeFactory);
-  }
-
-  public DremioCatalogReader withSchemaPathAndUser(List<String> newNamespacePath, CatalogIdentity identity) {
-    NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
-    return new DremioCatalogReader(catalog.resolveCatalog(identity, withSchemaPath), typeFactory);
   }
 
   public DremioCatalogReader withSchemaPathAndUser(List<String> newNamespacePath,

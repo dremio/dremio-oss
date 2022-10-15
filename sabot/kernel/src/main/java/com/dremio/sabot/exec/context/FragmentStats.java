@@ -36,7 +36,6 @@ import com.google.common.collect.Lists;
  * Holds statistics of a particular (minor) fragment.
  */
 public class FragmentStats {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStats.class);
 
   private List<OperatorStats> operators = Lists.newArrayList();
   private final long startTime;
@@ -49,6 +48,7 @@ public class FragmentStats {
   private long sleepingDuration;
   private long blockedOnUpstreamDuration;
   private long blockedOnDownstreamDuration;
+  private long blockedOnMemoryDuration;
   private long blockedOnSharedResourceDuration;
 
   private long numRuns;
@@ -81,10 +81,11 @@ public class FragmentStats {
       prfB.addOperatorProfile(o.getProfile(true));
     }
     prfB.setSleepingDuration(sleepingDuration);
-    prfB.setBlockedDuration(blockedOnUpstreamDuration + blockedOnDownstreamDuration + blockedOnSharedResourceDuration);
+    prfB.setBlockedDuration(blockedOnUpstreamDuration + blockedOnDownstreamDuration + blockedOnSharedResourceDuration + blockedOnMemoryDuration);
     prfB.setBlockedOnUpstreamDuration(blockedOnUpstreamDuration);
     prfB.setBlockedOnDownstreamDuration(blockedOnDownstreamDuration);
     prfB.setBlockedOnSharedResourceDuration(blockedOnSharedResourceDuration);
+    prfB.setBlockedOnMemoryDuration(blockedOnMemoryDuration);
     for (Map.Entry<SharedResourceType, Long> entry : perResourceBlockedDurations.entrySet()) {
       BlockedResourceDuration duration = BlockedResourceDuration.newBuilder()
         .setResource(entry.getKey().name())
@@ -178,6 +179,10 @@ public class FragmentStats {
 
   public void setBlockedOnDownstreamDuration(long blockedDuration) {
     this.blockedOnDownstreamDuration = blockedDuration;
+  }
+
+  public void setBlockedOnMemoryDuration(long blockedDuration) {
+    this.blockedOnMemoryDuration = blockedDuration;
   }
 
   public void addBlockedOnSharedResourceDuration(SharedResourceType resource, long blockedDuration) {

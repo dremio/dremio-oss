@@ -27,7 +27,6 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.JULBridge;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.utils.protos.QueryWritableBatch;
-import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.cost.DremioRelMetadataQuery;
@@ -71,8 +70,11 @@ public class ExecTest extends DremioTest {
   protected static FunctionImplementationRegistry FUNCTIONS( ){
     // initialize once so avoid having to regenerate functions repetitvely in tests. So so lazily so tests that don't need, don't do.
     if(FUNCTION_REGISTRY == null){
-      FUNCTION_REGISTRY = new FunctionImplementationRegistry(DEFAULT_SABOT_CONFIG,
-        CLASSPATH_SCAN_RESULT, OPTION_MANAGER);
+      FUNCTION_REGISTRY = FunctionImplementationRegistry.create(
+        DEFAULT_SABOT_CONFIG,
+        CLASSPATH_SCAN_RESULT,
+        OPTION_MANAGER,
+        false);
     }
     return FUNCTION_REGISTRY;
   }
@@ -82,9 +84,12 @@ public class ExecTest extends DremioTest {
   }
 
   protected static FunctionImplementationRegistry DECIMAL_FUNCTIONS( ){
-    if(FUNCTION_REGISTRY_DECIMAL == null){
-      FUNCTION_REGISTRY_DECIMAL = new DecimalFunctionImplementationRegistry(DEFAULT_SABOT_CONFIG,
-        CLASSPATH_SCAN_RESULT, OPTION_MANAGER);
+    if (FUNCTION_REGISTRY_DECIMAL == null) {
+      FUNCTION_REGISTRY_DECIMAL = FunctionImplementationRegistry.create(
+        DEFAULT_SABOT_CONFIG,
+        CLASSPATH_SCAN_RESULT,
+        OPTION_MANAGER,
+        true);
     }
     return FUNCTION_REGISTRY_DECIMAL;
   }
@@ -96,7 +101,7 @@ public class ExecTest extends DremioTest {
   @Before
   public void initAllocators() {
     rootAllocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-    allocator = rootAllocator.newChildAllocator(TEST_NAME.getMethodName(), 0, rootAllocator.getLimit());
+    allocator = rootAllocator.newChildAllocator(testName.getMethodName(), 0, rootAllocator.getLimit());
   }
 
   @After

@@ -18,7 +18,13 @@ export const NEXT = "NEXT";
 export const BACK = "BACK";
 export const CANCEL = "CANCEL";
 export const PRIMARY = "PRIMARY";
+export const UI_LIB_PRIMARY = "primary";
 export const SECONDARY = "SECONDARY";
+export const UI_LIB_SECONDARY = "secondary";
+export const WARNING = "warn";
+export const DEFAULT = "default";
+export const CONTAINED = "contained";
+export const TEXT = "text";
 export const OUTLINED = "outlined";
 /**
  * @const - this constant define available types for Button component
@@ -29,6 +35,12 @@ export const TYPES_ARRAY = [
   BACK,
   CANCEL,
   PRIMARY,
+  UI_LIB_PRIMARY,
   SECONDARY,
+  UI_LIB_SECONDARY,
   OUTLINED,
+  CONTAINED,
+  TEXT,
+  WARNING,
+  DEFAULT,
 ];

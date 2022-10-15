@@ -1,0 +1,60 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "CONVERT_TIMEZONE"
+signatures:
+ -
+  returnType: "TIMESTAMP"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "STRING"
+    name: "destinationTimezone"
+    description: "The timezone to convert to."
+   -
+    kind: "REGULAR"
+    type: "DATEANDTIME"
+    name: "date"
+    description: "The date, timestamp, or string in ISO 8601 format to convert"
+  description: "Convert a date/time object (in UTC) to a specified timezone."
+  sampleCodes:
+   -
+    call: "SELECT CONVERT_TIMEZONE('America/Los_Angeles', 'America/New_York', '2021-04-01 15:27:32')"
+    result: "2021-04-01 18:27:32.000"
+   -
+    call: "SELECT CONVERT_TIMEZONE('America/Los_Angeles', 'America/New_York', TIMESTAMP '2021-04-01 15:27:32');"
+    result: "2021-04-01 18:27:32.000"
+   -
+    call: "SELECT CONVERT_TIMEZONE('PST', 'EST', '2021-04-01 15:27:32')"
+    result: "2021-04-01 18:27:32.000"
+   -
+    call: "SELECT CONVERT_TIMEZONE('America/Los_Angeles', 'America/New_York', '2021-04-01')"
+    result: "2021-04-01 03:00:00.000"
+   -
+    call: "SELECT CONVERT_TIMEZONE('America/Los_Angeles', 'America/New_York', DATE '2021-04-01')"
+    result: "2021-04-01 03:00:00.000"
+   -
+    call: "SELECT CONVERT_TIMEZONE('EDT', '2021-04-01 15:27:32')"
+    result: "2021-04-01 11:27:32.000"
+   -
+    call: "SELECT CONVERT_TIMEZONE('PST', '+02:00', '2021-04-01 15:27:32')"
+    result: "2021-04-02 01:27:32.000"
+dremioVersion: "1.0+"
+functionCategories:
+ - "DATETIME"
+ - "CONVERSION"
+description: "Convert TIMESTAMP to the specified timezone\n"

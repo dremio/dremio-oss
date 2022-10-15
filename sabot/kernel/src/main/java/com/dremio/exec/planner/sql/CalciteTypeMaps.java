@@ -46,6 +46,7 @@ class CalciteTypeMaps {
       .put(TypeProtos.MinorType.STRUCT, SqlTypeName.MAP)
       .put(TypeProtos.MinorType.LIST, SqlTypeName.ARRAY)
       .put(TypeProtos.MinorType.LATE, SqlTypeName.ANY)
+      .put(TypeProtos.MinorType.MAP, SqlTypeName.MAP)
 
       // These are defined in the Dremio type system but have been turned off for now
       // .put(TypeProtos.MinorType.TINYINT, SqlTypeName.TINYINT)

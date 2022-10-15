@@ -23,6 +23,7 @@ type IconButtonProps =
   | (React.HTMLAttributes<HTMLButtonElement> & {
       as?: any;
       className?: string;
+      type?: "button" | "submit";
     }) & {
       tooltip: React.ReactNode;
       "aria-label"?: void;
@@ -46,11 +47,21 @@ function validateProps(props: IconButtonProps) {
 }
 
 export const IconButton: React.FC<IconButtonProps> = (props) => {
-  const { as, className, tooltip, "aria-label": ariaLabel, ...rest } = props;
+  const {
+    as = "button",
+    className,
+    tooltip,
+    "aria-label": ariaLabel,
+    ...rest
+  } = props;
 
   validateProps(props);
 
-  const ButtonElement = React.createElement(as || "button", {
+  const defaultTypeProp =
+    as === "button" && !props.type ? { type: "button" } : {};
+
+  const ButtonElement = React.createElement(as, {
+    ...defaultTypeProp,
     ...rest,
     className: clsx(className, "dremio-icon-button"),
     tabIndex: 0,

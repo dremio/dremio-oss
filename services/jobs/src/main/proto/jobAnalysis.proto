@@ -33,6 +33,8 @@ message BaseMetrics {
   required int64 bytesProcessed = 7;
   required int64 runTime = 8;
   required int64 totalMemory = 9;
+  required int64 outputRecords = 10;
+  required int64 outputBytes = 11;
 }
 
 message ThreadData {
@@ -44,6 +46,8 @@ message ThreadData {
   required int64 processingTime = 6;
   required int64 setupTime = 7;
   required int64 recordsProcessed = 8;
+  required int64 outputRecords = 9;
+  required int64 outputBytes = 10;
 }
 
 message MetricValue {
@@ -59,6 +63,8 @@ message OperatorData {
   required BaseMetrics baseMetrics = 4;
   required string mergeNodeName = 5;
   required SuccessorNodes successorId = 6;
+  required string dataSetName = 7;
+  required string reflectionName = 8;
 }
 
 message PhaseData {

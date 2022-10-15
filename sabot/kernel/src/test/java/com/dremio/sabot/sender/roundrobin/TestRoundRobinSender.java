@@ -75,7 +75,7 @@ public class TestRoundRobinSender extends BaseTestOperator {
           b.release();
         }
         return null;
-      }}).when(tunnel).sendRecordBatch(any(FragmentWritableBatch.class));
+      }}).when(tunnel).sendRecordBatch(any(FragmentWritableBatch.class), any());
 
     final TunnelProvider provider = mock(TunnelProvider.class);
     when(provider.getExecTunnel(any(NodeEndpoint.class))).thenReturn(tunnel);

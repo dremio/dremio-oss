@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent, Fragment } from "react";
+import { createElement, PureComponent, Fragment } from "react";
 
 import PropTypes from "prop-types";
 import { withLocation } from "containers/dremioLocation";
@@ -82,18 +82,16 @@ class ModalsContainer extends PureComponent {
     const { modals, location } = this.props;
     const { modal, query, ...state } = location.state || {};
 
-    return (
-      modals[key] &&
-      React.createElement(modals[key], {
-        key,
-        isOpen: modal === key,
-        hide: this.handleHide,
-        location,
-        pathname: location.pathname,
-        query: query || {},
-        ...state,
-      })
-    );
+    return modals[key] &&
+    createElement(modals[key], {
+      key,
+      isOpen: modal === key,
+      hide: this.handleHide,
+      location,
+      pathname: location.pathname,
+      query: query || {},
+      ...state,
+    });
   };
 
   render() {

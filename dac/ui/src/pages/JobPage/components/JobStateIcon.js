@@ -16,8 +16,7 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
-
-import Art from "components/Art";
+import { Tooltip } from "dremio-ui-lib";
 
 @injectIntl
 export default class JobStateIcon extends PureComponent {
@@ -30,7 +29,7 @@ export default class JobStateIcon extends PureComponent {
   render() {
     const state = this.props.state;
 
-    let src = "Ellipsis";
+    let src = "ellipsis";
     let className = "";
 
     if (JobStatusIcons[state]) {
@@ -42,31 +41,40 @@ export default class JobStateIcon extends PureComponent {
       }
     }
 
+    const dimension = src === "planning" ? 22 : 24;
+
     return (
-      <Art
-        src={`${src}.svg`}
-        alt={this.props.intl.formatMessage({ id: "Job.State." + state })}
-        title
-        style={{ height: 24, ...this.props.style }}
-        className={className}
-      />
+      <Tooltip
+        title={this.props.intl.formatMessage({ id: "Job.State." + state })}
+      >
+        <dremio-icon
+          name={`job-state/${src}`}
+          alt={this.props.intl.formatMessage({ id: "Job.State." + state })}
+          class={className}
+          style={{
+            height: dimension,
+            width: dimension,
+            verticalAlign: "unset",
+          }}
+        />
+      </Tooltip>
     );
   }
 }
 
 export const JobStatusIcons = {
-  NOT_SUBMITTED: "Ellipsis",
-  STARTING: "Starting",
-  RUNNING: { src: "Loader", className: "spinner" },
-  COMPLETED: "OKSolid",
-  CANCELED: "Canceled",
-  FAILED: "ErrorSolid",
-  CANCELLATION_REQUESTED: "CanceledGray",
-  ENQUEUED: "Ellipsis",
-  PLANNING: "Planning",
-  PENDING: "PendingDiamond",
-  METADATA_RETRIEVAL: "Planning",
-  QUEUED: "Queued",
-  ENGINE_START: "EngineStart",
-  EXECUTION_PLANNING: "Starting",
+  NOT_SUBMITTED: "ellipsis",
+  STARTING: "starting",
+  RUNNING: { src: "running", className: "spinner" },
+  COMPLETED: "job-completed",
+  CANCELED: "canceled",
+  FAILED: "error-solid",
+  CANCELLATION_REQUESTED: "cancelled-gray",
+  ENQUEUED: "ellipsis",
+  PLANNING: "planning",
+  PENDING: "setup",
+  METADATA_RETRIEVAL: "planning",
+  QUEUED: "queued",
+  ENGINE_START: "engine-start",
+  EXECUTION_PLANNING: "starting",
 };

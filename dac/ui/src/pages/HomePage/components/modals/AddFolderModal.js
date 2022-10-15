@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import { compose } from "redux";
+import { withRouter } from "react-router";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
-import { injectIntl } from "react-intl";
 
 import Modal from "components/Modals/Modal";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
 import { addNewFolderForSpace } from "actions/resources/spaceDetails";
+import { getRootEntityType } from "@app/utils/pathUtils";
+import { intl } from "@app/utils/intl";
 
 import AddFolderForm from "../forms/AddFolderForm";
+
 import "./Modal.less";
 
-@injectIntl
 export class AddFolderModal extends Component {
   static propTypes = {
     isOpen: PropTypes.bool,
@@ -37,7 +40,6 @@ export class AddFolderModal extends Component {
     parentEntity: PropTypes.instanceOf(Immutable.Map),
     parentType: PropTypes.string,
     addNewFolderForSpace: PropTypes.func,
-    intl: PropTypes.object.isRequired,
   };
 
   static contextTypes = {
@@ -56,7 +58,7 @@ export class AddFolderModal extends Component {
   }
 
   render() {
-    const { isOpen, hide, intl } = this.props;
+    const { isOpen, hide, parentType } = this.props;
     return (
       <Modal
         size="small"
@@ -64,10 +66,24 @@ export class AddFolderModal extends Component {
         isOpen={isOpen}
         hide={hide}
       >
-        <AddFolderForm onFormSubmit={this.submit} onCancel={hide} />
+        <AddFolderForm
+          onFormSubmit={this.submit}
+          onCancel={hide}
+          parentType={parentType}
+        />
       </Modal>
     );
   }
 }
 
-export default connect(null, { addNewFolderForSpace })(AddFolderModal);
+function mapStateToProps(state, props) {
+  const parentType = getRootEntityType(props.location.pathname);
+  return {
+    parentType,
+  };
+}
+
+export default compose(
+  withRouter,
+  connect(mapStateToProps, { addNewFolderForSpace })
+)(AddFolderModal);

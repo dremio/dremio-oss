@@ -22,7 +22,6 @@ import static org.mockito.Mockito.spy;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.management.ManagementFactory;
 import java.time.LocalDateTime;
 
 import javax.ws.rs.client.Entity;
@@ -34,6 +33,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.beust.jcommander.JCommander;
+import com.dremio.common.VM;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.utils.ProtobufUtils;
 import com.dremio.config.DremioConfig;
@@ -172,7 +172,7 @@ public class TestExportProfiles extends BaseTestServer {
     final String tmpPath = folder0.newFolder("testLocal").getAbsolutePath();
     final String[] args = {"-l", "--output", tmpPath, "--format", "JSON", "--write-mode", "FAIL_IF_EXISTS"};
     final ExportProfilesOptions options = getExportOptions(args);
-    String vmid = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+    String vmid = VM.getProcessId();
     DremioAttach.main(vmid, new String[] {"export-profiles", ExportProfiles.getAPIExportParams(options).toParamString()});
     verifyResult(tmpPath, queryProfile, String.join(" ", args));
   }

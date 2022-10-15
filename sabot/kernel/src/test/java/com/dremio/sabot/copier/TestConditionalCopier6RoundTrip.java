@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -286,6 +287,52 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
         for (int i = 0; i < count[vecIdx]; i++) {
           if (i % 5 == 0) {
             vec.setSafe(i, vecIdx);
+          }
+        }
+        vec.setValueCount(count[vecIdx]);
+      }
+
+      // set alternate elements.
+      int totalCount = (count[0] + count[1]) / 2;
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      try(
+        final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
+      ){
+        fillSV6AlternateWithAlternateSkip(sv6, count[0], count[1]);
+
+        // do the copy
+        append(copiers, sv6.memoryAddress(), totalCount);
+        out.setValueCount(totalCount);
+
+        // verify
+        for (int idx = 0; idx < totalCount; ++idx) {
+          int actualIdx = idx * 2;
+          int batchIdx = actualIdx < count[0] ? 0 : 1;
+          int recordIdxInBatch = actualIdx < count[0] ? actualIdx : actualIdx - count[0];
+
+          assertEquals(idx % 2 == 0 ? null : in[batchIdx].getObject(recordIdxInBatch), out.getObject(idx));
+        }
+      }
+    }
+  }
+
+  @Test
+  public void decimalAppend(){
+    try(
+      DecimalVector in1 = new DecimalVector("in1", allocator, 28, 4);
+      DecimalVector in2 = new DecimalVector("in2", allocator, 28, 4);
+      DecimalVector out = new DecimalVector("out", allocator, 28, 4);
+    ){
+
+      DecimalVector[] in = {in1, in2};
+      int[] count = {512, 512};
+
+      for (int vecIdx = 0; vecIdx < 2; ++vecIdx) {
+        DecimalVector vec = in[vecIdx];
+        vec.allocateNew(count[vecIdx]);
+        for (int i = 0; i < count[vecIdx]; i++) {
+          if (i % 5 == 0) {
+            vec.setSafe(i, i);
           }
         }
         vec.setValueCount(count[vecIdx]);

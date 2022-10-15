@@ -41,6 +41,8 @@ import { processUiConfig } from "@app/pages/HomePage/components/modals/EditSourc
 import { passDataBetweenTabs } from "actions/modals/passDataBetweenTabs.js";
 import { trimObjectWhitespace } from "pages/HomePage/components/modals/utils";
 import * as classes from "./AddSourceModal.module.less";
+import { isVersionedReflectionsEnabled } from "../AddEditSourceUtils";
+import { isVersionedSource } from "@app/utils/sourceUtils";
 
 const VIEW_ID = "ADD_SOURCE_MODAL";
 const TIME_BEFORE_MESSAGE = 5000;
@@ -76,9 +78,6 @@ export class AddSourceModal extends Component {
     sourceTypes: [],
     isAddingSampleSource: false,
     didSourceTypeLoadFail: false,
-    isFileSystemSource: false,
-    isHive: false,
-    isGlue: false,
     errorMessage: "Failed to load source list.",
   };
 
@@ -115,15 +114,22 @@ export class AddSourceModal extends Component {
     const { dispatchPassDataBetweenTabs } = this.props;
     return ApiUtils.fetchJson(
       `source/type/${typeCode}`,
-      (json) => {
+      async (json) => {
         const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(
           typeCode,
-          processUiConfig(json)
+          processUiConfig(json),
+          {
+            reflectionsEnabled: isVersionedSource(typeCode)
+              ? await isVersionedReflectionsEnabled()
+              : true,
+          }
         );
         const isFileSystemSource = combinedConfig.metadataRefresh;
         this.setState({
           isTypeSelected: true,
           selectedFormType: combinedConfig,
+        });
+        dispatchPassDataBetweenTabs({
           isFileSystemSource: isFileSystemSource.isFileSystemSource,
           isExternalQueryAllowed: json.externalQueryAllowed,
           isHive:
@@ -135,14 +141,7 @@ export class AddSourceModal extends Component {
       () => {
         this.setState({ didSourceTypeLoadFail: true });
       }
-    ).finally(() => {
-      dispatchPassDataBetweenTabs({
-        isFileSystemSource: this.state.isFileSystemSource,
-        isExternalQueryAllowed: this.state.isExternalQueryAllowed,
-        isHive: this.state.isHive,
-        isGlue: this.state.isGlue,
-      });
-    });
+    );
   }
 
   componentWillReceiveProps(nextProps) {

@@ -22,7 +22,7 @@ import { connectComplexForm } from "components/Forms/connectComplexForm";
 import { formSectionTitle } from "uiTheme/radium/exploreTransform";
 import { inputForRadio, radioStacked } from "@app/uiTheme/less/forms.less";
 import { sectionMargin } from "@app/uiTheme/less/layout.less";
-
+import { intl } from "@app/utils/intl";
 import { isRequired, applyValidators } from "utils/validation";
 import TransformForm, { formWrapperProps } from "../../forms/TransformForm";
 import { transformProps } from "./../../forms/TransformationPropTypes";
@@ -55,6 +55,7 @@ export class NonMatchingForm extends Component {
 
   render() {
     const { fields } = this.props;
+    const { formatMessage } = intl;
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
@@ -62,19 +63,23 @@ export class NonMatchingForm extends Component {
       >
         <div>
           <span style={{ ...formSectionTitle, marginBottom: 5 }}>
-            {la("Action for Non-matching Values")}
+            {formatMessage({
+              id: "Action.ForNonMatchingValues",
+            })}
           </span>
           <Radio
             className={radioStacked}
             {...fields.actionForNonMatchingValue}
-            label="Replace values with null"
+            label={formatMessage({ id: "Replace.Values.WithNull" })}
             radioValue="REPLACE_WITH_NULL"
           />
           <div>
             <Radio
               className={radioStacked}
               {...fields.actionForNonMatchingValue}
-              label="Replace values with:"
+              label={formatMessage({
+                id: "Replace.ValuesWith",
+              })}
               radioValue="REPLACE_WITH_DEFAULT"
             />
             <FieldWithError
@@ -95,7 +100,7 @@ export class NonMatchingForm extends Component {
           <Radio
             className={radioStacked}
             {...fields.actionForNonMatchingValue}
-            label="Delete records"
+            label={formatMessage({ id: "Delete.Rows" })}
             radioValue="DELETE_RECORDS"
           />
         </div>

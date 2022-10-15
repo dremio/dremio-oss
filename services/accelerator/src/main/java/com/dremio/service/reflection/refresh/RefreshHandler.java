@@ -17,12 +17,17 @@ package com.dremio.service.reflection.refresh;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelColumnOrigin;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.util.Pair;
+import org.apache.commons.collections.CollectionUtils;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -36,6 +41,7 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
+import com.dremio.exec.planner.common.MoreRelOptUtil.SimpleReflectionFinderVisitor;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
@@ -104,7 +110,9 @@ public class RefreshHandler implements SqlToPlanHandler {
       final SqlRefreshReflection materialize = SqlNodeUtil.unwrap(sqlNode, SqlRefreshReflection.class);
 
       if(!SystemUser.SYSTEM_USERNAME.equals(config.getContext().getQueryUserName())) {
-        throw SqlExceptionHelper.parseError("$MATERIALIZE not supported.", sql, materialize.getParserPosition())
+        throw SqlExceptionHelper.parseError(
+          "User \"" + config.getContext().getQueryUserName() + "\" is not allowed to run REFRESH REFLECTION command.",
+            sql, materialize.getParserPosition())
           .build(logger);
       }
 
@@ -177,6 +185,12 @@ public class RefreshHandler implements SqlToPlanHandler {
           ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
           reflectionId.getId(),
           materializationPath);
+
+      List<String> primaryKey = getPrimaryKeyFromMaterializationPlan(initial);
+      if(!CollectionUtils.isEmpty(primaryKey)) {
+        materialization.setPrimaryKeyList(primaryKey);
+        materializationStore.save(materialization);
+      }
 
       boolean isCreate = !isIcebergInsertRefresh(materialization, refreshDecisions[0]);
 
@@ -260,6 +274,27 @@ public class RefreshHandler implements SqlToPlanHandler {
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
+  }
+
+  private List<String> getPrimaryKeyFromMaterializationPlan(RelNode node) {
+    SimpleReflectionFinderVisitor visitor = new SimpleReflectionFinderVisitor();
+    node.accept(visitor);
+    final List<String> primaryKey = visitor.getPrimaryKey();
+    if (!CollectionUtils.isEmpty(primaryKey)) {
+      final List<Integer> indices = visitor.getIndices();
+      RelMetadataQuery mq = node.getCluster().getMetadataQuery();
+      Set<Integer> topmostNodeFields = new HashSet<>();
+      for (int i = 0; i < node.getRowType().getFieldList().size(); i++) {
+        RelColumnOrigin origin = mq.getColumnOrigin(node, i);
+        if (origin != null) {
+          topmostNodeFields.add(origin.getOriginColumnOrdinal());
+        }
+      }
+      if (topmostNodeFields.containsAll(indices)) {
+        return primaryKey;
+      }
+    }
+    return null;
   }
 
   private String getInheritedReflectionRouting(boolean isQueue, DatasetConfig datasetConfig, SqlHandlerConfig config) {

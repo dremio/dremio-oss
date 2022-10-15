@@ -98,9 +98,14 @@ public class TestAppBundleGenerator {
     Files.createDirectory(mainFolder.resolve("www-dremio"));
     Files.createFile(mainFolder.resolve("www-dremio/foo.jar"));
 
-    assertThat(AppBundleGenerator.toPathStream(Arrays.asList(mainFolder.resolve("a.jar").toString(),
-      mainFolder.resolve(".*-dremio").toString())))
-      .containsExactlyInAnyOrder(mainFolder.resolve("a.jar"), mainFolder.resolve("www-dremio"));
+    try (Stream<Path> stream = AppBundleGenerator.toPathStream(
+      Arrays.asList(
+        mainFolder.resolve("a.jar").toString(),
+        mainFolder.resolve(".*-dremio").toString())
+    )) {
+      assertThat(stream)
+        .containsExactlyInAnyOrder(mainFolder.resolve("a.jar"), mainFolder.resolve("www-dremio"));
+    }
   }
 
   @Test

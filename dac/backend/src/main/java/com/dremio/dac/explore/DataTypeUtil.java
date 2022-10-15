@@ -76,9 +76,11 @@ public final class DataTypeUtil {
       return DataType.DATETIME;
     case LIST:
       return DataType.LIST;
+    case MAP:
+      return DataType.MAP;
     case STRUCT:
     case GENERIC_OBJECT:
-      return DataType.MAP;
+      return DataType.STRUCT;
 //    case ???:
 //      return DataType.GEO;
     case MONEY:

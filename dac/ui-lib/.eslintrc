@@ -45,13 +45,14 @@
     "prefer-const": "error",
     "no-extra-boolean-cast": "warn",
     "react/no-string-refs": "error",
-    "react/no-find-dom-node": "warn",
+    "react/no-find-dom-node": "error",
     "react/jsx-no-duplicate-props": "error",
     "react/no-unescaped-entities": "error",
     "@typescript-eslint/ban-types": "warn",
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "react/no-unknown-property": "warn",
-    "react-hooks/rules-of-hooks": "warn"
+    "react-hooks/rules-of-hooks": "warn",
+    "react-hooks/exhaustive-deps": "error"
   },
   "settings": {
     "react": {

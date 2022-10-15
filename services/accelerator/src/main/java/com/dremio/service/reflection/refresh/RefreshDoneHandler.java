@@ -50,6 +50,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.DependencyGraph.DependencyException;
 import com.dremio.service.reflection.DependencyManager;
+import com.dremio.service.reflection.DependencyResolutionContext;
 import com.dremio.service.reflection.DependencyUtils;
 import com.dremio.service.reflection.ExtractedDependencies;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
@@ -74,7 +75,7 @@ import com.google.common.collect.Iterables;
 import io.protostuff.ByteString;
 
 /**
- * Handles successful refresh jobs
+ * Handles a completed job.  Created to handle a single job and then discarded.
  */
 public class RefreshDoneHandler {
   protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshDoneHandler.class);
@@ -91,6 +92,7 @@ public class RefreshDoneHandler {
   private final JobsService jobsService;
   private final BufferAllocator allocator;
   private final CatalogService catalogService;
+  private final DependencyResolutionContext dependencyResolutionContext;
 
   public RefreshDoneHandler(
     ReflectionEntry entry,
@@ -103,7 +105,8 @@ public class RefreshDoneHandler {
     Supplier<ExpansionHelper> expansionHelper,
     Path accelerationBasePath,
     BufferAllocator allocator,
-    CatalogService catalogService) {
+    CatalogService catalogService,
+    DependencyResolutionContext dependencyResolutionContext) {
     this.reflection = Preconditions.checkNotNull(entry, "reflection entry required");
     this.materialization = Preconditions.checkNotNull(materialization, "materialization required");
     this.job = Preconditions.checkNotNull(job, "jobDetails required");
@@ -115,6 +118,7 @@ public class RefreshDoneHandler {
     this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath, "acceleration base path required");
     this.allocator = allocator;
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
+    this.dependencyResolutionContext = Preconditions.checkNotNull(dependencyResolutionContext);
   }
 
   /**
@@ -134,7 +138,7 @@ public class RefreshDoneHandler {
     final ByteString planBytes = Preconditions.checkNotNull(decision.getLogicalPlan(),
       "refresh jobInfo has no logical plan");
 
-    updateDependencies(reflection.getId(), lastAttempt.getInfo(), decision, namespaceService, dependencyManager);
+    updateDependencies(reflection, lastAttempt.getInfo(), decision, namespaceService, dependencyManager);
 
     failIfNotEnoughRefreshesAvailable(decision);
 
@@ -191,7 +195,7 @@ public class RefreshDoneHandler {
     return decision;
   }
 
-  public static RefreshDecision getRefreshDecision(final JobAttempt jobAttempt) {
+  public RefreshDecision getRefreshDecision(final JobAttempt jobAttempt) {
     if(jobAttempt.getExtraInfoList() == null || jobAttempt.getExtraInfoList().isEmpty()) {
       throw new IllegalStateException("No refresh decision found in refresh job.");
     }
@@ -226,23 +230,24 @@ public class RefreshDoneHandler {
       getId(materialization), seriesOrdinal, numRefreshes);
   }
 
-  public static void updateDependencies(final ReflectionId id, final JobInfo info, final RefreshDecision decision,
+  public void updateDependencies(final ReflectionEntry entry, final JobInfo info, final RefreshDecision decision,
       final NamespaceService namespaceService, final DependencyManager dependencyManager) throws NamespaceException, DependencyException {
     final ExtractedDependencies dependencies = DependencyUtils.extractDependencies(namespaceService, info, decision);
     if (decision.getInitialRefresh()) {
       if (dependencies.isEmpty()) {
         throw UserException.reflectionError()
           .message("Could not find any physical dependencies for reflection %s most likely " +
-            "because one of its datasets has a select with options or it's a select from values", id.getId())
+            "because one of its datasets has a select with options or it's a select from values", entry.getId())
           .build(logger);
       }
 
-      dependencyManager.setDependencies(id, dependencies);
+      dependencyManager.setDependencies(entry.getId(), dependencies);
     } else if (!dependencies.getPlanDependencies().isEmpty()) {
       // for incremental refresh, only update the dependencies if planDependencies are not empty, otherwise it's most
       // likely an empty incremental refresh
-      dependencyManager.setDependencies(id, dependencies);
+      dependencyManager.setDependencies(entry.getId(), dependencies);
     }
+    dependencyManager.updateDontGiveUp(entry, dependencyResolutionContext);
   }
 
   private void createAndSaveRefresh(final JobDetails details, final RefreshDecision decision) {
@@ -261,7 +266,7 @@ public class RefreshDoneHandler {
     logger.trace("Refresh created: {}", refresh);
     materializationStore.save(refresh);
 
-    logger.debug("materialization {} was written to {}", ReflectionUtils.getId(materialization), PathUtils.constructFullPath(refreshPath));
+    logger.debug("Refresh written to {} for {}", PathUtils.constructFullPath(refreshPath), ReflectionUtils.getId(materialization));
   }
 
   private List<DataPartition> getDataPartitions() {
@@ -338,7 +343,7 @@ public class RefreshDoneHandler {
   private long computeExpiration() {
     final ReflectionId reflectionId = materialization.getReflectionId();
     final long jobStart = materialization.getInitRefreshSubmit();
-    final Optional<Long> gracePeriod = dependencyManager.getGracePeriod(reflectionId);
+    final Optional<Long> gracePeriod = dependencyManager.getGracePeriod(reflectionId, dependencyResolutionContext);
     final Optional<Long> earliestExpiration = dependencyManager.getEarliestExpiration(reflectionId);
 
     if (gracePeriod.isPresent() && earliestExpiration.isPresent()) {

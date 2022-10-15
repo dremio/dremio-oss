@@ -147,7 +147,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
         BigIntVector.class,
         loader.getValueVectorId(SchemaPath.getCompoundPath("total_sum")).getFieldIds()
     );
-    assertEquals(4999950000l, vw.getValueVector().getObject(0));
+    assertEquals(4999950000L, vw.getValueVector().getObject(0));
     b.release();
     loader.clear();
   }
@@ -166,7 +166,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
         BigIntVector.class,
         loader.getValueVectorId(SchemaPath.getCompoundPath("row_count")).getFieldIds()
     );
-    assertEquals(3573l, vw.getValueVector().getObject(0));
+    assertEquals(3573L, vw.getValueVector().getObject(0));
     b.release();
     loader.clear();
   }
@@ -277,7 +277,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
       int numberOfRowGroups, int recordsPerRowGroup, boolean testValues) throws Exception {
 
     // final RecordBatchLoader batchLoader = new RecordBatchLoader(getRecordAllocator());
-    final HashMap<String, FieldInfo> fields = new HashMap<>();
+    final Map<String, FieldInfo> fields = new HashMap<>();
     final ParquetTestProperties props =
         new ParquetTestProperties(numberRowGroups, recordsPerRowGroup, DEFAULT_BYTES_PER_PAGE, fields);
     TestFileGenerator.populateFieldInfoMap(props);
@@ -316,7 +316,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   public void testParquetFullEngineRemote(String plan, String filename,
       int numberOfTimesRead /* specified in json plan */,
       int numberOfRowGroups, int recordsPerRowGroup) throws Exception {
-    final HashMap<String, FieldInfo> fields = new HashMap<>();
+    final Map<String, FieldInfo> fields = new HashMap<>();
     final ParquetTestProperties props =
         new ParquetTestProperties(numberRowGroups, recordsPerRowGroup, DEFAULT_BYTES_PER_PAGE, fields);
     TestFileGenerator.populateFieldInfoMap(props);
@@ -351,7 +351,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testMultipleRowGroups() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(2, 300, DEFAULT_BYTES_PER_PAGE, fields);
     populateFieldInfoMap(props);
     testParquetFullEngineEventBased(true, "/parquet/parquet_scan_screen.json", "/tmp/test.parquet", 1, props);
@@ -362,7 +362,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   // For now I will upload it to the JIRA as an attachment.
   @Test
   public void testNullableColumns() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 1500000, DEFAULT_BYTES_PER_PAGE, fields);
     Object[] boolVals = {true, null, null};
     props.fields.put("a", new FieldInfo("boolean", "a", 1, boolVals, TypeProtos.MinorType.BIT, props));
@@ -376,7 +376,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
    * a converted type of UTF-8 to make sure it can be read
    */
   public void testNullableColumnsVarLen() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 300000, DEFAULT_BYTES_PER_PAGE, fields);
     byte[] val = {'b'};
     byte[] val2 = {'b', '2'};
@@ -385,7 +385,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
     Object[] byteArrayVals = { val, val2, val4};
     props.fields.put("a", new FieldInfo("boolean", "a", 1, byteArrayVals, TypeProtos.MinorType.BIT, props));
     testParquetFullEngineEventBased(false, "/parquet/parquet_nullable_varlen.json", "/tmp/nullable_varlen.parquet", 1, props);
-    HashMap<String, FieldInfo> fields2 = new HashMap<>();
+    Map<String, FieldInfo> fields2 = new HashMap<>();
     // pass strings instead of byte arrays
     Object[] textVals = { new org.apache.arrow.vector.util.Text("b"), new org.apache.arrow.vector.util.Text("b2"),
         new org.apache.arrow.vector.util.Text("b3") };
@@ -399,7 +399,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testFileWithNulls() throws Exception {
-    HashMap<String, FieldInfo> fields3 = new HashMap<>();
+    Map<String, FieldInfo> fields3 = new HashMap<>();
     ParquetTestProperties props3 = new ParquetTestProperties(1, 3000, DEFAULT_BYTES_PER_PAGE, fields3);
     // actually include null values
     Object[] valuesWithNull = {new Text(""), new Text("longer string"), null};
@@ -412,7 +412,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testDictionaryEncoding() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 25, DEFAULT_BYTES_PER_PAGE, fields);
     Object[] boolVals = null;
     props.fields.put("n_name", null);
@@ -438,7 +438,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testMultipleRowGroupsAndReads() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(4, 3000, DEFAULT_BYTES_PER_PAGE, fields);
     populateFieldInfoMap(props);
     String readEntries = "";
@@ -458,7 +458,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   @Test
   public void testReadError_Drill_901() throws Exception {
     // select cast( L_COMMENT as varchar) from  dfs_test.\"/tmp/dremiotest/employee_parquet\"
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 60175, DEFAULT_BYTES_PER_PAGE, fields);
     testParquetFullEngineEventBased(false, false, "/parquet/par_writer_test.json", null,
         "unused, no file is generated", 1, props, QueryType.PHYSICAL);
@@ -468,7 +468,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   @Test
   public void testReadError_Drill_839() throws Exception {
     // select cast( L_COMMENT as varchar) from  dfs.\"/tmp/dremiotest/employee_parquet\"
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 150000, DEFAULT_BYTES_PER_PAGE, fields);
     String readEntries = "\"/tmp/customer_nonull.parquet\"";
     testParquetFullEngineEventBased(false, false, "/parquet/parquet_scan_screen_read_entry_replace.json", readEntries,
@@ -478,9 +478,9 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testReadBug_Drill_418() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 150000, DEFAULT_BYTES_PER_PAGE, fields);
-    TestFileGenerator.populateDrill_418_fields(props);
+    TestFileGenerator.populateFieldsForDrill418(props);
     String readEntries = "\"/tmp/customer.plain.parquet\"";
     testParquetFullEngineEventBased(false, false, "/parquet/parquet_scan_screen_read_entry_replace.json", readEntries,
         "unused, no file is generated", 1, props, QueryType.LOGICAL);
@@ -490,7 +490,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testMultipleRowGroupsAndReadsPigError() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 1500000, DEFAULT_BYTES_PER_PAGE, fields);
     TestFileGenerator.populatePigTPCHCustomerFields(props);
     String readEntries = "\"/tmp/tpc-h/customer\"";
@@ -512,8 +512,8 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   }
 
   @Test
-  public void drill_958bugTest() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+  public void test_drill_958bug() throws Exception {
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 2880404, DEFAULT_BYTES_PER_PAGE, fields);
     TestFileGenerator.populatePigTPCHCustomerFields(props);
     String readEntries = "\"/tmp/store_sales\"";
@@ -523,7 +523,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testMultipleRowGroupsEvent() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(2, 300, DEFAULT_BYTES_PER_PAGE, fields);
     populateFieldInfoMap(props);
     testParquetFullEngineEventBased(true, "/parquet/parquet_scan_screen.json", "/tmp/test.parquet", 1, props);
@@ -538,7 +538,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
    */
   @Test
   public void testSelectColumnRead() throws Exception {
-    HashMap<String, FieldInfo> fields = new HashMap<>();
+    Map<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(4, 3000, DEFAULT_BYTES_PER_PAGE, fields);
     // generate metatdata for a series of test columns, these columns are all generated in the test file
     populateFieldInfoMap(props);
@@ -579,7 +579,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
     }
 
     final ParquetResultListener resultListener = new ParquetResultListener(getAllocator(), props, numberOfTimesRead, testValues);
-    final long C = System.nanoTime();
+    final long startTime = System.nanoTime();
     String planText = Files.toString(FileUtils.getResourceAsFile(plan), Charsets.UTF_8);
     // substitute in the string for the read entries, allows reuse of the plan file for several tests
     if (readEntries != null) {
@@ -587,7 +587,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
     }
     testWithListener(queryType, planText, resultListener);
     resultListener.getResults();
-    final long D = System.nanoTime();
-    System.out.println(String.format("Took %f s to run query", (D-C) / 1E9));
+    final long endTime = System.nanoTime();
+    System.out.println(String.format("Took %f s to run query", (endTime-startTime) / 1E9));
   }
 }

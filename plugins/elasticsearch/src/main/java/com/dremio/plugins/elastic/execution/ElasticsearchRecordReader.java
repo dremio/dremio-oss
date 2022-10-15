@@ -238,7 +238,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       throw UserException.dataReadError(e)
         .message("Failure when initiating Elastic query.")
         .addContext("Resource", resource)
-        .addContext("Shard", splitAttributes == null ? "all" : splitAttributes.getShard())
+        .addContext("Shard %s", splitAttributes == null ? "all" : splitAttributes.getShard())
         .addContext("Query", query)
         .build(logger);
     }

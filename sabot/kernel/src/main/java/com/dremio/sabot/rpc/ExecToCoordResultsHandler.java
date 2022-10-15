@@ -30,5 +30,6 @@ public interface ExecToCoordResultsHandler {
 
   void dataArrived(QueryData header, ByteBuf data, JobResultsRequest jobResultsRequest, ResponseSender sender) throws RpcException;
 
-  void dataArrived(JobResultsRequestWrapper jobResultsRequestWrapper, ResponseSender sender) throws RpcException;
+  // return true if result was forwarded
+  boolean dataArrived(JobResultsRequestWrapper jobResultsRequestWrapper, ResponseSender sender) throws RpcException;
 }

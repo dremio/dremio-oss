@@ -19,10 +19,10 @@ import classNames from "classnames";
 import FormUtils from "utils/FormUtils/FormUtils";
 import FormElement from "components/Forms/FormElement";
 import FormSection from "components/Forms/FormSection";
-import HoverHelp from "components/HoverHelp";
 import Checkbox from "components/Fields/Checkbox";
 import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
 import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import { HoverHelp } from "dremio-ui-lib";
 
 import {
   flexContainer,
@@ -32,7 +32,6 @@ import {
 import {
   checkboxMargin,
   indentedContainer,
-  tooltipIcon,
 } from "./CheckEnabledContainer.less";
 
 /**
@@ -67,7 +66,7 @@ export default class CheckEnabledContainer extends Component {
       elementConfig.getPropName()
     );
     this.setCheckboxFieldCheckedProp(checkField); // to avoid react controlled/uncontrolled field warning
-    const tooltipStyle = { width: 180 }; // since this component appears in narrow forms, need to limit tooltip width
+
     const enableContainer = checkField.checked;
     const isInverted = elementConfigJson.inverted ? { inverted: true } : null;
     const isInvertedContainer = elementConfigJson.invertContainer;
@@ -92,11 +91,7 @@ export default class CheckEnabledContainer extends Component {
             label={elementConfigJson.label}
           />
           {elementConfigJson.checkTooltip && (
-            <HoverHelp
-              content={elementConfigJson.checkTooltip}
-              className={tooltipIcon}
-              tooltipInnerStyle={tooltipStyle}
-            />
+            <HoverHelp content={elementConfigJson.checkTooltip} />
           )}
         </div>
         {(elementConfigJson.whenNotChecked !== "hide" || enableContainer) && (

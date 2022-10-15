@@ -21,10 +21,9 @@ package com.mapr.fs;
  * Included for compiling ShimLoader
  *
  */
-// CHECKSTYLE:OFF FinalClass
-
-public class OSInfo {
+public final class OSInfo {
   private OSInfo() {
+    // utility class
   }
 
   public static void main(String[] args) {
@@ -52,16 +51,17 @@ public class OSInfo {
   }
 
   public static String getArchName() {
-    // CHECKSTYLE:OFF EqualsAvoidNullCheck
     String osArch = System.getProperty("os.arch");
-    if (getOSName().equals("Mac") && (osArch.equals("universal") || osArch.equals("amd64"))) {
+    if ("Mac".equals(getOSName()) && ("universal".equals(osArch) || "amd64".equals(osArch))) {
       return "x86_64";
-    } else if (osArch.equals("amd64")) {
-      return "x86_64";
-    } else {
-      return osArch.equals("x86") ? "i386" : translateArchNameToFolderName(osArch);
     }
-    // CHECKSTYLE:ON
+    if ("amd64".equals(osArch)) {
+      return "x86_64";
+    }
+    if ("x86".equals(osArch)) {
+      return "i386";
+    }
+    return translateArchNameToFolderName(osArch);
   }
 
   static String translateOSNameToFolderName(String osName) {
@@ -78,4 +78,3 @@ public class OSInfo {
     return archName.replaceAll("\\W", "");
   }
 }
-// CHECKSTYLE:ON

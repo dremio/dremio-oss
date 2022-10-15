@@ -20,7 +20,6 @@ import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 import javax.inject.Named;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.DensityAwareVector;
 import org.apache.arrow.vector.ValueVector;
@@ -33,6 +32,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
+import com.google.common.base.Preconditions;
 
 @SuppressWarnings("checkstyle:VisibilityModifier")
 public abstract class CopierTemplate4 implements Copier {

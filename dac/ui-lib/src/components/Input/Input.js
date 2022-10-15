@@ -48,6 +48,7 @@ const Input = (props) => {
       setFieldValue,
       handleChange: formikHandleChange,
     },
+    subtitle,
     hideError,
     prefix,
     toggleField,
@@ -88,6 +89,9 @@ const Input = (props) => {
     { "--error": hasError },
     { "--focused": focused }
   );
+  const subtitleClass = clsx("subtitle", {
+    [classes.subtitle]: classes.subtitle,
+  });
 
   const handleFocus = (...args) => {
     setFocused(true);
@@ -158,6 +162,7 @@ const Input = (props) => {
           {toggleField && <ToggleFieldVisibility onView={onView} />}
         </div>
       )}
+      {subtitle && <p className={subtitleClass}>{subtitle}</p>}
       <div className={containerClass}>
         {prefix && <span className="input__prefix">{prefix}</span>}
         <input
@@ -201,6 +206,7 @@ Input.propTypes = {
     container: PropTypes.string,
   }),
   name: PropTypes.string,
+  subtitle: PropTypes.string,
   onFocus: PropTypes.func,
   onBlur: PropTypes.func,
   onChange: PropTypes.func,

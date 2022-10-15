@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeBinary;
@@ -79,7 +80,7 @@ import com.dremio.test.DremioTest;
 
 public class TestSchemaConverter extends DremioTest {
 
-  private final SchemaConverter schemaConverter = new SchemaConverter();
+  private final SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
 
 
   @Test
@@ -165,6 +166,23 @@ public class TestSchemaConverter extends DremioTest {
   }
 
   @Test
+  public void map() {
+    SchemaConverter sc = SchemaConverter.getBuilder().setMapTypeEnabled(true).build();
+    Field struct = CompleteType.struct(
+      VARCHAR.toField("key", false),
+      VARCHAR.toField("value")
+    ).toField(MapVector.DATA_VECTOR_NAME, false);
+
+    BatchSchema schema = BatchSchema.newBuilder()
+      .addField(new Field("map", new FieldType(true, CompleteType.MAP.getType(), null), Arrays.asList(struct)))
+      .build();
+
+    Schema icebergSchema = sc.toIcebergSchema(schema);
+    BatchSchema result = sc.fromIceberg(icebergSchema);
+    assertEquals(result, schema);
+  }
+
+  @Test
   public void struct() {
     Field struct = CompleteType.struct(
       VARCHAR.toField("varchar"),
@@ -179,29 +197,6 @@ public class TestSchemaConverter extends DremioTest {
     Schema icebergSchema =  schemaConverter.toIcebergSchema(schema);
     BatchSchema result =  schemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
-  }
-
-  @Test
-  public void map() {
-    Schema icebergSchema = new Schema(
-      optional(1, "map",
-        MapType.ofOptional(2, 3, IntegerType.get(), FloatType.get()))
-    );
-
-    List<Field> children = Arrays.asList(
-      INT.toField("key"),
-      FLOAT.toField("value")
-    );
-    BatchSchema schema = BatchSchema.newBuilder()
-      .addField(new CompleteType(new ArrowType.Map(false), children).toField("map"))
-      .build();
-
-    BatchSchema result =  schemaConverter.fromIceberg(icebergSchema);
-    // dremio silently drops map type columns
-    assertEquals(result.getFieldCount(), 0);
-
-    Schema icebergResult =  schemaConverter.toIcebergSchema(schema);
-    assertEquals(icebergSchema.toString(), icebergResult.toString());
   }
 
   @Test
@@ -378,14 +373,15 @@ public class TestSchemaConverter extends DremioTest {
   @Test
   public void testSeededFieldIdBrokerForMap() {
     Schema icebergSchema = new Schema(
-      optional(1, "map", MapType.ofOptional(2, 3, IntegerType.get(), ListType.ofOptional(4, StringType.get())))
+      optional(4, "map", MapType.ofOptional(2, 3, IntegerType.get(), ListType.ofOptional(1, StringType.get())))
     );
     Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
     CaseInsensitiveImmutableBiMap<Integer> columnIdMapping = CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap);
 
-    List<Field> children = Arrays.asList(INT.toField("int"), VARCHAR.asList().toField("varchar"));
-    Field mapField = new Field("map", FieldType.nullable(new ArrowType.Map(false)), children);
-    Types.NestedField nestedField =  schemaConverter.toIcebergColumn(mapField, new SeededFieldIdBroker(columnIdMapping));
+    // Name of key and value fields can only be named key and value respectively. As iceberg does not store the field names of key and value in metadata.
+    List<Field> children = Arrays.asList(INT.toField("key", false), VARCHAR.asList().toField("value"));
+    Field mapField = new Field("map", FieldType.nullable(CompleteType.MAP.getType()), Arrays.asList(CompleteType.struct(children).toField(MapVector.DATA_VECTOR_NAME, false)));
+    Types.NestedField nestedField = schemaConverter.toIcebergColumn(mapField, new SeededFieldIdBroker(columnIdMapping));
     assertEquals(nestedField, icebergSchema.columns().get(0));
   }
 

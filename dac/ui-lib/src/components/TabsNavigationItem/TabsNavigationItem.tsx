@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import clsx from "clsx";
+import * as React from "react";
 
 import "./TabsNavigationItem.scss";
 

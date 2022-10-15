@@ -15,7 +15,7 @@
  */
 // @ts-ignore
 import { RSAA } from "redux-api-middleware";
-import { APIV3Call } from "@app/core/APICall";
+import { APIV2Call } from "@app/core/APICall";
 
 export const FETCH_SCRIPTS_START = "FETCH_SCRIPTS_START";
 export const FETCH_SCRIPTS_SUCCESS = "FETCH_SCRIPTS_SUCCESS";
@@ -35,7 +35,7 @@ export function fetchScripts({
   createdBy: string | null;
 }): any {
   const meta = { viewId: "AllScripts" };
-  const apiCall = new APIV3Call()
+  const apiCall = new APIV2Call()
     .path("scripts")
     .params({ orderBy: "-modifiedAt" })
     .params({ maxResults: maxResults });
@@ -75,7 +75,7 @@ export const CREATE_SCRIPT_FAILURE = "CREATE_SCRIPT_FAILURE";
 
 export function createScript(payload: any): any {
   const meta = { viewId: "AllScripts" };
-  const apiCall = new APIV3Call().path("scripts");
+  const apiCall = new APIV2Call().path("scripts");
 
   return {
     [RSAA]: {
@@ -101,7 +101,7 @@ export function updateScript(
   hideFail: boolean
 ): any {
   const meta = { viewId: "AllScripts" };
-  const apiCall = new APIV3Call().path("scripts").path(scriptId);
+  const apiCall = new APIV2Call().path("scripts").path(scriptId);
 
   return {
     [RSAA]: {
@@ -126,7 +126,7 @@ export const DELETE_SCRIPT_FAILURE = "DELETE_SCRIPT_FAILURE";
 
 export function deleteScript(scriptId: string): any {
   const meta = { viewId: "AllScripts" };
-  const apiCall = new APIV3Call().path("scripts").path(scriptId);
+  const apiCall = new APIV2Call().path("scripts").path(scriptId);
 
   return {
     [RSAA]: {

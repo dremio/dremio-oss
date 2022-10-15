@@ -130,7 +130,7 @@ public class SimpleUserService implements UserService, Service {
 
   @Override
   public User getUser(String userName) throws UserNotFoundException {
-    if (SystemUser.SYSTEM_USER.getUserName().equals(userName)) {
+    if (SystemUser.isSystemUserName(userName)) {
       return SystemUser.SYSTEM_USER;
     }
 
@@ -143,6 +143,10 @@ public class SimpleUserService implements UserService, Service {
 
   @Override
   public User getUser(UID uid) throws UserNotFoundException {
+    if (SystemUser.isSystemUID(uid)) {
+      return SystemUser.SYSTEM_USER;
+    }
+
     final UserInfo userInfo = userStore.get().get(uid);
     if (userInfo == null) {
       throw new UserNotFoundException(uid);
@@ -332,7 +336,7 @@ public class SimpleUserService implements UserService, Service {
       UserAuth userAuth = userInfo.getAuth();
       final byte[] authKey = buildUserAuthKey(password, userAuth.getPrefix().toByteArray());
       if (!UserServiceUtils.slowEquals(authKey, userAuth.getAuthKey().toByteArray())) {
-        throw new UserLoginException(userName, "Invalid user credentials");
+        throw new UserLoginException(userName, "Login failed: Invalid username or password");
       }
 
       return AuthResult.of(userName);
@@ -464,7 +468,7 @@ public class SimpleUserService implements UserService, Service {
     if(key == null){
       throw UserException
         .functionError()
-        .message("Unable to sort by field {}",  sortColumn)
+        .message("Unable to sort by field %s", sortColumn)
         .build(logger);
     }
 

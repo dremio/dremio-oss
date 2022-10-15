@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 @import "../../../components/colors.less"; // contains only variables
+@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -23,7 +24,7 @@
 
   .ExploreHeader {
     align-items: center;
-    border-bottom: 1px solid #e9edf0;
+    border-bottom: 1px solid @SECONDARY_200;
     display: flex;
     flex-direction: row;
     justify-content: space-between;

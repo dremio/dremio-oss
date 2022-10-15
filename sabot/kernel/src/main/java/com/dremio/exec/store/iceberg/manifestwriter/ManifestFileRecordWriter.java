@@ -142,7 +142,7 @@ public class ManifestFileRecordWriter implements RecordWriter {
         List<String> partitionColumns = writerOptions.getIcebergTableProps().getPartitionColumnNames();
         BatchSchema batchSchema = writerOptions.getIcebergTableProps().getFullSchema();
         PartitionSpec icebergPartitionSpec = IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns,
-          new SchemaConverter().toIcebergSchema(batchSchema));
+          SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema));
         partitionData = IcebergPartitionData.fromStructLike(icebergPartitionSpec, deleteDataFile.partition());
       }
 

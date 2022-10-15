@@ -389,10 +389,10 @@ public class TestLocalExchange extends PlanTestBase {
       // if Demux is enabled it also should use HashExpr
       if ( isDemuxEnabled && k == i-3) {
         assertTrue("UnorderdDemuxExchange should follow HashToRandomExchange",
-            popObj.has("pop") && popObj.get("pop").equals(DEMUX_EXCHANGE_CONST));
+            popObj.has("pop") && popObj.get("pop").asText().equals(DEMUX_EXCHANGE_CONST));
         // is HashToRandom is using HashExpr
         assertTrue("UnorderdDemuxExchange should use hashExpr",
-            popObj.has("expr") && popObj.get("expr").equals("`"+HASH_EXPR_NAME +"`"));
+            popObj.has("expr") && popObj.get("expr").asText().equals("`"+HASH_EXPR_NAME +"`"));
       }
       if ( (isDemuxEnabled && k == i-4) || (!isDemuxEnabled && k == i-3) ) {
         // it should be a project without hashexpr, check if number of exprs is 1 less then in first project

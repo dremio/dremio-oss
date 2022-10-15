@@ -51,10 +51,10 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
           new FieldVectorPair(col3, col3),
           new FieldVectorPair(col4, col4)
       );
-      Integer col1Val[] = populate4ByteValues(col1, 4096);
-      Long col2Val[] = populate8ByteValues(col2, 4096);
-      BigDecimal col3Val[] = populate16ByteValues(col3, 4096);
-      Boolean col4Val[] = populateBooleanValues(col4, 4096);
+      Integer[] col1Val = populate4ByteValues(col1, 4096);
+      Long[] col2Val = populate8ByteValues(col2, 4096);
+      BigDecimal[] col3Val = populate16ByteValues(col3, 4096);
+      Boolean[] col4Val = populateBooleanValues(col4, 4096);
 
       assertEquals(32, pivot.getBlockWidth());
 
@@ -89,10 +89,10 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
         new FieldVectorPair(col3, col3),
         new FieldVectorPair(col4, col4)
       );
-      Integer col1Val[] = populate4ByteValuesWithoutNull(col1, 4096);
-      Long col2Val[] = populate8ByteValuesWithoutNull(col2, 4096);
-      BigDecimal col3Val[] = populate16ByteValuesWithoutNull(col3, 4096);
-      Boolean col4Val[] = populateBooleanValuesWithoutNull(col4, 4096);
+      Integer[] col1Val = populate4ByteValuesWithoutNull(col1, 4096);
+      Long[] col2Val = populate8ByteValuesWithoutNull(col2, 4096);
+      BigDecimal[] col3Val = populate16ByteValuesWithoutNull(col3, 4096);
+      Boolean[] col4Val = populateBooleanValuesWithoutNull(col4, 4096);
 
       assertEquals(32, pivot.getBlockWidth());
 
@@ -138,9 +138,9 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
           new FieldVectorPair(col2, col2),
           new FieldVectorPair(col3, col3)
       );
-      Integer col1Val[] = populate4ByteValues(col1, 4096);
-      Long col2Val[] = populate8ByteValues(col2, 4096);
-      String col3Val[] = populateVarCharValues(col3, 4096);
+      Integer[] col1Val = populate4ByteValues(col1, 4096);
+      Long[] col2Val = populate8ByteValues(col2, 4096);
+      String[] col3Val = populateVarCharValues(col3, 4096);
 
       assertEquals(20, pivot.getBlockWidth());
 
@@ -173,9 +173,9 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
         new FieldVectorPair(col2, col2),
         new FieldVectorPair(col3, col3)
       );
-      Integer col1Val[] = populate4ByteValuesWithoutNull(col1, 4096);
-      Long col2Val[] = populate8ByteValuesWithoutNull(col2, 4096);
-      String col3Val[] = populateVarCharValuesWithoutNull(col3, 4096);
+      Integer[] col1Val = populate4ByteValuesWithoutNull(col1, 4096);
+      Long[] col2Val = populate8ByteValuesWithoutNull(col2, 4096);
+      String[] col3Val = populateVarCharValuesWithoutNull(col3, 4096);
 
       assertEquals(20, pivot.getBlockWidth());
 
@@ -313,7 +313,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static Integer[] populate4ByteValues(IntVector vector, int size){
     vector.allocateNew();
-    Integer values[] = new Integer[size];
+    Integer[] values = new Integer[size];
     for(int i =0; i < size; i++){
       if(RAND.nextBoolean()){
         values[i] = RAND.nextInt();
@@ -326,7 +326,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static Integer[] populate4ByteValuesWithoutNull(IntVector vector, int size){
     vector.allocateNew();
-    Integer values[] = new Integer[size];
+    Integer[] values = new Integer[size];
     for(int i =0; i < size; i++){
       values[i] = RAND.nextInt();
       vector.setSafe(i, values[i]);
@@ -359,7 +359,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static Long[] populate8ByteValues(BigIntVector vector, int size){
     vector.allocateNew();
-    Long values[] = new Long[size];
+    Long[] values = new Long[size];
     for(int i = 0; i < values.length; i++){
       if (RAND.nextBoolean()) {
         values[i] = RAND.nextLong();
@@ -372,7 +372,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static Long[] populate8ByteValuesWithoutNull(BigIntVector vector, int size){
     vector.allocateNew();
-    Long values[] = new Long[size];
+    Long[] values = new Long[size];
     for(int i = 0; i < values.length; i++){
       values[i] = RAND.nextLong();
       vector.setSafe(i, values[i]);
@@ -410,7 +410,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static BigDecimal[] populate16ByteValues(DecimalVector vector, int size){
     vector.allocateNew();
-    BigDecimal values[] = new BigDecimal[size];
+    BigDecimal[] values = new BigDecimal[size];
     for(int i =0; i < values.length; i++){
       if (RAND.nextBoolean()) {
         values[i] = BigDecimal.valueOf(RAND.nextLong());
@@ -423,7 +423,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static BigDecimal[] populate16ByteValuesWithoutNull(DecimalVector vector, int size){
     vector.allocateNew();
-    BigDecimal values[] = new BigDecimal[size];
+    BigDecimal[] values = new BigDecimal[size];
     for(int i =0; i < values.length; i++){
       values[i] = BigDecimal.valueOf(RAND.nextLong());
       vector.setSafe(i, values[i]);
@@ -452,7 +452,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
       if (actualNulls[i] != 0) {
         int offset = buf.getInt(i * blockWidth + blockWidth - 4);
         int len = varBlock.getUnderlying().getInt(offset + 4);
-        byte val[] = new byte[len];
+        byte[] val = new byte[len];
         varBlock.getUnderlying().getBytes(offset + 4 + 4, val, 0, len);
         actualValues[i] = new String(val, Charsets.UTF_8);
       }
@@ -463,7 +463,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static String[] populateVarCharValues(VarCharVector vector, int size){
     vector.allocateNew();
-    String values[] = new String[size];
+    String[] values = new String[size];
     for(int i =0; i < values.length; i++){
       if (RAND.nextBoolean()) {
         values[i] = RandomStringUtils.randomAlphanumeric(RAND.nextInt(25));
@@ -476,7 +476,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
 
   static String[] populateVarCharValuesWithoutNull(VarCharVector vector, int size){
     vector.allocateNew();
-    String values[] = new String[size];
+    String[] values = new String[size];
     for(int i =0; i < values.length; i++){
       values[i] = RandomStringUtils.randomAlphanumeric(RAND.nextInt(25));
       vector.setSafe(i, values[i].getBytes(Charsets.UTF_8));

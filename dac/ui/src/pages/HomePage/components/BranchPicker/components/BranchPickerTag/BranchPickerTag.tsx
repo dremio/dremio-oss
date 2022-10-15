@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Reference } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 import { getFullPathByType, getShortHash } from "@app/utils/nessieUtils";
 import classNames from "classnames";
 import RefIcon from "../RefIcon/RefIcon";
@@ -23,6 +23,7 @@ import "./BranchPickerTag.less";
 type TagContentProps = {
   reference: Reference;
   hash?: string | null;
+  rightContent?: React.ReactElement;
 };
 
 export function TagContent({ reference, hash }: TagContentProps) {
@@ -42,6 +43,7 @@ function BranchPickerTag({
   reference,
   hash,
   isOpen,
+  rightContent,
 }: TagContentProps & { isOpen?: boolean }) {
   return (
     <div
@@ -49,6 +51,7 @@ function BranchPickerTag({
       title={getFullPathByType(reference.name, hash)}
     >
       <TagContent reference={reference} hash={hash} />
+      {rightContent}
     </div>
   );
 }

@@ -63,7 +63,7 @@ public class TestPositionalDeleteFileReader extends BaseTestOperator {
   private static final int DEFAULT_BATCH_SIZE = 42;
 
   private OperatorContextImpl context;
-  private PositionalDeleteFileReaderFactory factory;
+  private RowLevelDeleteFileReaderFactory factory;
 
   private static IcebergTestTables.Table table;
 
@@ -82,11 +82,12 @@ public class TestPositionalDeleteFileReader extends BaseTestOperator {
     context = testContext.getNewOperatorContext(getTestAllocator(), null, DEFAULT_BATCH_SIZE, null);
     testCloseables.add(context);
     FileSystem fs = HadoopFileSystem.get(Path.of("/"), new Configuration(), context.getStats());
-    factory = new ParquetPositionalDeleteFileReaderFactory(
+    factory = new ParquetRowLevelDeleteFileReaderFactory(
         InputStreamProviderFactory.DEFAULT,
         ParquetReaderFactory.NONE,
         fs,
-        null);
+        null,
+        IcebergTestTables.V2_ORDERS_SCHEMA);
   }
 
   @Test
@@ -156,7 +157,7 @@ public class TestPositionalDeleteFileReader extends BaseTestOperator {
   }
 
   private PositionalDeleteFileReader createReader(Path deleteFilePath, List<String> dataFiles) throws Exception {
-    PositionalDeleteFileReader reader = factory.create(context, deleteFilePath, dataFiles);
+    PositionalDeleteFileReader reader = factory.createPositionalDeleteFileReader(context, deleteFilePath, dataFiles);
     testCloseables.add(reader);
     reader.setup();
     assertThat(reader.refCount()).isEqualTo(dataFiles.size());

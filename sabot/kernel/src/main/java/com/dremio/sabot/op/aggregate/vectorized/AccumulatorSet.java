@@ -86,7 +86,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     for (Accumulator a : children) {
       FieldVector output = a.getOutput();
       final TypeProtos.MinorType type = CompleteType.fromField(output.getField()).toMinorType();
-      if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY) {
+      if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY || type == TypeProtos.MinorType.LIST) {
         varLenAccums.add(a);
         if (a.getType() == AccumulatorBuilder.AccumulatorType.MAX ||
             a.getType() == AccumulatorBuilder.AccumulatorType.MIN) {
@@ -244,13 +244,20 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   @Override
   public void accumulate(final long memoryAddr, final int count,
                          final int bitsInChunk, final int chunkOffsetMask) {
-    for(Accumulator a : children){
+    for (Accumulator a : children) {
       a.accumulate(memoryAddr, count, bitsInChunk, chunkOffsetMask);
     }
   }
 
+  @Override
+  public void compact(final int batchIndex, final int nextRecSize) {
+    for (Accumulator a : children) {
+      a.compact(batchIndex, nextRecSize);
+    }
+  }
+
   public void output(int startBatchIndex, int[] recordsInBatches) {
-    for (Accumulator a : children){
+    for (Accumulator a : children) {
       a.output(startBatchIndex, recordsInBatches);
     }
   }
@@ -350,9 +357,9 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   }
 
   @Override
-  public boolean hasSpace(final int space, final int batchIndex) {
-    for(Accumulator a : children) {
-      if (!a.hasSpace(space, batchIndex)) {
+  public boolean hasSpace(final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
+    for (Accumulator a : children) {
+      if (!a.hasSpace(space, numOfRecords, batchIndex, offsetInBatch)) {
         return false;
       }
     }

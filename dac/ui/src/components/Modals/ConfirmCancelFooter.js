@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import clsx from "clsx";
 
 import PropTypes from "prop-types";
 
@@ -21,6 +22,7 @@ import SimpleButton from "components/Buttons/SimpleButton";
 
 import { modalFooter } from "uiTheme/radium/modal";
 import { ConfirmCancelFooterWithMixin } from "@inject/components/Modals/ConfirmCancelFooterMixin.js";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export class ConfirmCancelFooter extends Component {
   static defaultProps = {
@@ -46,6 +48,7 @@ export class ConfirmCancelFooter extends Component {
     footerChildren: PropTypes.node,
     style: PropTypes.object,
     confirmButtonStyle: PropTypes.string,
+    leftAlign: PropTypes.bool,
   };
 
   onCancel = (e) => {
@@ -74,12 +77,15 @@ export class ConfirmCancelFooter extends Component {
       canCancel,
       hideCancel,
       footerChildren,
+      leftAlign,
     } = this.props;
     const conditionalRenderingButtonStyling =
       this.checkToRenderSaveAndCancelButtons();
     return (
       <div
-        className="confirm-cancel-footer"
+        className={clsx("confirm-cancel-footer", {
+          "confirm-cancel-footer--leftAlign": leftAlign,
+        })}
         style={{
           ...(this.props.modalFooter ? modalFooter : styles.nonModalFooter),
           ...styles.base,
@@ -92,7 +98,9 @@ export class ConfirmCancelFooter extends Component {
             data-qa="cancel"
             type="button"
             buttonStyle="secondary"
-            className="margin-right"
+            className={clsx("margin-right", {
+              [classes["secondaryButtonPsuedoClasses"]]: canCancel,
+            })}
             disabled={!canCancel}
             // style={conditionalRenderingButtonStyling}  // Uncomment this line in the case you want conditional rendering of 'cancel' button based on canAlter permissions
             onClick={this.onCancel}
@@ -104,6 +112,9 @@ export class ConfirmCancelFooter extends Component {
           data-qa="confirm"
           type={submitForm ? "submit" : undefined}
           buttonStyle={confirmButtonStyle}
+          className={clsx({
+            [classes[`${confirmButtonStyle}ButtonPsuedoClasses`]]: canSubmit,
+          })}
           submitting={submitting}
           disabled={!canSubmit}
           style={conditionalRenderingButtonStyling}

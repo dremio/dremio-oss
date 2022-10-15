@@ -15,10 +15,9 @@
  */
 package com.dremio.service.autocomplete.tokens;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
 import com.dremio.exec.planner.sql.parser.impl.Token;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**

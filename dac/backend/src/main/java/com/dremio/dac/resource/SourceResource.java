@@ -95,7 +95,6 @@ import com.dremio.service.reflection.ReflectionAdministrationService;
 @RolesAllowed({"admin", "user"})
 @Path("/source/{sourceName}")
 public class SourceResource extends BaseResourceWithAllocator {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceResource.class);
 
   private final QueryExecutor executor;
   private final NamespaceService namespaceService;

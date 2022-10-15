@@ -260,7 +260,7 @@ public class BinderImpl implements Binder {
     public abstract ResolverType getType();
   }
 
-  public static class InstanceBinding<T> extends Binding<T> {
+  public static final class InstanceBinding<T> extends Binding<T> {
     private final Class<? extends T> instanceClass;
 
     private InstanceBinding(Class<T> iface, Class<? extends T> instanceClass) {
@@ -279,7 +279,7 @@ public class BinderImpl implements Binder {
 
   }
 
-  public static class SingletonBinding<T> extends Binding<T> {
+  public static final class SingletonBinding<T> extends Binding<T> {
     private final T singleton;
 
     private SingletonBinding(Class<T> iface, T singleton) {
@@ -297,7 +297,7 @@ public class BinderImpl implements Binder {
     }
   }
 
-  public static class ProviderBinding<T> extends Binding<T> {
+  public static final class ProviderBinding<T> extends Binding<T> {
     private final Provider<T> value;
 
     private ProviderBinding(Class<T> iface, Provider<T> value) {

@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 
-public class DataOutputOutputStream extends OutputStream {
+public final class DataOutputOutputStream extends OutputStream {
 
   private final DataOutput out;
 

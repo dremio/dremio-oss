@@ -29,6 +29,7 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.CachedAccelDetails;
@@ -61,7 +62,7 @@ public class NormalHandler implements SqlToPlanHandler {
     try{
       final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
       final PlanCache planCache = config.getContext().getPlanCache();
-      final long cachedKey = planCache.generateCacheKey(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
+      final String cachedKey = planCache.generateCacheKey(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
         config.getContext());
       config.getObserver().setCacheKey(cachedKey);
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
@@ -79,6 +80,11 @@ public class NormalHandler implements SqlToPlanHandler {
       Prel prel;
       if (!plannerSettings.isPlanCacheEnabled() || cachedPlan == null) {
         final Rel drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
+
+        if (!plannerSettings.ignoreScannedColumnsLimit()) {
+          long maxScannedColumns = config.getContext().getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX);
+          ScanLimitValidator.ensureLimit(drel, maxScannedColumns);
+        }
 
         final Pair<Prel, String> convertToPrel = PrelTransformer.convertToPrel(config, drel);
         prel = convertToPrel.getKey();

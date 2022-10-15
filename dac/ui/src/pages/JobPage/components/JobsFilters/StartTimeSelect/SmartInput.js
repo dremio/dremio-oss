@@ -34,6 +34,7 @@ class SmartInput extends PureComponent {
     onChange: PropTypes.func.isRequired,
     showPlaceholder: PropTypes.bool.isRequired,
     innerRef: PropTypes.any,
+    disabled: PropTypes.bool,
   };
 
   constructor(props) {
@@ -68,19 +69,21 @@ class SmartInput extends PureComponent {
   }
 
   render() {
-    const { mask, inputValue } = this.props;
+    const { mask, inputValue, disabled = false } = this.props;
     const width =
       inputValue.length * SYMBOL_WIDTH || mask.length * SYMBOL_WIDTH;
+    const disabledClass = disabled ? classes["disabled"] : "";
     return (
       <input
         ref={this.props.innerRef}
-        className={classes["smart-input"]}
+        className={`${classes["smart-input"]} ${disabledClass}`}
         style={{ width }}
         value={inputValue}
         tabIndex="-1"
         onBlur={this.onBlur}
         onFocus={this.onFocus}
         onChange={this.onChange}
+        disabled={disabled}
       />
     );
   }

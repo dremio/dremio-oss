@@ -77,6 +77,12 @@ public abstract class StringOutputRecordWriter extends AbstractRowBasedRecordWri
   public FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader) {
     throw new UnsupportedOperationException();
   }
+
+  @Override
+  public FieldConverter getNewStructConverter(int fieldId, String fieldName, FieldReader reader) {
+    throw new UnsupportedOperationException();
+  }
+
   public FieldConverter getNewRepeatedMapConverter(int fieldId, String fieldName, FieldReader reader) {
     throw new UnsupportedOperationException();
   }

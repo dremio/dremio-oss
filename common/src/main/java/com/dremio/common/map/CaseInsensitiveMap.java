@@ -30,7 +30,7 @@ import com.google.common.collect.Maps;
  *
  * @param <VALUE> the type of values to be stored in the map
  */
-public class CaseInsensitiveMap<VALUE> implements Map<String, VALUE> {
+public final class CaseInsensitiveMap<VALUE> implements Map<String, VALUE> {
 
   /**
    * Returns a new instance of {@link java.util.concurrent.ConcurrentMap} with key case-insensitivity. See

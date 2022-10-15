@@ -86,16 +86,8 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   public static final String SCHEMA_UNKNOWN_NO_DATA_COLNAME = "NO_DATA";
   public static final BatchSchema SCHEMA_UNKNOWN_NO_DATA = BatchSchema.newBuilder().addField(new Field(SCHEMA_UNKNOWN_NO_DATA_COLNAME, new FieldType(true, new ArrowType.Utf8(), null ), null)).build();
   public static final BatchSchema EMPTY = new BatchSchema(Collections.EMPTY_LIST);
-  public static final UnknownSchema UNKNOWN_SCHEMA_OBJECT = new UnknownSchema();
 
   public static final String MIXED_TYPES_ERROR = "Mixed types are not supported as returned values over JDBC, ODBC and Flight connections.";
-
-  public static final class UnknownSchema {
-    public final String NO_DATA;
-    private UnknownSchema() {
-      this.NO_DATA = null;
-    }
-  }
 
   private final SelectionVectorMode selectionVectorMode;
 
@@ -220,16 +212,20 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   }
 
   private List<Field> removeNullFields(List<Field> oldFields) {
+    return removeFieldsOfType(oldFields, ArrowTypeID.Null);
+  }
+
+  private List<Field> removeFieldsOfType(List<Field> oldFields, ArrowTypeID typeID) {
     List<Field> newFields = new ArrayList<>();
     for (Field field : oldFields) {
-      if (field.getFieldType().getType().getTypeID() == ArrowTypeID.Null) {
+      if (field.getFieldType().getType().getTypeID() == typeID) {
         continue;
       }
-      List<Field> childern = removeNullFields(field.getChildren());
-      if (field.getType().isComplex() && childern.isEmpty()) {
+      List<Field> children = removeFieldsOfType(field.getChildren(), typeID);
+      if (field.getType().isComplex() && children.isEmpty()) {
         continue;
       }
-      newFields.add(new Field(field.getName(), field.getFieldType(), childern));
+      newFields.add(new Field(field.getName(), field.getFieldType(), children));
     }
     return newFields;
   }
@@ -363,16 +359,17 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   public static enum SelectionVectorMode {
     NONE(-1, false), TWO_BYTE(2, true), FOUR_BYTE(4, true);
 
-    public boolean hasSelectionVector;
+    public final boolean hasSelectionVector;
     public final int size;
     SelectionVectorMode(int size, boolean hasSelectionVector) {
       this.size = size;
+      this.hasSelectionVector = hasSelectionVector;
     }
 
-    public static SelectionVectorMode[] DEFAULT = {NONE};
-    public static SelectionVectorMode[] NONE_AND_TWO = {NONE, TWO_BYTE};
-    public static SelectionVectorMode[] NONE_AND_FOUR = {NONE, FOUR_BYTE};
-    public static SelectionVectorMode[] ALL = {NONE, TWO_BYTE, FOUR_BYTE};
+    public static final SelectionVectorMode[] DEFAULT = {NONE};
+    public static final SelectionVectorMode[] NONE_AND_TWO = {NONE, TWO_BYTE};
+    public static final SelectionVectorMode[] NONE_AND_FOUR = {NONE, FOUR_BYTE};
+    public static final SelectionVectorMode[] ALL = {NONE, TWO_BYTE, FOUR_BYTE};
   }
 
   @Override

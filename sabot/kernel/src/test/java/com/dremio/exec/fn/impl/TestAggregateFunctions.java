@@ -46,7 +46,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery("select count(t.x.y)  as cnt1, count(\"integer\") as cnt2 from cp.\"/jsoninput/input2.json\" t")
         .ordered()
         .baselineColumns("cnt1", "cnt2")
-        .baselineValues(3l, 4l)
+        .baselineValues(3L, 4L)
         .build().run();
   }
 
@@ -57,7 +57,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
             "select count(distinct bool_col) as cnt from cp.\"parquet/alltypes_required.parquet\"")
         .ordered()
         .baselineColumns("cnt")
-        .baselineValues(1l)
+        .baselineValues(1L)
         .build()
         .run();
   }
@@ -124,7 +124,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
     .ordered()
     .optionSettingQueriesForTestQuery("alter system set \"planner.slice_target\" = 1000")
     .baselineColumns("cnt")
-    .baselineValues(100l)
+    .baselineValues(100L)
     .build().run();
   }
 
@@ -189,14 +189,14 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery("select count(a) col1, avg(b) col2 from cp.\"jsoninput/nullable3.json\"")
         .unOrdered()
         .baselineColumns("col1", "col2")
-        .baselineValues(2l, 3.0d)
+        .baselineValues(2L, 3.0d)
         .go();
 
     testBuilder()
         .sqlQuery("select count(a) col1, avg(a) col2 from cp.\"jsoninput/nullable3.json\"")
         .unOrdered()
         .baselineColumns("col1", "col2")
-        .baselineValues(2l, 1.0d)
+        .baselineValues(2L, 1.0d)
         .go();
   }
 
@@ -231,7 +231,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("col1", "col2", "col3")
-        .baselineValues(0l, null, null)
+        .baselineValues(0L, null, null)
         .go();
   }
 
@@ -369,21 +369,21 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(String.format(query, TEST_RES_PATH, 2))
         .unOrdered()
         .baselineColumns("col1")
-        .baselineValues(2l)
+        .baselineValues(2L)
         .go();
 
     testBuilder()
         .sqlQuery(String.format(query, TEST_RES_PATH, 4))
         .unOrdered()
         .baselineColumns("col1")
-        .baselineValues(4l)
+        .baselineValues(4L)
         .go();
 
     testBuilder()
         .sqlQuery(String.format(query, TEST_RES_PATH, 6))
         .unOrdered()
         .baselineColumns("col1")
-        .baselineValues(6l)
+        .baselineValues(6L)
         .go();
   }
 
@@ -403,7 +403,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(5l)
+        .baselineValues(5L)
         .build().run();
 
     // having clause
@@ -416,7 +416,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(5l)
+        .baselineValues(5L)
         .build().run();
   }
 
@@ -436,7 +436,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(5l)
+        .baselineValues(5L)
         .build().run();
   }
 
@@ -480,7 +480,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(25l)
+        .baselineValues(25L)
         .build().run();
 
     final String query2 = "select count(*) as cnt from cp.\"tpch/nation.parquet\" group by CURRENT_DATE";
@@ -488,7 +488,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query2)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(25l)
+        .baselineValues(25L)
         .build().run();
 
     final String query3 = "select count(*) as cnt from cp.\"employee.json\" group by CURRENT_DATE";
@@ -496,7 +496,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query3)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(1155l)
+        .baselineValues(1155L)
         .build().run();
   }
 
@@ -522,7 +522,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("col")
-        .baselineValues(5l)
+        .baselineValues(5L)
         .build()
         .run();
   }

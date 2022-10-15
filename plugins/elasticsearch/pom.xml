@@ -16,17 +16,14 @@
     limitations under the License.
 
 -->
-<!-- Copyright 2016 Dremio Corporation -->
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
          xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -38,6 +35,9 @@
     <execution.hint.file>.local-${project.version}-execution-hints.log</execution.hint.file>
     <tests.heap.size>512m</tests.heap.size>
     <tests.permgen.size>512m</tests.permgen.size>
+    <tests.elasticsearch.api.version>6.2.4</tests.elasticsearch.api.version>
+    <tests.elasticsearch.min.port>17000</tests.elasticsearch.min.port>
+    <tests.elasticsearch.max.port>17999</tests.elasticsearch.max.port>
   </properties>
 
   <dependencies>
@@ -65,7 +65,7 @@
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
-      <version>2.8.5</version>
+      <version>2.9.0</version>
     </dependency>
     <dependency>
       <groupId>org.elasticsearch</groupId>
@@ -108,18 +108,15 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-core</artifactId>
-      <version>${logback.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
     </dependency>
-    
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
     </dependency>
-
 
     <!-- test dependencies -->
     <dependency>
@@ -161,149 +158,16 @@
     <dependency>
       <groupId>org.glassfish.jersey.inject</groupId>
       <artifactId>jersey-hk2</artifactId>
-      <version>${jersey.version}</version>
     </dependency>
     <dependency>
       <groupId>com.tdunning</groupId>
       <artifactId>t-digest</artifactId>
       <version>3.2</version>
     </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
-
-  <profiles>
-    <profile>
-      <id>elasticsearch-maven-plugin</id>
-      <activation>
-        <property>
-          <!--  disable elastic search plugin if skipTests is set -->
-          <name>skipTests</name>
-        </property>
-      </activation>
-      <properties>
-        <tests.elasticsearch.api.on>true</tests.elasticsearch.api.on>
-      </properties>
-    </profile>
-
-    <profile>
-      <!-- Activate this profile using
-           -Dtests.elasticsearch.api.using5x
-           It will disable integration tests, since ES5 is deprecated. -->
-      <id>ES-API-5.x</id>
-      <activation>
-        <property>
-          <name>tests.elasticsearch.api.using5x</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <configuration>
-              <skipITs>true</skipITs>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <!-- Activate this profile using
-           -Dtests.elasticsearch.api.using6x -->
-      <id>ES-API-6.x</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>reserve-elasticsearch-ports</id>
-                <goals>
-                  <goal>reserve-network-port</goal>
-                </goals>
-                <phase>pre-integration-test</phase>
-                <configuration>
-                  <!-- Always use non-overlapping ranges in each pom to avoid port conflict -->
-                  <minPortNumber>17000</minPortNumber>
-                  <maxPortNumber>17999</maxPortNumber>
-                  <portNames>
-                    <portName>tests.elasticsearch.transportPort</portName>
-                    <portName>tests.elasticsearch.httpPort</portName>
-                  </portNames>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>com.github.alexcojocaru</groupId>
-            <artifactId>elasticsearch-maven-plugin</artifactId>
-            <version>${tests.elasticsearch.mvn.plugin.version}</version>
-            <configuration>
-              <version>${tests.elasticsearch.api.version}</version>
-              <clusterName>test</clusterName>
-              <transportPort>${tests.elasticsearch.transportPort}</transportPort>
-              <httpPort>${tests.elasticsearch.httpPort}</httpPort>
-              <timeout>100</timeout>
-              <skip>${tests.elasticsearch.api.on}</skip>
-            </configuration>
-            <executions>
-              <execution>
-                <id>start-elasticsearch6</id>
-                <phase>pre-integration-test</phase>
-                <goals>
-                  <goal>runforked</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>stop-elasticsearch6</id>
-                <phase>post-integration-test</phase>
-                <goals>
-                  <goal>stop</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 
   <build>
     <plugins>
-      <plugin>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
-
-        <configuration>
-          <parallel>suites</parallel>
-          <perCoreThreadCount>false</perCoreThreadCount>
-          <threadCount>1</threadCount>
-          <forkCount>1</forkCount>
-          <systemProperties>
-            <dremio.test.elasticsearch.port>${tests.elasticsearch.httpPort}</dremio.test.elasticsearch.port>
-          </systemProperties>
-        </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <forkCount>1</forkCount>
-        </configuration>
-      </plugin>
       <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
@@ -327,7 +191,156 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <forkCount>1</forkCount>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+
+        <configuration>
+          <parallel>suites</parallel>
+          <perCoreThreadCount>false</perCoreThreadCount>
+          <threadCount>1</threadCount>
+          <forkCount>1</forkCount>
+          <systemProperties>
+            <dremio.test.elasticsearch.port>${tests.elasticsearch.httpPort}</dremio.test.elasticsearch.port>
+          </systemProperties>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>reserve-elasticsearch-ports</id>
+            <goals>
+              <goal>reserve-network-port</goal>
+            </goals>
+            <phase>pre-integration-test</phase>
+            <configuration>
+              <!-- Always use non-overlapping ranges in each pom to avoid port conflict -->
+              <minPortNumber>17000</minPortNumber>
+              <maxPortNumber>17999</maxPortNumber>
+              <portNames>
+                <portName>tests.elasticsearch.transportPort</portName>
+                <portName>tests.elasticsearch.httpPort</portName>
+              </portNames>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.alexcojocaru</groupId>
+        <artifactId>elasticsearch-maven-plugin</artifactId>
+        <version>6.23</version>
+        <configuration>
+          <version>${tests.elasticsearch.api.version}</version>
+          <clusterName>test</clusterName>
+          <transportPort>${tests.elasticsearch.transportPort}</transportPort>
+          <httpPort>${tests.elasticsearch.httpPort}</httpPort>
+          <timeout>100</timeout>
+          <skip>${tests.elasticsearch.api.on}</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <id>start-elasticsearch</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>runforked</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>stop-elasticsearch</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>stop</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
+  <profiles>
+    <!-- MapR 6.2 uses BC Fips libraries which are not compatible with main BC artifacts -->
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk15on</artifactId>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-fips</artifactId>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <!-- Support for different versions of ES -->
+    <profile>
+      <id>elasticsearch-maven-plugin</id>
+      <activation>
+        <property>
+          <!--  disable elastic search plugin if skipTests is set -->
+          <name>skipTests</name>
+        </property>
+      </activation>
+      <properties>
+        <tests.elasticsearch.api.on>true</tests.elasticsearch.api.on>
+      </properties>
+    </profile>
+
+    <profile>
+      <!-- Activate this profile using -Dtests.elasticsearch.api.using6x -->
+      <id>ES-API-6.x</id>
+      <activation>
+        <property>
+          <name>tests.elasticsearch.api.using6x</name>
+        </property>
+      </activation>
+    </profile>
+    <profile>
+      <!-- Activate this profile using -Dtests.elasticsearch.api.using7x -->
+      <id>ES-API-7.x</id>
+      <activation>
+        <property>
+          <name>tests.elasticsearch.api.using7x</name>
+        </property>
+      </activation>
+      <properties>
+        <tests.elasticsearch.api.version>7.10.2</tests.elasticsearch.api.version>
+        <tests.elasticsearch.min.port>18000</tests.elasticsearch.min.port>
+        <tests.elasticsearch.max.port>18999</tests.elasticsearch.max.port>
+      </properties>
+    </profile>
+  </profiles>
 </project>

@@ -52,7 +52,7 @@ public class TestBuilder {
   /**
    * Test query to run. Type of object depends on the {@link #queryType}
    */
-  protected Object query;
+  private Object query;
   // the type of query for the test
   private UserBitShared.QueryType queryType;
   // should the validation enforce ordering
@@ -161,15 +161,13 @@ public class TestBuilder {
   }
 
   public TestBuilder sqlQueryFromFile(String queryFile) throws IOException {
-    String query = BaseTestQuery.getFile(queryFile);
-    this.query = query;
+    this.query = BaseTestQuery.getFile(queryFile);
     this.queryType = UserBitShared.QueryType.SQL;
     return this;
   }
 
   public TestBuilder physicalPlanFromFile(String queryFile) throws IOException {
-    String query = BaseTestQuery.getFile(queryFile);
-    this.query = query;
+    this.query = BaseTestQuery.getFile(queryFile);
     this.queryType = UserBitShared.QueryType.PHYSICAL;
     return this;
   }
@@ -441,8 +439,7 @@ public class TestBuilder {
       baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap, baselineValuesForItemsSketchMap);
   }
 
-  private String getDecimalPrecisionScaleInfo(MajorType type) {
-    String precision = "";
+  private static String getDecimalPrecisionScaleInfo(MajorType type) {
     switch(type.getMinorType()) {
       case DECIMAL18:
       case DECIMAL28SPARSE:
@@ -450,12 +447,10 @@ public class TestBuilder {
       case DECIMAL38DENSE:
       case DECIMAL28DENSE:
       case DECIMAL9:
-        precision = String.format("(%d,%d)", type.getPrecision(), type.getScale());
-        break;
+        return String.format("(%d,%d)", type.getPrecision(), type.getScale());
       default:
-        ; // do nothing empty string set above
+        return "";
     }
-    return precision;
   }
 
   public class CSVTestBuilder extends TestBuilder {
@@ -542,8 +537,7 @@ public class TestBuilder {
         aliasedExpectedColumns[i] = "cast(" + aliasedExpectedColumns[i] + " as " +
           getNameOfMinorType(majorType.getMinorType()) + precision + " ) " + baselineColumns[i].replace('`', '"');
       }
-      String query = "select " + Joiner.on(", ").join(aliasedExpectedColumns) + " from cp.\"" + baselineFilePath + "\"";
-      return query;
+      return "select " + Joiner.on(", ").join(aliasedExpectedColumns) + " from cp.\"" + baselineFilePath + "\"";
     }
 
     @Override

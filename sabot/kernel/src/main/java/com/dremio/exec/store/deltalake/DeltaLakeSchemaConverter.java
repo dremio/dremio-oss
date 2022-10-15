@@ -22,19 +22,26 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_BOOL;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_BYTE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_DATE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_DOUBLE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_ENTRIES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FLOAT;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_INT;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_LONG;
+import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_MAP;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_SHORT;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_STRING;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_STRUCT;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_TIMESTAMP;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_FIELDS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_FIELDS_ARR_CONTAINS_NULL;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_FIELDS_ARR_ELEMENT_TYPE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_FIELDS_NAME;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_FIELDS_NULLABLE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_FIELDS_TYPE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_MAP_KEY_TYPE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_MAP_VALUE_CONTAINS_NULL;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STRING_MAP_VALUE_TYPE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_VALUE;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,7 +51,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
@@ -58,6 +64,8 @@ import org.slf4j.LoggerFactory;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 /**
  * Conversion utility for translating DeltaLake schema to arrow
@@ -66,26 +74,35 @@ public class DeltaLakeSchemaConverter {
     private static final Logger logger = LoggerFactory.getLogger(DeltaLakeSchemaConverter.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    public static BatchSchema fromSchemaString(String schemaString) throws IOException {
+    private final boolean isMapDataTypeEnabled;
+
+  public static DeltaLakeSchemaConverter withMapEnabled(boolean mapEnabled) {
+    return new DeltaLakeSchemaConverter(mapEnabled);
+  }
+
+    private DeltaLakeSchemaConverter(boolean isMapDataTypeEnabled) {
+      this.isMapDataTypeEnabled = isMapDataTypeEnabled;
+    }
+
+    public BatchSchema fromSchemaString(String schemaString) throws IOException {
         Preconditions.checkNotNull(schemaString);
         final JsonNode schemaJson = OBJECT_MAPPER.readTree(schemaString);
         final JsonNode fieldsJson = schemaJson.get(SCHEMA_STRING_FIELDS);
         Preconditions.checkNotNull(fieldsJson, "Schema string doesn't contain any fields - {}", schemaString);
-
         return new BatchSchema(StreamSupport.stream(fieldsJson.spliterator(), false)
-                .map(DeltaLakeSchemaConverter::fromFieldJson)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList()));
+            .map(this::fromFieldJson)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList()));
     }
 
-    private static Field fromFieldJson(final JsonNode fields) {
+    private Field fromFieldJson(final JsonNode fields) {
         final JsonNode typeNode = fields.get(SCHEMA_STRING_FIELDS_TYPE);
         final String name = fields.get(SCHEMA_STRING_FIELDS_NAME).asText();
         final boolean isNullable = fields.get(SCHEMA_STRING_FIELDS_NULLABLE).asBoolean(true);
         return fromType(name, typeNode, isNullable);
     }
 
-    private static Field fromType(final String name, final JsonNode typeNode, final boolean isNullable) {
+    private Field fromType(final String name, final JsonNode typeNode, final boolean isNullable) {
         // Complex fields result into an ObjectNode
         if (!typeNode.isObject()) {
             final FieldType fieldType = fromPrimitiveType(typeNode.asText(), isNullable);
@@ -93,9 +110,9 @@ public class DeltaLakeSchemaConverter {
         } else if (DELTA_STRUCT.equalsIgnoreCase(typeNode.get(SCHEMA_STRING_FIELDS_TYPE).asText(""))) {
             final JsonNode structField = typeNode.get(SCHEMA_STRING_FIELDS);
             final List<Field> children = StreamSupport.stream(structField.spliterator(), false)
-                    .map(DeltaLakeSchemaConverter::fromFieldJson)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+                .map(this::fromFieldJson)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
             return children.isEmpty() ? null : new Field(name, new FieldType(isNullable, new ArrowType.Struct(), null), children);
         } else if (DELTA_ARRAY.equalsIgnoreCase(typeNode.get(SCHEMA_STRING_FIELDS_TYPE).asText(""))) {
             final FieldType listType = new FieldType(isNullable, new ArrowType.List(), null);
@@ -103,42 +120,60 @@ public class DeltaLakeSchemaConverter {
             final boolean containsNull = typeNode.get(SCHEMA_STRING_FIELDS_ARR_CONTAINS_NULL).asBoolean(false);
             final Field nestedField = fromType(ListVector.DATA_VECTOR_NAME, elemType, containsNull);
             return nestedField == null ? null : new Field(name, listType, Collections.singletonList(nestedField));
+        } else if (DELTA_MAP.equalsIgnoreCase(typeNode.get(SCHEMA_STRING_FIELDS_TYPE).asText("")) && isMapDataTypeEnabled) {
+            final JsonNode keyType = typeNode.get(SCHEMA_STRING_MAP_KEY_TYPE);
+            final JsonNode valueType = typeNode.get(SCHEMA_STRING_MAP_VALUE_TYPE);
+            if (keyType.isObject() || !keyType.asText().equalsIgnoreCase(DELTA_STRING) || valueType.isObject()) {
+              return null;
+            }
+            final FieldType keyFieldType = fromPrimitiveType(keyType.asText(), false);
+            final FieldType mapType = new FieldType(isNullable, new ArrowType.Map(false), null);
+            final boolean valueContainsNull = typeNode.get(SCHEMA_STRING_MAP_VALUE_CONTAINS_NULL).asBoolean(false);
+            final Field valueField = fromType(SCHEMA_VALUE, valueType, valueContainsNull);
+            if (keyFieldType == null || valueField == null) {
+              return null;
+            }
+            final List<Field> structChildren = Lists.newArrayList();
+            structChildren.add(new Field(SCHEMA_KEY, keyFieldType, null));
+            structChildren.add(valueField);
+            final Field structMap = new Field(DELTA_ENTRIES, new FieldType(false, new ArrowType.Struct(), null), structChildren);
+            return new Field(name, mapType, Collections.singletonList(structMap));
         } else {
-            // drop map type and all other unknown DeltaLake complex column types
+            // drop all other unknown DeltaLake complex column types
             return null;
         }
     }
 
     public static FieldType fromPrimitiveType(final String type, final boolean isNullable) {
 
-      if (type.startsWith("decimal")) {
-        // extract precision and scale
-        String[] scaleAndPrecision = type.split("\\s*[()]\\s*")[1].split(",");
-        ArrowType decimal = new ArrowType.Decimal(Integer.parseInt(scaleAndPrecision[0]), Integer.parseInt(scaleAndPrecision[1]), 128);
-        return new FieldType(isNullable, decimal, null);
-      }
+        if (type.startsWith("decimal")) {
+            // extract precision and scale
+            String[] scaleAndPrecision = type.split("\\s*[()]\\s*")[1].split(",");
+            ArrowType decimal = new ArrowType.Decimal(Integer.parseInt(scaleAndPrecision[0]), Integer.parseInt(scaleAndPrecision[1]), 128);
+            return new FieldType(isNullable, decimal, null);
+        }
 
-      switch (type) {
+        switch (type) {
             case DELTA_BYTE:
             case DELTA_SHORT:
             case DELTA_INT:
-                return new FieldType(isNullable, new ArrowType.Int(32, true), null);
+              return new FieldType(isNullable, new ArrowType.Int(32, true), null);
             case DELTA_LONG:
-                return new FieldType(isNullable, new ArrowType.Int(64, true), null);
+              return new FieldType(isNullable, new ArrowType.Int(64, true), null);
             case DELTA_FLOAT:
-                return new FieldType(isNullable, new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE), null);
+              return new FieldType(isNullable, new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE), null);
             case DELTA_DOUBLE:
-                return new FieldType(isNullable, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null);
+              return new FieldType(isNullable, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null);
             case DELTA_BOOL:
-                return new FieldType(isNullable, new ArrowType.Bool(), null);
+              return new FieldType(isNullable, new ArrowType.Bool(), null);
             case DELTA_STRING:
-                return new FieldType(isNullable, new ArrowType.Utf8(), null);
+              return new FieldType(isNullable, new ArrowType.Utf8(), null);
             case DELTA_BINARY:
-                return new FieldType(isNullable, new ArrowType.Binary(), null);
+              return new FieldType(isNullable, new ArrowType.Binary(), null);
             case DELTA_TIMESTAMP:
-                return new FieldType(isNullable, new ArrowType.Timestamp(TimeUnit.MILLISECOND, null), null);
+              return new FieldType(isNullable, new ArrowType.Timestamp(TimeUnit.MILLISECOND, null), null);
             case DELTA_DATE:
-                return new FieldType(isNullable, new ArrowType.Date(DateUnit.MILLISECOND), null);
+              return new FieldType(isNullable, new ArrowType.Date(DateUnit.MILLISECOND), null);
             default:
               logger.error("Unsupported type : " + type);
               throw new UnsupportedOperationException("Unsupported type : " + type);

@@ -16,6 +16,7 @@
 package com.dremio.exec.store.sys.udf;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -63,6 +64,21 @@ public class FunctionOperatorTable implements SqlOperatorTable {
     return functionParameterList.stream()
       .map(SqlArgumentContextVariable::create)
       .collect(ImmutableList.toImmutableList());
+  }
+
+  @Override public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    FunctionOperatorTable that = (FunctionOperatorTable) o;
+    return functionParameterList.equals(that.functionParameterList);
+  }
+
+  @Override public int hashCode() {
+    return Objects.hash(functionParameterList);
   }
 }
 

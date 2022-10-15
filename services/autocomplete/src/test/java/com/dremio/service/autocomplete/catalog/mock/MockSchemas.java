@@ -30,9 +30,9 @@ import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import java.util.Locale;
 import java.util.Optional;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**

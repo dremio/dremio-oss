@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
+import static com.dremio.sabot.op.join.vhash.PartitionColFilters.BLOOMFILTER_MAX_SIZE;
+
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -32,35 +34,40 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.util.AssertionUtil;
 import com.dremio.exec.util.RuntimeFilterManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.common.hashtable.Comparator;
+import com.dremio.sabot.op.common.ht2.BoundedPivots;
 import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
-import com.dremio.sabot.op.common.ht2.Pivots;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.HashJoinStats.Metric;
+import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
+import com.dremio.sabot.op.join.vhash.PartitionColFilters;
+import com.dremio.sabot.op.join.vhash.RuntimeFilterUtil;
 import com.dremio.sabot.op.join.vhash.spill.list.ProbeBuffers;
 import com.dremio.sabot.op.join.vhash.spill.partition.CanSwitchToSpilling;
 import com.dremio.sabot.op.join.vhash.spill.partition.MultiPartition;
@@ -69,14 +76,15 @@ import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.dremio.sabot.op.join.vhash.spill.replay.JoinRecursiveReplayer;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.op.spi.DualInputOperator;
+import com.dremio.sabot.op.spi.Operator.ShrinkableOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
-public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
+public class VectorizedSpillingHashJoinOperator implements DualInputOperator, ShrinkableOperator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedSpillingHashJoinOperator.class);
   /*
    * The computation is as follows :
-   * 1. spillPagePool (5 pages) = 5*256K = 1.2M
+   * 1. spillPagePool (9 pages) = 9*256K = 2.2M
    * 2. 8 partitions (each use 2.5M) = 8*2.5M = 20M
    *    2a. hash table 1M
    *    2b. linked list & slicer (2 pages), 512K
@@ -84,7 +92,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
    * 3. hasher (dummy hash table) = 1M
    * 4. ProbeBuffers = 1.25M
    */
-  public static final int MIN_RESERVE = 27 * 1024 * 1024;
+  public static final int MIN_RESERVE = 28 * 1024 * 1024;
 
   private final OperatorContext context;
   private final HashJoinPOP config;
@@ -101,36 +109,46 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
   private JoinSetupParams joinSetupParams;
   private final Stopwatch pivotBuildWatch = Stopwatch.createUnstarted();
   private final Stopwatch pivotProbeWatch = Stopwatch.createUnstarted();
+  // We use BoundedPivots and hence, may be only pivot part of the batch in each iteration.
+  private final ProbePivotCursor probePivotCursor = new ProbePivotCursor();
 
   private State state = State.NEEDS_SETUP;
   private boolean debugInsertion = false;
   private long outputRecords = 0;
-  private int runtimeValFilterCap;
   private FixedBlockVector pivotFixedBlock;
   private VariableBlockVector pivotVarBlock;
   private JoinRecursiveReplayer joinReplayer;
   private enum InternalState {
     BUILD,
     PROBE_IN,
+    PROBE_PIVOT_AND_OUT,
     PROBE_OUT,
     PROJECT_NON_MATCHES,
     REPLAY,
     DONE
-  };
+  }
   private InternalState internalState = InternalState.BUILD;
-  private static final boolean DEBUG = AssertionUtil.isAssertionsEnabled();
+  private static final boolean DEBUG = VM.areAssertsEnabled();
+  private long reservedPreallocation;
+
+  private final boolean runtimeFilterEnabled;
+  private PartitionColFilters partitionColFilters = null;
+  private NonPartitionColFilters nonPartitionColFilters = null;
+  private final Stopwatch filterBuildTime = Stopwatch.createUnstarted();
 
   public VectorizedSpillingHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
     this.context = context;
     this.config = popConfig;
     this.outgoing = new VectorContainer(context.getFragmentOutputAllocator());
+    targetOutputBatchSize = context.getTargetBatchSize();
+
     final Set<Integer> allMinorFragments = context.getAssignments().stream().flatMap(a -> a.getMinorFragmentIdList().stream())
               .collect(Collectors.toSet()); // all minor fragments across all assignments
 
-    targetOutputBatchSize = context.getTargetBatchSize();
-    // TODO ravindra: re-enable runtime filters
-    runtimeValFilterCap = (int) context.getOptions().getOption(ExecConstants.RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE);
-    filterManager = new RuntimeFilterManager(context.getAllocator(), runtimeValFilterCap, allMinorFragments);
+    runtimeFilterEnabled = RuntimeFilterUtil.shouldFragBuildRuntimeFilters(config.getRuntimeFilterInfo(),
+      context.getFragmentHandle().getMinorFragmentId());
+    filterManager = new RuntimeFilterManager(context.getAllocator(),
+      RuntimeFilterUtil.getRuntimeValFilterCap(context), allMinorFragments);
   }
 
   @Override
@@ -198,7 +216,6 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
         throw new UnsupportedOperationException();
       default:
         break;
-
       }
 
       fieldIndex++;
@@ -223,9 +240,9 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
     final List<FieldVector> probeIncomingKeys = new ArrayList<>();
     final List<FieldVector> buildOutputKeys = new ArrayList<>();
     final List<FieldVector> buildOutputCarryOvers = new ArrayList<>();
-    for(VectorWrapper<?> w : outgoing){
+    for (VectorWrapper<?> w : outgoing) {
       final FieldVector v = (FieldVector) w.getValueVector();
-      if(i < right.getSchema().getFieldCount()){
+      if (i < right.getSchema().getFieldCount()) {
         if (isKeyBits.get(i)) {
           /* The corresponding field is key, so the fields in build side and probe side will
            * be added to probeIncomingKeys and buildOutputKeys. They will be used to create
@@ -243,6 +260,8 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
       i++;
     }
 
+    Preconditions.checkState(probeFields.size() != 0);
+    Preconditions.checkState(buildFields.size() != 0);
     PivotDef probePivot = PivotBuilder.getBlockDefinition(probeFields);
     PivotDef buildKeyPivot = PivotBuilder.getBlockDefinition(buildFields);
 
@@ -270,8 +289,10 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
 
     final BufferAllocator allocator = context.getAllocator();
     try (AutoCloseables.RollbackCloseable rc = new AutoCloseables.RollbackCloseable()) {
-      pivotFixedBlock = rc.add(new FixedBlockVector(allocator, buildKeyPivot.getBlockWidth()));
-      pivotVarBlock = rc.add(new VariableBlockVector(allocator, buildKeyPivot.getVariableCount()));
+      int preAllocBufSz = PagePool.DEFAULT_PAGE_SIZE;
+      int numBlocks = preAllocBufSz / buildKeyPivot.getBlockWidth();
+      pivotFixedBlock = rc.add(new FixedBlockVector(allocator, buildKeyPivot.getBlockWidth(), numBlocks, false));
+      pivotVarBlock = rc.add(new VariableBlockVector(allocator, buildKeyPivot.getVariableCount(), preAllocBufSz, false));
 
       int maxInputBatchSize = (int)context.getOptions().getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
       ProbeBuffers probeBuffers = rc.add(new ProbeBuffers(maxInputBatchSize, context.getAllocator()));
@@ -281,13 +302,14 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
         QueryIdHelper.getQueryId(fragmentHandle.getQueryId()), fragmentHandle.getMajorFragmentId(), fragmentHandle.getMinorFragmentId(),
         config.getProps().getOperatorId());
 
-
       final SpillManager spillManager = rc.add(new SpillManager(context.getConfig(), context.getOptions(), id, null,
         context.getSpillService(), "join spilling", context.getStats()));
 
       // This pool is shared by all partitions, can be used only for spilling (to release memory).
-      // 3 pages required by the replayer, and 2 pages required if any partition spills while replay is in-progress.
-      PagePool spillPool = rc.add(new PagePool(allocator, PagePool.DEFAULT_PAGE_SIZE, 5));
+      // - 3 pages required by the replayer
+      // - 2 pages required if any partition spills while replay is in-progress.
+      // - 4 pages required for merging
+      PagePool spillPool = rc.add(new PagePool(allocator, PagePool.DEFAULT_PAGE_SIZE, 9));
 
       joinSetupParams = new JoinSetupParams(
         context.getOptions(),
@@ -311,16 +333,36 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
         probeOutputs,
         probeBuffers,
         spillManager,
-        spillPool);
+        spillPool,
+        runtimeFilterEnabled);
 
       partition = rc.add(new MultiPartition(joinSetupParams, CopierFactory.getInstance(context.getConfig(), context.getOptions())));
 
       joinReplayer = rc.add(new JoinRecursiveReplayer(joinSetupParams, partition, outgoing, targetOutputBatchSize));
 
+      if (runtimeFilterEnabled) {
+        List<RuntimeFilterProbeTarget> probeTargets = config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets();
+
+        /* Step 1: Create partitionColFilters, i.e BloomFilters, one for each probe target */
+        logger.debug("Creating partitionColFilters...");
+        partitionColFilters = new PartitionColFilters(context.getAllocator(), probeTargets, buildKeyPivot,
+          BLOOMFILTER_MAX_SIZE, RuntimeFilterUtil.getRuntimeFilterKeyMaxSize(context));
+        rc.add(partitionColFilters);
+
+        if (RuntimeFilterUtil.isRuntimeFilterEnabledForNonPartitionedCols(context)) {
+          /* Step 2: Create ValueListFilterBuilders, one list (for multi-key) for each probe target */
+          logger.debug("Creating nonPartitionColFilters...");
+          nonPartitionColFilters = new NonPartitionColFilters(context.getAllocator(), probeTargets, buildKeyPivot,
+            RuntimeFilterUtil.getRuntimeValFilterCap(context));
+          rc.add(nonPartitionColFilters);
+        }
+      }
+
       rc.commit();
     }
 
     Preconditions.checkState(allocator.getAllocatedMemory() <= MIN_RESERVE);
+    reservedPreallocation = allocator.getAllocatedMemory();
     computeExternalState(InternalState.BUILD);
     return outgoing;
   }
@@ -328,19 +370,19 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
   // Get ids for a field
   private int[] getFieldIds(VectorAccessible accessible, LogicalExpression expr){
     final LogicalExpression materialized = context.getClassProducer().materialize(expr, accessible);
-    if(!(materialized instanceof ValueVectorReadExpression)){
+    if (!(materialized instanceof ValueVectorReadExpression)) {
       throw new IllegalStateException("Only direct references allowed.");
     }
     return ((ValueVectorReadExpression) materialized).getFieldId().getFieldIds();
   }
 
   // Get the field vector of a field
-  private FieldVector getField(VectorAccessible accessible, LogicalExpression expr){
+  private FieldVector getField(VectorAccessible accessible, LogicalExpression expr) {
     return accessible.getValueAccessorById(FieldVector.class, getFieldIds(accessible, expr)).getValueVector();
   }
 
   // Get the id of a field
-  private int getFieldId(VectorAccessible accessible, LogicalExpression expr){
+  private int getFieldId(VectorAccessible accessible, LogicalExpression expr) {
     return getFieldIds(accessible, expr)[0];
   }
 
@@ -349,25 +391,35 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
     state.is(State.CAN_CONSUME_R);
 
     // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds checking later.
-    for (FieldVector v : buildVectorsToValidate){
+    for (FieldVector v : buildVectorsToValidate) {
       VariableLengthValidator.validateVariable(v, records);
     }
 
-    pivotBuildWatch.start();
-    pivotFixedBlock.reset();
-    pivotVarBlock.reset();
-    Pivots.pivot(joinSetupParams.getBuildKeyPivot(), records, pivotFixedBlock, pivotVarBlock);
-    pivotBuildWatch.stop();
+    int recordsDone = 0;
+    while (recordsDone < records) {
+      pivotBuildWatch.start();
+      int pivoted = BoundedPivots.pivot(joinSetupParams.getBuildKeyPivot(), recordsDone, records - recordsDone,
+        pivotFixedBlock, pivotVarBlock);
+      pivotBuildWatch.stop();
 
-    consumePivotedDataRight(records);
+      Preconditions.checkState(pivoted > 0);
+      int ret = partition.buildPivoted(recordsDone, pivoted);
+      Preconditions.checkState(ret == pivoted);
+      recordsDone += pivoted;
+    }
     updateStats();
-
     computeExternalState();
   }
 
-  private void consumePivotedDataRight(int records) throws Exception {
-    int ret = partition.buildPivoted(records);
-    Preconditions.checkState(ret == records);
+  private void dropRuntimeFiltersIfSpilled() {
+    if (runtimeFilterEnabled && ((MultiPartition)partition).isSpilling()) {
+      closeRuntimeFilters();
+      filterManager.addDropCount(config.getRuntimeFilterInfo().getRuntimeFilterProbeTargets().size());
+    }
+  }
+
+  private boolean runtimeFiltersDropped() {
+    return partitionColFilters == null && nonPartitionColFilters == null;
   }
 
   @Override
@@ -375,16 +427,82 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
     state.is(State.CAN_CONSUME_R);
 
     if (partition.isBuildSideEmpty() &&
-      !(joinSetupParams.getJoinType() == JoinRelType.LEFT || joinSetupParams.getJoinType() == JoinRelType.FULL)) {
+        joinSetupParams.getJoinType() != JoinRelType.LEFT && joinSetupParams.getJoinType() != JoinRelType.FULL) {
       // nothing needs to be read on the left side as right side is empty
       computeExternalState(InternalState.DONE);
       return;
+    }
+
+    /* Drop runtime filters, if op spilled */
+    dropRuntimeFiltersIfSpilled();
+
+    if (runtimeFilterEnabled && !runtimeFiltersDropped()) {
+      tryPushRuntimeFilters();
     }
 
     computeExternalState(InternalState.PROBE_IN);
     if (DEBUG && joinSetupParams.getOptions().getOption(HashJoinOperator.TEST_SPILL_MODE).equals("buildAndReplay")) {
       switchToSpilling(true);
       computeExternalState();
+    }
+  }
+
+  private void closeRuntimeFilters() {
+    try {
+      AutoCloseables.close(partitionColFilters);
+      partitionColFilters = null;
+      AutoCloseables.closeNoChecked(nonPartitionColFilters);
+      nonPartitionColFilters = null;
+    } catch (Exception e) {
+      logger.warn("Failed to close PartitionColFilters or NonPartitionColFilters", e);
+    }
+  }
+
+  private void tryPushRuntimeFilters() {
+    try {
+      filterBuildTime.start();
+
+      /* Step 5: Prepare BloomFilters, i.e preparing partitionColFilters, for last time */
+      logger.debug("Preparing partitionColFilters, for last time...");
+      partition.prepareBloomFilters(partitionColFilters);
+
+      if (nonPartitionColFilters != null) {
+        /* Step 5. Prepare NonPartitionColFilter, for last time */
+        logger.debug("Preparing nonPartitionColFilters, for last time...");
+        partition.prepareValueListFilters(nonPartitionColFilters);
+
+        /* Step 6. Finalizing NonPartitionColFiltes */
+        logger.debug("Building nonPartitionColFilters...");
+        nonPartitionColFilters.finalizeValueListFilters();
+      }
+
+      /* Step 5. Build NonPartitionColFiltes */
+      logger.debug("Preparing and sending runtimeFilters...");
+      RuntimeFilterUtil.prepareAndSendRuntimeFilters(filterManager, config.getRuntimeFilterInfo(),
+        partitionColFilters, nonPartitionColFilters, context, config);
+    } catch (Exception e) {
+      // This is just an optimisation. Hence, we don't throw the error further.
+      logger.warn("Error while processing runtime join filter", e);
+    } finally {
+      /*
+       * DX-54601: partitionColFilters and nonPartitionColFilters will be freed during the close of the op.
+       * Closing here can be too soon as the underlying buffers might get extra reference and are waiting to be sent in OOB.
+       */
+      try {
+        filterBuildTime.stop();
+        logger.debug("Time taken for preparation of join runtime filter for query {} is {}ms",
+          QueryIdHelper.getQueryIdentifier(context.getFragmentHandle()),
+          filterBuildTime.elapsed(TimeUnit.MILLISECONDS));
+      } catch (RuntimeException e) {
+        logger.warn("Error while recording the time for runtime filter preparation", e);
+      }
+    }
+  }
+
+  @Override
+  public void workOnOOB(OutOfBandMessage message) {
+    if (runtimeFilterEnabled && !runtimeFiltersDropped()) {
+      RuntimeFilterUtil.workOnOOB(message, filterManager, context, config);
     }
   }
 
@@ -396,20 +514,14 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
     for (FieldVector v : probeVectorsToValidate) {
       VariableLengthValidator.validateVariable(v, records);
     }
+    probePivotCursor.init(records);
 
-    pivotProbeWatch.start();
-    pivotFixedBlock.reset();
-    pivotVarBlock.reset();
-    Pivots.pivot(joinSetupParams.getProbeKeyPivot(), records, pivotFixedBlock, pivotVarBlock);
-    pivotProbeWatch.stop();
-
-    computeExternalState(InternalState.PROBE_OUT);
+    computeExternalState(InternalState.PROBE_PIVOT_AND_OUT);
   }
 
   @Override
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
-
     updateStats();
 
     // highest priority to memory releasers.
@@ -420,6 +532,10 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
       return 0;
     }
 
+    // realloc buffers so that we do not overwrite any previous buffers that may be in-transit.
+    outgoing.setInitialCapacity(targetOutputBatchSize);
+    outgoing.allocateNew();
+
     if (internalState == InternalState.REPLAY) {
       // if all incoming data has been processed, do spill replay.
       int ret = joinReplayer.run();
@@ -429,11 +545,25 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
       outputRecords += ret;
       computeExternalState(joinReplayer.isFinished() ? InternalState.DONE : InternalState.REPLAY);
       return ret;
-    } else if (internalState == InternalState.PROBE_OUT) {
-      final int probedRecords = partition.probePivoted(joinSetupParams.getLeft().getRecordCount(), 0, targetOutputBatchSize - 1);
+    } else if (internalState == InternalState.PROBE_OUT || internalState == InternalState.PROBE_PIVOT_AND_OUT) {
+      if (internalState == InternalState.PROBE_PIVOT_AND_OUT) {
+        // pivot the next set of records in the incoming batch
+        Preconditions.checkState(!probePivotCursor.isFinished());
+        pivotProbeWatch.start();
+        int startIdx = probePivotCursor.startPivotIdx + probePivotCursor.numPivoted;
+        int records = probePivotCursor.batchSize;
+        int pivoted = BoundedPivots.pivot(joinSetupParams.getProbeKeyPivot(), startIdx,
+          records - startIdx, pivotFixedBlock, pivotVarBlock);
+        pivotProbeWatch.stop();
+
+        probePivotCursor.update(startIdx, pivoted);
+        partition.probeBatchBegin(startIdx, pivoted);
+      }
+
+      final int probedRecords = partition.probePivoted(0, targetOutputBatchSize - 1);
       outputRecords += Math.abs(probedRecords);
       if (probedRecords > -1) {
-        computeExternalState(InternalState.PROBE_IN);
+        computeExternalState(probePivotCursor.isFinished() ? InternalState.PROBE_IN : InternalState.PROBE_PIVOT_AND_OUT);
         return outgoing.setAllCount(probedRecords);
       } else {
         // we didn't finish everything, will produce again.
@@ -467,6 +597,21 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
     }
   }
 
+  @Override
+  public int getOperatorId() {
+    return config.getProps().getLocalOperatorId();
+  }
+
+  @Override
+  public long shrinkableMemory() {
+    return context.getAllocator().getAllocatedMemory() - reservedPreallocation;
+  }
+
+  @Override
+  public boolean shrinkMemory(long size) throws Exception {
+    throw new UnsupportedOperationException();
+  }
+
   private void checkAndSwitchToReplayMode() {
     Preconditions.checkState(internalState != InternalState.REPLAY);
     // all incoming batches have been processed, including projection of non-matches. check and switch to
@@ -491,7 +636,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
           break;
 
         case PROBE_IN:
-          Preconditions.checkState(newState == InternalState.PROBE_OUT ||
+          Preconditions.checkState(newState == InternalState.PROBE_PIVOT_AND_OUT ||
               newState == InternalState.PROJECT_NON_MATCHES ||
               newState == InternalState.REPLAY ||
               newState == InternalState.DONE,
@@ -499,7 +644,12 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
           break;
 
         case PROBE_OUT:
-          Preconditions.checkState(newState == InternalState.PROBE_IN || newState == InternalState.PROJECT_NON_MATCHES || newState == InternalState.DONE,
+        case PROBE_PIVOT_AND_OUT:
+          Preconditions.checkState(newState == InternalState.PROBE_IN ||
+              newState == InternalState.PROBE_OUT ||
+              newState == InternalState.PROBE_PIVOT_AND_OUT ||
+              newState == InternalState.PROJECT_NON_MATCHES ||
+              newState == InternalState.DONE,
             "unexpected transition from state " + internalState + " to new state " + newState);
           break;
 
@@ -533,6 +683,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
         state = State.CAN_CONSUME_L;
         break;
 
+      case PROBE_PIVOT_AND_OUT:
       case PROBE_OUT:
       case REPLAY:
       case PROJECT_NON_MATCHES:
@@ -581,6 +732,27 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.UNMATCHED_PROBE_COUNT, partitionStats.getProbeUnmatchedKeyCount());
       stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
     }
+    SpillStats spillStats = joinSetupParams.getSpillStats();
+    if (spillStats.getSpillCount() != 0) {
+      stats.setLongStat(Metric.SPILL_COUNT, spillStats.getSpillCount());
+      stats.setLongStat(Metric.SPILL_REPLAY_COUNT, spillStats.getReplayCount());
+      stats.setLongStat(Metric.SPILL_WR_BUILD_BYTES, spillStats.getWriteBuildBytes());
+      stats.setLongStat(Metric.SPILL_RD_BUILD_BYTES, spillStats.getReadBuildBytes());
+      stats.setLongStat(Metric.SPILL_WR_BUILD_RECORDS, spillStats.getWriteBuildRecords());
+      stats.setLongStat(Metric.SPILL_RD_BUILD_RECORDS, spillStats.getReadBuildRecords());
+      stats.setLongStat(Metric.SPILL_WR_BUILD_BATCHES, spillStats.getWriteBuildBatches());
+      stats.setLongStat(Metric.SPILL_RD_BUILD_BATCHES, spillStats.getReadBuildBatches());
+      stats.setLongStat(Metric.SPILL_RD_BUILD_BATCHES_MERGED, spillStats.getReadBuildBatchesMerged());
+      stats.setLongStat(Metric.SPILL_WR_PROBE_BYTES, spillStats.getWriteProbeBytes());
+      stats.setLongStat(Metric.SPILL_RD_PROBE_BYTES, spillStats.getReadProbeBytes());
+      stats.setLongStat(Metric.SPILL_WR_PROBE_RECORDS, spillStats.getWriteProbeRecords());
+      stats.setLongStat(Metric.SPILL_RD_PROBE_RECORDS, spillStats.getReadProbeRecords());
+      stats.setLongStat(Metric.SPILL_WR_PROBE_BATCHES, spillStats.getWriteProbeBatches());
+      stats.setLongStat(Metric.SPILL_RD_PROBE_BATCHES, spillStats.getReadProbeBatches());
+      stats.setLongStat(Metric.SPILL_RD_PROBE_BATCHES_MERGED, spillStats.getReadProbeBatchesMerged());
+      stats.setLongStat(Metric.SPILL_WR_NANOS, spillStats.getWriteNanos());
+      stats.setLongStat(Metric.SPILL_RD_NANOS, spillStats.getReadNanos());
+    }
   }
 
   @Override
@@ -591,6 +763,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
   @Override
   public void close() throws Exception {
     updateStats();
+    closeRuntimeFilters();
     List<AutoCloseable> autoCloseables = new ArrayList<>();
     autoCloseables.add(filterManager);
     autoCloseables.add(joinReplayer);
@@ -598,5 +771,25 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
     autoCloseables.add(partition);
     autoCloseables.add(joinSetupParams);
     AutoCloseables.close(autoCloseables);
+  }
+
+  private static class ProbePivotCursor {
+    private int batchSize;
+    private int startPivotIdx;
+    private int numPivoted;
+
+    void init(int batchSize) {
+      this.batchSize = batchSize;
+      startPivotIdx = numPivoted = 0;
+    }
+
+    void update(int startPivotIdx, int numPivoted) {
+      this.startPivotIdx = startPivotIdx;
+      this.numPivoted = numPivoted;
+    }
+
+    boolean isFinished() {
+      return startPivotIdx + numPivoted == batchSize;
+    }
   }
 }

@@ -62,7 +62,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.io.Resources;
 
 public class ParquetToIcebergStatsConvertorTest {
-  private final SchemaConverter schemaConverter = new SchemaConverter();
+  private final SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
   private static OperatorContext context;
 
   @BeforeClass

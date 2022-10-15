@@ -30,6 +30,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.util.ArrayWrappedIntIntMap;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResource;
@@ -65,6 +66,7 @@ public abstract class AbstractDataCollector implements DataCollector {
     final int bufferCapacity,
     BufferAllocator allocator,
     SabotConfig config,
+    OptionManager options,
     FragmentHandle handle,
     FragmentWorkQueue workQueue,
     TunnelProvider tunnelProvider,
@@ -104,9 +106,9 @@ public abstract class AbstractDataCollector implements DataCollector {
           final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.NWAY_RECV_SPOOL_BUFFER : SharedResourceType.NWAY_RECV_MEM_BUFFER);
           final RawBatchBuffer buffer;
           if (spooling) {
-            buffer = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragmentId());
+            buffer = new SpoolingRawBatchBuffer(resource, config, options, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragmentId());
           } else {
-            buffer = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
+            buffer = new UnlimitedRawBatchBuffer(resource, options, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
           }
           rollbackCloseable.add(buffer);
           buffer.init();
@@ -122,9 +124,9 @@ public abstract class AbstractDataCollector implements DataCollector {
       final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.UNORDERED_RECV_SPOOL_BUFFER : SharedResourceType.UNORDERED_RECV_MEM_BUFFER);
       final RawBatchBuffer buffer;
       if (spooling) {
-        buffer = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
+        buffer = new SpoolingRawBatchBuffer(resource, config, options, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
       } else {
-        buffer = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
+        buffer = new UnlimitedRawBatchBuffer(resource, options, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
       }
       buffers[0] = buffer;
       buffers[0].init();

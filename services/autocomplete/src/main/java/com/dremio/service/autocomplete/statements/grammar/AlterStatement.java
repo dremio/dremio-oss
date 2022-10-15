@@ -20,13 +20,10 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.CREATE
 
 import java.util.Arrays;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -36,34 +33,24 @@ import com.google.common.collect.ImmutableMap;
  */
 public final class AlterStatement extends Statement {
   private final Type type;
-  private final CatalogPath catalogPath;
+  private final TableReference tableReference;
 
   private AlterStatement(
     ImmutableList<DremioToken> tokens,
     Type type,
-    CatalogPath catalogPath,
+    TableReference tableReference,
     Statement child) {
-    super(tokens, child != null ? ImmutableList.of(child) : ImmutableList.of());
+    super(tokens, asListIgnoringNulls(tableReference, child));
     this.type = type;
-    this.catalogPath = catalogPath;
+    this.tableReference = tableReference;
   }
 
   public Type getType() {
     return type;
   }
 
-  public CatalogPath getCatalogPath() {
-    return catalogPath;
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
+  public TableReference getTableReference() {
+    return tableReference;
   }
 
   public static AlterStatement parse(TokenBuffer tokenBuffer) {
@@ -71,7 +58,7 @@ public final class AlterStatement extends Statement {
 
     return builder(tokenBuffer.toList())
       .type(parseType(tokenBuffer))
-      .catalogPath(parseCatalogPath(tokenBuffer))
+      .catalogPath(parseTableReference(tokenBuffer))
       .child(tokenBuffer)
       .build();
   }
@@ -89,23 +76,23 @@ public final class AlterStatement extends Statement {
     return Type.fromKind(tokenBuffer.readKind());
   }
 
-  private static CatalogPath parseCatalogPath(TokenBuffer tokenBuffer) {
+  private static TableReference parseTableReference(TokenBuffer tokenBuffer) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
 
-    ImmutableList<DremioToken> catalogPathTokens = tokenBuffer.readUntilKind(CREATE);
-    return CatalogPath.parse(catalogPathTokens);
+    ImmutableList<DremioToken> tableReferenceTokens = tokenBuffer.readUntilKind(CREATE);
+    return TableReference.parse(new TokenBuffer(tableReferenceTokens));
   }
 
-  private static Statement parseChildStatement(TokenBuffer tokenBuffer, CatalogPath catalogPath) {
+  private static Statement parseChildStatement(TokenBuffer tokenBuffer, TableReference tableReference) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
 
     switch (tokenBuffer.peekKind()) {
     case CREATE:
-      return ReflectionCreateStatement.parse(tokenBuffer, catalogPath);
+      return ReflectionCreateStatement.parse(tokenBuffer, tableReference);
     default:
       throw new UnsupportedOperationException("UNKNOWN KIND: " + tokenBuffer.peekKind());
     }
@@ -151,11 +138,11 @@ public final class AlterStatement extends Statement {
   }
 
   private interface TypeStep {
-    CatalogPathStep type(Type type);
+    TableReferenceStep type(Type type);
   }
 
-  private interface CatalogPathStep {
-    ChildStep catalogPath(CatalogPath catalogPath);
+  private interface TableReferenceStep {
+    ChildStep catalogPath(TableReference tableReference);
   }
 
   private interface ChildStep {
@@ -166,11 +153,11 @@ public final class AlterStatement extends Statement {
     AlterStatement build();
   }
 
-  private static final class Builder implements TypeStep, CatalogPathStep, ChildStep, Build{
+  private static final class Builder implements TypeStep, TableReferenceStep, ChildStep, Build{
     private final ImmutableList<DremioToken> tokens;
 
     private Type type;
-    private CatalogPath catalogPath;
+    private TableReference tableReference;
     private Statement child;
 
     public Builder(ImmutableList<DremioToken> tokens) {
@@ -184,20 +171,20 @@ public final class AlterStatement extends Statement {
     }
 
     @Override
-    public Builder catalogPath(CatalogPath catalogPath) {
-      this.catalogPath = catalogPath;
+    public Builder catalogPath(TableReference tableReference) {
+      this.tableReference = tableReference;
       return this;
     }
 
     @Override
     public Builder child(TokenBuffer tokenBuffer) {
-      this.child = parseChildStatement(tokenBuffer, this.catalogPath);
+      this.child = parseChildStatement(tokenBuffer, tableReference);
       return this;
     }
 
     @Override
     public AlterStatement build() {
-      return new AlterStatement(tokens, type, catalogPath, child);
+      return new AlterStatement(tokens, type, tableReference, child);
     }
   }
 }

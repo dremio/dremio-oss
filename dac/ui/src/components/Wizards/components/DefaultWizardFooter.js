@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import clsx from "clsx";
 
 import PropTypes from "prop-types";
 
 import SimpleButton from "components/Buttons/SimpleButton";
 import WizardFooter from "./WizardFooter";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 class DefaultWizardFooter extends Component {
   static propTypes = {
@@ -70,7 +72,10 @@ class DefaultWizardFooter extends Component {
           buttonStyle="primary"
           onClick={this.onButtonClick.bind(this, "apply")}
           submitting={submitType === "apply"}
-          className="wizard-apply-button"
+          className={clsx(
+            "wizard-apply-button",
+            classes["primaryButtonPsuedoClasses"]
+          )}
         >
           Apply
         </SimpleButton>
@@ -80,12 +85,19 @@ class DefaultWizardFooter extends Component {
             onClick={this.onButtonClick.bind(this, "preview")}
             disabled={submitting && submitType !== "preview"}
             submitting={submitType === "preview"}
-            className="wizard-preview-button"
+            className={clsx("wizard-preview-button", {
+              [classes["secondaryButtonPsuedoClasses"]]:
+                !submitting && submitType === "preview",
+            })}
           >
             Preview
           </SimpleButton>
         )}
-        <SimpleButton buttonStyle="secondary" onClick={this.onCancel}>
+        <SimpleButton
+          buttonStyle="secondary"
+          className={clsx(classes["secondaryButtonPsuedoClasses"])}
+          onClick={this.onCancel}
+        >
           Cancel
         </SimpleButton>
       </WizardFooter>

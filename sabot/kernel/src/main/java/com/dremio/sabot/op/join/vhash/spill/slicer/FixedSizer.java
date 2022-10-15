@@ -25,6 +25,7 @@ import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.types.Types.MinorType;
 
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.util.RoundUtil;
 import com.dremio.sabot.op.copier.FieldBufferPreAllocedCopier;
 import com.google.common.collect.ImmutableList;
 
@@ -53,22 +54,37 @@ class FixedSizer implements Sizer {
   }
 
   @Override
-  public int computeBitsNeeded(long sv2Addr, int len) {
-    return dataSizeInBits == 1 ? 2 * Sizer.round64up(len) : Sizer.round64up(dataSizeInBits * len) + Sizer.round64up(len);
+  public int computeBitsNeeded(ArrowBuf sv2, int startIdx, int len) {
+    return dataSizeInBits == 1 ? 2 * RoundUtil.round64up(len) : RoundUtil.round64up(dataSizeInBits * len) + RoundUtil.round64up(len);
   }
 
   @Override
-  public Copier getCopier(BufferAllocator allocator, long sv2Addr, int count, List<FieldVector> vectorOutput) {
+  public int getSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords){
+    if (dataSizeInBits == 1 ){
+      //numberOfRecords number of bits to store data buffer + numberOfRecords number of bits to store validity bitmap buffer
+      return 2 * RoundUtil.round64up(numberOfRecords);
+    }
+    else {
+      final int dataBits = RoundUtil.round64up(dataSizeInBits * numberOfRecords); //data buffer
+      final int validityBits = Sizer.getValidityBufferSizeInBits(numberOfRecords);//validity buffer
+
+      return dataBits + validityBits;
+    }
+  }
+
+  @Override
+  public Copier getCopier(BufferAllocator allocator, ArrowBuf sv2, int startIdx, int count, List<FieldVector> vectorOutput) {
     final FieldVector outgoing = (FieldVector) incoming.getTransferPair(allocator).getTo();
     vectorOutput.add(outgoing);
+    sv2.checkBytes(startIdx * SV2_SIZE_BYTES, (startIdx + count) * SV2_SIZE_BYTES);
     return  page -> {
-      int totalSize = computeBitsNeeded(sv2Addr, count) / BYTE_SIZE_BITS;
+      int totalSize = computeBitsNeeded(sv2, startIdx, count) / BYTE_SIZE_BITS;
 
-      final int validityLen = Sizer.round64up(count) / BYTE_SIZE_BITS;
+      final int validityLen = RoundUtil.round64up(count) / BYTE_SIZE_BITS;
       final int dataLen = totalSize - validityLen;
 
-      try (final ArrowBuf validityBuf = page.slice(validityLen);
-           final ArrowBuf dataBuf = page.slice(dataLen)) {
+      try (final ArrowBuf validityBuf = page.sliceAligned(validityLen);
+           final ArrowBuf dataBuf = page.sliceAligned(dataLen)) {
         // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin with.
         validityBuf.setZero(0, validityLen);
         if (dataSizeInBits == 1) {
@@ -80,7 +96,7 @@ class FixedSizer implements Sizer {
 
         // copy data.
         FieldBufferPreAllocedCopier.getCopiers(ImmutableList.of(incoming), ImmutableList.of(outgoing))
-          .forEach(copier -> copier.copy(sv2Addr, count));
+          .forEach(copier -> copier.copy(sv2.memoryAddress() + startIdx * SV2_SIZE_BYTES, count));
 
         assert outgoing.getValidityBufferAddress() == validityBuf.memoryAddress();
         assert outgoing.getDataBufferAddress() == dataBuf.memoryAddress();

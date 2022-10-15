@@ -20,13 +20,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BaseVariableWidthVector;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.rel.RelFieldCollation;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.ValueExpressions.IntExpression;
 import com.dremio.common.expression.ValueExpressions.LongExpression;
 import com.dremio.common.logical.data.NamedExpression;
@@ -37,6 +40,7 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 public class AccumulatorBuilder {
@@ -71,55 +75,116 @@ public class AccumulatorBuilder {
     final byte[] accumulatorTypes = new byte[aggregateExpressions.size()];
     final List<Field> outputVectorFields = new ArrayList<>(aggregateExpressions.size());
     final List<FieldVector> inputVectors = new ArrayList<>(aggregateExpressions.size());
+    final List<LogicalExpression> exprs = new ArrayList<>(aggregateExpressions.size());
 
     for (int i = 0; i < aggregateExpressions.size(); i++) {
       final NamedExpression ne = namedExpressions.get(i);
       final LogicalExpression expr = aggregateExpressions.get(i);
-      final Field outputField = expr.getCompleteType().toField(ne.getRef());
-      final FieldVector inputVector;
 
-      outputVectorFields.add(outputField);
-
-      if(expr == null || !(expr instanceof FunctionHolderExpr) ){
-        throw unsup("Accumulation expression is not a function: " + expr.toString());
+      if (!(expr instanceof ListAggExpression) && !(expr instanceof FunctionHolderExpr)) {
+        throw unsup("Accumulation expression is not a function: " + expr);
       }
 
-      FunctionHolderExpr func = (FunctionHolderExpr) expr;
-      ImmutableList<LogicalExpression> exprs = ImmutableList.copyOf(expr);
+      exprs.add(expr);
+
+      final Field outputField = expr.getCompleteType().toField(ne.getRef());
+      outputVectorFields.add(outputField);
+
+      final String funcName;
+      if (expr instanceof ListAggExpression) {
+        funcName = ((ListAggExpression) expr).getName();
+      } else {
+        funcName = ((FunctionHolderExpr) expr).getName();
+      }
+
+      ImmutableList<LogicalExpression> exprCopy = ImmutableList.copyOf(expr);
 
       /* COUNT(1) */
-      if (func.getName().equals("count") && (exprs.isEmpty() || (exprs.size() == 1 && isCountLiteral(exprs.get(0))))) {
+      if (funcName.equals("count") && (exprCopy.isEmpty() || (exprCopy.size() == 1 && isCountLiteral(exprCopy.get(0))))) {
         accumulatorTypes[i] = (byte)AccumulatorType.COUNT1.ordinal();
         /* count1 doesn't need an input accumulator vector */
         inputVectors.add(null);
         continue;
       }
 
-      /* SUM, MIN, MAX, $SUM0, COUNT, HLL, HLL_MERGE */
-      final ValueVectorReadExpression vvread = (ValueVectorReadExpression) exprs.get(0);
-      inputVector = incoming.getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds()).getValueVector();
-      accumulatorTypes[i] = getAccumulatorTypeFromName(func.getName());
+      accumulatorTypes[i] = getAccumulatorTypeFromName(funcName);
 
-      if ((exprs.size() != 1 ||  !(exprs.get(0) instanceof ValueVectorReadExpression))) {
-        throw unsup("Accumulation expression has an unexpected number of type of arguments: " + exprs.toString());
+      if ((exprCopy.size() != 1 && !(expr instanceof ListAggExpression)) || !(exprCopy.get(0) instanceof ValueVectorReadExpression)) {
+        throw unsup("Accumulation expression has an unexpected number of type of arguments: " + exprCopy);
       }
 
+      /* SUM, MIN, MAX, $SUM0, COUNT, HLL, HLL_MERGE, LISTAGG, LOCAL_LISTAGG & LISTAGG_MERGE */
+      final ValueVectorReadExpression vvread = (ValueVectorReadExpression) exprCopy.get(0);
+      final FieldVector inputVector = incoming.getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds()).getValueVector();
       inputVectors.add(inputVector);
     }
 
-    return new MaterializedAggExpressionsResult(accumulatorTypes, inputVectors, outputVectorFields);
+    return new MaterializedAggExpressionsResult(accumulatorTypes, inputVectors, outputVectorFields, exprs);
   }
 
   public static MaterializedAggExpressionsResult getAccumulatorTypesFromExpressions(
-    ClassProducer producer,
-    List<NamedExpression> namedExpressions,
-    VectorAccessible incoming) throws Exception {
+    ClassProducer producer, List<NamedExpression> namedExpressions, VectorAccessible incoming) {
     List<LogicalExpression> materializedExprs = namedExpressions
       .stream()
       .map(ne -> producer.materialize(ne.getExpr(), incoming))
       .collect(Collectors.toList());
 
     return getAccumulatorTypesFromMaterializedExpressions(namedExpressions, materializedExprs, incoming);
+  }
+
+  public static class VarLenAccumParams {
+    int estimatedVarKeySize;
+    int maxVarKeySize;
+    int maxVarVecUsagePercentage;
+    VectorizedHashAggOperator.VarLenVectorResizerImpl varLenVectorResizer;
+    int accumIndex;
+
+    VarLenAccumParams(int estimatedVarKeySize, int maxVarKeySize, int maxVarVecUsagePercentage, VectorizedHashAggOperator.VarLenVectorResizerImpl varLenVectorResizer) {
+      this.estimatedVarKeySize = estimatedVarKeySize;
+      this.maxVarKeySize = maxVarKeySize;
+      this.maxVarVecUsagePercentage = maxVarVecUsagePercentage;
+      this.varLenVectorResizer = varLenVectorResizer;
+    }
+
+    public void setAccumIndex(int accumIndex) {
+      this.accumIndex = accumIndex;
+    }
+  }
+
+  public static class ListAggParams {
+    final int listAggSize;
+    final boolean distinct;
+    final String delimiter;
+    final boolean orderby;
+    final boolean asc;
+
+    public ListAggParams(final int listAggSize, final boolean distinct, final String delimiter, final boolean orderby, final boolean asc) {
+      this.listAggSize = listAggSize;
+      this.distinct = distinct;
+      this.delimiter = delimiter;
+      this.orderby = orderby;
+      this.asc = asc;
+    }
+  }
+
+  private static ListAggParams buildListAggParams(final ListAggExpression listAggExpression, final int maxListAggSize) {
+    boolean orderby = false;
+    boolean asc = false;
+    if (listAggExpression.getOrderings().size() > 0) {
+      Preconditions.checkState(listAggExpression.getOrderings().size() == 1);
+      orderby = true;
+      String direction = listAggExpression.getOrderings().get(0).getDirection();
+      if (RelFieldCollation.Direction.valueOf(direction) == RelFieldCollation.Direction.ASCENDING ||
+          RelFieldCollation.Direction.valueOf(direction) == RelFieldCollation.Direction.STRICTLY_ASCENDING) {
+        asc = true;
+      }
+    }
+    String delimiter = "";
+    if (listAggExpression.getExtraExpressions().size() > 0) {
+      ValueExpressions.QuotedString quotedString = (ValueExpressions.QuotedString) listAggExpression.getExtraExpressions().get(0);
+      delimiter = quotedString.value;
+    }
+    return new ListAggParams(maxListAggSize, listAggExpression.isDistinct(), delimiter, orderby, asc);
   }
 
   /**
@@ -133,22 +198,9 @@ public class AccumulatorBuilder {
    * @param jointAllocationMin Minimum size of combined accumulators buffers in AccumulatorSet
    * @param jointAllocationLimit Maximum size of combined accumulators buffers in AccumulatorSet
    * @param decimalV2Enabled
-   * @param estimatedVariableWidthKeySize Default estimated size of variable length column key size.
-   * @param maxVariableWidthKeySize Maximum estimated size for variable length column key size that
-   *                                variable vector can allocate.
-   * @param maxVarWidthVecUsagePercent Maximum percent of space to be used by MutableVarchar vector
-   *                                   to avoid too much garbage collection cycles.
    * @param tempAccumulatorHolder Temporary accumulator to copy the variable records from Mutable
    *                              varchar vector, where the records were not stored in record order.
    *                              These temporary accumulator buffers hold the data to be spilled.
-   * @param varLenVectorResizer Interface to be called by BaseVarBinaryAccumulator when it increase the
-   *                            estimatedVariableWidthKeySize for new batches. (VarBinaryAccumulator
-   *                            does this to have better total size for variable length records, which
-   *                            in turn help HashAgg to reduce the wastage in fixedBlock vectors as well as
-   *                            reduce splices, which is very memory/cpu sensitive op). varLenVectorResize
-   *                            internally increase the tempAccumulatorHolder and parititonToLoadAccumulator
-   *                            to the new size so that when spilling or reading the data from disk, these
-   *                            accumulators won't run out of space.
    *
    * @return A Nested accumulator that holds individual sub-accumulators.
    *
@@ -167,14 +219,13 @@ public class AccumulatorBuilder {
                                               final long jointAllocationMin,
                                               final long jointAllocationLimit,
                                               boolean decimalV2Enabled,
-                                              int estimatedVariableWidthKeySize,
-                                              int maxVariableWidthKeySize,
-                                              int maxVarWidthVecUsagePercent,
-                                              BaseVariableWidthVector[] tempAccumulatorHolder,
-                                              VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
-    final byte[] accumulatorTypes = materializedAggExpressions.accumulatorTypes;
-    final List<FieldVector> inputVectors = materializedAggExpressions.inputVectors;
-    final List<Field> outputVectorFields = materializedAggExpressions.outputVectorFields;
+                                              VarLenAccumParams varLenAccumParams,
+                                              int maxListAggSize,
+                                              BaseValueVector[] tempAccumulatorHolder) {
+    final byte[] accumulatorTypes = materializedAggExpressions.getAccumulatorTypes();
+    final List<FieldVector> inputVectors = materializedAggExpressions.getInputVectors();
+    final List<Field> outputVectorFields = materializedAggExpressions.getOutputVectorFields();
+    final List<LogicalExpression> expressions = materializedAggExpressions.getExpressions();
 
     final Accumulator[] accums = new Accumulator[accumulatorTypes.length];
 
@@ -183,19 +234,24 @@ public class AccumulatorBuilder {
       final FieldVector outputVector = TypeHelper.getNewVector(outputVectorFields.get(i), outputVectorAllocator);
       final FieldVector transferVector = outgoing.addOrGet(outputVector.getField());
       final byte accumulatorType = accumulatorTypes[i];
+      ListAggParams listAggParams = null;
+      if (accumulatorType == AccumulatorType.LISTAGG.ordinal() ||
+          accumulatorType == AccumulatorType.LOCAL_LISTAGG.ordinal() ||
+          accumulatorType == AccumulatorType.LISTAGG_MERGE.ordinal()) {
+        listAggParams = buildListAggParams((ListAggExpression) expressions.get(i), maxListAggSize);
+      }
 
+      varLenAccumParams.setAccumIndex(i);
       /* this step doesn't allocate any memory for accumulators */
-      accums[i] = getAccumulator(accumulatorType, inputVector, outputVector, transferVector,
-        maxValuesPerBatch, computationVectorAllocator, decimalV2Enabled,
-        estimatedVariableWidthKeySize, maxVariableWidthKeySize, maxVarWidthVecUsagePercent,
-        i, tempAccumulatorHolder[i], varLenVectorResizer);
+      accums[i] = getAccumulator(accumulatorType, inputVector, outputVector, transferVector, maxValuesPerBatch,
+        computationVectorAllocator, decimalV2Enabled, varLenAccumParams, listAggParams,
+        tempAccumulatorHolder[i]);
       if (accums[i] == null) {
         throw new IllegalStateException("ERROR: invalid accumulator state");
       }
     }
 
-    return new AccumulatorSet(jointAllocationMin, jointAllocationLimit,
-      computationVectorAllocator, accums);
+    return new AccumulatorSet(jointAllocationMin, jointAllocationLimit, computationVectorAllocator, accums);
   }
 
   private static Accumulator getAccumulator(byte accumulatorType, FieldVector incomingValues,
@@ -203,12 +259,9 @@ public class AccumulatorBuilder {
                                             final int maxValuesPerBatch,
                                             final BufferAllocator computationVectorAllocator,
                                             boolean decimalCompleteEnabled,
-                                            int estimatedVariableWidthKeySize,
-                                            int maxVariableWidthKeySize,
-                                            int maxVarWidthVecUsagePercent,
-                                            int accumIndex,
-                                            BaseVariableWidthVector tempAccumulatorHolder,
-                                            VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
+                                            VarLenAccumParams varLenAccumParams,
+                                            ListAggParams listAggParams,
+                                            BaseValueVector tempAccumulatorHolder) {
     if (accumulatorType == AccumulatorType.COUNT1.ordinal()) {
       return new CountOneAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                      computationVectorAllocator);
@@ -293,9 +346,9 @@ public class AccumulatorBuilder {
 
           case VARCHAR:
           case VARBINARY:
-            return new MinAccumulators.VarLenMinAccumulator(incomingValues, transferVector, maxValuesPerBatch,
-              computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize, maxVarWidthVecUsagePercent,
-              accumIndex, tempAccumulatorHolder, varLenVectorResizer);
+            return new MinAccumulators.VarLenMinAccumulator(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
+              varLenAccumParams.estimatedVarKeySize, varLenAccumParams.maxVarKeySize, varLenAccumParams.maxVarVecUsagePercentage,
+              varLenAccumParams.accumIndex, tempAccumulatorHolder, varLenAccumParams.varLenVectorResizer);
         }
         break;
       }
@@ -350,9 +403,9 @@ public class AccumulatorBuilder {
                                                          computationVectorAllocator);
           case VARCHAR:
           case VARBINARY:
-            return new MaxAccumulators.VarLenMaxAccumulator(incomingValues, transferVector, maxValuesPerBatch,
-              computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize, maxVarWidthVecUsagePercent,
-              accumIndex, tempAccumulatorHolder, varLenVectorResizer);
+            return new MaxAccumulators.VarLenMaxAccumulator(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
+              varLenAccumParams.estimatedVarKeySize, varLenAccumParams.maxVarKeySize, varLenAccumParams.maxVarVecUsagePercentage,
+              varLenAccumParams.accumIndex, tempAccumulatorHolder, varLenAccumParams.varLenVectorResizer);
         }
         break;
       }
@@ -449,8 +502,18 @@ public class AccumulatorBuilder {
       }
 
       case 8 /* LISTAGG */: {
-        return new ListAggAccumulator(incomingValues, transferVector, maxValuesPerBatch,
-          computationVectorAllocator);
+        return new ListAggAccumulator(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
+          listAggParams, tempAccumulatorHolder);
+      }
+
+      case 9 /* LOCAL_LISTAGG */: {
+        return new LocalListAggAccumulator(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
+          listAggParams, tempAccumulatorHolder);
+      }
+
+      case 10 /* LISTAGG_MERGE */: {
+        return new ListAggMergeAccumulator(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
+          listAggParams, tempAccumulatorHolder);
       }
     }
 
@@ -463,16 +526,19 @@ public class AccumulatorBuilder {
   }
 
   public static class MaterializedAggExpressionsResult {
-    final byte[] accumulatorTypes;
-    final List<FieldVector> inputVectors;
-    final List<Field> outputVectorFields;
+    private final byte[] accumulatorTypes;
+    private final List<FieldVector> inputVectors;
+    private final List<Field> outputVectorFields;
+    private final List<LogicalExpression> expressions;
 
     public MaterializedAggExpressionsResult(final byte[] accumulatorTypes,
                                             final List<FieldVector> inputVectors,
-                                            final List<Field> outputVectorFields) {
+                                            final List<Field> outputVectorFields,
+                                            final List<LogicalExpression> expressions) {
       this.accumulatorTypes = accumulatorTypes;
       this.inputVectors = inputVectors;
       this.outputVectorFields = outputVectorFields;
+      this.expressions = expressions;
     }
 
     public List<Field> getOutputVectorFields() {
@@ -486,6 +552,10 @@ public class AccumulatorBuilder {
     public List<FieldVector> getInputVectors() {
       return inputVectors;
     }
+
+    public List<LogicalExpression> getExpressions() {
+      return expressions;
+    }
   }
 
   public enum AccumulatorType {
@@ -498,6 +568,8 @@ public class AccumulatorBuilder {
     HLL,       /* 6 */
     HLL_MERGE, /* 7 */
     LISTAGG,   /* 8 */
+    LOCAL_LISTAGG,  /* 9 */
+    LISTAGG_MERGE,  /* 10 */
   }
 
   private static byte getAccumulatorTypeFromName(String name) {
@@ -520,9 +592,26 @@ public class AccumulatorBuilder {
         switch (name) {
           case "hll_merge":
             return (byte)AccumulatorType.HLL_MERGE.ordinal();
+          case "hll":
+            return (byte)AccumulatorType.HLL.ordinal();
+          default:
+            throw UserException.unsupportedError().message("Unable to handle accumulator function %s", name).build(logger);
         }
-        return (byte)AccumulatorType.HLL.ordinal();
+      case "local":
+        switch (name) {
+          case "local_listagg":
+            return (byte)AccumulatorType.LOCAL_LISTAGG.ordinal();
+          default:
+            throw UserException.unsupportedError().message("Unable to handle accumulator function %s", name).build(logger);
+        }
       case "listagg":
+        switch (name) {
+          case "listagg_merge":
+            return (byte)AccumulatorType.LISTAGG_MERGE.ordinal();
+          default:
+            throw UserException.unsupportedError().message("Unable to handle accumulator function %s", name).build(logger);
+        }
+      case "LISTAGG":
         return (byte)AccumulatorType.LISTAGG.ordinal();
       default:
         throw UserException.unsupportedError().message("Unable to handle accumulator function %s", name).build(logger);

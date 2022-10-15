@@ -54,7 +54,7 @@ describe("AccelerationUpdatesForm", () => {
     const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
     expect(wrapper.find("Radio").at(1).props().label).to.be.eql(
-      "Incremental update"
+      '{"0":{"id":"Incremental.Update"}}'
     );
   });
 
@@ -81,7 +81,7 @@ describe("AccelerationUpdatesForm", () => {
       <AccelerationUpdatesForm {...minimalProps} entityType="folder" />
     );
     expect(wrapper.find("Radio").at(1).props().label).to.be.eql(
-      "Incremental update based on new files"
+      '{"0":{"id":"Incremental.Update.NewFiles"}}'
     );
   });
 

@@ -35,6 +35,22 @@ class DatasetResourcePathUtils {
       pathParts[pathParts.length - 1]
     }`;
   }
+
+  /*
+   * Creating the dataset URL: https://dremio.atlassian.net/browse/DX-56494
+   *
+   * Decoding the part separately before concatenating into a URL. Putting
+   * the roote space before the rest of the namespace, so that
+   * getInitialDataset (src/selectors/explore.js) parses the route params correctly.
+   *
+   */
+  toHrefV2(datasetFullPath) {
+    const encodedDatasetFullPath = datasetFullPath
+      .toJS()
+      .map((item) => encodeURIComponent(item));
+    const rootSpace = encodedDatasetFullPath.shift();
+    return `/space/${rootSpace}/${encodedDatasetFullPath.join(".")}`;
+  }
 }
 
 const result = new DatasetResourcePathUtils();

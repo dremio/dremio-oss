@@ -114,7 +114,26 @@ public class QueryExecutor {
    * @param runInSameThread runs attemptManager in a single thread
    */
   JobData runQueryWithListener(SqlQuery query, QueryType queryType, DatasetPath datasetPath,
-      DatasetVersion version, JobStatusListener statusListener, boolean runInSameThread) {
+                               DatasetVersion version, JobStatusListener statusListener, boolean runInSameThread) {
+    return runQueryWithListener(query, queryType, datasetPath, version, statusListener, runInSameThread, false);
+  }
+
+  /**
+   * Run the query with given listener
+   * <p>
+   * Virtual Datasets must provide a version
+   * Sources' physical datasets have null version
+   *
+   * @param query          the sql to run
+   * @param queryType      the type of query(metadata)
+   * @param datasetPath    the path for the dataset represented by the query (metadata)
+   * @param version        the version for the dataset represented by the query (metadata)
+   * @param statusListener Job status and event listener
+   * @param runInSameThread runs attemptManager in a single thread
+   * @param ignoreColumnLimits ignores the max number of columns allowed for a scan
+   */
+  JobData runQueryWithListener(SqlQuery query, QueryType queryType, DatasetPath datasetPath,
+      DatasetVersion version, JobStatusListener statusListener, boolean runInSameThread, boolean ignoreColumnLimits) {
     String messagePath = datasetPath + (version == null ? "" : "/" + version);
     if (datasetPath.getRoot().getRootType() == SOURCE) {
       if (version != null) {
@@ -173,6 +192,7 @@ public class QueryExecutor {
         SubmitJobRequest.newBuilder()
           .setSqlQuery(JobsProtoUtil.toBuf(query))
           .setQueryType(JobsProtoUtil.toBuf(queryType))
+          .setIgnoreColumnLimits(ignoreColumnLimits)
           .setVersionedDataset(VersionedDatasetPath.newBuilder()
             .addAllPath(datasetPath.toNamespaceKey().getPathComponents())
             .setVersion(version.getVersion())

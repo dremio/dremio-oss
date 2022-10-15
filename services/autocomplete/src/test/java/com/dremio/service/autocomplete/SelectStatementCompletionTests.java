@@ -42,24 +42,6 @@ public final class SelectStatementCompletionTests extends AutocompleteEngineTest
   }
 
   @Test
-  public void functions() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add(
-        "FUNCTION NEEDING PARAMETER",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT ONE_ARG_NUMERIC_FUNCTION(^ FROM EMP"))
-      .add(
-        "FUNCTION WITH SUBFUNCTION RECOMMENDATIONS",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT ONE_ARG_BOOLEAN_FUNCTION(^ FROM EMP"))
-      .add(
-        "FUNCTION WITH SPECIAL SYNTAX 1",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING('HELLO' ^ FROM EMP"))
-      .add(
-        "FUNCTION WITH SPECIAL SYNTAX 2",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING('HELLO' FROM ^ EMP"))
-      .runTests();
-  }
-
-  @Test
   public void joinScenarios() {
     new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
       .add(
@@ -83,6 +65,21 @@ public final class SelectStatementCompletionTests extends AutocompleteEngineTest
           "SELECT * FROM EMP " +
           "JOIN DEPT ON EMP.DEPTNO = ^ " +
           "JOIN SALGRADE ON SALGRADE.GRADE = DEPT.DEPTNO"))
+      .runTests();
+  }
+
+  @Test
+  public void pathAliasing() {
+    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
+      .add(
+        "BASIC",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP ^"))
+      .add(
+        "ALIAS ",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP AS ^"))
+      .add(
+        "ALIAS with no as",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP e^"))
       .runTests();
   }
 
@@ -122,6 +119,12 @@ public final class SelectStatementCompletionTests extends AutocompleteEngineTest
       .add(
         "APPLY mid path",
         GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"space\".\"folder\".\"physical dataset\" APPLY \"space\".\"folder\".^"))
+      .add(
+        "Path with special character incorrect.",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM @^"))
+      .add(
+        "Path with special character correct.",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"@^"))
       .runTests();
   }
 

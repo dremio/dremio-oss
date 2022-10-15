@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
@@ -57,6 +58,11 @@ public class IcebergTestTables {
       "dfs_static_test_hadoop",
       "/tmp/iceberg-test-tables",
       "/v2/orders");
+  public static Supplier<Table> PRODUCTS_WITH_EQ_DELETES = () -> getTable(
+      "iceberg/v2/products_with_eq_deletes",
+      "dfs_static_test_hadoop",
+      "/tmp/iceberg-test-tables",
+      "/v2/products_with_eq_deletes");
 
   public static BatchSchema V2_ORDERS_SCHEMA = new BatchSchema(ImmutableList.of(
     Field.nullable("order_id", new ArrowType.Int(32, true)),
@@ -64,6 +70,15 @@ public class IcebergTestTables {
     Field.nullable("order_date", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
     Field.nullable("product_name", new ArrowType.Utf8()),
     Field.nullable("amount", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))));
+
+  public static BatchSchema PRODUCTS_SCHEMA = new BatchSchema(ImmutableList.of(
+      Field.nullable("product_id", Types.MinorType.INT.getType()),
+      Field.nullable("name", Types.MinorType.VARCHAR.getType()),
+      Field.nullable("category", Types.MinorType.VARCHAR.getType()),
+      Field.nullable("color", Types.MinorType.VARCHAR.getType()),
+      Field.nullable("created_date", Types.MinorType.DATEMILLI.getType()),
+      Field.nullable("weight", Types.MinorType.FLOAT8.getType()),
+      Field.nullable("quantity", Types.MinorType.INT.getType())));
 
   public static BatchSchema V2_ORDERS_DELETE_FILE_SCHEMA = PositionalDeleteFileReader.SCHEMA;
 

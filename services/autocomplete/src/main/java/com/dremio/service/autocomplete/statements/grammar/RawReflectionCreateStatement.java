@@ -17,16 +17,13 @@ package com.dremio.service.autocomplete.statements.grammar;
 
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.DISPLAY;
 
-import org.apache.arrow.util.Preconditions;
-
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
- * ALTER TABLE CATALOG_PATH
+ * ALTER TABLE tablereference
  * ADD RAW REFLECTION name
  * USING
  * DISPLAY (field1, field2)
@@ -35,26 +32,26 @@ import com.google.common.collect.ImmutableList;
  * [ LOCALSORT BY (field1, field2, ..) ]
  */
 public final class RawReflectionCreateStatement extends Statement {
-  private final CatalogPath catalogPath;
+  private final TableReference tableReference;
   private final String reflectionName;
   private final FieldList displayFields;
   private final FieldLists fieldLists;
 
   private RawReflectionCreateStatement(
     ImmutableList<DremioToken> tokens,
-    CatalogPath catalogPath,
+    TableReference tableReference,
     String reflectionName,
     FieldList displayFields,
     FieldLists fieldLists) {
-    super(tokens, ImmutableList.of());
-    this.catalogPath = catalogPath;
+    super(tokens, asListIgnoringNulls(tableReference, displayFields, fieldLists));
+    this.tableReference = tableReference;
     this.reflectionName = reflectionName;
     this.displayFields = displayFields;
     this.fieldLists = fieldLists;
   }
 
-  public CatalogPath getCatalogPath() {
-    return catalogPath;
+  public TableReference getTableReference() {
+    return tableReference;
   }
 
   public String getReflectionName() { return reflectionName; }
@@ -67,31 +64,21 @@ public final class RawReflectionCreateStatement extends Statement {
     return fieldLists;
   }
 
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
-  }
-
   static RawReflectionCreateStatement parse(
     TokenBuffer tokenBuffer,
-    CatalogPath catalogPath,
+    TableReference tableReference,
     String reflectionName) {
     Preconditions.checkNotNull(tokenBuffer);
-    Preconditions.checkNotNull(catalogPath);
+    Preconditions.checkNotNull(tableReference);
     Preconditions.checkNotNull(reflectionName);
 
-    return new Builder(tokenBuffer.toList(), catalogPath, reflectionName)
-      .addDisplayFields(parseDisplayFields(tokenBuffer))
-      .addFieldLists(FieldLists.parse(tokenBuffer))
+    return new Builder(tokenBuffer.toList(), tableReference, reflectionName)
+      .addDisplayFields(parseDisplayFields(tokenBuffer, tableReference))
+      .addFieldLists(FieldLists.parse(tokenBuffer, tableReference))
       .build();
   }
 
-  private static FieldList parseDisplayFields(TokenBuffer tokenBuffer) {
+  private static FieldList parseDisplayFields(TokenBuffer tokenBuffer, TableReference tableReference) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -101,19 +88,19 @@ public final class RawReflectionCreateStatement extends Statement {
       return null;
     }
 
-    return FieldList.parse(tokenBuffer);
+    return FieldList.parse(tokenBuffer, tableReference);
   }
 
   private static final class Builder {
     private final ImmutableList<DremioToken> tokens;
-    private final CatalogPath catalogPath;
+    private final TableReference tableReference;
     private final String tableName;
     private FieldList displayFields;
     private FieldLists fieldLists;
 
-    public Builder (ImmutableList<DremioToken> tokens, CatalogPath catalogPath, String tableName) {
+    public Builder (ImmutableList<DremioToken> tokens, TableReference tableReference, String tableName) {
       this.tokens = tokens;
-      this.catalogPath = catalogPath;
+      this.tableReference = tableReference;
       this.tableName = tableName;
     }
 
@@ -130,7 +117,7 @@ public final class RawReflectionCreateStatement extends Statement {
     public RawReflectionCreateStatement build() {
       return new RawReflectionCreateStatement(
         tokens,
-        catalogPath,
+        tableReference,
         tableName,
         displayFields,
         fieldLists);

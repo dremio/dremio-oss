@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-maprfs-shaded</artifactId>
@@ -43,6 +43,10 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-auth</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>xml-apis</groupId>
+            <artifactId>xml-apis</artifactId>
           </exclusion>
         </exclusions>
       </dependency>

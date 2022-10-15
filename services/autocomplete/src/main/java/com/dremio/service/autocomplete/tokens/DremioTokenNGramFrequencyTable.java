@@ -19,10 +19,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.arrow.util.Preconditions;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 
@@ -89,31 +89,30 @@ public final class DremioTokenNGramFrequencyTable {
     return n;
   }
 
-  public void updateFrequency(ImmutableList<DremioToken> ngram) {
-    ImmutableList<Integer> convertedNGram = convert(ngram);
-    int frequency = this.frequencies.getOrDefault(convertedNGram, 0);
+  public void updateFrequency(ImmutableList<Integer> ngram) {
+    int frequency = this.frequencies.getOrDefault(ngram, 0);
     frequency++;
 
-    this.frequencies.put(convertedNGram, frequency);
+    this.frequencies.put(ngram, frequency);
   }
 
-  public int getFrequency(ImmutableList<DremioToken> ngram) {
-    return this.frequencies.getOrDefault(convert(ngram), 0);
+  public int getFrequency(ImmutableList<Integer> ngram) {
+    return this.frequencies.getOrDefault(ngram, 0);
   }
 
   public void addQuery(String query) {
-    ImmutableList<DremioToken> tokens = ImmutableList.<DremioToken>builder()
-      .add(DremioToken.START_TOKEN)
-      .addAll(SqlQueryTokenizer.tokenize(query))
+    ImmutableList<Integer> tokens = ImmutableList.<Integer>builder()
+      .add(DremioToken.START_TOKEN.getKind())
+      .addAll(SqlQueryTokenizer.tokenize(query).stream().map(token -> token.getKind()).collect(Collectors.toList()))
       .build();
     addTokens(tokens);
   }
 
-  private void addTokens(ImmutableList<DremioToken> tokens) {
+  private void addTokens(ImmutableList<Integer> tokens) {
     for (int i = 1; i <= n; i++) {
       int stopIndex = Math.max(tokens.size() - i, 0);
       for (int j = 0; j < stopIndex; j++) {
-        ImmutableList<DremioToken> nGram = tokens.subList(j, j + i);
+        ImmutableList<Integer> nGram = tokens.subList(j, j + i);
         updateFrequency(nGram);
       }
     }
@@ -142,12 +141,5 @@ public final class DremioTokenNGramFrequencyTable {
     }
 
     return dremioTokenNGramFrequencyTable;
-  }
-
-  private static ImmutableList<Integer> convert(ImmutableList<DremioToken> ngram) {
-    return ngram
-      .stream()
-      .map(DremioToken::getKind)
-      .collect(ImmutableList.toImmutableList());
   }
 }

@@ -36,7 +36,7 @@ public class ExtractMapRecommender extends Recommender<ExtractMapRule, MapSelect
 
   @Override
   public List<ExtractMapRule> getRules(MapSelection selection, DataType selColType) {
-    checkArgument(selColType == DataType.MAP, "Extract map entries is supported only on MAP type columns");
+    checkArgument(selColType == DataType.STRUCT, "Extract map entries is supported only on MAP type columns");
     return Collections.singletonList(new ExtractMapRule(Joiner.on(".").join(selection.getMapPathList())));
   }
 

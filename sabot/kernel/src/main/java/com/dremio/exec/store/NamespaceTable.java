@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -39,6 +38,7 @@ import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.commons.collections.CollectionUtils;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.calcite.logical.ScanCrel;
@@ -50,7 +50,6 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.dremio.service.namespace.dataset.proto.PrimaryKey;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -114,12 +113,11 @@ public class NamespaceTable implements DremioTable {
       @Override
       public boolean isKey(ImmutableBitSet columns) {
         if (NamespaceTable.this.keys == null) {
-          PrimaryKey key = getDatasetConfig().getPhysicalDataset().getPrimaryKey();
-          if (key == null || key.getColumnList() == null || key.getColumnList().isEmpty()) {
+          List<String> keys = dataset.getPrimaryKey();
+          if (CollectionUtils.isEmpty(keys)) {
             NamespaceTable.this.keys = ImmutableBitSet.of();
             return false;
           }
-          Set<String> keys = key.getColumnList().stream().map(c -> c.toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
           ImmutableBitSet.Builder b = ImmutableBitSet.builder();
           Ord.zip(getSchema().getFields()).forEach(f -> {
             if (keys.contains(f.e.getName().toLowerCase(Locale.ROOT))) {

@@ -18,7 +18,7 @@ package com.dremio.common.util;
 /**
  * To Manage default values of S3 Connections for plugins
  */
-public class S3ConnectionConstants {
+public final class S3ConnectionConstants {
 
   private S3ConnectionConstants() {
   }

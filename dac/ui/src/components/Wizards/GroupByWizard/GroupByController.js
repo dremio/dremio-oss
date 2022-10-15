@@ -16,7 +16,6 @@
 import { PureComponent } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 import GroupBy from "pages/ExplorePage/components/GroupBy/GroupBy";
 
@@ -53,4 +52,4 @@ class GroupByController extends PureComponent {
     );
   }
 }
-export default Radium(GroupByController);
+export default GroupByController;

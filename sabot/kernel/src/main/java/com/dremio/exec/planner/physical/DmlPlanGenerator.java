@@ -18,6 +18,7 @@ package com.dremio.exec.planner.physical;
 import static com.dremio.exec.util.ColumnUtils.isSystemColumn;
 import static org.apache.calcite.rel.core.TableModify.Operation.DELETE;
 import static org.apache.calcite.rel.core.TableModify.Operation.MERGE;
+import static org.apache.calcite.rel.core.TableModify.Operation.UPDATE;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -94,6 +95,8 @@ public class DmlPlanGenerator {
   private final OptimizerRulesContext context;
   // update column names along with its index
   private final Map<String, Integer> updateColumnsWithIndex = new HashMap<>();
+  // If the TableModify operation has a source
+  private final boolean hasSource;
 
   public enum MergeType {
     UPDATE_ONLY,
@@ -105,7 +108,7 @@ public class DmlPlanGenerator {
 
   public DmlPlanGenerator(RelOptTable table, RelOptCluster cluster, RelTraitSet traitSet, RelNode input,
                           TableMetadata tableMetadata, CreateTableEntry createTableEntry,
-                          TableModify.Operation operation, List<String> updateColumnList,
+                          TableModify.Operation operation, List<String> updateColumnList, boolean hasSource,
                           OptimizerRulesContext context) {
     this.table = Preconditions.checkNotNull(table);
     this.cluster = cluster;
@@ -114,6 +117,7 @@ public class DmlPlanGenerator {
     this.tableMetadata = Preconditions.checkNotNull(tableMetadata, "TableMetadata cannot be null.");
     this.createTableEntry = Preconditions.checkNotNull(createTableEntry, "CreateTableEntry cannot be null.");
     this.operation = Preconditions.checkNotNull(operation, "DML operation cannot be null.");
+    this.hasSource = hasSource;
     this.context = Preconditions.checkNotNull(context, "Context cannot be null.");
 
     validateOperation(operation, updateColumnList);
@@ -121,7 +125,7 @@ public class DmlPlanGenerator {
 
   private void validateOperation(TableModify.Operation operation, List<String> updateColumnList) {
     // validate updateColumnList
-    if (operation == TableModify.Operation.UPDATE || operation == TableModify.Operation.MERGE) {
+    if (operation == UPDATE || operation == TableModify.Operation.MERGE) {
       if (CollectionUtils.isNotEmpty(updateColumnList)) {
         for (int i = 0; i < updateColumnList.size(); i++) {
           this.updateColumnsWithIndex.put(updateColumnList.get(i), i);
@@ -474,16 +478,21 @@ public class DmlPlanGenerator {
     RelDataTypeField rightRowIndexField = joinPlan.getInput(1).getRowType()
       .getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
 
-    // Add Delete filter: FilterPrel (right.__RowIndex IS NULL)
-    if (operation == DELETE) {
-      currentPrel = addColumnIsNullFilter(joinPlan, rightRowIndexField.getType(),
-        leftFieldCount + rightRowIndexField.getIndex());
+    // detect dups
+    if ((operation == MERGE && (mergeType == MergeType.UPDATE_ONLY || mergeType == MergeType.UPDATE_INSERT))
+      || ((operation == UPDATE ||  operation == DELETE) && hasSource)) {
+      // Adds a table function to look for multiple matching rows, currently happens for
+      // 1. MERGE with UPDATEs
+      // 2. UPDATE with source
+      // 3. DELETE with source
+      // Throws an exception when a row to update matches multiple times.
+      currentPrel = new IcebergDmlMergeDuplicateCheckPrel(currentPrel, table, tableMetadata);
     }
 
-    if (operation == MERGE && (mergeType == MergeType.UPDATE_ONLY || mergeType == MergeType.UPDATE_INSERT)) {
-      // Adds a table function to look for multiple matching rows, currently only happening for MERGE with
-      // UPDATEs. Throws an exception when a row to update matches multiple times.
-      currentPrel = new IcebergDmlMergeDuplicateCheckPrel(currentPrel, table, tableMetadata);
+    // Add Delete filter: FilterPrel (right.__RowIndex IS NULL)
+    if (operation == DELETE) {
+      currentPrel = addColumnIsNullFilter(currentPrel, rightRowIndexField.getType(),
+        leftFieldCount + rightRowIndexField.getIndex());
     }
 
     // project (tablecol1, ..., tablecolN)

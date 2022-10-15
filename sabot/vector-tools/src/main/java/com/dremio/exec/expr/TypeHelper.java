@@ -33,6 +33,8 @@ import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.ZeroVectorHelper;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.ListVectorHelper;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.MapVectorHelper;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.NonNullableStructVectorHelper;
 import org.apache.arrow.vector.complex.StructVector;
@@ -82,6 +84,7 @@ import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.UnionMode;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -96,8 +99,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * generated from TypeHelper.java
  */
-public class TypeHelper extends BasicTypeHelper {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TypeHelper.class);
+public final class TypeHelper extends BasicTypeHelper {
 
   public static <T extends ValueVector> Class<T> getValueVectorClass(Field field) {
     return (Class<T>) getValueVectorClass(getMinorTypeForArrowType(field.getType()));
@@ -161,6 +163,8 @@ public class TypeHelper extends BasicTypeHelper {
       return new NullVectorHelper((NullVector) v);
     } else if (v instanceof UnionVector) {
       return new UnionVectorHelper((UnionVector) v);
+    } else if (v instanceof MapVector) {
+      return new MapVectorHelper((MapVector) v);
     } else if (v instanceof ListVector) {
       return new ListVectorHelper((ListVector) v);
     } else if (v instanceof StructVector) {
@@ -314,12 +318,28 @@ public class TypeHelper extends BasicTypeHelper {
   }
 
   public static Field getFieldForSerializedField(SerializedField serializedField) {
+    return getFieldForSerializedField(serializedField, true);
+  }
+
+  public static Field getFieldForSerializedField(SerializedField serializedField, boolean isNullable) {
     String name = serializedField.getNamePart().getName();
     org.apache.arrow.vector.types.Types.MinorType arrowMinorType = MajorTypeHelper
         .getArrowMinorType(serializedField.getMajorType().getMinorType());
     switch (serializedField.getMajorType().getMinorType()) {
+    case MAP:
+      SerializedField serializedEntryField = serializedField.getChild(2);
+      List<SerializedField> keyValueFields = serializedEntryField.getChildList();
+      SerializedField keyValueBits = keyValueFields.get(0);
+      Preconditions.checkState(keyValueBits.getNamePart().getName().equals("$bits$"),
+        "children should start with validity vector buffer: %s", keyValueFields);
+      Preconditions.checkArgument(keyValueFields.size() == 3, "Invalid MAP structure for field %s", name);
+      ImmutableList.Builder<Field> keyValueBuilder = ImmutableList.builder();
+      keyValueBuilder.add(getFieldForSerializedField(keyValueFields.get(1), false));
+      keyValueBuilder.add(getFieldForSerializedField(keyValueFields.get(2), true));
+      Field entryField = new Field(MapVector.DATA_VECTOR_NAME, new FieldType(false, ArrowType.Struct.INSTANCE, null), keyValueBuilder.build());
+      return new Field(name, new FieldType(isNullable, new ArrowType.Map(false), null), ImmutableList.of(entryField));
     case LIST:
-      return new Field(name, new FieldType(true, arrowMinorType.getType(), null),
+      return new Field(name, new FieldType(isNullable, arrowMinorType.getType(), null),
           ImmutableList.of(getFieldForSerializedField(serializedField.getChild(2))));
     case STRUCT: {
       ImmutableList.Builder<Field> builder = ImmutableList.builder();
@@ -332,7 +352,7 @@ public class TypeHelper extends BasicTypeHelper {
         SerializedField child = childList.get(i);
         builder.add(getFieldForSerializedField(child));
       }
-      return new Field(name, new FieldType(true, arrowMinorType.getType(), null), builder.build());
+      return new Field(name, new FieldType(isNullable, arrowMinorType.getType(), null), builder.build());
     }
     case UNION: {
       ImmutableList.Builder<Field> builder = ImmutableList.builder();
@@ -346,12 +366,16 @@ public class TypeHelper extends BasicTypeHelper {
 
       // TODO: not sure the sparse mode is correct.
       final Union unionType = new Union(UnionMode.Sparse, typeIds);
-      return new Field(name, new FieldType(true, unionType, null), builder.build());
+      return new Field(name, new FieldType(isNullable, unionType, null), builder.build());
     }
     case DECIMAL:
-      return new Field(name, new FieldType(true,  new Decimal(serializedField.getMajorType().getPrecision(), serializedField.getMajorType().getScale(), 128), null), null);
+      return new Field(name, new FieldType(isNullable,  new Decimal(serializedField.getMajorType().getPrecision(), serializedField.getMajorType().getScale(), 128), null), null);
     default:
-      return new Field(name, new FieldType(true, arrowMinorType.getType(), null), null);
+      return new Field(name, new FieldType(isNullable, arrowMinorType.getType(), null), null);
     }
+  }
+
+  private TypeHelper() {
+    // Utility class
   }
 }

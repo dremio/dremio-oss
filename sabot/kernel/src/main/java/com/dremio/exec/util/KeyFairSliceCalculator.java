@@ -16,8 +16,8 @@
 
 package com.dremio.exec.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Map.Entry.comparingByValue;
-import static org.apache.arrow.util.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,7 +60,7 @@ public class KeyFairSliceCalculator {
         int numValueBytes = maxTotalSize - numValidityBytes;
 
         checkArgument(numValueBytes >= numNonBooleanKeys,
-          "Not possible to fit %d keys (%d boolean) in %d bytes", numKeys, numBooleanKeys, maxTotalSize);
+          "Not possible to fit %s keys (%s boolean) in %s bytes", numKeys, numBooleanKeys, maxTotalSize);
 
         Collections.sort(listKeySizes, VALUE_COMPARATOR); // Assuming Collections.sort will maintain original order when values are equal
 

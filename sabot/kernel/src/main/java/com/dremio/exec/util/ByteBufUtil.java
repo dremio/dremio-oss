@@ -38,7 +38,7 @@ public class ByteBufUtil {
           .message("Input buffer segment is of invalid length")
           .addContext("Expected length %d", requiredLen)
           .addContext("Given %d(%d-%d)", actualLen, end, start)
-          .addContext("Buffer %s", DremioStringUtils.toBinaryString(NettyArrowBuf.unwrapBuffer(buffer), start, end))
+          .addContext("Buffer", DremioStringUtils.toBinaryString(NettyArrowBuf.unwrapBuffer(buffer), start, end))
           .build();
     }
   }
@@ -86,7 +86,7 @@ public class ByteBufUtil {
         throw context.error()
             .message("Invalid number of bytes in input buffer")
             .addContext("Expected %s", getVIntSize(i))
-            .addContext("Buffer %s", DremioStringUtils.toBinaryString(NettyArrowBuf.unwrapBuffer(buffer), start, end))
+            .addContext("Buffer", DremioStringUtils.toBinaryString(NettyArrowBuf.unwrapBuffer(buffer), start, end))
             .addContext("Available bytes %s", availableBytes)
             .build();
       }
@@ -152,7 +152,7 @@ public class ByteBufUtil {
         throw errorContext.error()
             .message("Invalid number of bytes in input buffer")
             .addContext("Expected %s", len)
-            .addContext("Buffer %s", DremioStringUtils.toBinaryString(NettyArrowBuf.unwrapBuffer(buffer), start, end))
+            .addContext("Buffer", DremioStringUtils.toBinaryString(NettyArrowBuf.unwrapBuffer(buffer), start, end))
             .addContext("Available bytes %s", availableBytes)
             .build();
       }

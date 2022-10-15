@@ -17,7 +17,8 @@ import { useEffect, useState } from "react";
 import ReactFlow, { isNode } from "react-flow-renderer";
 import dagre from "dagre";
 import { injectIntl } from "react-intl";
-import Art from "@app/components/Art";
+import { Tooltip } from "dremio-ui-lib";
+import { getIconPath } from "@app/utils/getIconPath";
 import PropTypes from "prop-types";
 import TextWithHelp from "@app/components/TextWithHelp";
 import {
@@ -64,7 +65,9 @@ const onLayout = (
           if (nodeColorFlags[node.id]) {
             nodeColorFlags[item] = true;
           }
-          const duplicateLabel = duplicateNodes[item] || "";
+          const duplicateLabel = duplicateNodes[item]
+            ? duplicateNodes[item] + 1
+            : "";
           dagreGraph.setEdge(node.id, item);
           nodeElements.push({
             id: node.id + item,
@@ -75,7 +78,9 @@ const onLayout = (
         });
       }
       if (!nodesWithParent[node.id]) {
-        const duplicateLabel = duplicateNodes[node.id] || "";
+        const duplicateLabel = duplicateNodes[node.id]
+          ? duplicateNodes[node.id] + 1
+          : "";
         dagreGraph.setEdge("1", node.id);
         nodeElements.push({
           id: "1" + node.id,
@@ -218,37 +223,37 @@ const DatasetGraph = ({
                     : "reflectionData__contentAgg"
                 }
               >
-                {data.reflectionType === "RAW" ? (
-                  <Art
-                    src={
-                      data.isUsed
-                        ? "Reflection.svg"
-                        : "ReflectionsNotUsedRaw.svg"
-                    }
-                    alt="Reflection"
-                    title="Reflection"
-                    className={
-                      data.isUsed
-                        ? "reflectionData__reflectionIcon"
-                        : "reflectionData__reflectionAgg"
-                    }
-                  />
-                ) : (
-                  <Art
-                    src={
-                      data.isUsed
-                        ? "ReflectionsUsedAgg.svg"
-                        : "ReflectionsNotUsedAgg.svg"
-                    }
-                    alt="Reflection"
-                    title="Reflection"
-                    className={
-                      data.isUsed
-                        ? "reflectionData__reflectionIcon"
-                        : "reflectionData__reflectionAgg"
-                    }
-                  />
-                )}
+                <Tooltip title="Job.Reflection">
+                  {data.reflectionType === "RAW" ? (
+                    <img
+                      src={
+                        data.isUsed
+                          ? getIconPath("interface/reflection")
+                          : getIconPath("interface/reflections-created-raw")
+                      }
+                      alt="Reflection"
+                      className={
+                        data.isUsed
+                          ? "reflectionData__reflectionIcon"
+                          : "reflectionData__reflectionRaw"
+                      }
+                    />
+                  ) : (
+                    <img
+                      src={
+                        data.isUsed
+                          ? getIconPath("interface/reflections-filled-agg")
+                          : getIconPath("interface/reflections-created-agg")
+                      }
+                      alt="Reflection"
+                      className={
+                        data.isUsed
+                          ? "reflectionData__reflectionAggFilled"
+                          : "reflectionData__reflectionAgg"
+                      }
+                    />
+                  )}
+                </Tooltip>
                 <span style={{ textAlign: "start" }}>
                   {data.reflectionName}
                 </span>
@@ -279,7 +284,7 @@ const DatasetGraph = ({
       algebricNodes
     );
     setNodeElements(layoutElements);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     //For the small graphs it will render as per the width height given as default
@@ -302,12 +307,7 @@ const DatasetGraph = ({
       ) : (
         <div className="datasetGraph__errorDisplay">
           <span>{formatMessage({ id: "DatsetGraph.NoData" })}</span>
-          <Art
-            src="Gnarly.svg"
-            alt="Gnarly Logo"
-            title="Gnarly Logo"
-            className="datasetGraph__gnarlyIcon"
-          />
+          <dremio-icon name="narwhal/query" class="datasetGraph__gnarlyIcon" />
         </div>
       )}
     </div>

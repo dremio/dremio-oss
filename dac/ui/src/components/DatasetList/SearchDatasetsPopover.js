@@ -165,6 +165,7 @@ class SearchDatasetsPopover extends PureComponent {
             unstarNode={unstarNode}
             isStarredLimitReached={isStarredLimitReached}
             starredItems={starredItems}
+            isExpandable
           />
         </Popover>
       </div>

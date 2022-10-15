@@ -27,7 +27,6 @@ import io.netty.buffer.NettyArrowBuf;
  * An InputStream that wraps a ArrowBuf and implements the seekable interface.
  */
 public class ArrowBufInputStream extends ByteBufInputStream implements Seekable {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowBufInputStream.class);
 
   private final ArrowBuf buffer;
 

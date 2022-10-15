@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-
+import clsx from "clsx";
 import PropTypes from "prop-types";
 
 import { compose } from "redux";
@@ -47,6 +47,8 @@ import { LABELS, LABELS_IN_SECTIONS } from "./settingsConfig";
 import InternalSupportEmail, {
   RESERVED as INTERNAL_SUPPORT_RESERVED,
 } from "./InternalSupportEmail";
+import { clearCachedSupportFlags } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 import "./Support.less";
 
@@ -194,6 +196,7 @@ export class Support extends PureComponent {
         settingId={settingId}
         resetSetting={allowReset && this.resetSetting.bind(this, settingId)}
         viewId={VIEW_ID}
+        beforeSubmit={clearCachedSupportFlags}
       />
     );
   }
@@ -240,6 +243,7 @@ export class Support extends PureComponent {
         />
         <SimpleButton
           buttonStyle="secondary"
+          className={clsx(classes["secondaryButtonPsuedoClasses"])}
           data-qa="support-key-search-btn"
           submitting={this.state.getSettingInProgress}
           style={{ display: "inline-block", marginLeft: "6px" }}
@@ -251,40 +255,43 @@ export class Support extends PureComponent {
 
     return (
       <div className="support-settings">
-        <SettingHeader icon="SubNavSupport.svg">
+        <SettingHeader icon="settings/support">
           {la("Support Settings")}
         </SettingHeader>
-
-        <ViewStateWrapper
-          viewState={viewStateWithoutError}
-          hideChildrenWhenFailed={false}
+        <div
+          className="gutter-left--double"
           style={{ overflow: "auto", height: "100%", flex: "1 1 auto" }}
         >
-          {!this.props.settings.size ? null : (
-            <div>
-              {SupportAccess && (
-                <SupportAccess
+          <ViewStateWrapper
+            viewState={viewStateWithoutError}
+            hideChildrenWhenFailed={false}
+          >
+            {!this.props.settings.size ? null : (
+              <div>
+                {SupportAccess && (
+                  <SupportAccess
+                    renderSettings={this.renderSettingsMicroForm}
+                    descriptionStyle={styles.description}
+                  />
+                )}
+                <InternalSupportEmail
                   renderSettings={this.renderSettingsMicroForm}
                   descriptionStyle={styles.description}
                 />
-              )}
-              <InternalSupportEmail
-                renderSettings={this.renderSettingsMicroForm}
-                descriptionStyle={styles.description}
-              />
+              </div>
+            )}
+            <div style={{ padding: "10px 0" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <h3 style={{ flex: "1 1 auto" }}>{la("Support Keys")}</h3>
+                {advancedForm}
+              </div>
+              <div style={{ ...formContext }}>
+                {la("Advanced settings provided by Dremio Support.")}
+              </div>
+              {this.renderOtherSettings()}
             </div>
-          )}
-          <div style={{ padding: "10px 0" }}>
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <h3 style={{ flex: "1 1 auto" }}>{la("Support Keys")}</h3>
-              {advancedForm}
-            </div>
-            <div style={{ ...formContext }}>
-              {la("Advanced settings provided by Dremio Support.")}
-            </div>
-            {this.renderOtherSettings()}
-          </div>
-        </ViewStateWrapper>
+          </ViewStateWrapper>
+        </div>
       </div>
     );
   }

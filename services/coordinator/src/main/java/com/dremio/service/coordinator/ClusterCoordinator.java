@@ -44,8 +44,10 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
     public static final String ZK_RETRY_UNLIMITED ="dremio.exec.zk.retry.unlimited";
     public static final String ZK_RETRY_LIMIT = "dremio.exec.zk.retry.limit";
     public static final String ZK_INITIAL_TIMEOUT_MS = "dremio.exec.zk.retry.initial_timeout_ms";
-    public static final String ZK_CONNECTION_HANDLE_ENABLED ="dremio.exec.zk.connection_handle.enabled";
-
+    public static final String ZK_CONNECTION_HANDLE_ENABLED = "dremio.exec.zk.connection_handle.enabled";
+    public static final String ZK_SUPERVISOR_INTERVAL_MS = "dremio.exec.zk.supervisor.interval_ms";
+    public static final String ZK_SUPERVISOR_READ_TIMEOUT_MS = "dremio.exec.zk.supervisor.read_timeout_ms";
+    public static final String ZK_SUPERVISOR_MAX_FAILURES = "dremio.exec.zk.supervisor.max_failures";
   }
 
   /**

@@ -21,35 +21,20 @@
   output:
     completions:
      -
-      data: "="
-      detail: "Some SQL keyword"
-      insertText: "="
       kind: "Keyword"
       label: "="
      -
-      data: "<"
-      detail: "Some SQL keyword"
-      insertText: "<"
       kind: "Keyword"
       label: "<"
      -
-      data: "AND"
-      detail: "Some SQL keyword"
-      insertText: "AND"
       kind: "Keyword"
       label: "AND"
      -
-      data: ">"
-      detail: "Some SQL keyword"
-      insertText: ">"
       kind: "Keyword"
       label: ">"
      -
-      data: ">="
-      detail: "Some SQL keyword"
-      insertText: ">="
       kind: "Keyword"
-      label: ">="
+      label: "IN"
     functionContext: null
     hasMoreResults: true
  -
@@ -58,11 +43,15 @@
   output:
     completions:
      -
-      data: "COUNT"
-      detail: "COUNT"
-      insertText: "COUNT(DISTINCT [field name] {givenfield})"
+      detail: "Returns the total number of records for the specified expression."
+      insertText: "COUNT(*)"
       kind: "Function"
-      label: "COUNT"
+      label: "COUNT(*)"
+     -
+      detail: "Returns the total number of records for the specified expression."
+      insertText: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
+      kind: "Function"
+      label: "COUNT({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -71,36 +60,72 @@
   output:
     completions:
      -
-      data: "LEFT"
-      detail: "Some SQL keyword"
-      insertText: "LEFT"
       kind: "Keyword"
       label: "LEFT"
     functionContext: null
     hasMoreResults: false
  -
   description: "LEFT AS FUNCTION"
-  input: "SELECT LEF^ FROM EMP"
+  input: "SELECT LEF^"
   output:
     completions:
      -
-      data: "LEFT"
-      detail: "LEFT"
-      insertText: "LEFT([string] {giventext}, [number] {x})"
+      detail: "Returns the left-most substring. The function name must be enclosed in double quotes (\"LEFT\")."
+      insertText: "LEFT(${1:CHARACTERS}, ${2:INT})"
       kind: "Function"
-      label: "LEFT"
+      label: "LEFT(???, ???)"
     functionContext: null
     hasMoreResults: false
  -
   description: "ABS IS ONLY EVER A FUNCTION"
-  input: "SELECT AB^ FROM EMP"
+  input: "SELECT AB^"
   output:
     completions:
      -
-      data: "ABS"
-      detail: "ABS"
-      insertText: "ABS([number] {x})"
+      detail: "Computes the absolute value of a numeric expression."
+      insertText: "ABS(${1:FLOAT})"
       kind: "Function"
-      label: "ABS"
+      label: "ABS(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "MIN AS FUNCTION"
+  input: "SELECT MI^"
+  output:
+    completions:
+     -
+      detail: "Returns the minimum value among the non-NULL input expressions."
+      insertText: "MIN(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MIN(???)"
+     -
+      insertText: "MINDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+      kind: "Function"
+      label: "MINDIR(???, ???)"
+     -
+      insertText: "MINUTE(${1:DATEANDTIME})"
+      kind: "Function"
+      label: "MINUTE(???)"
+     -
+      insertText: "MIN_V2(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MIN_V2(???)"
+     -
+      kind: "Keyword"
+      label: "MINUS"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "MIN AS KEYWORD"
+  input:
+   - "ALTER TABLE EMP CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(EMPNO BY DAY, ENAME)"
+   - "MEASURES(EMPNO (COUNT, MI^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "MIN"
     functionContext: null
     hasMoreResults: false

@@ -30,7 +30,6 @@ import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
 import { getLocation } from "selectors/routing";
 import { cancelTransform } from "actions/explore/dataset/transform";
 import { getExploreViewState } from "selectors/resources";
-import Art from "@app/components/Art";
 import "./CancelJobInTableView.less";
 
 const CancelJobInTableView = (props) => {
@@ -85,7 +84,10 @@ const CancelJobInTableView = (props) => {
           }}
           disableMargin
         >
-          <Art src="Cancel.svg" alt="-" className="view-state-cancel-job" />
+          <dremio-icon
+            name="sql-editor/cancel-job"
+            class="view-state-cancel-job"
+          />
           {`${props.intl.formatMessage({ id: "Query.Table.Cancel" })}`}
         </Button>
       </div>

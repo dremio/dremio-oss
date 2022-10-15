@@ -42,6 +42,9 @@ public final class DeltaConstants {
     public static final String SCHEMA_STRING_FIELDS_TYPE = "type";
     public static final String SCHEMA_STRING_FIELDS_NULLABLE = "nullable";
     public static final String SCHEMA_STRING_FIELDS_ARR_ELEMENT_TYPE = "elementType";
+    public static final String SCHEMA_STRING_MAP_KEY_TYPE = "keyType";
+    public static final String SCHEMA_STRING_MAP_VALUE_TYPE = "valueType";
+    public static final String SCHEMA_STRING_MAP_VALUE_CONTAINS_NULL = "valueContainsNull";
     public static final String SCHEMA_STRING_FIELDS_ARR_CONTAINS_NULL = "containsNull";
 
     public static final String DELTA_FIELD_ADD_SIZE = "size";
@@ -51,7 +54,9 @@ public final class DeltaConstants {
     public static final String STATS_PARSED_NUM_RECORDS = "numRecords";
 
     public static final String DELTA_STRUCT = "struct";
+    public static final String DELTA_ENTRIES = "entries";
     public static final String DELTA_ARRAY = "array";
+    public static final String DELTA_MAP = "map";
     public static final String DELTA_BYTE = "byte";
     public static final String DELTA_SHORT = "short";
     public static final String DELTA_INT = "integer";

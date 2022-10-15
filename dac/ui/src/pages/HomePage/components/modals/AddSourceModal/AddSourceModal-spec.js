@@ -23,7 +23,7 @@ import { NAS } from "dyn-load/constants/sourceTypes";
 
 import { AddSourceModal } from "./AddSourceModal";
 
-describe("AddSourceModal", () => {
+describe.skip("AddSourceModal", () => {
   const selectedSource = { label: "NAS", sourceType: NAS };
 
   let minimalProps;

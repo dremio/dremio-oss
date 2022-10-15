@@ -46,10 +46,10 @@ import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
+import com.dremio.common.VM;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.logical.RelOptTableWrapper;
-import com.dremio.exec.util.AssertionUtil;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -120,7 +120,7 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
   public void validate() {
     if (!notSupportedRels.isEmpty()) {
       final String msg = String.format("Following Rels cannot be copied: %s", notSupportedRels);
-      if (AssertionUtil.ASSERT_ENABLED) {
+      if (VM.areAssertsEnabled()) {
         throw UserException.unsupportedError().message(msg).build(logger);
       } else {
         logger.warn(msg);

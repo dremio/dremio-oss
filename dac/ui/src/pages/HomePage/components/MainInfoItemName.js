@@ -22,7 +22,10 @@ import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 import EllipsedText from "components/EllipsedText";
 import { injectIntl } from "react-intl";
 import { splitFullPath } from "utils/pathUtils";
-import { getIconDataTypeFromEntity } from "utils/iconUtils";
+import {
+  getIconDataTypeFromEntity,
+  getIcebergIconTypeFromEntity,
+} from "utils/iconUtils";
 import {
   checkIfUserShouldGetDeadLink,
   getHref,
@@ -34,6 +37,7 @@ class MainInfoItemName extends Component {
     intl: PropTypes.object.isRequired,
     entity: PropTypes.object,
     onMount: PropTypes.func, // takes width parameter
+    isIceberg: PropTypes.bool,
   };
 
   static contextTypes = {
@@ -61,9 +65,11 @@ class MainInfoItemName extends Component {
   }
 
   renderDatasetItemLabel(shouldGetADeadLink) {
-    const { item } = this.props;
+    const { item, isIceberg } = this.props;
     const type = item.get("entityType");
-    const typeIcon = getIconDataTypeFromEntity(item);
+    const typeIcon = isIceberg
+      ? getIcebergIconTypeFromEntity(item)
+      : getIconDataTypeFromEntity(item);
     if (shouldGetADeadLink) {
       return (
         <div style={styles.flexAlign}>
@@ -148,7 +154,6 @@ const styles = {
     maxWidth: "100%",
   },
   leafLink: {
-    textDecoration: "none",
     color: "#333",
   },
 };

@@ -26,14 +26,17 @@ public class SpillJobDetailsUI {
 
   private final boolean hashAggSpilled;
   private final boolean sortSpilled;
+  private final boolean hashJoinSpilled;
   private final long totalBytesSpilled;
 
   @JsonCreator
   public SpillJobDetailsUI(
     @JsonProperty("hashAggSpilled") boolean hashAggSpilled,
     @JsonProperty("sortSpilled") boolean sortSpilled,
+    @JsonProperty("hashJoinSpilled") boolean hashJoinSpilled,
     @JsonProperty("totalBytesSpilled") long totalBytesSpilled) {
     this.hashAggSpilled = hashAggSpilled;
+    this.hashJoinSpilled = hashJoinSpilled;
     this.sortSpilled = sortSpilled;
     this.totalBytesSpilled = totalBytesSpilled;
   }
@@ -41,7 +44,7 @@ public class SpillJobDetailsUI {
   /**
    * Total data (in bytes) spilled by the query. The total is
    * across all the operators that currently have the spilling ability
-   * (external sort and vectorized hashagg as of now)
+   * (external sort, vectorized hashagg and vectorized hashjoin as of now)
    * @return total size (in bytes) of spilled data
    */
   public long getTotalBytesSpilled() {
@@ -54,5 +57,9 @@ public class SpillJobDetailsUI {
 
   public boolean isSortSpilled() {
     return sortSpilled;
+  }
+
+  public boolean isHashJoinSpilled() {
+    return hashJoinSpilled;
   }
 }

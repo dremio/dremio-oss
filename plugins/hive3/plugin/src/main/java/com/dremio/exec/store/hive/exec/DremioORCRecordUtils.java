@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -165,7 +166,7 @@ public class DremioORCRecordUtils {
     return result.get();
   }
 
-  public static class DefaultDataReader implements DataReader {
+  public static final class DefaultDataReader implements DataReader {
     protected final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
     private FSDataInputStream file = null;
     private DremioORCRecordUtils.ByteBufferAllocatorPool pool;
@@ -666,11 +667,11 @@ public class DremioORCRecordUtils {
       }
     }
     private final Map<ByteBufferWrapper, ArrowBuf> directBufMap = new HashMap<>();
-    private final TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> buffers = new TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer>();
+    private final NavigableMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> buffers = new TreeMap<>();
 
     private long currentGeneration = 0;
 
-    private final TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> getBufferTree() {
+    private NavigableMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> getBufferTree() {
       return buffers;
     }
 
@@ -690,7 +691,7 @@ public class DremioORCRecordUtils {
         directBufMap.put(new ByteBufferWrapper(retBuf), buf);
         return retBuf;
       } else {
-        TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> tree = getBufferTree();
+        NavigableMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> tree = getBufferTree();
         Map.Entry<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> entry = tree.ceilingEntry(new DremioORCRecordUtils.ByteBufferAllocatorPool.Key(length, 0));
         if (entry == null) {
           return ByteBuffer.allocate(length);
@@ -708,7 +709,7 @@ public class DremioORCRecordUtils {
           buf.close();
         }
       } else {
-        TreeMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> tree = getBufferTree();
+        NavigableMap<DremioORCRecordUtils.ByteBufferAllocatorPool.Key, ByteBuffer> tree = getBufferTree();
         while (true) {
           DremioORCRecordUtils.ByteBufferAllocatorPool.Key key = new DremioORCRecordUtils.ByteBufferAllocatorPool.Key(buffer.capacity(), currentGeneration++);
           if (!tree.containsKey(key)) {

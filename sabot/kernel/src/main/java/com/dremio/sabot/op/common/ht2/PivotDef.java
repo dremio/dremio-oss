@@ -82,6 +82,11 @@ public class PivotDef {
     return bitPivots;
   }
 
+  public boolean isBoolField(final String fieldName) {
+    return getBitPivots().stream().anyMatch(p -> p.getIncomingVector().getField().getName()
+      .equalsIgnoreCase(fieldName));
+  }
+
   public ImmutableList<VectorPivotDef> getNonBitFixedPivots() {
     return nonBitFixedPivots;
   }

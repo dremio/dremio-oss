@@ -29,6 +29,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.api.params.CommitLogParams;
 import org.projectnessie.api.params.DiffParams;
 import org.projectnessie.api.params.EntriesParams;
@@ -46,6 +48,7 @@ import org.projectnessie.model.DeltaLakeTable;
 import org.projectnessie.model.Detached;
 import org.projectnessie.model.DiffResponse.DiffEntry;
 import org.projectnessie.model.EntriesResponse.Entry;
+import org.projectnessie.model.GenericMetadata;
 import org.projectnessie.model.GetMultipleContentsRequest;
 import org.projectnessie.model.GetMultipleContentsResponse;
 import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
@@ -99,6 +102,9 @@ import com.dremio.services.nessie.grpc.api.MultipleContentsRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
 import com.dremio.services.nessie.grpc.api.RefLogParams;
 import com.dremio.services.nessie.grpc.api.RefLogResponse;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Timestamp;
 
@@ -106,6 +112,7 @@ import com.google.protobuf.Timestamp;
  * Tests for {@link ProtoUtil}
  */
 public class ProtoUtilTest {
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @Test
   public void referenceConversion() {
@@ -220,6 +227,26 @@ public class ProtoUtilTest {
     assertThat(fromProto(toProto(icebergTable))).isEqualTo(icebergTable);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "null",
+    "{}",
+    "{\"a\":42}",
+  })
+  public void icebergTableMetadataConversion(String metadataJson) throws JsonProcessingException {
+    JsonNode json = MAPPER.readValue(metadataJson, JsonNode.class);
+    IcebergTable icebergTable = IcebergTable.builder()
+      .id("test-id")
+      .schemaId(1)
+      .snapshotId(2)
+      .sortOrderId(3)
+      .specId(4)
+      .metadataLocation("file")
+      .metadata(GenericMetadata.of("test", json))
+      .build();
+    assertThat(fromProto(toProto(icebergTable))).isEqualTo(icebergTable);
+  }
+
   @Test
   public void icebergViewConversion() {
     assertThatThrownBy(() -> toProto((IcebergView) null))
@@ -233,6 +260,27 @@ public class ProtoUtilTest {
     assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
 
     icebergView = IcebergView.of("test-id", "test.me.txt", 42, 42, "dialect", "SELECT foo FROM bar");
+    assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
+  }
+
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "null",
+    "{}",
+    "{\"a\":42}",
+  })
+  public void icebergViewMetadataConversion(String metadataJson) throws JsonProcessingException {
+    JsonNode json = MAPPER.readValue(metadataJson, JsonNode.class);
+    IcebergView icebergView = IcebergView.builder()
+      .id("test-id")
+      .schemaId(1)
+      .versionId(2)
+      .dialect("test-dialect")
+      .sqlText("SELECT 1")
+      .metadataLocation("file")
+      .metadata(GenericMetadata.of("test", json))
+      .build();
     assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
   }
 

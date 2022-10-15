@@ -25,6 +25,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -32,7 +33,9 @@ import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
-import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.exec.planner.sql.Checker;
+import com.dremio.exec.planner.sql.DynamicReturnType;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -205,8 +208,10 @@ public class HashPrelUtil {
 
     @Override
     public RexNode createCall(String funcName, List<RexNode> inputFields) {
-      final SqlOperatorImpl op =
-        new SqlOperatorImpl(funcName, inputFields.size(), true);
+      final SqlFunction op = SqlFunctionImpl.create(
+        funcName,
+        DynamicReturnType.INSTANCE,
+        Checker.of(inputFields.size()));
       return rexBuilder.makeCall(op, inputFields);
     }
   }

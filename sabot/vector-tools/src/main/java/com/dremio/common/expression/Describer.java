@@ -46,7 +46,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 /**
  * Describes Field, CompleteType and ArrowType in human readable form.
  */
-public class Describer {
+public final class Describer {
 
   private static TypeDescriber INSTANCE = new TypeDescriber();
 
@@ -136,6 +136,29 @@ public class Describer {
     }
 
     @Override
+    public String visit(ArrowType.Map type) {
+      StringBuilder sb = new StringBuilder();
+      if(includeName){
+        sb.append(field.getName());
+        sb.append("::");
+      }
+
+      sb.append("map<");
+      boolean first = true;
+      Field struct = field.getChildren().get(0);
+      for (Field f : struct.getChildren()) {
+        if (first) {
+          first = false;
+        } else {
+          sb.append(", ");
+        }
+        sb.append(describe(f, true));
+      }
+      sb.append(">");
+      return sb.toString();
+    }
+
+    @Override
     public String visit(List type) {
       StringBuilder sb = new StringBuilder();
       if(includeName){
@@ -186,7 +209,7 @@ public class Describer {
 
   }
 
-  private static class TypeDescriber implements ArrowTypeVisitor<String> {
+  private static final class TypeDescriber implements ArrowTypeVisitor<String> {
 
 
     private TypeDescriber(){}
@@ -309,9 +332,11 @@ public class Describer {
 
     @Override
     public String visit(ArrowType.Map type) {
-      throw new UnsupportedOperationException("Dremio does not support map yet.");
+      return "map";
     }
-
   }
 
+  private Describer() {
+    // Utility class
+  }
 }

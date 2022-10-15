@@ -15,78 +15,44 @@
  */
 package com.dremio.service.autocomplete;
 
-import java.util.function.Predicate;
-
-import org.apache.arrow.util.Preconditions;
-import org.apache.calcite.sql.SqlOperatorTable;
-
-import com.dremio.exec.catalog.SimpleCatalog;
-import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.dremio.service.autocomplete.catalog.AutocompleteSchemaProvider;
 import com.dremio.service.autocomplete.completions.Completions;
-import com.dremio.service.autocomplete.nessie.NessieElementReader;
 import com.dremio.service.autocomplete.statements.grammar.Statement;
-import com.dremio.service.autocomplete.statements.visitors.StatementCompletionProvider;
 import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenResolver;
-import com.google.common.base.Supplier;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * Completion engine for SQL queries.
  */
 public final class AutocompleteEngine {
-  private final AutocompleteSchemaProvider autocompleteSchemaProvider;
-  private final Supplier<NessieElementReader> nessieElementReaderSupplier;
-  private final SqlOperatorTable operatorTable;
-  private final SimpleCatalog<?> catalog;
-
-  public AutocompleteEngine(
-    final AutocompleteSchemaProvider autocompleteSchemaProvider,
-    final Supplier<NessieElementReader> nessieElementReaderSupplier,
-    final SqlOperatorTable operatorTable,
-    final SimpleCatalog<?> catalog) {
-    Preconditions.checkNotNull(autocompleteSchemaProvider);
-    Preconditions.checkNotNull(nessieElementReaderSupplier);
-    Preconditions.checkNotNull(operatorTable);
-    Preconditions.checkNotNull(catalog);
-    this.autocompleteSchemaProvider = autocompleteSchemaProvider;
-    this.nessieElementReaderSupplier = nessieElementReaderSupplier;
-    this.operatorTable = operatorTable;
-    this.catalog = catalog;
+  private AutocompleteEngine() {
   }
 
-  public Completions generateCompletions(
+  public static Completions generateCompletions(
+    AutocompleteEngineContext context,
     String corpus,
     int cursorPosition) {
     Preconditions.checkNotNull(corpus);
     Preconditions.checkArgument(cursorPosition >= 0);
-
     SqlStateMachine.State state = SqlStateMachine.getState(corpus, cursorPosition);
-    if (state != SqlStateMachine.State.IN_CODE) {
+    if (state != SqlStateMachine.State.IN_CODE && state != SqlStateMachine.State.IN_DOUBLE_QUOTE_STRING_LITERAL) {
       return Completions.EMPTY;
     }
 
     ImmutableList<DremioToken> tokens = Cursor.tokenizeWithCursor(corpus, cursorPosition);
-    ImmutableList<DremioToken> tokensForPrediction = getTokensForPrediction(tokens);
+    if (tokens == null) {
+      // User gave an invalid query that didn't even tokenize correctly.
+      return Completions.EMPTY;
+    }
 
     Completions.Builder completionsBuilder = Completions.builder();
-    TokenResolver.Predictions predictions = TokenResolver.getNextPossibleTokens(tokensForPrediction);
+    TokenResolver.Predictions predictions = TokenResolver.getNextPossibleTokens(tokens);
     if (predictions.isIdentifierPossible()) {
-      ImmutableList<Statement> currentStatementPath = Statement.extractCurrentStatementPath(corpus, cursorPosition);
-      Statement currentStatement = Iterables.getLast(currentStatementPath);
-      AutocompleteEngineContext autocompleteEngineContext = new AutocompleteEngineContext(
-        autocompleteSchemaProvider,
-        nessieElementReaderSupplier,
-        operatorTable,
-        catalog,
-        currentStatementPath);
-      Completions completions = currentStatement.accept(
-        StatementCompletionProvider.INSTANCE,
-        autocompleteEngineContext);
-      completionsBuilder.merge(completions);
+      completionsBuilder.merge(Cursor
+        .extractElementWithCursor(Statement.parse(corpus, cursorPosition))
+        .getCompletions(context));
     }
 
     completionsBuilder.addKeywords(predictions.getKeywords());
@@ -104,26 +70,5 @@ public final class AutocompleteEngine {
     }
 
     return completionsBuilder.build();
-  }
-
-  private static ImmutableList<DremioToken> getTokensForPrediction(ImmutableList<DremioToken> tokens) {
-    ImmutableList<DremioToken> tokensForPrediction = Cursor.getTokensUntilCursor(tokens);
-    int semiColonIndex = lastIndexOf(
-      tokensForPrediction,
-      token -> token.getKind() == ParserImplConstants.SEMICOLON);
-    return tokensForPrediction.subList(semiColonIndex + 1, tokensForPrediction.size());
-  }
-
-  private static <T> int lastIndexOf (
-    ImmutableList<T> tokens,
-    Predicate<T> predicate) {
-    for (int i = tokens.size() - 1; i >= 0; i--) {
-      T currentToken = tokens.get(i);
-      if (predicate.test(currentToken)) {
-        return i;
-      }
-    }
-
-    return -1;
   }
 }

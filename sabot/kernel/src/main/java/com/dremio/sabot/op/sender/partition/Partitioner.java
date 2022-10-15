@@ -24,6 +24,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
+import com.dremio.sabot.op.sender.SenderLatencyTracker;
 
 public interface Partitioner extends AutoCloseable {
 
@@ -32,6 +33,7 @@ public interface Partitioner extends AutoCloseable {
       OperatorStats stats,
       OperatorContext context,
       TunnelProvider tunnelProvider,
+      SenderLatencyTracker latencyTracker,
       int numPartitions,
       int start, int end);
 

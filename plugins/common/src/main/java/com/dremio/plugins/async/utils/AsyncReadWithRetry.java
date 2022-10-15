@@ -37,8 +37,16 @@ public class AsyncReadWithRetry {
     private static final Logger logger = LoggerFactory.getLogger(AsyncReadWithRetry.class);
     private static final int MAX_RETRIES = 10;
 
-    public AsyncReadWithRetry() {
+    private final Function<Throwable, AsyncReadWithRetry.Error> efforFunction;
 
+    public AsyncReadWithRetry(Function<Throwable, AsyncReadWithRetry.Error> errorFunction) {
+      this.efforFunction = errorFunction;
+    }
+
+    public enum Error {
+      PRECONDITION_NOT_MET,
+      PATH_NOT_FOUND,
+      UNKNOWN
     }
 
     public CompletableFuture<Void> read(AsyncHttpClient asyncHttpClient,
@@ -79,10 +87,11 @@ public class AsyncReadWithRetry {
           logger.error("[{}] Error while executing request", threadName, throwable);
 
           final CompletableFuture<Void> errorFuture = new CompletableFuture<>();
-          if (throwable.getMessage().contains("ConditionNotMet")) {
+          Error error = efforFunction.apply(throwable);
+          if (error == Error.PRECONDITION_NOT_MET) {
             errorFuture.completeExceptionally(new FileNotFoundException("Version of file has changed " + path));
             return errorFuture;
-          } else if (throwable.getMessage().contains("PathNotFound")) {
+          } else if (error == Error.PATH_NOT_FOUND) {
             errorFuture.completeExceptionally(new FileNotFoundException("File " + path
               + " not found: " + throwable.getMessage()));
             return errorFuture;

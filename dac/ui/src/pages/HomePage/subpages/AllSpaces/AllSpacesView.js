@@ -18,6 +18,8 @@ import { connect } from "react-redux";
 import moment from "@app/utils/dayjs";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
+import clsx from "clsx";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 import EntityLink from "@app/pages/HomePage/components/EntityLink";
 import SpacesLoader from "@app/pages/HomePage/components/SpacesLoader";
@@ -35,7 +37,7 @@ import ResourcePin from "components/ResourcePin";
 import AllSpacesMenu from "components/Menus/HomePage/AllSpacesMenu";
 
 import SettingsBtn from "components/Buttons/SettingsBtn";
-import { SortDirection } from "components/VirtualizedTableViewer";
+import { SortDirection } from "@app/components/Table/TableUtils";
 
 import BrowseTable from "../../components/BrowseTable";
 import { tableStyles } from "../../tableStyles";
@@ -103,6 +105,7 @@ export class AllSpacesView extends PureComponent {
                     routeParams={this.context.location.query}
                     menu={<AllSpacesMenu spaceId={item.get("id")} />}
                     dataQa={itemName}
+                    aria-label="Options"
                   />
                 </span>
               ),
@@ -145,6 +148,7 @@ export class AllSpacesView extends PureComponent {
             <RestrictedArea rule={manageSpaceRule}>
               <LinkButton
                 buttonStyle="primary"
+                className={clsx(classes["primaryButtonPsuedoClasses"])}
                 to={{
                   ...this.context.location,
                   state: { modal: "SpaceModal" },

@@ -16,10 +16,9 @@
 import { PureComponent } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
-import { formDefault } from "uiTheme/radium/typography";
-import { SECONDARY_BORDER } from "uiTheme/radium/colors";
+import * as classes from "./TabControl.module.less";
+import clsx from "clsx";
 
 class TabControl extends PureComponent {
   static propTypes = {
@@ -52,27 +51,27 @@ class TabControl extends PureComponent {
       return (
         <div
           key={tab}
-          className="tab-item"
           onClick={() => this.changeSelectedTab(tab)}
-          style={[
-            styles.tabBase,
-            this.props.tabBaseStyle && this.props.tabBaseStyle,
-            selected && styles.tabSelected,
-            selected &&
-              this.props.tabSelectedStyle &&
-              this.props.tabSelectedStyle,
-          ]}
+          className={clsx(
+            "tab-item",
+            classes["tabBase"],
+            classes["tabBaseStyle"],
+            {
+              [classes["tabSelected"]]: selected,
+              [classes["tabSelectedStyle"]]: selected,
+            }
+          )}
         >
           {tab}
         </div>
       );
     });
-    return <div style={styles.tabsWrap}>{tabsView}</div>;
+    return <div className={clsx(classes["tabsWrap"])}>{tabsView}</div>;
   }
 
   render() {
     return (
-      <div style={[styles.tabRoot, this.props.style]}>
+      <div className={clsx(classes["tabRoot"])} style={this.props.style}>
         {this.renderTabs()}
         {this.props.tabs.get(this.state.selectedTab)}
       </div>
@@ -80,35 +79,4 @@ class TabControl extends PureComponent {
   }
 }
 
-const styles = {
-  tabRoot: {
-    display: "flex",
-    flexDirection: "column",
-    paddingLeft: 16,
-  },
-  tabsWrap: {
-    flexShrink: 0,
-    paddingBottom: 12,
-    paddingTop: 12,
-  },
-  tabBase: {
-    display: "inline-block",
-    color: "black",
-    padding: "5px 10px",
-    cursor: "pointer",
-    textAlign: "center",
-    borderRadius: 2,
-    ...formDefault,
-    ":hover": {
-      textDecoration: "underline",
-    },
-  },
-  tabSelected: {
-    backgroundColor: SECONDARY_BORDER,
-    cursor: "default",
-    ":hover": {
-      textDecoration: "none",
-    },
-  },
-};
-export default Radium(TabControl);
+export default TabControl;

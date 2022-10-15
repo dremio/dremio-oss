@@ -22,7 +22,7 @@ import result from "lodash/result";
 
 import JSONTree from "react-json-tree";
 import { FLEX_COL_START } from "uiTheme/radium/flexStyle";
-import { LIST, MAP } from "@app/constants/DataTypes";
+import { LIST, MAP, STRUCT } from "@app/constants/DataTypes";
 import exploreUtils from "utils/explore/exploreUtils";
 import SelectedTextPopover from "./SelectedTextPopover";
 import getTheme from "./themeTreeMap";
@@ -187,7 +187,11 @@ class CellPopover extends PureComponent {
     const className = classNames(
       "large_overlay_tree",
       { "overlay-array": cellPopover.get("columnType") === LIST },
-      { "overlay-object": cellPopover.get("columnType") === MAP }
+      {
+        "overlay-object":
+          (cellPopover.get("columnType") === cellPopover.get("columnType")) ===
+          STRUCT,
+      }
     );
     return (
       <div className="cell-popover-wrap" ref={this.cellPopoverRef}>
@@ -233,7 +237,7 @@ const styles = {
     margin: 0,
     border: "1px solid #e9e9e9",
     borderRadius: "2px",
-    boxShadow: "0 0 5px rgba(0,0,0,.1)",
+    boxShadow: "var(--dremio--shadow--layer-1)",
     overflowX: "auto",
   },
   value: {},

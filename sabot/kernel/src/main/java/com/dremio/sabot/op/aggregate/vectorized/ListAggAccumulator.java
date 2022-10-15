@@ -22,12 +22,19 @@ import static java.util.Arrays.asList;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedListVarcharVector;
+import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.UserBitShared;
@@ -38,44 +45,65 @@ import com.google.common.collect.ImmutableList;
 import io.netty.util.internal.PlatformDependent;
 
 /*
- * This is aggregator for LISTAGG and 1P available at
- * https://docs.google.com/document/d/1WrjAFO2O0Td_jZeIFY0BDkFUgwHjclbywYren9lzvuI/edit
+ * This is the aggregator for LISTAGG, similar to other aggregate accumulators.
+ * This accumulator is used when there is single phase HashAgg is used.
  */
 public class ListAggAccumulator implements Accumulator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ListAggAccumulator.class);
 
   private FieldVector input;
-  private final FieldVector transferVector;
-  private FieldVector[] accumulators;
+  /*
+   * transferVector type is ListVector for ListAggAccumulator however BaseVariableWidthVector
+   * for ListAggMergeAccumulator, which extends the ListAggAccumulator.
+   */
+  protected final FieldVector transferVector;
+  protected FieldVector[] accumulators;
   private final int maxValuesPerBatch;
+  private final int maxListAggSize;
   private final boolean distinct;
+  private final String delimiter;
   private final boolean orderby;
   private final boolean asc;
 
   private boolean resizeAttempted;
   private int batches;
   private final BufferAllocator computationVectorAllocator;
+  private final ListVector tempAccumulator;
+  private final AccumStats accumStats;
 
-  /* XXX: Remove this API */
-  public ListAggAccumulator(FieldVector incomingValues, FieldVector transferVector,
-                            int maxValuesPerBatch, BufferAllocator computationVectorAllocator) {
+  public ListAggAccumulator(FieldVector incomingValues, FieldVector transferVector, int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
+                            AccumulatorBuilder.ListAggParams listAggParams, BaseValueVector tempAccumulator) {
     this(incomingValues, transferVector, maxValuesPerBatch, computationVectorAllocator,
-      false, false, false);
+      listAggParams, tempAccumulator, null, null);
   }
 
-  public ListAggAccumulator(FieldVector incomingValues, FieldVector transferVector,
-                            int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
-                            boolean distinct, boolean orderby, boolean asc) {
+  public ListAggAccumulator(FieldVector incomingValues, FieldVector transferVector, int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
+                            AccumulatorBuilder.ListAggParams listAggParams, BaseValueVector tempAccumulator, FieldVector firstAccumulator, AccumStats accumStats) {
     this.input = incomingValues;
     this.transferVector = transferVector;
-    initArrs(0);
+    if (firstAccumulator != null) {
+      initArrs(1);
+      this.accumulators[0] = firstAccumulator;
+      this.batches = 1;
+      firstAccumulator.reset();
+    } else {
+      initArrs(0);
+      this.batches = 0;
+    }
     this.maxValuesPerBatch = maxValuesPerBatch;
-    this.distinct = distinct;
-    this.orderby = orderby;
-    this.asc = asc;
+    this.maxListAggSize = listAggParams.listAggSize;
+    this.distinct = listAggParams.distinct;
+    this.delimiter = listAggParams.delimiter;
+    this.orderby = listAggParams.orderby;
+    this.asc = listAggParams.asc;
     this.resizeAttempted = false;
-    this.batches = 0;
     this.computationVectorAllocator = computationVectorAllocator;
+    this.tempAccumulator = (ListVector)tempAccumulator;
+    if (accumStats == null) {
+      this.accumStats = new AccumStats();
+    } else {
+      this.accumStats = accumStats;
+    }
   }
 
   private void initArrs(int size) {
@@ -116,13 +144,13 @@ public class ListAggAccumulator implements Accumulator {
   /* Used by AccumulatorSet to determine the space needed for validity bits */
   @Override
   public int getValidityBufferSize() {
-    return FixedListVarcharVector.getValidityBufferSize(maxValuesPerBatch, orderby);
+    return FixedListVarcharVector.getValidityBufferSize(maxValuesPerBatch);
   }
 
   /* Used by AccumulatorSet to determine the space needed for data */
   @Override
   public int getDataBufferSize() {
-    int dataBufferSize = FixedListVarcharVector.getDataBufferSize(maxValuesPerBatch, orderby);
+    int dataBufferSize = FixedListVarcharVector.getDataBufferSize(maxValuesPerBatch);
     Preconditions.checkState(dataBufferSize + getValidityBufferSize() ==
       FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL);
     return dataBufferSize;
@@ -148,8 +176,10 @@ public class ListAggAccumulator implements Accumulator {
 
   private void addBatchHelper(final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
     /* store the new vector and increment batches before allocating memory */
-    FixedListVarcharVector vector = new FixedListVarcharVector(input.getField().getName(), computationVectorAllocator,
-      maxValuesPerBatch, distinct, orderby, asc);
+    FixedListVarcharVector vector = new FixedListVarcharVector(input.getField().getName(), computationVectorAllocator, maxValuesPerBatch,
+      delimiter, maxListAggSize, distinct, orderby, asc,
+      accumStats, (getType() == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG), tempAccumulator);
+
     accumulators[batches++] = vector;
     resizeAttempted = true;
 
@@ -243,24 +273,89 @@ public class ListAggAccumulator implements Accumulator {
 
   @Override
   public List<ArrowBuf> getBuffers(int batchIndex, int numRecords) {
-    /* XXX: Unlike other accumulators, this accumulator will have 4 or more buffers */
-    return null;
+    FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[batchIndex];
+    return Arrays.asList(flv.getBuffers(numRecords));
   }
 
   @Override
   public UserBitShared.SerializedField getSerializedField(int batchIndex, int numRecords) {
-    /*
-     * HashAggPartitionWritableBatch.java:getNextWritableBatch() will call getBuffers()
-     * followed by getSerializedField().
-     *
-     * XXX: Need to customized SerializedFiled with 4 and more buffers.
-     */
-    return null;
+    FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[batchIndex];
+    return flv.getSerializedField(numRecords);
   }
 
   @Override
   public void output(int startBatchIndex, int[] recordsInBatches) {
-    /* XXX: Fill in details */
+    outputToVarWidthVector(startBatchIndex, recordsInBatches);
+  }
+
+  protected void outputToVarWidthVector(int startBatchIndex, int[] recordsInBatches) {
+    int numRecords = 0;
+    int usedByteCapacity = 0;
+
+    for (int i = 0; i < recordsInBatches.length; i++) {
+      final FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[startBatchIndex + i];
+      flv.compact(true);
+      usedByteCapacity += flv.getRequiredByteCapacity();
+      numRecords += recordsInBatches[i];
+    }
+
+    /* trasferVector is always empty as after output, the buffers are transferred. */
+    ((VariableWidthVector) transferVector).allocateNew(usedByteCapacity, numRecords);
+    transferVector.reset();
+
+    numRecords = 0;
+    for (int i = 0; i < recordsInBatches.length; i++) {
+      final FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[startBatchIndex + i];
+      flv.outputToVector((BaseVariableWidthVector)transferVector, numRecords, recordsInBatches[i]);
+      numRecords += recordsInBatches[i];
+
+      releaseBatch(startBatchIndex + i);
+    }
+  }
+
+  protected void outputToListVector(int startBatchIndex, int[] recordsInBatches) {
+    int numRecords = 0;
+    int usedByteCapacity = 0;
+
+    for (int i = 0; i < recordsInBatches.length; i++) {
+      final FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[startBatchIndex + i];
+      flv.compact(true);
+      usedByteCapacity += flv.getUsedByteCapacity();
+      numRecords += recordsInBatches[i];
+    }
+
+    /* trasferVector is always empty as after output, the buffers are transferred. */
+    ListVector listVector = FixedListVarcharVector.allocListVector(transferVector.getAllocator(), numRecords);
+    Preconditions.checkState(((BaseVariableWidthVector)listVector.getDataVector()).getByteCapacity() >= usedByteCapacity);
+    listVector.reset();
+
+    numRecords = 0;
+    for (int i = 0; i < recordsInBatches.length; i++) {
+      final FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[startBatchIndex + i];
+      flv.outputToListVector(listVector, numRecords, recordsInBatches[i]);
+      numRecords += recordsInBatches[i];
+
+      releaseBatch(startBatchIndex + i);
+    }
+
+    /* Make sure that dataVector got populated in transferVector */
+    ((ListVector) transferVector).addOrGetVector(FieldType.nullable(Types.MinorType.VARCHAR.getType()));
+
+    TransferPair transferPair = listVector.makeTransferPair(transferVector);
+    transferPair.transfer();
+  }
+
+  @Override
+  public boolean hasSpace(final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
+    final FixedListVarcharVector flv = (FixedListVarcharVector)accumulators[batchIndex];
+    return flv.hasSpace(space, numOfRecords, offsetInBatch);
+  }
+
+  @Override
+  public void moveValuesAndFreeSpace(int srcBatchIndex, int dstBatchIndex,
+                                     int srcStartIndex, int dstStartIndex, int numRecords) {
+    FixedListVarcharVector flv = (FixedListVarcharVector)accumulators[srcBatchIndex];
+    flv.moveValuesAndFreeSpace(srcStartIndex, dstStartIndex, numRecords, accumulators[dstBatchIndex]);
   }
 
   @Override
@@ -274,8 +369,11 @@ public class ListAggAccumulator implements Accumulator {
   }
 
   @Override
-  public void accumulate(final long memoryAddr, final int count,
-                         final int bitsInChunk, final int chunkOffsetMask) {
+  public void accumulate(final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
+    accumulateFromVarWidthVector(memoryAddr, count, bitsInChunk, chunkOffsetMask);
+  }
+
+  protected void accumulateFromVarWidthVector(final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
     final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
     final FieldVector inputVector = getInput();
     final long inputValidityBufAddr = inputVector.getValidityBufferAddress();
@@ -303,7 +401,94 @@ public class ListAggAccumulator implements Accumulator {
       final int chunkOffset = tableIndex & chunkOffsetMask;
 
       FixedListVarcharVector flv = (FixedListVarcharVector) this.accumulators[chunkIndex];
-      flv.set(chunkOffset, startOffset, (endOffset - startOffset), inputDataBuf);
+      flv.addValueToRowGroup(chunkOffset, startOffset, (endOffset - startOffset), inputDataBuf);
     }
+  }
+
+  protected void accumulateFromListVector(final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
+    final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
+    final ListVector listVector = (ListVector) getInput();
+    final long inputValidityBufAddr = listVector.getValidityBufferAddress();
+
+    for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+
+      final int bitVal = (PlatformDependent.getByte(inputValidityBufAddr + (incomingIndex >>> 3)) >>> (incomingIndex & 7)) & 1;
+      //incoming record is null, skip it
+      if (bitVal == 0) {
+        continue;
+      }
+
+      // get the hash table ordinal
+      final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
+
+      // get the hash table batch index
+      final int chunkIndex = tableIndex >>> bitsInChunk;
+      final int chunkOffset = tableIndex & chunkOffsetMask;
+
+      FixedListVarcharVector flv = (FixedListVarcharVector)this.accumulators[chunkIndex];
+      flv.addListVectorToRowGroup(chunkOffset, listVector, incomingIndex);
+    }
+  }
+
+  @Override
+  public void compact(final int batchIndex, final int nextRecSize) {
+    Preconditions.checkArgument(batchIndex >= 0, "Batch index must be non-negative");
+    Preconditions.checkArgument(batchIndex < batches, String.format("Batch index must be less than %d", batches));
+
+    final FixedListVarcharVector flv = (FixedListVarcharVector)accumulators[batchIndex];
+    flv.compact(true, nextRecSize);
+  }
+
+  @Override
+  public long getCompactionTime(TimeUnit unit) {
+    return accumStats.getTotalCompactionTime(unit);
+  }
+
+  @Override
+  public int getNumCompactions() {
+    return accumStats.getNumCompactions();
+  }
+
+  @Override
+  public int getMaxVarLenKeySize() {
+    /* XXX: DX-50558 */
+    return 0;
+  }
+
+  public int getMaxListAggSize() {
+    return maxListAggSize;
+  }
+
+  public boolean getDistinct() {
+    return distinct;
+  }
+
+  public String getDelimiter() {
+    return delimiter;
+  }
+
+  public boolean getOrderBy() {
+    return orderby;
+  }
+
+  public boolean getAsc() {
+    return asc;
+  }
+
+  public BaseValueVector getTempAccumulator() {
+    return tempAccumulator;
+  }
+
+  public FieldVector getFirstAccumulator() {
+    Preconditions.checkState(batches == 1);
+    FieldVector firstAccum = accumulators[0];
+    accumulators[0] = null;
+    batches = 0;
+    return firstAccum;
+  }
+
+  public AccumStats getAccumStats() {
+    return accumStats;
   }
 }

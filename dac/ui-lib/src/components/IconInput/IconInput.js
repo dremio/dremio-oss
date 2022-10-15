@@ -14,16 +14,30 @@
  * limitations under the License.
  */
 import React from "react";
+import { styled } from "@mui/material/styles";
 import PropTypes from "prop-types";
 import clsx from "clsx";
 import { get } from "lodash";
-
-import { makeStyles } from "@material-ui/core/styles";
 
 import FormValidationMessage from "../FormValidationMessage";
 import Label from "../Label";
 
 import "./iconInput.scss";
+
+const PREFIX = "IconInput";
+const classes = { input: `${PREFIX}-input` };
+const Root = styled("div")(({ theme }) => {
+  const { typography: { fontSize, fontFamily, fontWeight } = {} } = theme || {};
+
+  return {
+    [`& .${classes.input}`]: {
+      fontSize,
+      fontFamily,
+      fontWeight,
+    },
+  };
+});
+Root.displayName = "IconInputRoot";
 
 const IconInput = (props) => {
   const {
@@ -40,29 +54,14 @@ const IconInput = (props) => {
     ...otherProps
   } = props;
 
-  const useStylesBase = makeStyles((theme) => {
-    const { typography: { fontSize, fontFamily, fontWeight } = {} } =
-      theme || {};
-
-    return {
-      input: {
-        fontSize,
-        fontFamily,
-        fontWeight,
-      },
-    };
-  });
-
-  const classesBase = useStylesBase();
-
   const rootClass = clsx("input-root", { [classes.root]: classes.root });
-  const inputClass = clsx(classesBase.input, "iconInput-input", {
+  const inputClass = clsx(classes.input, "iconInput-input", {
     [classes.input]: classes.input,
   });
   const showError = !hideError && get(touched, name) && get(errors, name);
 
   return (
-    <div className={rootClass}>
+    <Root className={rootClass}>
       <Label
         value={label}
         className={classes.label}
@@ -93,7 +92,7 @@ const IconInput = (props) => {
           {get(errors, name)}
         </FormValidationMessage>
       )}
-    </div>
+    </Root>
   );
 };
 

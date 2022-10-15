@@ -68,6 +68,14 @@ public class VectorPivotDef {
     return vector.getIncoming();
   }
 
+  public int getByteSize() {
+    return type.getByteSize();
+  }
+
+  public PivotBuilder.FieldMode getMode() {
+    return type.getMode();
+  }
+
   public FieldVector getOutgoingVector() {
     return vector.getOutgoing();
   }

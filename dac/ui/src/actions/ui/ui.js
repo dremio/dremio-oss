@@ -55,11 +55,18 @@ export function toggleExternalSourcesExpanded() {
   };
 }
 
-export const TOGGLE_INTERNAL_SOURCES_EXPANDED =
-  "TOGGLE_INTERNAL_SOURCES_EXPANDED";
-export function toggleInternalSourcesExpanded() {
+export const TOGGLE_OBJECT_STORAGE_EXPANDED = "TOGGLE_OBJECT_STORAGE_EXPANDED";
+export function toggleObjectStorageSourcesExpanded() {
   return (dispatch) => {
-    const action = { type: TOGGLE_INTERNAL_SOURCES_EXPANDED };
+    const action = { type: TOGGLE_OBJECT_STORAGE_EXPANDED };
+    dispatch(action);
+  };
+}
+
+export const TOGGLE_METASTORE_EXPANDED = "TOGGLE_METASTORE_EXPANDED";
+export function toggleMetastoreSourcesExpanded() {
+  return (dispatch) => {
+    const action = { type: TOGGLE_METASTORE_EXPANDED };
     dispatch(action);
   };
 }

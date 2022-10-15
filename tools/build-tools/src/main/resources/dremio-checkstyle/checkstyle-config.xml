@@ -151,7 +151,13 @@
 
     <!-- Checks for blocks. You know, those {}'s -->
     <!-- See http://checkstyle.sf.net/config_blocks.html -->
-    <module name="EmptyBlock"/>
+    <module name="EmptyBlock">
+      <property name="option" value="text"/>
+    </module>
+    <module name="EmptyCatchBlock">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
     <!-- module name="LeftCurly"/ -->
     <module name="NeedBraces"/>
     <module name="RightCurly"/>
@@ -173,7 +179,6 @@
     <module name="InnerAssignment"/>
     <module name="MissingSwitchDefault"/>
     <module name="MissingOverride"/>
-    <!--module name="RedundantThrows"/-->
     <module name="SimplifyBooleanExpression"/>
     <module name="SimplifyBooleanReturn"/>
     <module name="StringLiteralEquality"/>
@@ -185,11 +190,18 @@
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>
     </module>
+    <module name="InterfaceIsType">
+      <!-- TODO: move to error -->
+      <property name="severity" value="warning"/>
+    </module>
     <module name="VisibilityModifier">
       <property name="ignoreAnnotationCanonicalNames" value="org.junit.Rule" />
       <property name="ignoreAnnotationCanonicalNames" value="org.junit.ClassRule" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.runners.Parameterized.Parameter" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.junit.jupiter.api.io.TempDir" />
       <property name="ignoreAnnotationCanonicalNames" value="com.google.common.annotations.VisibleForTesting" />
       <property name="ignoreAnnotationCanonicalNames" value="io.protostuff.Tag" />
+      <property name="ignoreAnnotationCanonicalNames" value="org.projectnessie.versioned.persist.tests.extension.NessieDbAdapter" />
       <property name="allowPublicImmutableFields" value="true" />
     </module>
 
@@ -199,6 +211,8 @@
     <module name="UpperEll"/>
 
     <module name="SuppressWarningsHolder"/>
+    <module name="OuterTypeFilename"/>
+    <module name="PackageDeclaration"/>
   </module>
 
   <!-- Different MethodName rules for production and test code -->

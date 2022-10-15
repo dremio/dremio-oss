@@ -23,12 +23,13 @@ import java.util.Arrays;
 
 import javax.ws.rs.core.Configuration;
 
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -109,6 +110,9 @@ public class TestPowerBIMessageBodyGenerator {
     };
   }
 
+  @Rule
+  public final MockitoRule rule = MockitoJUnit.rule();
+
   @Mock
   protected OptionManager mockOptionManager;
 
@@ -135,11 +139,6 @@ public class TestPowerBIMessageBodyGenerator {
     this.datasetConfig = new DatasetConfig();
     this.datasetConfig.setFullPathList(Arrays.asList(datasetPathComponents));
     this.endpoint = NodeEndpoint.newBuilder().setAddress(server).setUserPort(port).build();
-  }
-
-  @Before
-  public void setUp() {
-    MockitoAnnotations.initMocks(this);
   }
 
   @Test

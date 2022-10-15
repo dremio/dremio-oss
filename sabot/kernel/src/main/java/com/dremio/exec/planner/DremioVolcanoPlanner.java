@@ -123,7 +123,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
       result = substitutionProvider.findSubstitutions(getOriginalRoot());
     } catch (RuntimeException ex) {
       logger.debug(ex.getMessage());
-      return;
+      throw ex;
     }
     Pointer<Integer> count = new Pointer<>(0);
     try {

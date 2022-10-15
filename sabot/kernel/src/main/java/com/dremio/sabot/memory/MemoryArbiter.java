@@ -21,6 +21,16 @@ package com.dremio.sabot.memory;
  */
 public interface MemoryArbiter {
   /**
+   * This method notifies that the task is done
+   *
+   * @param memoryArbiterTask The task that is done
+   */
+  void taskDone(MemoryArbiterTask memoryArbiterTask);
+
+  default void startTask(MemoryArbiterTask memoryArbiterTask) {
+  }
+
+  /**
    * Acquires a grant of memory to run the task
    *
    * @param memoryArbiterTask The task that is requesting the grant
@@ -35,4 +45,13 @@ public interface MemoryArbiter {
    * @param memoryArbiterTask The task that acquired the grant
    */
   void releaseMemoryGrant(MemoryArbiterTask memoryArbiterTask);
+
+  /**
+   * Removes the task from blocked tasks
+   *
+   * @param memoryArbiterTask  The task that needs to be removed from blocked tasks
+   */
+  default boolean removeFromBlocked(MemoryArbiterTask memoryArbiterTask) {
+    return false;
+  }
 }

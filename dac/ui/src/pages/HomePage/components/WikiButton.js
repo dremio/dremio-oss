@@ -33,7 +33,7 @@ export class WikiButtonView extends PureComponent {
         onClick={onClick}
         className={`${wikiButton} ${className}`}
       >
-        <dremio-icon name="interface/sidebar" />
+        <dremio-icon name="interface/sidebar" data-qa="edit-wiki-content" />
       </IconButton>
     );
   }

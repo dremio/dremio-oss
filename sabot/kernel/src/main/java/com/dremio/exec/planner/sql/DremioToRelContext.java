@@ -88,7 +88,12 @@ public interface DremioToRelContext {
 
         try {
           root = DremioSqlToRelConverter.expandView(view.getPath(),
-            view.getViewOwner(), view.getView().getSql(), view.getView().getWorkspaceSchemaPath(), sqlConverter, view.getSchema());
+            view.getViewOwner(),
+            view.getView().getSql(),
+            view.getView().getWorkspaceSchemaPath(),
+            sqlConverter,
+            view.getSchema(),
+            view.getVersionContext());
         } catch (Exception ex) {
           String message = String.format("Error while expanding view %s. ", view.getPath());
           final SqlValidatorException sve = ErrorHelper.findWrappedCause(ex, SqlValidatorException.class);

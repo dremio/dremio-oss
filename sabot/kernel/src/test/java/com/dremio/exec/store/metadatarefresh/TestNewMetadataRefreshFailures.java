@@ -24,12 +24,7 @@ import static org.junit.Assert.assertNotEquals;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -55,7 +50,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import com.google.common.io.Resources;
 
 public class TestNewMetadataRefreshFailures extends BaseTestQuery {
 
@@ -90,21 +84,6 @@ public class TestNewMetadataRefreshFailures extends BaseTestQuery {
   @AfterClass
   public static void cleanUpLocation() throws Exception {
     fsDelete(fs, new Path(finalIcebergMetadataLocation));
-  }
-
-  private void copy(java.nio.file.Path source, java.nio.file.Path dest) {
-    try {
-      Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
-    } catch (Exception e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
-  }
-
-  private void copyFromJar(String sourceElement, final java.nio.file.Path target) throws URISyntaxException, IOException {
-    URI resource = Resources.getResource(sourceElement).toURI();
-    java.nio.file.Path srcDir = Paths.get(resource);
-    Files.walk(srcDir)
-      .forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
   }
 
   @Test

@@ -20,7 +20,7 @@ import PropTypes from "prop-types";
 
 import Spinner from "@app/components/Spinner";
 import * as ButtonTypes from "components/Buttons/ButtonTypes";
-import Button from "components/Buttons/Button";
+import { Button } from "dremio-ui-lib";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import { createFirstUser } from "actions/admin";
 import { noUsersError } from "actions/account";
@@ -35,6 +35,7 @@ import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import UserForm from "components/Forms/UserForm";
 
 import SignupTitle from "./SignupTitle";
+import { intl } from "@app/utils/intl";
 
 export const SIGNUP_FORM_VIEW_ID = "SIGNUP_FORM_VIEW_ID";
 
@@ -89,9 +90,10 @@ export class SignupForm extends PureComponent {
           <div style={styles.footer}>
             <div style={styles.submit}>
               <Button
-                type={ButtonTypes.NEXT}
-                text={la("Next")}
-                disable={this.state.showSpinner}
+                color={ButtonTypes.UI_LIB_PRIMARY}
+                text={intl.formatMessage({ id: "Common.Next" })}
+                disabled={this.state.showSpinner}
+                disableMargin
               />
               {this.state.showSpinner && (
                 <Spinner

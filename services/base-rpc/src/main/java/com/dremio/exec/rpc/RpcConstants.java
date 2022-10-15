@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.rpc;
 
-public class RpcConstants {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcConstants.class);
+public final class RpcConstants {
 
   private RpcConstants(){}
 

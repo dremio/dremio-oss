@@ -78,6 +78,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.common.ScanRelBase;
@@ -518,7 +519,8 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     List<String> partitionColumns = tableMetadata.getReadDefinition().getPartitionColumnsList();
     String partitionStatsFile = FileSystemRulesFactory.getPartitionStatsFile(scan);
     Optional<Pair<Long, Long>> survivingRecords = Optional.empty();
-    if (shouldPrune(pruneCondition, partitionColumns, partitionStatsFile, projectedColumns, specEvolTransEnabled)) {
+    StoragePluginId storagePluginId = scan.getIcebergStatisticsPluginId(context);
+    if (shouldPrune(pruneCondition, partitionColumns, partitionStatsFile, projectedColumns, specEvolTransEnabled, storagePluginId)) {
       /*
        * Build a mapping between partition column name and partition column ID.
        * The partition columns can have special columns added by Dremio. The ID is artificial,
@@ -545,7 +547,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
         }
       }
 
-      SupportsIcebergRootPointer icebergRootPointerPlugin = context.getCatalogService().getSource(tableMetadata.getStoragePluginId());
+      SupportsIcebergRootPointer icebergRootPointerPlugin = context.getCatalogService().getSource(storagePluginId);
       PartitionSpec spec = IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns, null);
       InputFile inputFile = new DremioFileIO(icebergRootPointerPlugin.getFsConfCopy(), (MutablePlugin) icebergRootPointerPlugin).newInputFile(partitionStatsFile);
       PartitionStatsReader partitionStatsReader = new PartitionStatsReader(inputFile, spec);
@@ -566,11 +568,11 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     return survivingRecords;
   }
 
-  private static boolean shouldPrune(PruneFilterCondition pruneCondition, List<String> partitionColumns, String partitionStatsFile, List<SchemaPath> projectedColumns, boolean specEvolTransEnabled) {
+  private static boolean shouldPrune(PruneFilterCondition pruneCondition, List<String> partitionColumns, String partitionStatsFile, List<SchemaPath> projectedColumns, boolean specEvolTransEnabled, StoragePluginId storagePluginId) {
     boolean pruneConditionExists = pruneCondition != null && (pruneCondition.getPartitionExpression() != null
       || specEvolTransEnabled && pruneCondition.getPartitionRange() != null);
 
-    return pruneConditionExists && partitionColumns != null && StringUtils.isNotEmpty(partitionStatsFile) && !isConditionOnImplicitCol(pruneCondition, projectedColumns);
+    return storagePluginId != null && pruneConditionExists && partitionColumns != null && StringUtils.isNotEmpty(partitionStatsFile) && !isConditionOnImplicitCol(pruneCondition, projectedColumns);
   }
 
   private static boolean isConditionOnImplicitCol(PruneFilterCondition pruneCondition, List<SchemaPath> projectedColumns) {

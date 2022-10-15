@@ -23,7 +23,7 @@ import org.apache.arrow.memory.ArrowBuf;
 
 import io.netty.buffer.ByteBuf;
 
-public class DecimalHelper {
+public final class DecimalHelper {
 
   public static final int MAX_DIGITS = 9;
   public static final int DIGITS_BASE = 1_000_000_000;
@@ -126,7 +126,7 @@ public class DecimalHelper {
     }
   }
 
-  @SuppressWarnings("InnerAssignment")
+  @SuppressWarnings("checkstyle:InnerAssignment")
   public static BigDecimal getBigDecimalFromSparse(ByteBuf data, int startIndex, int nDecimalDigits, int scale) {
 
     // For sparse decimal type we have padded zeroes at the end, strip them while converting to BigDecimal.
@@ -164,5 +164,9 @@ public class DecimalHelper {
    */
   public static int roundUp(int ndigits) {
     return (ndigits + MAX_DIGITS - 1)/MAX_DIGITS;
+  }
+
+  private DecimalHelper() {
+    // Utility class
   }
 }

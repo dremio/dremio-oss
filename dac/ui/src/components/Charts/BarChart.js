@@ -20,6 +20,7 @@ import moment from "@app/utils/dayjs";
 import c3 from "c3";
 import "c3/c3.css";
 import $ from "jquery";
+import { intl } from "@app/utils/intl";
 
 import {
   isDateType,
@@ -250,17 +251,17 @@ class BarChart extends Component {
     const { data } = this.props;
     const item = data[index];
     const { range } = item;
-
+    const { formatMessage } = intl;
     return (
       <p>
         <span>
-          {`${la("Range")}:
+          {`${formatMessage({ id: "Common.Range" })}:
             ${this.formatValue(range.lowerLimit, true)} - ${this.formatValue(
             range.upperLimit,
             true
           )}`}
         </span>
-        <br />({item.y} {la("records")})
+        <br />({item.y} {formatMessage({ id: "Common.Rows.LowerCase" })})
       </p>
     );
   }

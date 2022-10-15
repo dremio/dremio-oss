@@ -73,6 +73,71 @@ public class ITDelete extends ITDmlQueryBase {
   }
 
   @Test
+  public void testDeleteWithOneSourceTable() throws Exception {
+    DeleteTests.testDeleteWithOneSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithOneSourceTableWithoutFullPath() throws Exception {
+    DeleteTests.testDeleteWithOneSourceTableWithoutFullPath(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithViewUsedAsSourceTable() throws Exception {
+    DeleteTests.testDeleteWithViewUsedAsSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithOneSourceTableQueryUsingSource() throws Exception {
+    DeleteTests.testDeleteWithOneSourceTableQueryUsingSource(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithSourceTableAsQueryUsingTarget() throws Exception {
+    DeleteTests.testDeleteWithSourceTableAsQueryUsingTarget(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithOneUnusedSourceTable() throws Exception {
+    DeleteTests.testDeleteWithOneUnusedSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithUnrelatedConditionToSourceTable() throws Exception {
+    DeleteTests.testDeleteWithUnrelatedConditionToSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithPartialUnrelatedConditionToSourceTable() throws Exception {
+    DeleteTests.testDeleteWithPartialUnrelatedConditionToSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithTwoSourceTables() throws Exception {
+    DeleteTests.testDeleteWithTwoSourceTables(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithTwoSourceTableOneSourceQuery() throws Exception {
+    DeleteTests.testDeleteWithTwoSourceTableOneSourceQuery(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithTwoSourceTableTwoSourceQuery() throws Exception {
+    DeleteTests.testDeleteWithTwoSourceTableTwoSourceQuery(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithSourceTableMultipleConditions() throws Exception {
+    DeleteTests.testDeleteWithSourceTableMultipleConditions(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithSourceTableWithSubquery() throws Exception {
+    DeleteTests.testDeleteWithSourceTableWithSubquery(allocator, SOURCE);
+  }
+
+  @Test
   public void testDeleteWithWrongContextWithFqn() throws Exception {
     DeleteTests.testDeleteWithWrongContextWithFqn(allocator, SOURCE);
   }

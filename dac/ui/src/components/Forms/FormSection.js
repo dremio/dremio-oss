@@ -19,11 +19,9 @@ import PropTypes from "prop-types";
 import classNames from "classnames";
 
 import FormElement from "components/Forms/FormElement";
-import HoverHelp from "components/HoverHelp";
-import Art from "@app/components/Art";
 import SourceIcon from "components/Icon/SourceIcon";
 import config from "dyn-load/utils/config";
-
+import { HoverHelp } from "dremio-ui-lib";
 import { inlineHelp, sectionBody, sectionLabel } from "uiTheme/less/forms.less";
 import { flexColumnContainer } from "uiTheme/less/layout.less";
 import {
@@ -46,6 +44,7 @@ export default class FormSection extends Component {
     sectionLevel: PropTypes.number,
     tabTitleText: PropTypes.string,
     disabled: PropTypes.bool,
+    isFirstSection: PropTypes.bool,
   };
 
   state = {
@@ -158,12 +157,14 @@ export default class FormSection extends Component {
     if (!sectionConfigJson.collapsible) return null;
 
     const { collapsed } = this.state;
-    const iconType = collapsed ? "ArrowRight.svg" : "ArrowDownSmall.svg";
+    const iconType = collapsed
+      ? "interface/profile-caret-right"
+      : "interface/profile-caret-down";
     const iconAlt = collapsed ? "Expand Section" : "Collapse Section";
 
     return (
       <div data-qa="section-toggle">
-        <Art src={iconType} alt={iconAlt} style={styles.iconStyle} />
+        <dremio-icon name={iconType} alt={iconAlt} style={styles.iconStyle} />
       </div>
     );
   }
@@ -191,6 +192,7 @@ export default class FormSection extends Component {
       style,
       disabled,
       sectionLevel = 0,
+      isFirstSection = false,
     } = this.props;
     const sectionConfigJson = sectionConfig ? sectionConfig.getConfig() : {};
     const help = sectionConfigJson.help;
@@ -204,12 +206,15 @@ export default class FormSection extends Component {
       ? { ...sectionLabelStyle, fontSize: "14px" }
       : sectionLabelStyle;
     const sectionBodyStyle = sectionLevel ? { marginBottom: 15 } : null;
+    const sectionLabelClassname = classNames(sectionLabel, {
+      "margin-top--double": isFirstSection,
+    });
 
     return (
       <div className={sectionBody} style={{ ...style, ...sectionBodyStyle }}>
         {sectionConfigJson.name && (
           <div
-            className={sectionLabel}
+            className={sectionLabelClassname}
             style={sectionLabelStyle}
             onClick={this.toggleCollapse}
           >
@@ -249,8 +254,11 @@ export default class FormSection extends Component {
 
 const styles = {
   iconStyle: {
-    width: 26,
-    height: 26,
+    width: 12,
+    height: 12,
+    marginRight: 8,
+    marginTop: -3,
+    color: "var(--dremio--color--neutral--600)",
   },
   sourceIcon: {
     width: 40,

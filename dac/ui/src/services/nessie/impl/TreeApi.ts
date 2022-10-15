@@ -22,7 +22,7 @@ import {
   GetCommitLogRequest,
   GetEntriesRequest,
   CreateReferenceRequest,
-  DeleteBranchRequest,
+  DeleteReferenceRequest,
   MergeRefIntoBranchRequest,
 } from "../client";
 import SwaggerConfig, { createSwaggerConfig } from "./SwaggerConfig";
@@ -64,8 +64,8 @@ export function createReference(req: CreateReferenceRequest) {
   return TreeApi.createReference(req);
 }
 
-export function deleteReference(req: DeleteBranchRequest) {
-  return TreeApi.deleteBranch(req);
+export function deleteReference(req: DeleteReferenceRequest) {
+  return TreeApi.deleteReference(req);
 }
 
 export function mergeReference(req: MergeRefIntoBranchRequest) {

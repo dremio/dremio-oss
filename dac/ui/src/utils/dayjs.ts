@@ -26,6 +26,7 @@ import utc from "dayjs/plugin/utc";
 import isoWeek from "dayjs/plugin/isoWeek";
 import LocalizedFormat from "dayjs/plugin/localizedFormat";
 import timezone from "dayjs/plugin/timezone";
+import advancedFormat from "dayjs/plugin/advancedFormat";
 
 //Treat "" as invalid date, as momentJS does. This can be removed upon further testing
 import formatOverridePlugin from "./dayjs-plugins/dayjs-format-override";
@@ -46,5 +47,6 @@ dayjs.extend(isoWeek);
 dayjs.extend(LocalizedFormat);
 dayjs.extend(timezone);
 dayjs.extend(formatOverridePlugin);
+dayjs.extend(advancedFormat);
 
 export default dayjs;

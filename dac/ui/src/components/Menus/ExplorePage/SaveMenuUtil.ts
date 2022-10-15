@@ -14,37 +14,50 @@
  * limitations under the License.
  */
 
+export const SaveScriptAsMenuItem = {
+  label: "NewQuery.SaveScriptAs",
+  id: "saveScriptAs",
+  class: "save-as-menu-item",
+};
+export const SaveScriptMenuItem = {
+  label: "NewQuery.SaveScript",
+  id: "saveScript",
+  class: "save-menu-item",
+};
+export const SaveViewMenuItem = {
+  label: "NewQuery.SaveView",
+  id: "saveView",
+  class: "save-menu-item",
+};
+export const SaveViewAsMenuItem = {
+  label: "NewQuery.SaveViewAs",
+  id: "saveViewAs",
+  class: "save-as-menu-item",
+};
+
 export const getSaveMenuItems = ({
-  saveMenuItems,
-  permissionsFromScript,
+  scriptPermissions,
   isUntitledScript,
   isSqlEditorTab,
 }: {
-  saveMenuItems: any[];
-  permissionsFromScript: any[];
+  scriptPermissions?: string[];
   isUntitledScript: boolean;
   isSqlEditorTab: boolean;
 }) => {
-  let list;
-  if (isUntitledScript && isSqlEditorTab) {
-    list = [saveMenuItems[1], saveMenuItems[0], null, saveMenuItems[3]];
-    return list;
-  }
+  const canModify = scriptPermissions && scriptPermissions.includes("MODIFY");
 
-  if (
-    permissionsFromScript &&
-    permissionsFromScript.includes("MODIFY") &&
-    isSqlEditorTab
-  ) {
-    list = [saveMenuItems[1], saveMenuItems[0], null, saveMenuItems[3]];
-  } else if (
-    permissionsFromScript &&
-    !permissionsFromScript.includes("MODIFY") &&
-    isSqlEditorTab
-  ) {
-    list = [saveMenuItems[0], null, saveMenuItems[3]];
+  if (isSqlEditorTab) {
+    if (isUntitledScript || canModify) {
+      return [
+        SaveScriptMenuItem,
+        SaveScriptAsMenuItem,
+        null,
+        SaveViewAsMenuItem,
+      ];
+    } else {
+      return [SaveScriptAsMenuItem, null, SaveViewAsMenuItem];
+    }
   } else {
-    list = [saveMenuItems[2], saveMenuItems[3], null, saveMenuItems[0]];
+    return [SaveViewMenuItem, SaveViewAsMenuItem, null, SaveScriptAsMenuItem];
   }
-  return list;
 };

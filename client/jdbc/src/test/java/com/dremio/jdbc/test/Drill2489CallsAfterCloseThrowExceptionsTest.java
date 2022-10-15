@@ -442,8 +442,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       }
       else if (SQLClientInfoException.class == cause.getClass()
                 && normalClosedExceptionText.equals(cause.getMessage())
-                && (false
-                    || method.getName().equals("setClientInfo")
+                && (   method.getName().equals("setClientInfo")
                     || method.getName().equals("getClientInfo")
                     )) {
         // Special good case--we had to use SQLClientInfoException from those.
@@ -451,8 +450,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       }
       else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
-               && (false
-                   || method.getName().equals("getCatalog")
+               && (   method.getName().equals("getCatalog")
                    || method.getName().equals("getSchema")
                    )) {
         // Special good-enough case--we had to use RuntimeException for now.
@@ -518,8 +516,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       }
       else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
-               && (false
-                   || method.getName().equals("getConnection")
+               && (   method.getName().equals("getConnection")
                    || method.getName().equals("getFetchDirection")
                    || method.getName().equals("getFetchSize")
                    || method.getName().equals("getMaxRows")
@@ -571,8 +568,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       }
       else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
-               && (false
-                   || method.getName().equals("clearBatch")
+               && (   method.getName().equals("clearBatch")
                    || method.getName().equals("getConnection")
                    || method.getName().equals("getFetchDirection")
                    || method.getName().equals("getFetchSize")

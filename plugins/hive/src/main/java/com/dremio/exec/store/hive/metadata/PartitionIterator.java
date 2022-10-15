@@ -45,7 +45,7 @@ import com.google.common.collect.Lists;
  * Partition name batches are used to lazily load batches Hive Partition objects as the caller
  * iterates over single Hive Partition objects.
  */
-public class PartitionIterator extends AbstractIterator<Partition> {
+public final class PartitionIterator extends AbstractIterator<Partition> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PartitionIterator.class);
 
   private final HiveClient client;

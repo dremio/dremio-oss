@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from "react";
-import { IndexRoute, Redirect, Route } from "react-router";
+import { IndexRoute, Redirect, Route, IndexRedirect } from "react-router";
 import NamespaceTable from "./components/NamespaceTable/NamespaceTable";
 import TableDetailsPage from "./components/TableDetailsPage/TableDetailsPage";
 import RepoView from "./components/RepoView/RepoView";
@@ -22,6 +21,9 @@ import CommitDetailsPage from "./components/CommitDetailsPage/CommitDetailsPage"
 import BranchHistory from "./components/BranchHistory/BranchHistory";
 import NessieProjectHomePage from "./components/NessieProjectHomePage/NessieProjectHomePage";
 import NessieSourceHomePage from "./components/NessieSourceHomePage/NessieSourceHomePage";
+import ArcticSourceWithNessie from "@app/exports/pages/ArcticSource/ArcticSource";
+import { ArcticSourceRoutes } from "@app/exports/routes";
+import * as PATHS from "@app/exports/paths";
 
 const CommonRoutes = [
   <Route key="branches" path="branches" component={RepoView} />,
@@ -36,6 +38,7 @@ const CommonRoutes = [
     component={BranchHistory}
   />,
   <Route key="tableDetails" path="table/*" component={TableDetailsPage} />,
+  <Route key="viewDetails" path="view/*" component={TableDetailsPage} />,
 ];
 
 function nessieRoutes() {
@@ -61,6 +64,26 @@ export function nessieSourceRoutes() {
       component={NessieSourceHomePage}
     >
       {CommonRoutes}
+    </Route>,
+  ];
+}
+
+export function arcticSourceRoutes() {
+  return [
+    <Route
+      key="arcticSourceHomePage"
+      path={PATHS.arcticSourceBase({ sourceId: ":sourceId" })}
+      component={ArcticSourceWithNessie}
+    >
+      <IndexRedirect
+        to={PATHS.arcticSourceCommitsBase({ sourceId: ":sourceId" })}
+      />
+      {ArcticSourceRoutes}
+      <Route
+        key="arctic-not-found"
+        path={`${PATHS.arcticSourceBase({ sourceId: ":sourceId" })}/*`}
+        component={() => null}
+      />
     </Route>,
   ];
 }

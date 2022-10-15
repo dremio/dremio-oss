@@ -78,6 +78,36 @@ public class ITMerge extends ITDmlQueryBase {
   }
 
   @Test
+  public void testMergeUpdateWithStar() throws Exception {
+    MergeTests.testMergeUpdateWithStar(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeUpdateWithStarColumnCountNotMatch1() throws Exception {
+    MergeTests.testMergeUpdateWithStarColumnCountNotMatch1(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeUpdateWithStarColumnCountNotMatch2() throws Exception {
+    MergeTests.testMergeUpdateWithStarColumnCountNotMatch2(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeUpdateWithStarSchemaNotMatchUpdateOnly() throws Exception {
+    MergeTests.testMergeUpdateWithStarSchemaNotMatchUpdateOnly(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeUpdateWithStarSchemaNotMatch() throws Exception {
+    MergeTests.testMergeUpdateWithStarSchemaNotMatch(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeUpdateInsertWithStar() throws Exception {
+    MergeTests.testMergeUpdateInsertWithStar(allocator, SOURCE);
+  }
+
+  @Test
   public void testMergeInsertWithScalar() throws Exception {
     MergeTests.testMergeInsertWithScalar(allocator, SOURCE);
   }
@@ -93,8 +123,18 @@ public class ITMerge extends ITDmlQueryBase {
   }
 
   @Test
+  public void testMergeInsertWithStar() throws Exception {
+    MergeTests.testMergeInsertWithStar(allocator, SOURCE);
+  }
+
+  @Test
   public void testMergeUpdateInsertWithLiteral() throws Exception {
     MergeTests.testMergeUpdateInsertWithLiteral(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeInsertWithStarColumnCountNotMatch() throws Exception {
+    MergeTests.testMergeInsertWithStarColumnCountNotMatch(allocator, SOURCE);
   }
 
   @Test
@@ -110,6 +150,11 @@ public class ITMerge extends ITDmlQueryBase {
   @Test
   public void testMergeUpdateInsertWithSubQuery() throws Exception {
     MergeTests.testMergeUpdateInsertWithSubQuery(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeUpdateInsertStarWithSubQuery() throws Exception {
+    MergeTests.testMergeUpdateInsertStarWithSubQuery(allocator, SOURCE);
   }
 
   @Test

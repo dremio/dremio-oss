@@ -25,7 +25,6 @@ import { getAnalyzeToolsConfig } from "@app/utils/config";
 import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 import MenuItem from "components/Menus/MenuItem";
 import SubMenu from "components/Menus/SubMenu";
-import Art from "components/Art";
 import AnalyzeMenuItems from "components/Menus/AnalyzeMenuItems";
 
 import {
@@ -88,7 +87,11 @@ export class AnalyzeMenuItem extends PureComponent {
     return (
       <MenuItem
         rightIcon={
-          <Art src="TriangleRight.svg" alt={""} style={styles.rightIcon} />
+          <dremio-icon
+            name="interface/triangle-right"
+            alt={""}
+            class={styles.rightIcon}
+          />
         }
         menuItems={[
           <SubMenu key="analyze-with">

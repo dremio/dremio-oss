@@ -28,6 +28,7 @@ import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.io.file.FileAttributes;
@@ -122,6 +123,11 @@ public class AllRowGroupsParquetReader implements RecordReader {
     AutoCloseables.close(currentInputStreamProvider, currentReader, filters);
   }
 
+  @Override
+  public String getFilePath() {
+    return path.toString();
+  }
+
   private boolean advanceToNextRowGroup() {
     Preconditions.checkNotNull(footer);
     Preconditions.checkNotNull(fileAttributes);
@@ -149,6 +155,7 @@ public class AllRowGroupsParquetReader implements RecordReader {
       .noSchemaLearning(schema)
       .readInt96AsTimeStamp(parquetReaderOptions.isReadInt96AsTimestampEnabled())
       .dateCorruptionStatus(ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
+      .mapDataTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
       .build();
 
     UnifiedParquetReader reader = new UnifiedParquetReader(

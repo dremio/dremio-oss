@@ -17,7 +17,7 @@ import DocumentTitle from "react-document-title";
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 
-import SideNav from "@app/components/SideNav/SideNav";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 import "./JobPageNew.less";
 
 const JobsPage = (props) => {
@@ -29,7 +29,7 @@ const JobsPage = (props) => {
     <div>
       <DocumentTitle title={formatMessage({ id: "Job.Jobs" })} />
       <div className={"jobsPageBody"}>
-        <SideNav />
+        <SonarSideNav />
         <div className={"jobPageContentDiv"}>{children}</div>
       </div>
     </div>

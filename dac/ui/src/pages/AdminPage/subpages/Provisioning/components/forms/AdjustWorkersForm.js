@@ -117,11 +117,11 @@ export default connectComplexForm(
 const styles = {
   formRow: {
     display: "flex",
-    width: "100%",
+    width: "80px",
   },
   formLabel: {
     display: "block",
-    margin: "6px 50px 0 0",
+    margin: "6px 42px 0 0",
     fontWeight: 500,
     fontSize: 12,
     color: "#333333",

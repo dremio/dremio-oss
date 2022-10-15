@@ -16,9 +16,10 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
-import Art from "components/Art";
 import { getReflectionUiStatus } from "utils/accelerationUtils";
+import { Tooltip } from "dremio-ui-lib";
+
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
 
 export default class Status extends Component {
   static propTypes = {
@@ -30,15 +31,14 @@ export default class Status extends Component {
     const { reflection, style } = this.props;
     const uiStatus =
       reflection.get("uiStatus") || getReflectionUiStatus(reflection);
-
     return (
-      <Art
-        src={`${uiStatus.get("icon")}.svg`}
-        style={{ ...style, height: 24 }}
-        alt={uiStatus.get("text")}
-        className={uiStatus.get("className")}
-        title
-      />
+      <Tooltip title={uiStatus.get("text")}>
+        <dremio-icon
+          name={uiStatus.get("iconId") ?? uiStatus.get("icon")}
+          style={{ ...style, height: 24, width: 24 }}
+          class={uiStatus.get("className")}
+        />
+      </Tooltip>
     );
   }
 }

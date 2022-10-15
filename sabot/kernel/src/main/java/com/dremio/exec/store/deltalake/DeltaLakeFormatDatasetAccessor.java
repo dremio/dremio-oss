@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +37,7 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.datastore.LegacyProtobufSerializer;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
@@ -53,6 +53,7 @@ import com.dremio.service.namespace.MetadataProtoUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 /**
@@ -68,7 +69,7 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
   private final FileSystemPlugin fsPlugin;
   private final FileSelection fileSelection;
   private final DeltaLakeFormatPlugin formatPlugin;
-  private DeltaLakeTable deltaTable;
+  private volatile DeltaLakeTable deltaTable;
 
   public DeltaLakeFormatDatasetAccessor(DatasetType type,
                                         FileSystem fs,
@@ -128,7 +129,8 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
         public Schema getRecordSchema() {
           try {
             Preconditions.checkNotNull(snapshot, "Unable to read commit snapshot");
-            return DeltaLakeSchemaConverter.fromSchemaString(snapshot.getSchema());
+            boolean mapDataTypeEnabled = formatPlugin.getContext().getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
+            return DeltaLakeSchemaConverter.withMapEnabled(mapDataTypeEnabled).fromSchemaString(snapshot.getSchema());
           } catch (IOException e) {
             logger.error("Error while parsing DeltaLake schema", e);
             throw new RuntimeException(e);

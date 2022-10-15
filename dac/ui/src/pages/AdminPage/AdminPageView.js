@@ -15,16 +15,16 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 import withFilteredSections from "@inject/pages/AdminPage/withFilteredSections";
 
 import SettingPage from "@app/containers/SettingPage";
 import UserNavigation from "components/UserNavigation";
-import SideNav from "@app/components/SideNav/SideNav";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 import { getTitle } from "@inject/pages/AdminPage/navSections";
+import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
 
-import "./AdminPage.less"; // TODO to Vasyl, need to use Radium for each child component
+import "./AdminPage.less";
 
 class AdminPageView extends PureComponent {
   static propTypes = {
@@ -48,7 +48,7 @@ class AdminPageView extends PureComponent {
         ? {
             titleObject: {
               url: "/",
-              icon: "Back.svg",
+              icon: "interface/circled-arrow-left",
               topTitle: "Admin.Settings.Projects",
               title,
             },
@@ -60,17 +60,22 @@ class AdminPageView extends PureComponent {
     return (
       <SettingPage id="admin-page" style={style}>
         <div className="page-content">
-          <SideNav />
-          <UserNavigation
-            sections={sections}
-            location={location}
-            {...projectsHeaderSection}
-          />
-          <div className="main-content">{children}</div>
+          <SonarSideNav />
+          <div className="page-content-inner">
+            <NavCrumbs />
+            <div className="user-nav-container">
+              <UserNavigation
+                sections={sections}
+                location={location}
+                {...projectsHeaderSection}
+              />
+              <div className="main-content">{children}</div>
+            </div>
+          </div>
         </div>
       </SettingPage>
     );
   }
 }
 
-export default Radium(withFilteredSections(AdminPageView));
+export default withFilteredSections(AdminPageView);

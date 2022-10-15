@@ -23,6 +23,7 @@ const DurationProgress = ({
   timePercentage,
   progressPercentage,
   startsFrom,
+  isTotalExecution,
   durationTitleClass,
 }) => {
   return (
@@ -38,7 +39,11 @@ const DurationProgress = ({
             data-qa="duration-breakdown-value"
             className="durationProgress-content__value dremio-typography-tabular-numeric"
           >
-            {time < 1 ? "<1s " : `${jobsUtils.formatJobDuration(time * 1000)} `}
+            {time < 1
+              ? isTotalExecution
+                ? `${time * 1000}ms `
+                : "<1s "
+              : `${jobsUtils.formatJobDuration(time * 1000)} `}
             ({timePercentage}%)
           </span>
         </div>
@@ -62,6 +67,7 @@ DurationProgress.propTypes = {
   timePercentage: PropTypes.string,
   progressPercentage: PropTypes.string,
   startsFrom: PropTypes.string,
+  isTotalExecution: PropTypes.bool,
   durationTitleClass: PropTypes.string,
 };
 
@@ -71,6 +77,7 @@ DurationProgress.defaultProps = {
   timePercentage: "",
   progressPercentage: "",
   startsFrom: "",
+  isTotalExecution: false,
 };
 
 export default DurationProgress;

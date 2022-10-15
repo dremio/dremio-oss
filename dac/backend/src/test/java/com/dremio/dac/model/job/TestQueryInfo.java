@@ -16,7 +16,6 @@
 package com.dremio.dac.model.job;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
@@ -35,12 +34,9 @@ public class TestQueryInfo {
 
   @Test
   public void convertExceptionToQueryErrors() {
-    // Fake logger to not pollute logs
-    org.slf4j.Logger logger = mock(org.slf4j.Logger.class);
-
     SqlParseException parseException = new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
     UserException userException = SqlExceptionHelper.parseError("SELECT FOO", parseException)
-        .build(logger);
+        .buildSilently();
 
     List<QueryError> errors = QueryError.of(userException);
 
@@ -56,12 +52,9 @@ public class TestQueryInfo {
 
   @Test
   public void convertRemoteExceptionToQueryErrors() {
-    // Fake logger to not pollute logs
-    org.slf4j.Logger logger = mock(org.slf4j.Logger.class);
-
     SqlParseException parseException = new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
     UserException userException = SqlExceptionHelper.parseError("SELECT FOO", parseException)
-            .build(logger);
+            .buildSilently();
 
     UserException remoteException = UserRemoteException.create(userException.getOrCreatePBError(false));
 
@@ -79,12 +72,9 @@ public class TestQueryInfo {
 
   @Test
   public void convertExceptionToQueryErrorsWithPosition() {
-    // Fake logger to not pollute logs
-    org.slf4j.Logger logger = mock(org.slf4j.Logger.class);
-
     SqlParseException parseException = new SqlParseException("test message 2", new SqlParserPos(7, 42, 7, 42), null, null, null);
     UserException userException = SqlExceptionHelper.parseError("SELECT BAR", parseException)
-        .build(logger);
+        .buildSilently();
 
     List<QueryError> errors = QueryError.of(userException);
 

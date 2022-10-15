@@ -35,7 +35,7 @@ export const getSettingsLocation = (location, entity, entityType) => ({
   ...location,
   state: {
     modal: "DatasetSettingsModal",
-
+    entityName: entity.get("datasetName"),
     // todo: normalize
     entityId:
       entity.get("versionedResourcePath") || // VDS

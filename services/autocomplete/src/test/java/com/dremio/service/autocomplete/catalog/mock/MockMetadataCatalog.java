@@ -26,6 +26,7 @@ import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.autocomplete.catalog.Metadata;
 import com.dremio.service.autocomplete.nessie.MockNessieElementReader;
@@ -178,6 +179,11 @@ public class MockMetadataCatalog implements SimpleCatalog<MockMetadataCatalog> {
 
   @Override
   public MockMetadataCatalog resolveCatalog(NamespaceKey newDefaultSchema) {
+    return null;
+  }
+
+  @Override
+  public MockMetadataCatalog resolveCatalog(Map<String, VersionContext> sourceVersionMapping) {
     return null;
   }
 

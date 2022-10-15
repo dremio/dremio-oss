@@ -17,19 +17,27 @@ package com.dremio.service.autocomplete.completions;
 
 import static com.dremio.common.utils.SqlUtils.quoteIdentifier;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
 import com.dremio.service.autocomplete.catalog.Node;
 import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
 import com.dremio.service.autocomplete.functions.Function;
+import com.dremio.service.autocomplete.functions.FunctionSnippetFactory;
 import com.dremio.service.autocomplete.nessie.Branch;
 import com.dremio.service.autocomplete.nessie.Commit;
 import com.dremio.service.autocomplete.nessie.NessieElement;
 import com.dremio.service.autocomplete.nessie.NessieElementVisitor;
 import com.dremio.service.autocomplete.nessie.Tag;
+import com.dremio.service.autocomplete.snippets.Choice;
+import com.dremio.service.autocomplete.snippets.Placeholder;
+import com.dremio.service.autocomplete.snippets.Snippet;
+import com.dremio.service.autocomplete.snippets.SnippetElement;
+import com.dremio.service.autocomplete.snippets.Tabstop;
+import com.dremio.service.autocomplete.snippets.Text;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenEscaper;
 import com.google.common.base.Preconditions;
@@ -39,7 +47,7 @@ import com.google.common.collect.ImmutableList;
  * Factory for building CompletionItems
  */
 public final class CompletionItemFactory {
-  private static final Map<String, CompletionItem> FUNCTION_COMPLETION_ITEM_CACHE = new ConcurrentHashMap<>();
+  private static final Map<String, ImmutableList<CompletionItem>> FUNCTION_COMPLETION_ITEM_CACHE = new ConcurrentHashMap<>();
   private static final Map<Integer, CompletionItem> KEYWORD_COMPLETION_ITEM_CACHE = new ConcurrentHashMap<>();
 
   private CompletionItemFactory() {
@@ -52,9 +60,8 @@ public final class CompletionItemFactory {
 
     return ImmutableCompletionItem.builder()
       .label(catalogNode.getName())
-      .insertText(quoteIdentifier(catalogNode.getName()))
       .kind(CompletionItemKind.CatalogEntry)
-      .detail("Some CatalogEntry")
+      .insertText(quoteIdentifier(catalogNode.getName()))
       .data(new CatalogEntryCompletionItemData(
         catalogNode.getName(),
         catalogNode.getType()))
@@ -70,62 +77,79 @@ public final class CompletionItemFactory {
       ? quoteIdentifier(columnAndTableAlias.getColumn().getName())
       : TokenEscaper.escape(ImmutableList.of(columnAndTableAlias.getTableAlias(), columnAndTableAlias.getColumn().getName()));
 
+    String detail = String.format(
+      "column (%s) in %s",
+      columnAndTableAlias.getColumn().getType(),
+      columnAndTableAlias.getTableAlias());
+
     return ImmutableCompletionItem.builder()
       .label(columnAndTableAlias.getColumn().getName())
-      .insertText(insertText)
       .kind(CompletionItemKind.Column)
-      .detail("Some Column")
+      .insertText(insertText)
+      .detail(detail)
       .data(columnAndTableAlias)
       .build();
   }
 
-  public static CompletionItem createFromFunction(Function function) {
+  public static List<CompletionItem> createFromFunction(Function function) {
     Preconditions.checkNotNull(function);
     String lookupKey = function.getName().toUpperCase();
     return FUNCTION_COMPLETION_ITEM_CACHE
       .computeIfAbsent(lookupKey, unusedVariable -> createFromFunctionImplementation(function));
   }
 
-  private static CompletionItem createFromFunctionImplementation(Function function) {
+  private static ImmutableList<CompletionItem> createFromFunctionImplementation(Function function) {
     Preconditions.checkNotNull(function);
-    Optional<String> optionalSyntax = Optional.ofNullable(function.getSyntax());
-    StringBuilder insertTextBuilder = new StringBuilder()
-      .append(function.getName())
-      .append("(");
 
-    optionalSyntax.ifPresent(insertTextBuilder::append);
+    Set<String> distinctLabels = new HashSet<>();
+    return function
+      .getSignatures()
+      .stream()
+      .map(signature -> {
+        Snippet snippet = signature
+          .getSnippetOverride()
+          .orElse(FunctionSnippetFactory.create(function.getName(), signature));
 
-    insertTextBuilder.append(")");
+        StringBuilder labelBuilder = new StringBuilder();
+        for (SnippetElement snippetElement : snippet.getSnippetElements()) {
+          if (snippetElement instanceof Text) {
+            labelBuilder.append(((Text) snippetElement).getValue());
+          } else if (snippetElement instanceof Placeholder || snippetElement instanceof Tabstop) {
+            labelBuilder.append("???");
+          } else if (snippetElement instanceof Choice) {
+            Choice choice = (Choice) snippetElement;
+            labelBuilder
+              .append("{")
+              .append(String.join(",", choice.getChoices()))
+              .append("}");
+          } else {
+            labelBuilder.append(snippetElement.toString());
+          }
+        }
 
-    return ImmutableCompletionItem.builder()
-      .label(function.getName())
-      .insertText(insertTextBuilder.toString())
-      .kind(CompletionItemKind.Function)
-      .detail(function.getName())
-      .data(function.getName())
-      .build();
+        String detail = function.getDescription().orElse(null);
+
+        return ImmutableCompletionItem.builder()
+          .label(labelBuilder.toString())
+          .kind(CompletionItemKind.Function)
+          .insertText(snippet.toString())
+          .detail(detail)
+          .build();
+      })
+      .filter(completionItem -> distinctLabels.add(completionItem.getLabel()))
+      .collect(ImmutableList.toImmutableList());
   }
 
-  public static CompletionItem createFromDremioToken(DremioToken token) {
-    Preconditions.checkNotNull(token);
-    if (token.getKind() == ParserImplConstants.IDENTIFIER) {
-      // We can't cache an identifier
-      return createFromDremioTokenImplementation(token);
-    }
-
+  public static CompletionItem createFromKeyword(int kind) {
     return KEYWORD_COMPLETION_ITEM_CACHE
-      .computeIfAbsent(token.getKind(), value -> createFromDremioTokenImplementation(token));
+      .computeIfAbsent(kind, CompletionItemFactory::createFromKeywordImplementation);
   }
 
-  private static CompletionItem createFromDremioTokenImplementation(DremioToken token) {
-    Preconditions.checkNotNull(token);
-
+  private static CompletionItem createFromKeywordImplementation(int kind) {
+    DremioToken token = DremioToken.createFromParserKind(kind);
     return ImmutableCompletionItem.builder()
       .label(token.getImage())
-      .insertText(token.getImage())
       .kind(CompletionItemKind.Keyword)
-      .detail("Some SQL keyword")
-      .data(token.getImage())
       .build();
   }
 
@@ -136,9 +160,7 @@ public final class CompletionItemFactory {
 
     return ImmutableCompletionItem.builder()
       .label(label)
-      .insertText(label)
       .kind(CompletionItemKind.NessieElement)
-      .detail("A Nessie Element")
       .data(nessieElement)
       .build();
   }

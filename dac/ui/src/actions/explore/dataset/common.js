@@ -111,6 +111,7 @@ export function navigateToNextDataset(
     // 3) When we write a new query and click Preview/Run to navigate to newUntitled page
     changePathname,
     renderScriptTab,
+    isTransform,
   } = {}
 ) {
   return (dispatch, getStore) => {
@@ -133,6 +134,7 @@ export function navigateToNextDataset(
       PageTypes.graph,
       PageTypes.wiki,
       PageTypes.reflections,
+      PageTypes.history,
     ]) {
       const urlPart = getPathPart(pageType);
       //check if url ends with page type
@@ -183,28 +185,42 @@ export function navigateToNextDataset(
     const parsedLink = urlParse(link, true);
 
     const nextPath = goToSqlRunner ? UNSAVED_DATASET_PATH : location.pathname;
-    const pathname = changePageTypeInUrl(
+    let pathname = changePageTypeInUrl(
       changePathname ? parsedLink.pathname : nextPath,
       targetPageType
     );
 
-    const mode = isSaveAs ? "edit" : location.query && location.query.mode;
+    // if coming from Open Results, root space needs to be updated if dataset exists in /source or /home
+    if (
+      openResults &&
+      pathname.startsWith("/space") &&
+      (nextDataset.getIn(["links", "self"]).startsWith("/source") ||
+        nextDataset.getIn(["links", "self"]).startsWith("/home"))
+    ) {
+      const editLink = nextDataset.getIn(["links", "edit"]);
+      pathname = `${editLink.substring(0, editLink.indexOf("?"))}`;
+    }
+
+    const create = location.query?.create;
     const jobId = _getNextJobId(fullDataset);
+    const mode = isSaveAs ? "edit" : location.query?.mode;
     const query = {
       ...(keepQuery ? location.query : {}), // Initial dataset request will navigate. Need to not clobber graph query params.
       ...parsedLink.query,
       ...(jobId ? { jobId } : {}),
       ...(mode ? { mode } : {}),
+      ...(isUnsavedWithDataset && create ? { create } : {}),
       version: nextVersion,
       tipVersion: preserveTip ? tipVersion || nextVersion : nextVersion,
       ...(openResults ? { openResults: "true" } : {}),
     };
     const action = replaceNav ? replace : push;
 
-    let nextState = {};
-    if (goToSqlRunner && renderScriptTab) {
-      nextState = { renderScriptTab };
-    }
+    const nextState = {
+      ...(isTransform ? { isTransform } : {}),
+      ...(goToSqlRunner && renderScriptTab ? { renderScriptTab } : {}),
+    };
+
     const state = isSaveAs ? { afterDatasetSave: true } : nextState;
 
     return dispatch(action({ pathname, query, state }));

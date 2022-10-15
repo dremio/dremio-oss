@@ -64,7 +64,7 @@ export class DropdownForSelectedTextView extends PureComponent {
 
   copyText = () => {
     exploreUtils.copySelection(
-      ReactDOM.findDOMNode(this.selectedContentRef.current)
+      ReactDOM.findDOMNode(this.selectedContentRef.current) // eslint-disable-line react/no-find-dom-node
     );
     this.props.hideDrop();
   };

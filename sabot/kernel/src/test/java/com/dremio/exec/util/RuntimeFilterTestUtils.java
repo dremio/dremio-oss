@@ -49,13 +49,13 @@ public class RuntimeFilterTestUtils {
         if (!partitionCols.isEmpty()) {
             ExecProtos.CompositeColumnFilter partitionColFilter = ExecProtos.CompositeColumnFilter.newBuilder()
                     .setFilterType(ExecProtos.RuntimeFilterType.BLOOM_FILTER)
-                    .setSizeBytes(64)
+                    .setSizeBytes(bloomFilterBuf.capacity())
                     .setValueCount(0)
                     .addAllColumns(partitionCols)
                     .build();
             runtimeFilter.setPartitionColumnFilter(partitionColFilter);
             bloomFilterBuf.readerIndex(0);
-            bloomFilterBuf.writerIndex(64);
+            bloomFilterBuf.writerIndex(bloomFilterBuf.capacity());
             bufsToMerge.add(bloomFilterBuf);
         }
 

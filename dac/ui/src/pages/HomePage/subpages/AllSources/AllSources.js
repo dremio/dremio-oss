@@ -26,8 +26,9 @@ import { loadSourceListData } from "actions/resources/sources";
 import { getSources } from "selectors/home";
 
 import {
-  isExternalSourceType,
-  isDataLakeSourceType,
+  isDatabaseType,
+  isMetastoreSourceType,
+  isObjectStorageSourceType,
   isDataPlaneSourceType,
 } from "@app/constants/sourceTypes";
 import AllSourcesView from "./AllSourcesView.js";
@@ -51,21 +52,30 @@ export class AllSources extends PureComponent {
     const { location, sources, intl } = this.props;
     const isExternalSource = location.pathname === "/sources/external/list";
     const isDataPlaneSource = location.pathname === "/sources/dataplane/list";
-    const isDataLakeSource = location.pathname === "/sources/datalake/list";
+    const isObjectStorageSource =
+      location.pathname === "/sources/objectStorage/list";
+    const isMetastoreSource = location.pathname === "/sources/metastore/list";
 
     /*eslint no-nested-ternary: "off"*/
     const headerId = isExternalSource
-      ? "Source.AllExternalSources"
-      : isDataLakeSource
-      ? "Source.AllDataLakes"
+      ? "Source.AllDatabaseSources"
+      : isObjectStorageSource
+      ? "Source.AllObjectStorage"
+      : isMetastoreSource
+      ? "Source.AllMetastores"
       : "Source.AllDataPlanes";
 
     const title = intl.formatMessage({ id: headerId });
-    const dataLakeSources = sources.filter((source) =>
-      isDataLakeSourceType(source.get("type"))
+    const metastoreSource = sources.filter((source) =>
+      isMetastoreSourceType(source.get("type"))
     );
-    const externalSources = sources.filter((source) =>
-      isExternalSourceType(source.get("type"))
+
+    const objectStorageSource = sources.filter((source) =>
+      isObjectStorageSourceType(source.get("type"))
+    );
+
+    const databaseSources = sources.filter((source) =>
+      isDatabaseType(source.get("type"))
     );
     const dataPlaneSources = sources.filter((source) =>
       isDataPlaneSourceType(source.get("type"))
@@ -73,9 +83,11 @@ export class AllSources extends PureComponent {
 
     /*eslint no-nested-ternary: "off"*/
     const filteredSources = isExternalSource
-      ? externalSources
-      : isDataLakeSource
-      ? dataLakeSources
+      ? databaseSources
+      : isObjectStorageSource
+      ? objectStorageSource
+      : isMetastoreSource
+      ? metastoreSource
       : dataPlaneSources;
 
     return (
@@ -86,6 +98,7 @@ export class AllSources extends PureComponent {
           filters={this.filters}
           isExternalSource={isExternalSource}
           isDataPlaneSource={isDataPlaneSource}
+          isObjectStorageSource={isObjectStorageSource}
           sources={filteredSources}
         />
       </HomePage>

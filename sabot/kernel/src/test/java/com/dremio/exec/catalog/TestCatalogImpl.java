@@ -16,29 +16,28 @@
 package com.dremio.exec.catalog;
 
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
-import static junit.framework.TestCase.assertNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstructionWithAnswer;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
@@ -62,9 +61,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.test.UserExceptionAssert;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"org.apache.commons.*", "org.apache.xerces.*", "org.slf4j.*", "org.xml.*", "javax.xml.*"})
-@PrepareForTest({MetadataObjectsUtils.class, CatalogImpl.class})
 public class TestCatalogImpl {
 
   private final MetadataRequestOptions options = mock(MetadataRequestOptions.class);
@@ -77,8 +73,6 @@ public class TestCatalogImpl {
   private final DatasetListingService datasetListingService = mock(DatasetListingService.class);
   private final ViewCreatorFactory viewCreatorFactory = mock(ViewCreatorFactory.class);
   private final SchemaConfig schemaConfig = mock(SchemaConfig.class);
-  private final InformationSchemaCatalogImpl iscDelegate = mock(InformationSchemaCatalogImpl.class);
-  private final DatasetManager datasets = mock(DatasetManager.class);
   private final NamespaceService userNamespaceService = mock(NamespaceService.class);
   private final IdentityResolver identityProvider = mock(IdentityResolver.class);
   private final NamespaceIdentity namespaceIdentity = mock(NamespaceIdentity.class);
@@ -87,7 +81,6 @@ public class TestCatalogImpl {
 
   @Before
   public void setup() throws Exception {
-
     when(options.getSchemaConfig())
       .thenReturn(schemaConfig);
     when(schemaConfig.getUserName())
@@ -101,23 +94,10 @@ public class TestCatalogImpl {
 
     when(namespaceFactory.get(namespaceIdentity))
       .thenReturn(userNamespaceService);
-
-    whenNew(DatasetManager.class)
-      .withArguments(pluginRetriever, userNamespaceService, optionManager, userName, identityProvider,
-        versionContextResolver)
-      .thenReturn(datasets);
-
-    whenNew(InformationSchemaCatalogImpl.class)
-      .withArguments(userNamespaceService)
-      .thenReturn(iscDelegate);
   }
 
-  @Test
-  public void testUnknownSource() throws NamespaceException {
-    NamespaceKey key = new NamespaceKey("unknown");
-    Map<String, AttributeValue> attributes = new HashMap<>();
-
-    CatalogImpl catalog = new CatalogImpl(options,
+  private CatalogImpl newCatalogImpl(VersionContextResolverImpl versionContextResolver) {
+    return new CatalogImpl(options,
       pluginRetriever,
       sourceModifier,
       optionManager,
@@ -127,7 +107,15 @@ public class TestCatalogImpl {
       datasetListingService,
       viewCreatorFactory,
       identityProvider,
-      null);
+      versionContextResolver);
+  }
+
+  @Test
+  public void testUnknownSource() throws NamespaceException {
+    NamespaceKey key = new NamespaceKey("unknown");
+    Map<String, AttributeValue> attributes = new HashMap<>();
+
+    CatalogImpl catalog = newCatalogImpl(null);
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
       .when(systemNamespaceService).getDataset(key);
@@ -155,17 +143,7 @@ public class TestCatalogImpl {
     doThrow(new ConnectorException())
       .when(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
 
-    CatalogImpl catalog = new CatalogImpl(options,
-      pluginRetriever,
-      sourceModifier,
-      optionManager,
-      systemNamespaceService,
-      namespaceFactory,
-      orphanage,
-      datasetListingService,
-      viewCreatorFactory,
-      identityProvider,
-      null);
+    CatalogImpl catalog = newCatalogImpl(null);
 
     UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
       .hasErrorType(VALIDATION)
@@ -183,7 +161,6 @@ public class TestCatalogImpl {
     Optional<DatasetHandle> handle = Optional.of(datasetHandle);
     DatasetRetrievalOptions datasetRetrievalOptions = mock(DatasetRetrievalOptions.class);
     NamespaceKey namespaceKey = mock(NamespaceKey.class);
-    PowerMockito.mockStatic(MetadataObjectsUtils.class);
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
       .when(systemNamespaceService).getDataset(key);
@@ -195,26 +172,18 @@ public class TestCatalogImpl {
       .thenReturn(handle);
     when(datasetHandle.getDatasetPath())
       .thenReturn(entityPath);
-    when(MetadataObjectsUtils.toNamespaceKey(entityPath))
-      .thenReturn(namespaceKey);
     doThrow(new NamespaceNotFoundException(namespaceKey, "not found"))
       .when(systemNamespaceService).getDataset(namespaceKey);
 
-    CatalogImpl catalog = new CatalogImpl(options,
-      pluginRetriever,
-      sourceModifier,
-      optionManager,
-      systemNamespaceService,
-      namespaceFactory,
-      orphanage,
-      datasetListingService,
-      viewCreatorFactory,
-      identityProvider,
-      null);
+    CatalogImpl catalog = newCatalogImpl(null);
 
-    UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
-      .hasErrorType(VALIDATION)
-      .hasMessageContaining("Unable to find requested dataset");
+    try (MockedStatic<MetadataObjectsUtils> mocked = mockStatic(MetadataObjectsUtils.class)) {
+      mocked.when(() -> MetadataObjectsUtils.toNamespaceKey(entityPath)).thenReturn(namespaceKey);
+
+      UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
+        .hasErrorType(VALIDATION)
+        .hasMessageContaining("Unable to find requested dataset");
+    }
     verify(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
     verify(systemNamespaceService).getDataset(namespaceKey);
   }
@@ -229,7 +198,6 @@ public class TestCatalogImpl {
     Optional<DatasetHandle> handle = Optional.of(datasetHandle);
     DatasetRetrievalOptions datasetRetrievalOptions = mock(DatasetRetrievalOptions.class);
     NamespaceKey namespaceKey = mock(NamespaceKey.class);
-    PowerMockito.mockStatic(MetadataObjectsUtils.class);
     DatasetConfig datasetConfig = new DatasetConfig();
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
@@ -242,43 +210,25 @@ public class TestCatalogImpl {
       .thenReturn(handle);
     when(datasetHandle.getDatasetPath())
       .thenReturn(entityPath);
-    when(MetadataObjectsUtils.toNamespaceKey(entityPath))
-      .thenReturn(namespaceKey);
     when(systemNamespaceService.getDataset(namespaceKey))
       .thenReturn(datasetConfig);
     when(plugin.alterDataset(key, datasetConfig, attributes))
       .thenReturn(true);
 
-    CatalogImpl catalog = new CatalogImpl(options,
-      pluginRetriever,
-      sourceModifier,
-      optionManager,
-      systemNamespaceService,
-      namespaceFactory,
-      orphanage,
-      datasetListingService,
-      viewCreatorFactory,
-      identityProvider,
-      null);
+    CatalogImpl catalog = newCatalogImpl(null);
 
-    assertTrue(catalog.alterDataset(key, attributes));
+    try (MockedStatic<MetadataObjectsUtils> mocked = mockStatic(MetadataObjectsUtils.class)) {
+      mocked.when(() -> MetadataObjectsUtils.toNamespaceKey(entityPath)).thenReturn(namespaceKey);
+
+      assertTrue(catalog.alterDataset(key, attributes));
+    }
     verify(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
     verify(systemNamespaceService).getDataset(namespaceKey);
   }
 
   @Test
   public void testGetColumnExtendedProperties_nullReadDefinition() {
-    final CatalogImpl catalog = new CatalogImpl(options,
-      pluginRetriever,
-      sourceModifier,
-      optionManager,
-      systemNamespaceService,
-      namespaceFactory,
-      orphanage,
-      datasetListingService,
-      viewCreatorFactory,
-      identityProvider,
-      null);
+    final CatalogImpl catalog = newCatalogImpl(null);
 
     final DremioTable table = mock(DremioTable.class);
     when(table.getDatasetConfig()).thenReturn(DatasetConfig.getDefaultInstance());
@@ -288,19 +238,6 @@ public class TestCatalogImpl {
 
   @Test
   public void testGetTable_ReturnsUpdatedTable() {
-    final CatalogImpl catalog = new CatalogImpl(options,
-      pluginRetriever,
-      sourceModifier,
-      optionManager,
-      systemNamespaceService,
-      namespaceFactory,
-      orphanage,
-      datasetListingService,
-      viewCreatorFactory,
-      identityProvider,
-      versionContextResolver);
-
-
     final View outdatedView = mock(View.class);
     when(outdatedView.isFieldUpdated()).thenReturn(true);
 
@@ -310,7 +247,6 @@ public class TestCatalogImpl {
     when(tableToBeUpdated.getView()).thenReturn(outdatedView);
     when(tableToBeUpdated.getPath()).thenReturn(viewPath);
 
-
     final ViewTable updatedTable = mock(ViewTable.class);
 
     ViewCreatorFactory.ViewCreator viewCreator = mock(ViewCreatorFactory.ViewCreator.class);
@@ -318,11 +254,24 @@ public class TestCatalogImpl {
 
     NamespaceKey key = new NamespaceKey("test");
 
-    when(datasets.getTable(any(), any(), anyBoolean()))
-      .thenReturn(tableToBeUpdated, updatedTable);
+    final AtomicBoolean isFirstGetTableCall = new AtomicBoolean(true);
+    try (MockedConstruction<DatasetManager> ignored = mockConstructionWithAnswer(
+      DatasetManager.class,
+      invocation -> {
+        // generate answers for method invocations on the constructed object
+        if ("getTable".equals(invocation.getMethod().getName())) {
+          if (isFirstGetTableCall.getAndSet(false)) {
+            return tableToBeUpdated;
+          }
+          return updatedTable;
+        }
+        // this should never get called
+        return invocation.callRealMethod();
+      })) {
+      CatalogImpl catalog = newCatalogImpl(versionContextResolver);
 
-    DremioTable actual = catalog.getTable(key);
-
-    assertEquals(updatedTable, actual);
+      DremioTable actual = catalog.getTable(key);
+      assertEquals(updatedTable, actual);
+    }
   }
 }

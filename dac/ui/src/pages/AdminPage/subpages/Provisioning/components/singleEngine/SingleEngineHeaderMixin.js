@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Button from "@app/components/Buttons/Button";
+import { Button } from "dremio-ui-lib";
 import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
 import EngineStatus from "@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
+import { intl } from "@app/utils/intl";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -28,11 +29,16 @@ export default function (input) {
     renderButtons(styles, isReadOnly) {
       return (
         <Button
-          style={styles.edit}
+          style={{
+            width: 110,
+            marginTop: 5,
+            marginLeft: 10,
+          }}
           onClick={this.onEdit}
-          disable={isReadOnly}
-          type={ButtonTypes.NEXT}
-          text={la("Edit Settings")}
+          disabled={isReadOnly}
+          color={ButtonTypes.UI_LIB_PRIMARY}
+          disableMargin
+          text={intl.formatMessage({ id: "Common.Edit.Settings" })}
         />
       );
     },

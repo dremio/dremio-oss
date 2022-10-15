@@ -56,7 +56,29 @@ public interface IcebergCommand {
     Table endTransaction();
 
     /**
-     * Commit the delete operation
+     * Start the overwrite operation
+     */
+    void beginOverwrite(long snapshotId);
+
+    /**
+     * Commit the overwrite operation
+     */
+    Snapshot finishOverwrite();
+
+    /**
+     * Consumes list of deleted data files using Overwrite
+     * @param filesList list of DataFile entries
+     */
+    void consumeDeleteDataFilesWithOverwriteByPaths(List<String> filePathsList);
+
+    /**
+     * Consumes list of Manifest files using Overwrite
+     * @param filesList list of DataFile entries
+     */
+    void consumeManifestFilesWithOverwrite(List<ManifestFile> filesList);
+
+    /**
+     * Start the delete operation
      */
     void beginDelete();
 

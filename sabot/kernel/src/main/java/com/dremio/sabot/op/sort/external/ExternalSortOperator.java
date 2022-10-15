@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.sort.external;
 
+import java.util.EnumSet;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -39,6 +40,8 @@ import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.ExtSortSpillNotificationMessage;
+import com.dremio.exec.proto.UserBitShared.MetricDef.AggregationType;
+import com.dremio.exec.proto.UserBitShared.MetricDef.DisplayType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
@@ -153,8 +156,8 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     AVG_BATCH_SIZE,         // average size of batch spilled amongst all batches spilled from all disk runs
     SPILL_TIME_NANOS,       // time spent spilling to diskRuns while sorting
     MERGE_TIME_NANOS,       // time spent merging disk runs and spilling
-    TOTAL_SPILLED_DATA_SIZE,  // total data spilled by sort operator
-    BATCHES_SPILLED,        // total batches spilled to disk
+    TOTAL_SPILLED_DATA_SIZE(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of bytes spilled"),  // total data spilled by sort operator
+    BATCHES_SPILLED(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of record batches spilled"),        // total batches spilled to disk
 
     // OOB related metrics
     OOB_SENDS, // Number of times operator informed others of spilling
@@ -179,9 +182,38 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
     OOM_COPY_COUNT,
     ;
 
+    private final DisplayType displayType;
+    private final AggregationType aggregationType;
+    private final String displayCode;
+
+    Metric() {
+      this(DisplayType.DISPLAY_NEVER, AggregationType.SUM, "");
+    }
+
+    Metric(DisplayType displayType, AggregationType aggregationType, String displayCode) {
+      this.displayType = displayType;
+      this.aggregationType = aggregationType;
+      this.displayCode = displayCode;
+    }
+
     @Override
     public int metricId() {
       return ordinal();
+    }
+
+    @Override
+    public DisplayType getDisplayType() {
+      return this.displayType;
+    }
+
+    @Override
+    public AggregationType getAggregationType() {
+      return this.aggregationType;
+    }
+
+    @Override
+    public String getDisplayCode() {
+      return this.displayCode;
     }
   }
 
@@ -262,6 +294,7 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
      * Otherwise 'memoryRun' close would fail reporting memory leak.
      */
     AutoCloseables.close(copier, output, diskRuns, memoryRun, unconsumedRef);
+    addDisplayStatsWithZeroValue(context, EnumSet.allOf(Metric.class));
     updateStats(true);
   }
 
@@ -328,6 +361,11 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   }
 
   @Override
+  public int getOperatorId() {
+    return this.config.getProps().getLocalOperatorId();
+  }
+
+  @Override
   public long shrinkableMemory() {
     long shrinkableMemory = 0;
 
@@ -346,8 +384,23 @@ public class ExternalSortOperator implements SingleInputOperator, ShrinkableOper
   }
 
   @Override
-  public long shrinkMemory(long size) {
-    throw new UnsupportedOperationException();
+  public boolean shrinkMemory(long size) throws Exception {
+    Preconditions.checkArgument(state == State.CAN_CONSUME
+      || (state == State.CAN_PRODUCE && sortState == SortState.SPILL_IN_PROGRESS));
+    if (enableMicroSpill) {
+      if (state == State.CAN_CONSUME) {
+        startMicroSpilling();
+      }
+      final boolean done = memoryRun.spillNextBatch(diskRuns);
+      if (done) {
+        finishMicroSpilling();
+      }
+
+      return done;
+    } else {
+      rotateRuns();
+      return true;
+    }
   }
 
   /**

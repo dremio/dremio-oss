@@ -104,7 +104,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -223,27 +222,28 @@ public class ReflectionUtils {
    * computes a log-friendly reflection id
    */
   public static String getId(ReflectionEntry entry) {
-    if (Strings.isNullOrEmpty(entry.getName())) {
-      return entry.getId().getId();
-    }
-    return String.format("%s (%s)", entry.getId().getId(), entry.getName());
+    return String.format("reflection %s[%s]", entry.getId().getId(), entry.getName());
   }
 
   /**
    * computes a log-friendly reflection id
    */
   public static String getId(ReflectionGoal goal) {
-    if (Strings.isNullOrEmpty(goal.getName())) {
-      return goal.getId().getId();
-    }
-    return String.format("%s (%s)", goal.getId().getId(), goal.getName());
+    return String.format("reflection %s[%s]", goal.getId().getId(), goal.getName());
   }
 
   /**
    * computes a log-friendly materialization id
    */
   public static String getId(Materialization m) {
-    return String.format("%s/%s", m.getReflectionId().getId(), m.getId().getId());
+    return String.format("materialization %s/%s", m.getReflectionId().getId(), m.getId().getId());
+  }
+
+  /**
+   * computes a log-friendly reflection and materialization id
+   */
+  public static String getId(ReflectionEntry entry, Materialization m) {
+    return String.format("materialization %s/%s[%s]", entry.getId().getId(), m.getId().getId(), entry.getName());
   }
 
   /**

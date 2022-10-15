@@ -318,7 +318,7 @@ public class FragmentWorkManager implements Service, SafeExit {
     maestroProxy = new MaestroProxy(maestroServiceClientFactoryProvider,
       jobTelemetryClientFactoryProvider,
       bitContext.getClusterCoordinator(),
-      bitContext.getEndpoint(), bitContext.getOptionManager());
+      identity, bitContext.getOptionManager());
     fragmentExecutors = new FragmentExecutors(maestroProxy, callback, pool.get(), bitContext.getOptionManager(), this.memoryArbiter);
 
     final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)),

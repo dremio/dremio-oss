@@ -41,7 +41,7 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 
-public class SqlAccessorBuilder {
+public final class SqlAccessorBuilder {
 
   private SqlAccessorBuilder() {}
 
@@ -92,6 +92,7 @@ public class SqlAccessorBuilder {
       return new BitAccessor((BitVector) vector);
     case STRUCT:
     case LIST:
+    case MAP:
       return new GenericAccessor(vector);
     }
     throw new UnsupportedOperationException(String.format("Unable to find sql accessor for minor type [%s]", type));

@@ -45,20 +45,6 @@
       background: @FIGMA_PRIMARY_100;
     }
 
-    // &--hasResources {
-    //   .dragSource:hover {
-    //     background: transparent;
-    //   }
-
-    //   .resourceTreeNodeWrap {
-    //     padding: 0;
-    //   }
-
-    //   .datasetItemLabel-item {
-    //     padding: 0.4rem 0;
-    //   }
-    // }
-
     .datasetItemLabel-item {
       &:hover {
         background: @FIGMA_PRIMARY_100;
@@ -117,14 +103,6 @@
       width: 2.4rem;
       transition: 300ms ease all;
       padding: 0;
-
-      &__icon {
-        color: var(--dremio--color--neutral--600);
-
-        &:hover {
-          color: var(--dremio--color--link);
-        }
-      }
     }
 
     &__starIcon {
@@ -132,24 +110,13 @@
       transition: 300ms ease all;
       margin-bottom: 0.1rem;
       width: 1.8rem;
-
-      &:hover {
-        cursor: pointer;
-      }
+      padding: 0;
     }
 
     &--limitReached {
       cursor: default !important;
       filter: invert(95%) sepia(11%) saturate(88%) hue-rotate(170deg)
         brightness(120%) contrast(89%);
-    }
-
-    &--unstarred {
-      color: var(--dremio--color--neutral--600);
-
-      &:hover {
-        color: var(--dremio--color--link);
-      }
     }
 
     // Fixed width for left panel items
@@ -172,10 +139,10 @@
     flex-direction: row;
     flex: 1;
     padding: 0.4rem 0;
-    width: 80%;
+    width: 100%;
 
     &.__columnItem {
-      padding-left: 0.4rem;
+      padding-left: 1rem;
     }
 
     .resourceTreeNode__add {
@@ -186,6 +153,15 @@
     }
     .resourceTreeNode--limitReached {
       opacity: 0;
+    }
+
+    .TreeNode__arrowIcon {
+      color: var(--dremio--color--neutral--600);
+      padding: 0;
+
+      &:hover {
+        color: var(--dremio--color--neutral--600);
+      }
     }
 
     &:hover {

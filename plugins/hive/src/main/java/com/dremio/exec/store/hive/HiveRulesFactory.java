@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive;
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.getInternalIcebergTableMetadata;
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.supportsConvertedIcebergDataset;
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.isIcebergMetadata;
+import static com.dremio.service.namespace.DatasetHelper.isConvertedIcebergDataset;
 import static com.dremio.service.namespace.DatasetHelper.supportsPruneFilter;
 
 import java.io.IOException;
@@ -275,12 +276,26 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       return new HiveScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection,
         observedRowcountAdjustment, filter, readerType, partitionFilter == null ? null : partitionFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()), survivingRowCount, survivingFileCount);
     }
+    @Override
+    public StoragePluginId getIcebergStatisticsPluginId(OptimizerRulesContext context) {
+      if (isHiveIcebergDataset(this)) {
+        return getPluginId();
+      } else if (supportsConvertedIcebergDataset(context, getTableMetadata())) { // internal
+        return getInternalIcebergTableMetadata(getTableMetadata(), context).getIcebergTableStoragePlugin();
+      }
+      return null;
+    }
 
     @Override
     public RelWriter explainTerms(RelWriter pw) {
       pw = super.explainTerms(pw);
       return pw.itemIf("filters",  filter, filter != null)
         .itemIf("partitionFilters",  partitionFilter, partitionFilter != null);
+    }
+
+    @Override
+    public boolean canUsePartitionStats(){
+      return isConvertedIcebergDataset(getTableMetadata().getDatasetConfig());
     }
   }
 
@@ -417,7 +432,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
         drel.getTable(), icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata, drel.getProjectedColumns(),
         drel.getObservedRowcountAdjustment(), drel.getFilter(), false, /* TODO enable */
-        drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount());
+        drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount(), drel.canUsePartitionStats());
     }
 
     @Override
@@ -443,7 +458,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       HiveScanDrel drel = (HiveScanDrel) relNode;
       HiveIcebergScanTableMetadata icebergScanTableMetadata = new HiveIcebergScanTableMetadata(drel.getTableMetadata(),
         context.getCatalogService().getSource(storagePluginName));
-      return IcebergScanPlanBuilder.fromDrel(drel, context, icebergScanTableMetadata, false, false).build();
+      return IcebergScanPlanBuilder.fromDrel(drel, context, icebergScanTableMetadata, false, false, drel.canUsePartitionStats()).build();
     }
 
     @Override
@@ -484,7 +499,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public boolean matches(RelOptRuleCall call) {
       HiveScanDrel drel = call.rel(0);
-      return drel.getTableMetadata() instanceof TableFilesFunctionTableMetadata;
+      return drel.getTableMetadata() != null && drel.getTableMetadata() instanceof TableFilesFunctionTableMetadata;
     }
 
   }

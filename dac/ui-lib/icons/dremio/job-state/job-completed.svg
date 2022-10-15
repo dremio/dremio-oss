@@ -1,0 +1,23 @@
+<svg id="job-state/job-completed" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <path id="path-1" d="M15,7.5 C15,11.6426087 11.6406522,15 7.5,15 C3.35673913,15 0,11.6426087 0,7.5 C0,3.3573913 3.35673913,0 7.5,0 C11.6406522,0 15,3.3573913 15,7.5 L15,7.5 Z"></path>
+    </defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/OK-Solid" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-10" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                </g>
+                <g id="Stroke-3564-+-Stroke-3565" transform="translate(4.000000, 4.000000)">
+                    <g id="Stroke-3565">
+                        <use fill="#81DA49" fill-rule="evenodd" sketch:type="MSShapeGroup" xlink:href="#path-1"></use>
+                        <use fill="none" xlink:href="#path-1"></use>
+                    </g>
+                    <path d="M10.625,5.3125 L5.9375,9.6875 L4.375,8.125" id="Stroke-3564" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" sketch:type="MSShapeGroup"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

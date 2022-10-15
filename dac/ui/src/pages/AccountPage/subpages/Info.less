@@ -17,11 +17,19 @@
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .account-info-form {
+    width: 75% !important;
     input[type="password"]::-ms-reveal,
     input[type="password"]::-ms-clear,
     input[type="text"]::-ms-reveal,
     input[type="text"]::-ms-clear {
       display: none;
+    }
+
+    &--isModal {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
     }
   }
 }

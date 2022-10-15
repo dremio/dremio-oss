@@ -107,7 +107,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     super(context, projectedColumns);
     this.tableAttr = tableAttr;
     this.split = split;
-    this.jobConf = new JobConf(HiveFsUtils.getClonedConfWithDremioWrapperFs(jobConf));;
+    this.jobConf = new JobConf(HiveFsUtils.getClonedConfWithDremioWrapperFs(jobConf));
     this.tableSerDe = tableSerDe;
     this.tableOI = tableOI;
     this.partitionSerDe = partitionSerDe == null ? tableSerDe : partitionSerDe;

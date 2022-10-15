@@ -24,9 +24,9 @@
     tokens:
      - "WHERE"
      - "JOIN"
+     - "ORDER"
      - ","
      - "NATURAL"
-     - "ORDER"
  -
   description: "JUST FINISHED TABLE NAME WITH AT"
   input: "SELECT * FROM EMP AT "

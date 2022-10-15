@@ -23,11 +23,24 @@ import com.dremio.service.job.proto.JobId;
 public class JobNotFoundException extends JobException {
   private static final long serialVersionUID = 1L;
 
+  public enum causeOfFailure{
+    NOT_FOUND,
+    CANCEL_FAILED
+  }
+
   private final JobId jobId;
+  private causeOfFailure errorType = causeOfFailure.NOT_FOUND ;
 
   public JobNotFoundException(JobId jobId, String error) {
     super(jobId, error);
     this.jobId = jobId;
+  }
+
+  public JobNotFoundException(JobId jobId, causeOfFailure errorType) {
+    super(jobId, errorType.equals(causeOfFailure.CANCEL_FAILED)?"Job " + jobId.getId() + " may have completed and cannot be canceled."
+      :"Missing job " + jobId.getId());
+    this.jobId = jobId;
+    this.errorType = errorType;
   }
 
   public JobNotFoundException(JobId jobId, Exception error) {
@@ -44,4 +57,6 @@ public class JobNotFoundException extends JobException {
   public JobId getJobId() {
     return jobId;
   }
+
+  public causeOfFailure getErrorType(){return errorType;}
 }

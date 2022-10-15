@@ -25,12 +25,16 @@ import FinderNav from "components/FinderNav";
 import FinderNavItem from "components/FinderNavItem";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import SpacesSection from "@app/pages/HomePage/components/SpacesSection";
+import EmptyStateContainer from "./EmptyStateContainer";
+import { IconButton } from "dremio-ui-lib";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { Link } from "react-router";
 
 import {
-  isExternalSourceType,
+  isDatabaseType,
   isDataPlaneSourceType,
-  isDataLakeSourceType,
+  isMetastoreSourceType,
+  isObjectStorageSourceType,
 } from "@app/constants/sourceTypes";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
@@ -38,7 +42,8 @@ import { createSampleSource } from "actions/resources/sources";
 import {
   toggleDataplaneSourcesExpanded,
   toggleExternalSourcesExpanded,
-  toggleInternalSourcesExpanded,
+  toggleMetastoreSourcesExpanded,
+  toggleObjectStorageSourcesExpanded,
   toggleDatasetsExpanded,
 } from "actions/ui/ui";
 import * as VersionUtils from "@app/utils/versionUtils";
@@ -48,7 +53,9 @@ import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/Home
 import DataPlaneSection from "./DataPlaneSection/DataPlaneSection";
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-
+import { withErrorBoundary } from "@app/components/ErrorBoundary/withErrorBoundary";
+import { intl } from "@app/utils/intl";
+import "./LeftTree.less";
 @injectIntl
 export class LeftTree extends Component {
   state = {
@@ -75,9 +82,13 @@ export class LeftTree extends Component {
     toggleDatasetsExpanded: PropTypes.func,
     toggleDataplaneSourcesExpanded: PropTypes.func,
     toggleExternalSourcesExpanded: PropTypes.func,
-    toggleInternalSourcesExpanded: PropTypes.func,
+    toggleMetastoreSourcesExpanded: PropTypes.func,
+    metastoreSourcesExpanded: PropTypes.bool,
+    objectStorageSourcesExpanded: PropTypes.bool,
+    toggleObjectStorageSourcesExpanded: PropTypes.func,
     currentProject: PropTypes.string,
     isAdmin: PropTypes.bool,
+    canCreateSource: PropTypes.bool,
   };
 
   addSampleSource = () => {
@@ -107,9 +118,13 @@ export class LeftTree extends Component {
   }
 
   getCanAddSource() {
-    const { isAdmin } = this.props;
+    const { canCreateSource: cloudCanCreateSource, isAdmin } = this.props;
+
+    // software permission for creating a source is stored in localstorage,
+    // while the permission on cloud is stored in Redux
     const canCreateSource =
-      localStorageUtils.getUserPermissions()?.canCreateSource;
+      localStorageUtils.getUserPermissions()?.canCreateSource ||
+      cloudCanCreateSource;
 
     return isAdmin || canCreateSource;
   }
@@ -147,26 +162,35 @@ export class LeftTree extends Component {
       currentProject,
       toggleDatasetsExpanded,
       toggleExternalSourcesExpanded,
-      toggleInternalSourcesExpanded,
+      toggleObjectStorageSourcesExpanded,
+      toggleMetastoreSourcesExpanded,
       toggleDataplaneSourcesExpanded,
       datasetsExpanded,
       dataplaneSourcesExpanded,
       externalSourcesExpanded,
-      internalSourcesExpanded,
+      metastoreSourcesExpanded,
+      objectStorageSourcesExpanded,
     } = this.props;
     const { location } = this.context;
     const { formatMessage } = intl;
     const isHomeActive = location && location.pathname === "/";
     const classes = classNames("left-tree", "left-tree-holder", className);
     const homeItem = this.getHomeObject();
-    const dataLakeSources = sources.filter((source) =>
-      isDataLakeSourceType(source.get("type"))
+
+    const metastoreSource = sources.filter((source) =>
+      isMetastoreSourceType(source.get("type"))
     );
-    const externalSources = sources.filter(
+
+    const objectStorageSource = sources.filter((source) =>
+      isObjectStorageSourceType(source.get("type"))
+    );
+
+    const databases = sources.filter(
       (source) =>
-        isExternalSourceType(source.get("type")) &&
+        isDatabaseType(source.get("type")) &&
         !isDataPlaneSourceType(source.get("type"))
     );
+
     const dataPlaneSources = sources.filter((source) =>
       isDataPlaneSourceType(source.get("type"))
     );
@@ -195,7 +219,27 @@ export class LeftTree extends Component {
           />
           <div className="sources-title">
             {formatMessage({ id: "Source.Sources" })}
+            <IconButton
+              className="add-source-button"
+              tooltip="Source.AddSource"
+              as={LinkWithRef}
+              to={this.getAddSourceHref(true)}
+              data-qa="add-sources"
+            >
+              <dremio-icon name="interface/add-small" class="add-space-icon" />
+            </IconButton>
           </div>
+          {sources.size < 1 && (
+            <EmptyStateContainer
+              title="Sources.noSources"
+              icon="interface/empty-add-data"
+              linkInfo={{
+                href: this.getAddSourceHref(true),
+                "data-qa": "add-sources",
+                label: "Sources.AddSource.LowerCase",
+              }}
+            />
+          )}
           {dataPlaneSources.size > 0 && (
             <DataPlaneSection
               isCollapsed={dataplaneSourcesExpanded}
@@ -205,26 +249,48 @@ export class LeftTree extends Component {
               sourcesViewState={sourcesViewState}
             />
           )}
-          {dataLakeSources.size > 0 && (
+          {metastoreSource.size > 0 && (
             <div className="left-tree-wrap">
               <ViewStateWrapper
                 viewState={sourcesViewState}
                 spinnerStyle={spacesSourcesListSpinnerStyleFinderNav}
               >
                 <FinderNav
-                  isCollapsed={internalSourcesExpanded}
+                  isCollapsed={metastoreSourcesExpanded}
                   isCollapsible
-                  onToggle={toggleInternalSourcesExpanded}
-                  navItems={dataLakeSources}
-                  title={formatMessage({ id: "Source.DataLakes" })}
-                  addTooltip={formatMessage({ id: "Source.AddDataLake" })}
+                  onToggle={toggleMetastoreSourcesExpanded}
+                  navItems={metastoreSource}
+                  title={formatMessage({ id: "Source.Metastores" })}
+                  addTooltip={formatMessage({ id: "Source.Add.Metastore" })}
                   isInProgress={sourcesViewState.get("isInProgress")}
-                  listHref="/sources/datalake/list"
+                  listHref="/sources/metastore/list"
                 />
               </ViewStateWrapper>
             </div>
           )}
-          {externalSources.size > 0 && (
+          {objectStorageSource.size > 0 && (
+            <div className="left-tree-wrap">
+              <ViewStateWrapper
+                viewState={sourcesViewState}
+                spinnerStyle={spacesSourcesListSpinnerStyleFinderNav}
+              >
+                <FinderNav
+                  isCollapsed={objectStorageSourcesExpanded}
+                  isCollapsible
+                  onToggle={toggleObjectStorageSourcesExpanded}
+                  navItems={objectStorageSource}
+                  title={formatMessage({ id: "Source.Object.Storage" })}
+                  addTooltip={formatMessage({
+                    id: "Source.Add.Object.Storage",
+                  })}
+                  isInProgress={sourcesViewState.get("isInProgress")}
+                  listHref="/sources/objectStorage/list"
+                />
+              </ViewStateWrapper>
+            </div>
+          )}
+
+          {databases.size > 0 && (
             <div className="left-tree-wrap">
               <ViewStateWrapper viewState={sourcesViewState}>
                 <FinderNav
@@ -232,10 +298,10 @@ export class LeftTree extends Component {
                   isCollapsible
                   onToggle={toggleExternalSourcesExpanded}
                   location={location}
-                  navItems={externalSources}
-                  title={formatMessage({ id: "Source.ExternalSources" })}
+                  navItems={databases}
+                  title={formatMessage({ id: "Source.DatabaseSources" })}
                   addTooltip={formatMessage({
-                    id: "Source.AddExternalSource",
+                    id: "Source.AddDatabaseSource",
                   })}
                   isInProgress={sourcesViewState.get("isInProgress")}
                   listHref="/sources/external/list"
@@ -270,17 +336,31 @@ export class LeftTree extends Component {
 function mapStateToProps(state) {
   return {
     externalSourcesExpanded: state.ui.get("externalSourcesExpanded"),
-    internalSourcesExpanded: state.ui.get("internalSourcesExpanded"),
+    metastoreSourcesExpanded: state.ui.get("metastoreSourcesExpanded"),
+    objectStorageSourcesExpanded: state.ui.get("objectStorageSourcesExpanded"),
     dataplaneSourcesExpanded: state.ui.get("dataplaneSourcesExpanded"),
     datasetsExpanded: state.ui.get("datasetsExpanded"),
     isAdmin: getAdminStatus(state),
+    canCreateSource: state.privileges?.project?.canCreateSource,
   };
 }
 
-export default connect(mapStateToProps, {
-  createSampleSource,
-  toggleDataplaneSourcesExpanded,
-  toggleExternalSourcesExpanded,
-  toggleInternalSourcesExpanded,
-  toggleDatasetsExpanded,
-})(LeftTree);
+export default withErrorBoundary({
+  title: intl.formatMessage(
+    { id: "Support.error.section" },
+    {
+      section: intl.formatMessage({
+        id: "SectionLabel.catalog.sources.browser",
+      }),
+    }
+  ),
+})(
+  connect(mapStateToProps, {
+    createSampleSource,
+    toggleDataplaneSourcesExpanded,
+    toggleExternalSourcesExpanded,
+    toggleObjectStorageSourcesExpanded,
+    toggleMetastoreSourcesExpanded,
+    toggleDatasetsExpanded,
+  })(LeftTree)
+);

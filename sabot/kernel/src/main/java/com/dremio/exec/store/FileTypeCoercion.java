@@ -18,6 +18,7 @@ package com.dremio.exec.store;
 import static com.dremio.common.types.TypeProtos.MinorType.VARBINARY;
 import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.List;
+import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Map;
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Struct;
 
 import java.util.Map;
@@ -54,7 +55,7 @@ public class FileTypeCoercion implements TypeCoercion {
   public TypeCoercion getChildTypeCoercion(String fieldName, BatchSchema childSchema) {
     Map<String, Field> childrenByName = CaseInsensitiveMap.newHashMap();
     Field typeInfo = fieldsByName.get(fieldName);
-    if (typeInfo.getType().getTypeID() == Struct || typeInfo.getType().getTypeID() == List) {
+    if (typeInfo.getType().getTypeID() == Struct || typeInfo.getType().getTypeID() == List || typeInfo.getType().getTypeID() == Map) {
       for (Field field : childSchema.getFields()) {
         childrenByName.put(field.getName(), field);
       }

@@ -27,6 +27,7 @@ import {
   updateJobState,
   updateQVJobState,
 } from "actions/jobs/jobs";
+import { getJobList } from "@app/selectors/jobs";
 
 const getLocation = (state) => state.routing.locationBeforeTransitions;
 
@@ -46,22 +47,30 @@ function* handleUpdateJobDetails(action) {
 function* handleJobProgressChanged(action) {
   if (action.error) return;
   const { payload } = action;
-  // const location = yield select(getLocation);
   const id = payload.id.id;
-  // if (location.pathname.indexOf("jobs") !== -1) {
-  yield put(updateJobState(id, { ...payload.update, id }));
-  // }
+  const jobsList = yield select((state) => getJobList(state));
+  const jobExists = (jobsList.toJS() ?? []).find((job) => job.id === id);
+
+  if (!jobExists) {
+    return;
+  } else {
+    yield put(updateJobState(id, { ...payload.update, id }));
+  }
 }
 
 function* handleQVJobProgressChange(action) {
   if (action.error) return;
   const { payload } = action;
-  // const location = yield select(getLocation);
   const id = payload.id.id;
-  //here add a condition to check if the SQLTab is also open
-  // if (location.pathname.indexOf('jobs') !== -1) {
-  yield put(updateQVJobState(id, { ...payload.update, id }));
-  // }
+  const jobsList = yield select((state) => getJobList(state));
+  const jobExists = (jobsList.toJS() ?? []).find((job) => job.id === id);
+
+  // DX-48124 - should only update if the job exists in the list
+  if (!jobExists) {
+    return;
+  } else {
+    yield put(updateQVJobState(id, { ...payload.update, id }));
+  }
 }
 
 export function* entitie() {

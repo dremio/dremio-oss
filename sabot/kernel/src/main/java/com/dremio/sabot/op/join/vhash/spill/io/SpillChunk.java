@@ -22,6 +22,7 @@ import org.apache.arrow.memory.ArrowBuf;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.util.RoundUtil;
 
 /**
  * A chunk (set of records) from spill : either build-side or probe-side. Each chunk contains :
@@ -71,12 +72,25 @@ public class SpillChunk implements AutoCloseable {
     return container;
   }
 
+  public int getPivotedSize() {
+    return (int) (fixed.capacity() + variable.capacity());
+  }
+
+  public int getPivotedSizeRounded() {
+    return RoundUtil.round8up((int) fixed.capacity()) + RoundUtil.round8up((int) variable.capacity());
+  }
+
+  public int getUnpivotedSizeRounded() {
+    return SpillSerializable.computeUnpivotedSizeRounded(container);
+  }
+
   @Override
   public void close() throws Exception {
     if (!closed) {
       List<AutoCloseable> autoCloseables = new ArrayList<>();
       autoCloseables.add(fixed);
       autoCloseables.add(variable);
+      autoCloseables.add(container);
       autoCloseables.addAll(toRelease);
       AutoCloseables.close(autoCloseables);
       closed = true;

@@ -61,7 +61,7 @@ public class IcebergGroupScan extends EasyGroupScan {
     this.manifestContent = manifestContent;
   }
 
-  private String getMetadataLocation(TableMetadata dataset, SplitWork split) {
+  private String getMetadataLocation(TableMetadata dataset, List<SplitWork> works) {
     if (dataset.getDatasetConfig().getPhysicalDataset().getIcebergMetadata() != null &&
         dataset.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation() != null &&
         !dataset.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation().isEmpty()) {
@@ -69,8 +69,14 @@ public class IcebergGroupScan extends EasyGroupScan {
     } else {
       EasyProtobuf.EasyDatasetSplitXAttr extended;
       try {
+        if (works.size() == 0) {
+          //It's an in-valid scenario where splits size is zero.
+          throw new RuntimeException("Unexpected state with zero split.");
+        }
+        // All the split will have the same iceberg metadata location.
+        // It would be ideal to read it from any index in this case from the first index.
         extended = LegacyProtobufSerializer.parseFrom(EasyProtobuf.EasyDatasetSplitXAttr.PARSER,
-                split.getSplitExtendedProperty());
+                works.get(0).getSplitExtendedProperty());
         return extended.getPath();
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not deserialize split info", e);
@@ -97,12 +103,10 @@ public class IcebergGroupScan extends EasyGroupScan {
   }
 
   @Override
-  public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
+  public SubScan getSpecificScan(List<SplitWork> works) throws ExecutionSetupException {
 
-    List<SplitAndPartitionInfo> splits = new ArrayList<>();
-    StoragePluginId pluginId;
-    String metadataLocation = getMetadataLocation(dataset, work.get(0));
-    splits = getSplitAndPartitionInfo(metadataLocation);
+    final StoragePluginId pluginId;
+    final String metadataLocation = getMetadataLocation(dataset, works);
     if (dataset instanceof InternalIcebergScanTableMetadata) {
       InternalIcebergScanTableMetadata icebergDataset = (InternalIcebergScanTableMetadata) dataset;
       pluginId = icebergDataset.getIcebergTableStoragePlugin();
@@ -129,14 +133,14 @@ public class IcebergGroupScan extends EasyGroupScan {
           schema
       );
     } catch (IOException e) {
-      throw new RuntimeException("Unabled to serialized iceberg filter expression");
+      throw new RuntimeException("Unable to serialized iceberg filter expression");
     }
 
     return new IcebergManifestListSubScan(
       props,
       metadataLocation,
       props.getSchema(),
-      splits,
+      getSplitAndPartitionInfo(metadataLocation),
       getDataset().getName().getPathComponents(),
       pluginId,
       dataset.getStoragePluginId(),

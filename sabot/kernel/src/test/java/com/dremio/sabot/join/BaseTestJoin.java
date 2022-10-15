@@ -118,7 +118,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     final Table includeNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
-      tr(4l, "b2", 4l, "a2")
+      tr(4L, "b2", 4L, "a2")
     ).orderInsensitive();
     nullKeys(includeNullsInfo, includeNulls);
 
@@ -129,7 +129,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
-      tr(4l, "b2", 4l, "a2")
+      tr(4L, "b2", 4L, "a2")
     ).orderInsensitive();
     nullKeys(noNullsInfo, noNulls);
   }
@@ -140,7 +140,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
-      tr(4l, "b2", 4l, "a2")
+      tr(4L, "b2", 4L, "a2")
     ).orderInsensitive();
     nullKeys(noNullsInfo, noNulls);
   }
@@ -151,7 +151,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
-      tr(4l, "b2", 4l, "a2"),
+      tr(4L, "b2", 4L, "a2"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
     ).orderInsensitive();
     nullKeys(noNullsInfo, noNulls);
@@ -161,13 +161,13 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     final Table left = t(
       th("id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "a1"),
-      tr(4l, "a2")
+      tr(4L, "a2")
     );
 
     final Table right = t(
       th("id2", "name2"),
       tr(Fixtures.NULL_BIGINT, "b1"),
-      tr(4l, "b2")
+      tr(4L, "b2")
     );
 
     validateDual(
@@ -182,9 +182,9 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.LEFT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
-      tr(4l, "a1", 1l, "a1"),
-      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, 2l, "a2"),
-      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, 3l, Fixtures.NULL_VARCHAR)
+      tr(4L, "a1", 1L, "a1"),
+      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, 2L, "a2"),
+      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, 3L, Fixtures.NULL_VARCHAR)
     ).orderInsensitive().withKeyColumnIndex(2);
     nullKeysForString(noNullsInfo, noNulls);
   }
@@ -195,9 +195,9 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
-      tr(4l, "a1", 1l, "a1"),
-      tr(5l, "a3", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR),
-      tr(6l, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
+      tr(4L, "a1", 1L, "a1"),
+      tr(5L, "a3", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR),
+      tr(6L, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
     ).orderInsensitive();
     nullKeysForString(noNullsInfo, noNulls);
   }
@@ -205,16 +205,16 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   private void nullKeysForString(JoinInfo info, Table expected) throws Exception {
     final Table left = t(
       th("id1", "name1"),
-      tr(1l, "a1"),
-      tr(2l, "a2"),
-      tr(3l, Fixtures.NULL_VARCHAR)
+      tr(1L, "a1"),
+      tr(2L, "a2"),
+      tr(3L, Fixtures.NULL_VARCHAR)
     );
 
     final Table right = t(
       th("id2", "name2"),
-      tr(4l, "a1"),
-      tr(5l, "a3"),
-      tr(6l, Fixtures.NULL_VARCHAR)
+      tr(4L, "a1"),
+      tr(5L, "a3"),
+      tr(6L, Fixtures.NULL_VARCHAR)
     );
     validateDual(
       info.operator, info.clazz,
@@ -230,8 +230,8 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
       tr(Fixtures.NULL_BIGINT, "b3", Fixtures.NULL_BIGINT, "a1"),
-      tr(0l, "b2", 0l, "a2"),
-      tr(0l, "b4", 0l, "a2")
+      tr(0L, "b2", 0L, "a2"),
+      tr(0L, "b4", 0L, "a2")
     ).orderInsensitive().withKeyColumnIndex(1);
     nullWithZeroKey(includeZeroKeyInfo, expected);
   }
@@ -241,8 +241,8 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
-      tr(0l, "b2", 0l, "a2"),
-      tr(0l, "b4", 0l, "a2")
+      tr(0L, "b2", 0L, "a2"),
+      tr(0L, "b4", 0L, "a2")
     ).orderInsensitive().withKeyColumnIndex(1);
     nullWithZeroKey(includeZeroKeyInfo, expected);
   }
@@ -253,8 +253,8 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
-      tr(0l, "b2", 0l, "a2"),
-      tr(0l, "b4", 0l, "a2")
+      tr(0L, "b2", 0L, "a2"),
+      tr(0L, "b4", 0L, "a2")
     ).orderInsensitive().withKeyColumnIndex(1);
     nullWithZeroKey(includeZeroKeyInfo, expected);
   }
@@ -265,8 +265,8 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
-      tr(0l, "b2", 0l, "a2"),
-      tr(0l, "b4", 0l, "a2"),
+      tr(0L, "b2", 0L, "a2"),
+      tr(0L, "b4", 0L, "a2"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR),
       tr(Fixtures.NULL_BIGINT, "b3", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
     ).withKeyColumnIndex(1).orderInsensitive();
@@ -277,15 +277,15 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     final Table left = t(
       th("id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "a1"),
-      tr(0l, "a2")
+      tr(0L, "a2")
     );
 
     final Table right = t(
       th("id2", "name2"),
       tr(Fixtures.NULL_BIGINT, "b1"),
-      tr(0l, "b2"),
+      tr(0L, "b2"),
       tr(Fixtures.NULL_BIGINT, "b3"),
-      tr(0l, "b4")
+      tr(0L, "b4")
     );
     validateDual(
       info.operator, info.clazz,
@@ -296,27 +296,27 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void freeValueInHashTable() throws Exception{
-    long freeValue = Long.MIN_VALUE + 474747l;
+    long freeValue = Long.MIN_VALUE + 474747L;
     JoinInfo freeValueInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
-      tr(0l, "b2", 0l, "a2"),
+      tr(0L, "b2", 0L, "a2"),
       tr(freeValue, "b3", freeValue, "a3")
     ).orderInsensitive();
 
     final Table left = t(
       th("id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "a1"),
-      tr(0l, "a2"),
+      tr(0L, "a2"),
       tr(freeValue, "a3")
     );
 
     final Table right = t(
       th("id2", "name2"),
       tr(Fixtures.NULL_BIGINT, "b1"),
-      tr(0l, "b2"),
+      tr(0L, "b2"),
       tr(freeValue, "b3"),
-      tr(4l, "b4")
+      tr(4L, "b4")
     );
     validateDual(
       freeValueInfo.operator, freeValueInfo.clazz,
@@ -672,23 +672,23 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         "col1_31", "col1_32", "col1_33", "col1_34"
 
       ),
-      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
-        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
-        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
-        31l, 32l, 33l, 34l,
-        1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
-        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
-        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
-        31l, 32l, 33l, 34l
+      tr(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L,
+        11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L,
+        21L, 22L, 23L, 24L, 25L, 26L, 27L, 28L, 29L, 30L,
+        31L, 32L, 33L, 34L,
+        1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L,
+        11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L,
+        21L, 22L, 23L, 24L, 25L, 26L, 27L, 28L, 29L, 30L,
+        31L, 32L, 33L, 34L
       ),
-      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
-        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
-        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
-        31l, 32l, 33l, 100l,
-        1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
-        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
-        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
-        31l, 32l, 33l, 34l
+      tr(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L,
+        11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L,
+        21L, 22L, 23L, 24L, 25L, 26L, 27L, 28L, 29L, 30L,
+        31L, 32L, 33L, 100L,
+        1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L,
+        11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L,
+        21L, 22L, 23L, 24L, 25L, 26L, 27L, 28L, 29L, 30L,
+        31L, 32L, 33L, 34L
       )
     ).orderInsensitive().withKeyColumnIndex(33);
 
@@ -698,10 +698,10 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         "col1_21", "col1_22", "col1_23", "col1_24", "col1_25", "col1_26", "col1_27", "col1_28", "col1_29", "col1_30",
         "col1_31", "col1_32", "col1_33", "col1_34"
       ),
-      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
-        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
-        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
-        31l, 32l, 33l, 34l
+      tr(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L,
+        11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L,
+        21L, 22L, 23L, 24L, 25L, 26L, 27L, 28L, 29L, 30L,
+        31L, 32L, 33L, 34L
       )
     );
 
@@ -711,15 +711,15 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         "col2_21", "col2_22", "col2_23", "col2_24", "col2_25", "col2_26", "col2_27", "col2_28", "col2_29", "col2_30",
         "col2_31", "col2_32", "col2_33", "col2_34"
       ),
-      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
-        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
-        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
-        31l, 32l, 33l, 34l
+      tr(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L,
+        11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L,
+        21L, 22L, 23L, 24L, 25L, 26L, 27L, 28L, 29L, 30L,
+        31L, 32L, 33L, 34L
       ),
-      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
-        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
-        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
-        31l, 32l, 33l, 100l
+      tr(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L,
+        11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L,
+        21L, 22L, 23L, 24L, 25L, 26L, 27L, 28L, 29L, 30L,
+        31L, 32L, 33L, 100L
       )
     );
     validateDual(

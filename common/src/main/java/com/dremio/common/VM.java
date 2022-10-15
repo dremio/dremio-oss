@@ -67,6 +67,10 @@ public final class VM {
     return IS_ASSERT;
   }
 
+  public static String getProcessId() {
+    return ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+  }
+
   /**
    * Return the number of available processors on the machine
    *
@@ -118,9 +122,12 @@ public final class VM {
     return isDebugEnabled(inputArguments);
   }
 
+  @SuppressWarnings("checkstyle:InnerAssignment")
   private static boolean isAssertEnabled0() {
-    final List<String> inputArguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
-    return inputArguments.contains("-ea");
+    // Using side-effect to set isAssertEnabled if assertions are enabled
+    boolean isAssertEnabled = false;
+    assert isAssertEnabled = true;
+    return isAssertEnabled;
   }
 
   @VisibleForTesting
@@ -183,6 +190,8 @@ public final class VM {
         case "k":
         case "K":
           multiplier *= 1024;
+        default:
+          break;
         }
 
         return Long.parseLong(matcher.group("amount")) * multiplier;

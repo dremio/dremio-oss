@@ -30,17 +30,20 @@ import java.util.stream.StreamSupport;
 import javax.inject.Provider;
 
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS;
@@ -56,12 +59,12 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
-import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -85,7 +88,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   private final MaterializationStore materializationStore;
   private final ExternalReflectionStore externalReflectionStore;
 
-  private final ReflectionSettings reflectionSettings;
   private final ReflectionValidator validator;
 
   private static final Joiner JOINER = Joiner.on(", ");
@@ -99,7 +101,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
       ReflectionEntriesStore entriesStore,
       MaterializationStore materializationStore,
       ExternalReflectionStore externalReflectionStore,
-      ReflectionSettings reflectionSettings,
       ReflectionValidator validator,
       Provider<CatalogService> catalogService) {
     this.nodeEndpointsProvider = nodeEndpointsProvider;
@@ -109,7 +110,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     this.entriesStore = Preconditions.checkNotNull(entriesStore, "entries store required");
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
     this.externalReflectionStore = Preconditions.checkNotNull(externalReflectionStore, "external reflection store required");
-    this.reflectionSettings = Preconditions.checkNotNull(reflectionSettings, "reflection settings required");
 
     this.validator = Preconditions.checkNotNull(validator, "validator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
@@ -133,7 +133,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     materializationStore = new MaterializationStore(storeProvider);
     externalReflectionStore = new ExternalReflectionStore(storeProvider);
 
-    reflectionSettings = new ReflectionSettingsImpl(namespaceService, storeProvider);
     validator = new ReflectionValidator(catalogService);
   }
 
@@ -146,10 +145,26 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
    * @throws IllegalStateException if the reflection was deleted
    */
   @Override
-  public ReflectionStatus getReflectionStatus(ReflectionId id) {
+  public ReflectionStatus getReflectionStatus(ReflectionId id)  {
     final ReflectionGoal goal = goalsStore.get(id);
     Preconditions.checkArgument(goal != null, "Reflection %s not found", id.getId());
 
+    // The dataset that the reflection refers to must exist.
+    final EntityExplorer entityExplorer = catalogService.get()
+      .getCatalog(MetadataRequestOptions.newBuilder()
+        .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+        .setCheckValidity(false)
+        .build());
+    DremioTable table = entityExplorer.getTable(goal.getDatasetId());
+    Preconditions.checkNotNull(table, "Dataset not present for reflection %s", id.getId());
+    return getReflectionStatus(goal, com.google.common.base.Optional.fromNullable(materializationStore.getLastMaterializationDone(id)), table);
+  }
+
+  @Override
+  public ReflectionStatus getReflectionStatus(ReflectionGoal goal,
+                                              com.google.common.base.Optional<Materialization> lastMaterializationDone,
+                                              DremioTable dremioTable) {
+    ReflectionId id = goal.getId();
     // should never be called on a deleted reflection
     Preconditions.checkState(goal.getState() != ReflectionGoalState.DELETED,
       "Getting status for deleted reflection %s", id.getId());
@@ -163,33 +178,51 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         0, 0, 0);
     }
 
-    // get the refresh period
-    final DatasetConfig config = Preconditions.checkNotNull(namespaceService.get().findDatasetByUUID(goal.getDatasetId()),
-      "Dataset not present for reflection %s", id.getId());
-    final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(config.getFullPathList()));
-    final boolean hasManualRefresh = settings.getNeverRefresh();
-
     final Optional<ReflectionEntry> entryOptional = Optional.ofNullable(entriesStore.get(id));
     if (!entryOptional.isPresent()) {
-      // entry not created yet, e.g. reflection created but manager isn't awake yet
+      // entry not created yet, e.g. reflection goal created but manager isn't awake yet
+      REFRESH_STATUS refreshStatus = REFRESH_STATUS.SCHEDULED;
+
+      // If a goal is still ENABLED yet still doesn't have a ReflectionEntry, then something really bad happened.
+      // This could include the reflection manager no longer syncing because DCS taskleader election failed,
+      // a hang/deadlock in the reflection manager or somehow a sync took longer than 60s and skipped this goal.
+      final long lastWakeupTime = System.currentTimeMillis() - ReflectionManager.WAKEUP_OVERLAP_MS;
+      if (goal.getCreatedAt() < lastWakeupTime ) {
+        refreshStatus = REFRESH_STATUS.GIVEN_UP;
+      }
       return new ReflectionStatus(
         true,
         CONFIG_STATUS.OK,
-        hasManualRefresh ? REFRESH_STATUS.MANUAL : REFRESH_STATUS.SCHEDULED,
+        refreshStatus,
         AVAILABILITY_STATUS.NONE,
         0, 0, 0);
     }
+
     final ReflectionEntry entry = entryOptional.get();
 
-    final CONFIG_STATUS configStatus = validator.isValid(goal) ? CONFIG_STATUS.OK : CONFIG_STATUS.INVALID;
+    final CONFIG_STATUS configStatus = validator.isValid(goal, dremioTable) ? CONFIG_STATUS.OK : CONFIG_STATUS.INVALID;
 
-    REFRESH_STATUS refreshStatus = REFRESH_STATUS.SCHEDULED;
-    if (entry.getState() == ReflectionState.REFRESHING || entry.getState() == ReflectionState.METADATA_REFRESH) {
-      refreshStatus = REFRESH_STATUS.RUNNING;
-    } else if (entry.getState() == ReflectionState.FAILED) {
-      refreshStatus = REFRESH_STATUS.GIVEN_UP;
-    } else if (hasManualRefresh) {
-      refreshStatus = REFRESH_STATUS.MANUAL;
+    REFRESH_STATUS refreshStatus;
+    switch (entry.getState()) {
+      case REFRESH:
+      case REFRESHING:
+      case UPDATE:
+      case METADATA_REFRESH:
+      case COMPACTING:
+        refreshStatus = REFRESH_STATUS.RUNNING;
+        break;
+      case FAILED:
+        refreshStatus = REFRESH_STATUS.GIVEN_UP;
+        break;
+      case DEPRECATE:
+        // Should never get here
+        refreshStatus = REFRESH_STATUS.MANUAL;
+        break;
+      case ACTIVE:
+        refreshStatus = entry.getDontGiveUp() ? REFRESH_STATUS.MANUAL : REFRESH_STATUS.SCHEDULED;
+        break;
+      default:
+        throw new IllegalStateException("Unexpected value: " + entry.getState());
     }
 
     AVAILABILITY_STATUS availabilityStatus = AVAILABILITY_STATUS.NONE;
@@ -198,18 +231,18 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     long expiresAt = -1;
 
     // if no materialization available, can skip these
-    final Materialization lastMaterializationDone = materializationStore.getLastMaterializationDone(id);
-    if (lastMaterializationDone != null) {
-      lastDataFetch = lastMaterializationDone.getLastRefreshFromPds();
-      expiresAt = Optional.ofNullable(lastMaterializationDone.getExpiration()).orElse(0L);
+    if (lastMaterializationDone.isPresent()) {
+      Materialization materialization = lastMaterializationDone.get();
+      lastDataFetch = materialization.getLastRefreshFromPds();
+      expiresAt = Optional.ofNullable(materialization.getExpiration()).orElse(0L);
 
       final Set<String> activeHosts = getActiveHosts();
       final long now = System.currentTimeMillis();
-      if (hasMissingPartitions(lastMaterializationDone.getPartitionList(), activeHosts)) {
+      if (hasMissingPartitions(materialization.getPartitionList(), activeHosts)) {
         availabilityStatus = AVAILABILITY_STATUS.INCOMPLETE;
       } else if (expiresAt < now) {
         availabilityStatus = AVAILABILITY_STATUS.EXPIRED;
-      } else if (cacheViewer.get().isCached(lastMaterializationDone.getId())) {
+      } else if (cacheViewer.get().isCached(materialization.getId())) {
         availabilityStatus = AVAILABILITY_STATUS.AVAILABLE;
       } else {
         // if the reflection has any valid materialization, then it can accelerate

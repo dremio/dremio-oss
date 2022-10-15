@@ -42,13 +42,13 @@ import com.google.common.base.Preconditions;
  * Copy of CustomHashAggDataGenerator but does Decimal computations.
  */
 public class CustomHashAggDataGeneratorDecimal implements Generator {
-  private static final FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private static final ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
-  private static final CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
+  private static final FieldType DECIMAL_FIELD_TYPE = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal DECIMAL_ARROWTYPE = (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
+  private static final CompleteType DECIMAL_COMPLETE_TYPE = new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
 
-  private static final Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
+  private static final Field DECIMAL_KEY = DECIMAL_COMPLETE_TYPE.toField("DECIMAL_KEY");
 
-  private static final Field DECIMAL_MEASURE = decimalCompleteType.toField("DECIMAL_MEASURE");
+  private static final Field DECIMAL_MEASURE = DECIMAL_COMPLETE_TYPE.toField("DECIMAL_MEASURE");
 
   /* arrays on heap that will store column values as we generate data for the schema */
   private BigDecimal[] decimalKeyValues;
@@ -76,7 +76,7 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
   private static final int GROUP_INTERVAL_PER_BATCH = 20;
 
   private final int numRows;
-  private final HashMap<Key, Value> aggregatedResults = new HashMap<>();
+  private final Map<Key, Value> aggregatedResults = new HashMap<>();
 
   public CustomHashAggDataGeneratorDecimal(int numRows, BufferAllocator allocator,
                                     final boolean largeVarChars) {
@@ -214,8 +214,8 @@ public class CustomHashAggDataGeneratorDecimal implements Generator {
       rows).orderInsensitive();
   }
 
-  private static class Key {
-    final BigDecimal decimalKey;
+  private static final class Key {
+    private final BigDecimal decimalKey;
 
     Key(final BigDecimal decimalKey) {
       this.decimalKey = decimalKey;

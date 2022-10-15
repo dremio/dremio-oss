@@ -142,18 +142,44 @@ public class JobProfileResource {
   @Path("/GetJobProfileFromURL")
   @Produces(MediaType.APPLICATION_JSON)
   public List<PhaseData> getJobProfile(@QueryParam("profileJsonFileURL") String profileJsonFileURL) throws IOException, JsonProcessingException, ClassNotFoundException {
-    final UserBitShared.QueryProfile profile;
-    HttpResponse response = executeRequest(profileJsonFileURL);
-    BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-    String line = "";
-    StringBuilder sb = new StringBuilder();
-    while ((line = rd.readLine()) != null) {
-      sb.append(line + "\n");
-    }
-    byte[] bytes = sb.toString().getBytes();
-    profile = ProtobufUtils.fromJSONString(UserBitShared.QueryProfile.class, new String(bytes));
+    final UserBitShared.QueryProfile profile = getProfileFromURL(profileJsonFileURL);
     JobProfileVisualizerUI jobProfileVisualizerUI = new JobProfileVisualizerUI(profile);
     return jobProfileVisualizerUI.getJobProfileInfo();
+  }
+
+  @GET
+  @Path("/GetJobProfileFromURL/OperatorDetails")
+  @Produces(MediaType.APPLICATION_JSON)
+  public JobProfileOperatorInfo getJobProfileOperator(@QueryParam("profileJsonFileURL") String profileJsonFileURL,
+                                                      @QueryParam("phaseId") @NotNull String phaseId,
+                                                      @QueryParam("operatorId") @NotNull String  operatorId) throws IOException {
+    UserBitShared.QueryProfile profile = getProfileFromURL(profileJsonFileURL);
+    int intPhaseId, intOperatorId;
+    try {
+      intPhaseId = Integer.parseInt(phaseId);
+      intOperatorId = Integer.parseInt(operatorId);
+    } catch (NumberFormatException ex) {
+      throw new NumberFormatException("Please Send Integer Numbers as String for PhaseId and OperatorId");
+    }
+    return new JobProfileOperatorInfo(profile, intPhaseId, intOperatorId);
+  }
+
+
+  public UserBitShared.QueryProfile getProfileFromURL(String profileJsonFileURL) throws IOException {
+    byte[] bytes;
+    try {
+      HttpResponse response = executeRequest(profileJsonFileURL);
+      BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+      String line = "";
+      StringBuilder sb = new StringBuilder();
+      while ((line = rd.readLine()) != null) {
+        sb.append(line + "\n");
+      }
+      bytes = sb.toString().getBytes();
+    } catch (IOException e) {
+      throw new IOException("Failed to parse the profileJsonFileURL");
+    }
+    return ProtobufUtils.fromJSONString(UserBitShared.QueryProfile.class, new String(bytes));
   }
 
   /**

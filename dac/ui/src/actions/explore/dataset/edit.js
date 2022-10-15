@@ -22,12 +22,18 @@ import { loadExploreEntities } from "./get";
 // this is used only in performLoadDataset saga. We do not expect data in initial response. The data should be
 // loaded in a separate call using 'loadNextRows' action. See code of performLoadDataset saga for details
 export const loadExistingDataset =
-  (dataset, viewId, tipVersion, forceDataLoad, sessionId) => (dispatch) => {
+  (dataset, viewId, tipVersion, forceDataLoad, sessionId, willLoadTable) =>
+  (dispatch) => {
     const jobId = dataset.get("jobId");
     const href =
       !forceDataLoad && jobId
         ? exploreUtils.getReviewLink(dataset, tipVersion)
-        : exploreUtils.getPreviewLink(dataset, tipVersion, sessionId);
+        : exploreUtils.getPreviewLink(
+            dataset,
+            tipVersion,
+            sessionId,
+            willLoadTable
+          );
     return dispatch(
       loadExploreEntities({
         href,

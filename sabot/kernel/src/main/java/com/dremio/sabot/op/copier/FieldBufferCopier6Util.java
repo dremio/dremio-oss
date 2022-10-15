@@ -176,8 +176,8 @@ public final class FieldBufferCopier6Util {
       final Reallocator realloc = this.realloc;
 
       final long maxSrcAddr = srcAddr + count * BUILD_RECORD_LINK_SIZE;
-      final long srcOffsetAddrs[] = this.srcOffsetAddrs;
-      final long srcDataAddrs[] = this.srcDataAddrs;
+      final long[] srcOffsetAddrs = this.srcOffsetAddrs;
+      final long[] srcDataAddrs = this.srcDataAddrs;
 
       long dstOffsetAddr = target.getOffsetBufferAddress() + (targetIndex + 1) * 4;
       long curDataAddr = realloc.addr() + targetDataIndex;
@@ -219,8 +219,8 @@ public final class FieldBufferCopier6Util {
     @Override
     public void copy(long offsetAddr, int count, Cursor cursor) {
       int targetIndex = cursor.getTargetIndex();
-      while (targetAlt.getValueCapacity() < targetIndex + count) {
-        targetAlt.reAlloc();
+      if (targetAlt.getValueCapacity() < targetIndex + count) {
+        realloc.ensureValidityAndOffsets(cursor.getTargetIndex() + count);
       }
       seekAndCopy(offsetAddr, count, targetIndex);
       cursor.setTargetIndex(targetIndex + count);
@@ -397,6 +397,7 @@ public final class FieldBufferCopier6Util {
       copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
       break;
 
+    case MAP:
     case LIST:
     case STRUCT:
     case UNION:

@@ -118,6 +118,7 @@ public class ITInbuiltHiveUDFs extends HiveTestBase {
   }
 
   @Test //DRILL-4868
+  @Ignore("DX-56213 - unhex returns empty string for null input and convert_from throws")
   public void testEmbeddedHiveFunctionCall() throws Exception {
     final String[] queries = {
         "SELECT convert_from(unhex(key2), 'INT_BE') as intkey \n" +

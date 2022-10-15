@@ -38,7 +38,6 @@ public class HashAggPartitionWritableBatch {
   private final ArrowBuf[] buffers;
   private int currentBatchIndex;
   private final int blockWidth;
-  private final int hashTableSize;
   private final int numWritableBuffers;
   private final int maxValuesPerBatch;
 
@@ -55,9 +54,15 @@ public class HashAggPartitionWritableBatch {
   private static final int NUM_BUFFERS_PER_FIXED_ACCUMULATOR_PERBATCH = 2;
 
   /**
-   * Varlen accumulator has validity, offset & data
+   * Varlen and HLL accumulators has validity, offset & data
    */
   private static final int NUM_BUFFERS_PER_VARLEN_ACCUMULATOR_PERBATCH = 3;
+
+  /**
+   * LISTAGG accumulators has validity & offset and 3 buffers for underlying
+   * BaseVariableWidthVector.
+   */
+  private static final int NUM_BUFFERS_PER_LISTAGG_ACCUMULATOR_PERBATCH = 5;
 
   /* per data batch inserted into hash table, we have 2 buffers
    * that store hash table data.
@@ -67,7 +72,6 @@ public class HashAggPartitionWritableBatch {
    */
   private static final int NUM_HASHTABLE_BUFFERS_PERBATCH = 2;
 
-
   /**
    * Returns the actual number of Arrow buffers required to spill an accumulator set.
    * @return
@@ -75,18 +79,31 @@ public class HashAggPartitionWritableBatch {
   private final int GetNumWritableBuffers() {
     int fixedWidthAccum = 0;
     int varLenAccum = 0;
+    int listaggAccum = 0;
     for (int i = 0; i < accumulators.length; ++i) {
-      final Types.MinorType type = accumulators[i].getOutput().getMinorType();
-      if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
-        ++varLenAccum;
+      /*
+       * For ListAgg accumulators, the output type is either BaseVariableWidthVector or
+       * ListVector however irrespective of it, the intermediate format that is written
+       * to spill disk, is ListVector.
+       */
+      if (accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LISTAGG ||
+          accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG ||
+          accumulators[i].getType() == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE) {
+        ++listaggAccum;
       } else {
-        ++fixedWidthAccum;
+        final Types.MinorType type = accumulators[i].getOutput().getMinorType();
+        if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
+          ++varLenAccum;
+        } else {
+          ++fixedWidthAccum;
+        }
       }
     }
 
     int totalBuffers = NUM_HASHTABLE_BUFFERS_PERBATCH;
     totalBuffers += (fixedWidthAccum * NUM_BUFFERS_PER_FIXED_ACCUMULATOR_PERBATCH);
     totalBuffers += (varLenAccum * NUM_BUFFERS_PER_VARLEN_ACCUMULATOR_PERBATCH);
+    totalBuffers += (listaggAccum * NUM_BUFFERS_PER_LISTAGG_ACCUMULATOR_PERBATCH);
 
     return totalBuffers;
   }
@@ -96,7 +113,6 @@ public class HashAggPartitionWritableBatch {
                                        final List<ArrowBuf> variableBlockBuffers,
                                        final int blockWidth,
                                        final AccumulatorSet accumulator,
-                                       final int hashTableSize,
                                        final int maxValuesPerBatch) {
     this.hashTable = hashTable;
     this.accumulators = accumulator.getChildren();
@@ -107,7 +123,6 @@ public class HashAggPartitionWritableBatch {
     this.buffers = new ArrowBuf[numWritableBuffers];
     this.blockWidth = blockWidth;
     this.currentBatchIndex = 0;
-    this.hashTableSize = hashTableSize;
     this.maxValuesPerBatch = maxValuesPerBatch;
   }
 
@@ -160,8 +175,9 @@ public class HashAggPartitionWritableBatch {
    *
    * We can have 1 or more accumulators and they are all encapsulated under NestedAccumulator.
    * Each accumulator with a fixed width vector (INT, BIGINT, FLOAT, FLOAT4, DECIMAL etc) will
-   * have 2 buffers -- validity buffer and data buffer. min/max on a varlen accumulator and/or
-   * ndv, there are 3 buffers -- validity buffer, offset buffer and data buffer.
+   * have 2 buffers -- validity buffer and data buffer. min/max on a varlen and HLL accumulators
+   * have 3 buffers -- validity buffer, offset buffer and data buffer listagg accumulator
+   * have 5 buffers -- validity buffer, offset buffer for ListVector and 3 buffers for the dataVector.
    * Secondly, each type of accumulator will internally have as many accumulators as there
    * are batches of data inserted into the hash table.
    *

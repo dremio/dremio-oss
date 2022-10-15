@@ -133,7 +133,8 @@ class TextField extends Component {
       { [numberInputWrapperFocused]: isFocused },
       wrapperClassName === "input-wrapper-advanced"
         ? inputWrapperAdvanced
-        : null
+        : null,
+      className
     );
 
     const numberInputClass = classNames(
@@ -227,6 +228,7 @@ class TextField extends Component {
             aria-label={intl.formatMessage({ id: "Common.Increment" })}
             className={numberInputButtonIcon}
             onClick={handleIncrement}
+            type="button"
           >
             <dremio-icon name="interface/caretUp" />
           </IconButton>
@@ -234,6 +236,7 @@ class TextField extends Component {
             aria-label={intl.formatMessage({ id: "Common.Decrement" })}
             className={numberInputButtonIcon}
             onClick={handleDecrement}
+            type="button"
           >
             <dremio-icon name="interface/caretDown" />
           </IconButton>

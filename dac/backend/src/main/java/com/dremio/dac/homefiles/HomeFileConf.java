@@ -87,6 +87,24 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
   @Tag(6)
   public String externalId = null;
 
+  @Tag(7)
+  public String tokenEndpoint = null;
+
+  @Tag(8)
+  public String clientId = null;
+
+  @Tag(9)
+  public String clientSecret = null;
+
+  @Tag(10)
+  public String accountName = null;
+
+  @Tag(11)
+  public String accountKind = null;
+
+  @Tag(12)
+  public String sharedAccessKey = null;
+
   public HomeFileConf() {
 
   }
@@ -98,9 +116,19 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
       if (dataCredentials.hasKeys()) {
         this.accessKey = dataCredentials.getKeys().getAccessKey();
         this.secretKey = dataCredentials.getKeys().getSecretKey();
-      } else {
+      } else if (dataCredentials.hasDataRole()) {
         this.iamRole = dataCredentials.getDataRole().getIamRole();
         this.externalId = dataCredentials.getDataRole().getExternalId();
+      } else if (dataCredentials.hasClientAccess()) {
+        this.tokenEndpoint = dataCredentials.getClientAccess().getTokenEndpoint();
+        this.clientId = dataCredentials.getClientAccess().getClientId();
+        this.clientSecret = dataCredentials.getClientAccess().getClientSecret();
+        this.accountName = dataCredentials.getClientAccess().getAccountName();
+        this.accountKind = dataCredentials.getClientAccess().getAccountKind();
+      } else if (dataCredentials.hasSharedAccessKey()) {
+        this.sharedAccessKey = dataCredentials.getSharedAccessKey().getAccessKey();
+        this.accountName = dataCredentials.getSharedAccessKey().getAccountName();
+        this.accountKind = dataCredentials.getSharedAccessKey().getAccountKind();
       }
     }
   }
@@ -186,6 +214,30 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
 
   public String getExternalId() {
     return externalId;
+  }
+
+  public String getTokenEndpoint() {
+    return tokenEndpoint;
+  }
+
+  public String getClientId() {
+    return clientId;
+  }
+
+  public String getClientSecret() {
+    return clientSecret;
+  }
+
+  public String getAccountName() {
+    return accountName;
+  }
+
+  public String getAccountKind() {
+    return accountKind;
+  }
+
+  public String getSharedAccessKey() {
+    return sharedAccessKey;
   }
 
   @Override

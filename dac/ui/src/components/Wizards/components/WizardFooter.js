@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import SampleDataMessage from "pages/ExplorePage/components/SampleDataMessage";
 import classNames from "classnames";
 import { base, warning, buttons } from "./WizardFooter.less";
+import { connect } from "react-redux";
+import { getApproximate } from "@app/selectors/explore";
 
 class WizardFooter extends Component {
   static propTypes = {
     children: PropTypes.node,
     style: PropTypes.object,
+    isPreview: PropTypes.bool,
   };
 
   renderPreviewWarning() {
@@ -31,15 +33,31 @@ class WizardFooter extends Component {
   }
 
   render() {
+    const { isPreview } = this.props;
     return (
       <div
         className={classNames(["wizard-footer", base])}
-        style={[this.props.style]}
+        style={this.props.style}
       >
         <div className={buttons}>{this.props.children}</div>
-        <div className={warning}>{this.renderPreviewWarning()}</div>
+        {isPreview && (
+          <div className={warning}>{this.renderPreviewWarning()}</div>
+        )}
       </div>
     );
   }
 }
-export default Radium(WizardFooter);
+
+function mapStateToProps(state) {
+  const location = state.routing.locationBeforeTransitions || {};
+  const previewVersion = location.state.previewVersion;
+  const version = location.query.tipVersion;
+  const isPreview =
+    previewVersion !== "" ? !!previewVersion : getApproximate(state, version);
+
+  return {
+    isPreview: isPreview,
+  };
+}
+
+export default connect(mapStateToProps, null)(WizardFooter);

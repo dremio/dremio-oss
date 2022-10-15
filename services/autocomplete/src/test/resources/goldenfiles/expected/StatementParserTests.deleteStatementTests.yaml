@@ -18,7 +18,7 @@
  -
   description: "DELETE"
   input: "DELETE^"
-  output: "DELETE: DELETE^ "
+  output: "DeleteStatement: DELETE^ "
  -
   description: "DELETE + PARTIAL FROM"
   exceptionMessage: "Unexpected token: {FR\a}, Expected {FROM}"
@@ -26,35 +26,51 @@
  -
   description: "DELETE + FROM"
   input: "DELETE FROM^"
-  output: "DELETE: DELETE FROM^ "
+  output:
+   - "DeleteStatement: DELETE FROM^ "
+   - "  FromClause: FROM^ "
  -
   description: "DELETE + FROM + TABLE"
   input: "DELETE FROM EMP^"
   output:
-   - "DELETE: DELETE FROM EMP^ "
-   - "  CATALOG PATH: EMP^."
+   - "DeleteStatement: DELETE FROM EMP^ "
+   - "  FromClause: FROM EMP^ "
+   - "    TABLE REFERENCE: EMP^ "
+   - "      CatalogPath: EMP^ "
  -
   description: "DELETE + FROM + TABLE + AS"
   input: "DELETE FROM EMP AS^"
   output:
-   - "DELETE: DELETE FROM EMP AS^ "
-   - "  CATALOG PATH: EMP."
+   - "DeleteStatement: DELETE FROM EMP AS^ "
+   - "  FromClause: FROM EMP AS^ "
+   - "    TABLE REFERENCE: EMP AS^ "
+   - "      CatalogPath: EMP "
+   - "      Alias: AS^ "
  -
   description: "DELETE + FROM + TABLE + AS + ALIAS"
   input: "DELETE FROM EMP AS e^"
   output:
-   - "DELETE: DELETE FROM EMP AS e^ "
-   - "  CATALOG PATH: EMP.e^."
+   - "DeleteStatement: DELETE FROM EMP AS e^ "
+   - "  FromClause: FROM EMP AS e^ "
+   - "    TABLE REFERENCE: EMP AS e^ "
+   - "      CatalogPath: EMP "
+   - "      Alias: AS e^ "
  -
   description: "DELETE + FROM + TABLE + WHERE"
   input: "DELETE FROM EMP WHERE^"
   output:
-   - "DELETE: DELETE FROM EMP WHERE^ "
-   - "  CATALOG PATH: EMP."
+   - "DeleteStatement: DELETE FROM EMP WHERE^ "
+   - "  FromClause: FROM EMP "
+   - "    TABLE REFERENCE: EMP "
+   - "      CatalogPath: EMP "
  -
   description: "DELETE + FROM + TABLE + WHERE + CONDITION"
   input: "DELETE FROM EMP WHERE EMP.NAME = 'Brandon'^"
   output:
-   - "DELETE: DELETE FROM EMP WHERE EMP . NAME = 'Brandon' ^ "
-   - "  CATALOG PATH: EMP."
-   - "  BOOLEAN EXPRESSION: EMP . NAME = 'Brandon' ^ "
+   - "DeleteStatement: DELETE FROM EMP WHERE EMP . NAME = 'Brandon' ^ "
+   - "  FromClause: FROM EMP "
+   - "    TABLE REFERENCE: EMP "
+   - "      CatalogPath: EMP "
+   - "  EXPRESSION: EMP . NAME = 'Brandon' ^ "
+   - "    TABLE REFERENCE: EMP "
+   - "      CatalogPath: EMP "

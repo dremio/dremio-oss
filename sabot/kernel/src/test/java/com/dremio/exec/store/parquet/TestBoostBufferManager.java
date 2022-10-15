@@ -18,7 +18,9 @@ package com.dremio.exec.store.parquet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -40,7 +42,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.powermock.api.mockito.PowerMockito;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -170,13 +171,13 @@ public class TestBoostBufferManager {
 
   @Test
   public void testBoostBufferManagerWithOneBatch() throws Exception {
-    BoostBufferManager boostBufferManager = PowerMockito.spy(new
+    BoostBufferManager boostBufferManager = spy(new
       BoostBufferManager(mock(FragmentExecutionContext.class),
       getCtx(),
       getProps(),
       getTableFunctionConfig()));
 
-    PowerMockito.doNothing().when(boostBufferManager).createAndFireBoostQuery();
+    doNothing().when(boostBufferManager).createAndFireBoostQuery();
 
     List<SplitAndPartitionInfo> splitAndPartitionInfos = buildSplit(7);
 
@@ -242,13 +243,13 @@ public class TestBoostBufferManager {
 
   @Test
   public void testBoostBufferManagerWithMultipleBatches() throws Exception {
-    BoostBufferManager boostBufferManager = PowerMockito.spy(new
+    BoostBufferManager boostBufferManager = spy(new
       BoostBufferManager(mock(FragmentExecutionContext.class),
       getCtx(),
       getProps(),
       getTableFunctionConfig()));
 
-    PowerMockito.doNothing().when(boostBufferManager).createAndFireBoostQuery();
+    doNothing().when(boostBufferManager).createAndFireBoostQuery();
 
     //We will write 54 splits with batch size of 10. So we will write 6 batches.
     List<SplitAndPartitionInfo> splitAndPartitionInfos = buildSplit(54);

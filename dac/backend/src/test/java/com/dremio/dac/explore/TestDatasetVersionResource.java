@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.explore;
 
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -453,7 +454,32 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     DatasetUIWithHistory dswh2 = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<DatasetUIWithHistory>() {});
 
+    // the history of the original VDS should not be broken after save as a new VDS
+    target = getAPIv2()
+      .path("dataset")
+      .path(String.join(".", dswh.getDataset().getFullPath()))
+      .path("version")
+      .path(dswh.getDataset().getDatasetVersion().getVersion())
+      .path("preview")
+      .queryParam("view", "explore")
+      .queryParam("limit", "0");
+    expectSuccess(getBuilder(target).buildGet(), new GenericType<InitialPreviewResponse>() {});
+
+    // rename original VDS, the history of saved new VDS should not be broken
     DatasetVersionMutator mutator = l(DatasetVersionMutator.class);
+    mutator.renameDataset(new DatasetPath(dswh.getDataset().getFullPath()), new DatasetPath(Arrays.asList("dsvTest", "renameVDS-new")));
+
+    target = getAPIv2()
+      .path("dataset")
+      .path(String.join(".", dswh2.getDataset().getFullPath()))
+      .path("version")
+      .path(dswh2.getDataset().getDatasetVersion().getVersion())
+      .path("preview")
+      .queryParam("view", "explore")
+      .queryParam("limit", "0");
+    expectSuccess(getBuilder(target).buildGet(), new GenericType<InitialPreviewResponse>() {});
+
+    // rename dsvTest.renameVDS2 to dsvTest.renameVDS2-new
     VirtualDatasetUI renameDataset = mutator.renameDataset(new DatasetPath(dswh2.getDataset().getFullPath()), new DatasetPath(Arrays.asList("dsvTest", "renameVDS2-new")));
 
     // edit original sql
@@ -469,6 +495,71 @@ public class TestDatasetVersionResource extends BaseTestServer {
     initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<InitialPreviewResponse>() {});
 
     InitialPreviewResponse reapplyResult = reapply(getDatasetVersionPath(initialPreviewResponse.getDataset()));
+  }
+
+  //Ensure DDL statements won't work with save
+  @Test
+  public void testSaveWithInvalidCreateSqlInitial() throws Exception {
+    enableVersionedViews();
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "saveInvalidVDS"), "CREATE TABLE \"$scratch\".\"ctas\" AS select 1");
+    expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)));
+  }
+
+  @Test
+  public void testSaveAfterTransformWithInvalidSql() throws Exception {
+    enableVersionedViews();
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "initalSaveVDS"),"select * from sys.version");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    // create a derivation of the VDS
+    String parentDataset = String.join(".", vds.getPath());
+    DatasetVersion datasetVersion = DatasetVersion.newVersion();
+    WebTarget target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<InitialPreviewResponse>() {});
+
+    target = getAPIv2()
+      .path("dataset")
+      .path("tmp.UNTITLED")
+      .path("version")
+      .path(datasetVersion.getVersion())
+      .path("save")
+      .queryParam("as", "dsvTest.secondVersionVDS");
+    DatasetUIWithHistory dswh = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<DatasetUIWithHistory>() {
+    });
+    String dsPath = String.join(".", dswh.getDataset().getFullPath());
+
+    datasetVersion = DatasetVersion.newVersion();
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(dswh.getDataset().getDatasetVersion().getVersion())
+      .path("transformAndRun")
+      .queryParam("newVersion", datasetVersion);
+
+    //Set valid sql string
+    TransformUpdateSQL transformSql1 = new TransformUpdateSQL();
+    //set invalid sql string
+    transformSql1.setSql("create table \"dfs_test\".t (c1 int)");
+    InitialPreviewResponse initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(
+      Entity.json(transformSql1)), new GenericType<InitialPreviewResponse>() {});
+
+    // save the transform as a view - should fail since it's a create statement
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(initialPreviewResponse.getDataset().getDatasetVersion().getVersion())
+      .path("save")
+      .queryParam("as", "dsvTest.thirdVersionVDS");
+
+    expectStatus(Response.Status.BAD_REQUEST, getBuilder(target).buildPost(Entity.json(null)));
+
   }
 
   private Dataset createVDS(List<String> path, String sql) {

@@ -29,6 +29,7 @@ import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -137,8 +138,15 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
       popConfig.getProps().getLocalOperatorId(),
       popConfig.getClass().getSimpleName());
 
+    long memReserve = popConfig.getProps().getMemReserve();
+    long memLimit = popConfig.getProps().getMemLimit();
+    if (options.getOption(ExecConstants.MEMORY_ARBITER_ENABLED)) {
+      memReserve = 0;
+      memLimit = Long.MAX_VALUE;
+    }
+
     final BufferAllocator operatorAllocator =
-      allocator.newChildAllocator(allocatorName, popConfig.getProps().getMemReserve(), popConfig.getProps().getMemLimit());
+      allocator.newChildAllocator(allocatorName, memReserve, memLimit);
     try (RollbackCloseable closeable = AutoCloseables.rollbackable(operatorAllocator)) {
       final OpProfileDef def = new OpProfileDef(popConfig.getProps().getLocalOperatorId(), popConfig.getOperatorType(), OperatorContext.getChildCount(popConfig), popConfig.getOperatorSubType());
       final OperatorStats stats = this.stats.newOperatorStats(def, operatorAllocator);

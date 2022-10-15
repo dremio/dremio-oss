@@ -28,6 +28,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Maps;
+import com.google.errorprone.annotations.FormatMethod;
 
 /**
  * Hard affinity assignments for given endpoints and work units.
@@ -83,6 +84,7 @@ public class HardAssignmentCreator<T extends CompleteWork> {
     return mappings;
   }
 
+  @FormatMethod
   private static <T extends CompleteWork> void verify(final List<NodeEndpoint> endpoints, final List<T> units,
       final boolean condition, final String msg, Object... args) {
     if (!condition) {

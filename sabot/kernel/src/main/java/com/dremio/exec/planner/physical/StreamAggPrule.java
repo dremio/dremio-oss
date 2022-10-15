@@ -17,6 +17,7 @@ package com.dremio.exec.planner.physical;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -26,6 +27,7 @@ import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
@@ -60,6 +62,11 @@ public class StreamAggPrule extends AggPruleBase {
 
     // too many group by keys in streaming agg will result in compilation error
     if (aggregate.getGroupCount() > PrelUtil.getPlannerSettings(call.getPlanner()).streamAggMaxGroupKey()) {
+      return;
+    }
+
+    // ListAgg is not supported
+    if (aggregate.containsListAggCall()) {
       return;
     }
 
@@ -111,7 +118,7 @@ public class StreamAggPrule extends AggPruleBase {
                   exch,
                   phase1Agg.getPhase2GroupSet(),
                   null,
-                  phase1Agg.getPhase2AggCalls(),
+                  phase1Agg.getPhase2AggCalls().stream().map(Pair::getKey).collect(Collectors.toList()),
                   OperatorPhase.PHASE_2of2);
             }
           }.go(aggregate, convertedInput);
@@ -174,7 +181,7 @@ public class StreamAggPrule extends AggPruleBase {
                   exch,
                   phase1Agg.getPhase2GroupSet(),
                   null,
-                  phase1Agg.getPhase2AggCalls(),
+                  phase1Agg.getPhase2AggCalls().stream().map(Pair::getKey).collect(Collectors.toList()),
                   OperatorPhase.PHASE_2of2);
             }
           }.go(aggregate, convertedInput);

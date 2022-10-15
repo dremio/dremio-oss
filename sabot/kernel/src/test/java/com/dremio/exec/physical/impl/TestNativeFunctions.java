@@ -113,21 +113,21 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testCastDate() throws Exception {
     testFunctions(new Object[][]{
-      {"extractYear(castDATE(c0))","0079:10:10", 79l}
+      {"extractYear(castDATE(c0))","0079:10:10", 79L}
     });
     testFunctions(new Object[][]{
-      {"extractYear(castDATE(c0))","79:10:10", 1979l}
+      {"extractYear(castDATE(c0))","79:10:10", 1979L}
     });
     testFunctions(new Object[][]{
-      {"extractYear(castDATE(c0))","2079:10:10", 2079l}
+      {"extractYear(castDATE(c0))","2079:10:10", 2079L}
     });
   }
 
   @Test
   public void testCastTimestamp() throws Exception {
     testFunctions(new Object[][]{
-      {"extractYear(castTIMESTAMP(c0))","0079-10-10", 79l},
-      {"extractYear(castTIMESTAMP(c0))","1979-10-10", 1979l},
+      {"extractYear(castTIMESTAMP(c0))","0079-10-10", 79L},
+      {"extractYear(castTIMESTAMP(c0))","1979-10-10", 1979L},
       {"castTIMESTAMP(c0)", "1970-01-01 00:00:00.1", ts("1970-01-01T00:00:00.100")}
     });
   }
@@ -200,8 +200,8 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testToDate() throws Exception {
     testFunctions(new Object[][]{
-      {"extractYear(to_date(c0, 'YYYYMMDD', 0))","19671211", 1967l},
-      {"extractDay(to_date(c0, 'YYYYMMDD HHMISS', 0))","19671211 010000", 11l}
+      {"extractYear(to_date(c0, 'YYYYMMDD', 0))","19671211", 1967L},
+      {"extractDay(to_date(c0, 'YYYYMMDD HHMISS', 0))","19671211 010000", 11L}
     });
   }
 
@@ -213,7 +213,7 @@ public class TestNativeFunctions extends BaseTestFunction {
       ExecConstants.QUERY_EXEC_OPTION_KEY,
       execPreferenceMixed));
     testFunctions(new Object[][]{
-      {"extractYear(to_date(c0, 'YYYYMMDD HHMISS tzo', 0))","19671211 121212 +08:00", 1967l}
+      {"extractYear(to_date(c0, 'YYYYMMDD HHMISS tzo', 0))","19671211 121212 +08:00", 1967L}
     });
     testContext.getOptions().setOption(OptionValue.createString(
       OptionValue.OptionType.SYSTEM,
@@ -295,21 +295,21 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testFromTimeStamp() throws Exception {
     testFunctions(new Object[][]{
-      {"extractMinute(c0)", ts("1970-01-02T10:20:33"), 20l},
-      {"extractHour(c0)", ts("1970-01-02T10:20:33"), 10l},
-      {"extractDay(c0)", ts("1970-01-02T10:20:33"), 2l},
-      {"extractMonth(c0)", ts("1970-01-02T10:20:33"), 1l},
-      {"extractYear(c0)", ts("1970-01-02T10:20:33"), 1970l},
-      {"extractSecond(c0)", ts("1970-01-02T10:20:33"), 33l},
+      {"extractMinute(c0)", ts("1970-01-02T10:20:33"), 20L},
+      {"extractHour(c0)", ts("1970-01-02T10:20:33"), 10L},
+      {"extractDay(c0)", ts("1970-01-02T10:20:33"), 2L},
+      {"extractMonth(c0)", ts("1970-01-02T10:20:33"), 1L},
+      {"extractYear(c0)", ts("1970-01-02T10:20:33"), 1970L},
+      {"extractSecond(c0)", ts("1970-01-02T10:20:33"), 33L},
     });
   }
 
   @Test
   public void testFromDate() throws Exception {
     testFunctions(new Object[][]{
-      {"extractDay(c0)", date("1970-01-02"), 2l},
-      {"extractMonth(c0)", date("1970-01-02"), 1l},
-      {"extractYear(c0)", date("1970-01-02"), 1970l},
+      {"extractDay(c0)", date("1970-01-02"), 2L},
+      {"extractMonth(c0)", date("1970-01-02"), 1L},
+      {"extractYear(c0)", date("1970-01-02"), 1970L},
     });
 
   }
@@ -317,9 +317,9 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testFromTime() throws Exception {
     testFunctions(new Object[][]{
-      {"extractMinute(c0)", time("10:20:33"), 20l},
-      {"extractHour(c0)", time("10:20:33"), 10l},
-      {"extractSecond(c0)", time("10:20:33"), 33l},
+      {"extractMinute(c0)", time("10:20:33"), 20L},
+      {"extractHour(c0)", time("10:20:33"), 10L},
+      {"extractSecond(c0)", time("10:20:33"), 33L},
     });
   }
 
@@ -592,7 +592,7 @@ public class TestNativeFunctions extends BaseTestFunction {
       testFunctions(new Object[][]{
         {"booleanOr(c0 = 1i, c0 = 2i, c0 = 3i, c0 != 10, c0 = 4i, c0 = 5i, c0 = 6i, c0 = 7i, c0 =" +
           " " +
-          "8i, c0 = 9i)", 10l, false}}
+          "8i, c0 = 9i)", 10L, false}}
       );
       //in optimization not enabled for integer types
       Assert.assertEquals(0, InExpression.COUNT.get());
@@ -670,7 +670,7 @@ public class TestNativeFunctions extends BaseTestFunction {
       testFunctions(new Object[][]{
         {"booleanOr(ceil(c0) = '1', ceil(c0) = '2', ceil(c0) = '3', ceil(c0) != '4', ceil(c0) = '5', ceil(c0) = " +
           "'6', ceil(c0) = '7', ceil(c0) = '8', ceil(c0) = '9', ceil(c0) = " +
-          "'10')", 9l, true}}
+          "'10')", 9L, true}}
       );
       Assert.assertEquals(1, InExpression.COUNT.get());
     } finally {
@@ -1074,19 +1074,19 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testRegistryIsCaseInsensitive() throws Exception {
     testFunctions(new Object[][]{
-      {"extractday(c0)", ts("1970-01-02T10:20:33"), 2l},
-      {"extractmonth(c0)", ts("1970-01-02T10:20:33"), 1l},
-      {"extractday(c0)", date("1970-01-02"), 2l},
-      {"extractmonth(c0)", date("1970-01-02"), 1l}
+      {"extractday(c0)", ts("1970-01-02T10:20:33"), 2L},
+      {"extractmonth(c0)", ts("1970-01-02T10:20:33"), 1L},
+      {"extractday(c0)", date("1970-01-02"), 2L},
+      {"extractmonth(c0)", date("1970-01-02"), 1L}
     });
   }
 
   @Test
   public void testDateDiffFunctions() throws Exception {
     testFunctionsCompiledOnly(new Object[][]{
-      {"extractday(date_sub(c0, 10))", date("1970-01-12"), 2l},
-      {"extractday(date_diff(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
-      {"extractday(subtract(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
+      {"extractday(date_sub(c0, 10))", date("1970-01-12"), 2L},
+      {"extractday(date_diff(c0, 10))", ts("1970-01-12T10:20:33"), 2L},
+      {"extractday(subtract(c0, 10))", ts("1970-01-12T10:20:33"), 2L},
     });
   }
 
@@ -1118,8 +1118,8 @@ public class TestNativeFunctions extends BaseTestFunction {
     testFunctions(new Object[][]{
       {"castINT(c0)", "56", 56},
       {"cast(c0 as INT)", "-2", -2},
-      {"castBIGINT(c0)", "56", 56l},
-      {"cast(c0 as BIGINT)", "-2", -2l},
+      {"castBIGINT(c0)", "56", 56L},
+      {"cast(c0 as BIGINT)", "-2", -2L},
     });
   }
 
@@ -1315,6 +1315,76 @@ public class TestNativeFunctions extends BaseTestFunction {
 
   }
 
+  @Test
+  public void testNegativeForDecimalDataType() throws Exception {
+    Object[][] testsList = new Object[][]{
+      {"negative(c0)", 10.5, -10.5},
+      {"negative(c0)", 10.5D, -10.5D},
+      {"negative(c0)", -10.5D, 10.5D},
+      {"negative(c0)", -10.5, 10.5},
+      {"negative(c0)", new BigDecimal("10.5"), new BigDecimal("-10.5")}};
+
+    testFunctions(testsList);
+  }
+
+  @Test
+  public void testSoundex() throws Exception {
+
+  Object soundexTestsList = new Object[][]{
+    {" soundex('123456789') ", NULL_VARCHAR},
+    {" soundex('a') ", "A000"},
+    {" soundex('123456789a') ", "A000"},
+    {" soundex('a123456789') ", "A000"},
+    {" soundex('robert') ", "R163"},
+    {" soundex('r-O-b-E-r-T') ", "R163"},
+    {" soundex('Robert') ", "R163"},
+    {" soundex('Rupert') ", "R163"},
+    {" soundex('Honeyman') ", "H555"},
+    {" soundex('Tymczak') ", "T522"},
+    {" soundex('Ashcraft') ", "A226"},
+    {" soundex('Ashcroft') ", "A226"},
+    {" soundex('Jjjice') ", "J200"},
+    {" soundex('Luke Garcia') ", "L226"},
+    {" soundex('123 321 Luke 987 Gar4cia') ", "L226"},
+    {" soundex('Alice Ichabod') ", "A422"},
+    {" soundex('Miller') ", "M460"},
+    {" soundex('3Miller') ", "M460"},
+    {" soundex('Mill3r') ", "M460"},
+    {" soundex('abc') ", "A120"},
+    {" soundex('123abc') ", "A120"},
+    {" soundex('test') ", "T230"},
+    {" soundex('') ", ""},
+    {" soundex('Elvis') ", "E412"},
+    {" soundex('waterloo') ", "W364"},
+    {" soundex('eowolf') ", "E410"},
+    {" soundex('Smith') ", "S530"},
+    {" soundex('Smythe') ", "S530"},
+    {" soundex('democrat') ", "D526"},
+    {" soundex('luke garcia') ", "L226"},
+    {" soundex('alice ichabod') ", "A422"},
+    {" soundex('SACHS') ", "S220"},
+    {" soundex('路-大学b路%$大') ", "B000"},
+    {" soundex('路-大学路%$大') ", NULL_VARCHAR},
+    {" soundex('123') ", NULL_VARCHAR},
+    {" soundex(c0) ", NULL_VARCHAR, ""},};
+
+    try {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceJava
+      ));
+      testFunctionsCompiledOnly((Object[][]) soundexTestsList);
+    } finally {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceGandivaOnly
+      ));
+      testFunctionsCompiledOnly((Object[][]) soundexTestsList);
+    }
+  }
+
   // DX-42215
   @Test
   public void testRegexpExtract() throws Exception {
@@ -1323,6 +1393,80 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 2, "doe"},
       {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 0, "john doe - 124"},
       {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "stringdonotmatch", 0, ""},
+    });
+  }
+
+  @Test
+  public void testUpperAndLower() throws Exception {
+
+    Object upperTestsList = new Object[][]{
+      {" upper('abcdefg') ", "ABCDEFG"},
+      {" upper('AaBbCcDd') ", "AABBCCDD"},
+      {" upper('Citroën') ", "CITROËN"},
+      {" upper('') ", ""},};
+
+    Object lowerTestsList = new Object[][]{
+      {" lower('ABCDEFG') ", "abcdefg"},
+      {" lower('AaBbCcDd') ", "aabbccdd"},
+      {" lower('cITROËn') ", "citroën"},
+      {" lower('') ", ""},};
+
+    try {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceJava
+      ));
+      testFunctionsCompiledOnly((Object[][]) upperTestsList);
+      testFunctionsCompiledOnly((Object[][]) lowerTestsList);
+    } finally {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceGandivaOnly
+      ));
+      testFunctionsCompiledOnly((Object[][]) upperTestsList);
+      testFunctionsCompiledOnly((Object[][]) lowerTestsList);
+    }
+  }
+
+  @Test
+  public void testElt() throws Exception {
+
+    Object eltTestsList = new Object[][]{
+      {" elt(c0, c1, c2) ", 1, "Hello", "World", "Hello"},
+      {" elt(c0, c1, c2) ", 2, "Hello", "World", "World"},
+      {" elt(c0, c1, c2) ", 0, "Hello", "World", NULL_VARCHAR},
+      {" elt(c0, c1, c2) ", 3, "Hello", "World", NULL_VARCHAR},
+      {" elt(c0, c1, c2, c3) ", 3, "Hello", "World", "WOW", "WOW"},
+      {" elt(c0, c1, c2, c3) ", 4, "Hello", "World", "WOW", NULL_VARCHAR},
+      {" elt(c0, c1, c2, c3, c4) ", 4, "Hello", "World", "WOW", "0123456",  "0123456"},
+      {" elt(c0, c1, c2, c3, c4) ", 5, "Hello", "World", "WOW", "0123456",  NULL_VARCHAR},
+      {" elt(c0, c1, c2, c3, c4, c5) ", 5, "Hello", "World", "WOW", "0123456", "大学b路", "大学b路"},
+      {" elt(c0, c1, c2, c3, c4, c5) ", 6, "Hello", "World", "WOW", "0123456", "大学b路", NULL_VARCHAR},};
+
+    try {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceJava
+      ));
+      testFunctionsCompiledOnly((Object[][]) eltTestsList);
+    } finally {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceGandivaOnly
+      ));
+      testFunctionsCompiledOnly((Object[][]) eltTestsList);
+    }
+  }
+
+  @Test
+  public void testSubstringIndex() throws Exception {
+    testFunctionsCompiledOnly(new Object[][]{
+      {"substring_index(c0,'-',-2)", "alndnds-dnbjsd-LKNKD-5642-skf4JFJ","5642-skf4JFJ"},
+      {"substring_index(c0, '-', 2)", "alndnds-dnbjsd-LKNKD-5642-skf4JFJ","alndnds-dnbjsd"}
     });
   }
 }

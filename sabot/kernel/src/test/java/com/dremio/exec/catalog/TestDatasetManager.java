@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 import static com.dremio.exec.store.Views.isComplexType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -38,12 +39,8 @@ import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
@@ -77,10 +74,6 @@ import com.google.common.collect.ImmutableList;
  * Tests for DatasetManager
  */
 public class TestDatasetManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestDatasetManager.class);
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   private class CatalogIdentityResolver implements IdentityResolver {
     @Override
@@ -359,25 +352,8 @@ public class TestDatasetManager {
     final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
         new CatalogIdentityResolver(), null);
 
-    thrown.expect(UserException.class);
-    thrown.expectCause(new Matcher<InvalidImpersonationTargetException>() {
-      @Override
-      public void describeTo(Description description) {
-      }
-
-      @Override
-      public boolean matches(Object item) {
-        return item instanceof InvalidImpersonationTargetException;
-      }
-
-      @Override
-      public void describeMismatch(Object item, Description mismatchDescription) {
-      }
-
-      @Override
-      public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-      }
-    });
-    datasetManager.getTable(namespaceKey, metadataRequestOptions, false);
+    assertThatThrownBy(() -> datasetManager.getTable(namespaceKey, metadataRequestOptions, false))
+      .isInstanceOf(UserException.class)
+      .hasCauseInstanceOf(InvalidImpersonationTargetException.class);
   }
 }

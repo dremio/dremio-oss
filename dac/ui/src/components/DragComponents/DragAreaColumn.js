@@ -39,9 +39,10 @@ import {
   preventDrag as disabledColumnCls,
   columnItem as columnItemCls,
 } from "@app/uiTheme/less/DragComponents/DragAreaColumn.less";
-import { NOT_SUPPORTED_TYPES } from "./DragColumnMenu";
+
 import DragSource from "./DragSource";
 import DragTarget from "./DragTarget";
+import { NOT_SUPPORTED_TYPES } from "./DragColumnMenu";
 
 export class DragAreaColumn extends Component {
   static propTypes = {
@@ -175,10 +176,9 @@ export class DragAreaColumn extends Component {
             className={columnItemCls}
             style={formDefault}
             key={columnName}
-            onClick={
-              !columnDisabled &&
-              this.selectColumn.bind(this, columnData, closeDD)
-            }
+            {...(!columnDisabled && {
+              onClick: this.selectColumn.bind(this, columnData, closeDD),
+            })}
           >
             <FontIcon type={typeToIconType[columnType]} theme={styles.type} />
             <EllipsedText
@@ -303,8 +303,12 @@ export class DragAreaColumn extends Component {
           >
             <div style={styles.columnWrap}>
               <div
-                className={preventDrag ? disabledColumnCls : columnCls}
-                style={{ ...dragStyle, ...columnStyle }}
+                className={classNames([
+                  "inner-join-column__body",
+                  preventDrag && "--disabled",
+                  preventDrag ? disabledColumnCls : columnCls,
+                ])}
+                style={{ ...dragStyle, ...(columnStyle || {}) }}
                 key="custom"
               >
                 {this.renderContent()}

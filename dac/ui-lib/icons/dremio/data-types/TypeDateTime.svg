@@ -1,0 +1,28 @@
+<svg id='data-types/TypeDateTime' viewBox="0 0 24 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Type-Date-Time" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-10" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-16" x="0" y="0" width="24" height="18"></rect>
+                </g>
+                <g id="Mini-Calendar" transform="translate(5.500000, 1.500000)" sketch:type="MSShapeGroup">
+                    <g id="Line-+-Line-Copy-2" transform="translate(2.500000, 0.500000)" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1.5,0.5 L1.5,2.5" id="Line"></path>
+                        <path d="M5.5,0.5 L5.5,2.5" id="Line-Copy-2"></path>
+                    </g>
+                    <g id="Group" transform="translate(0.000000, 2.000000)">
+                        <rect id="Rectangle-90-Copy" fill-opacity="0.25" fill="#77818F" x="0" y="0" width="12" height="3"></rect>
+                        <path d="M6,9 L0,9 L0,0 L12,0 L12,3" id="Line" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </g>
+                </g>
+                <g id="Mini-Clock" transform="translate(13.500000, 8.500000)" stroke="#77818F" stroke-linecap="round" sketch:type="MSShapeGroup" stroke-linejoin="round">
+                    <path d="M8,4 C8,6.2093913 6.20869565,8 4,8 C1.79026087,8 0,6.2093913 0,4 C0,1.7906087 1.79026087,0 4,0 C6.20869565,0 8,1.7906087 8,4 L8,4 Z" id="Stroke-3958"></path>
+                    <path d="M4,2.5 L4,3.875 L5.5,5.25" id="Stroke-3959"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

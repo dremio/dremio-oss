@@ -106,9 +106,8 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
               break;
             }
             entry = iterator.next();
+            elementCount++;
           }
-
-          elementCount++;
 
           final Document doc = toDoc(entry.getKey(), entry.getValue());
 

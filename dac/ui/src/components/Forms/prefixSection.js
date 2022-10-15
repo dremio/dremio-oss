@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from "react";
+import { createElement, Component } from "react";
 import PropTypes from "prop-types";
 import hoistNonReactStatic from "hoist-non-react-statics";
 
@@ -31,7 +31,7 @@ export default function prefixSection(prefix) {
       }
 
       render() {
-        return React.createElement(target, {
+        return createElement(target, {
           ...this.props,
           fields: this.props.fields ? this.props.fields[prefix] : {},
         });

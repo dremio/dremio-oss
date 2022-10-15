@@ -39,18 +39,18 @@ export const CLUSTER_STATE_LABEL = {
 };
 
 export const CLUSTER_STATE_ICON = {
-  [CLUSTER_STATE.running]: { src: "Online.svg", text: "Online" },
-  [CLUSTER_STATE.stopped]: { src: "Disconnected.svg", text: "Stopped" },
-  [CLUSTER_STATE.starting]: { src: "StartingEngine.svg", text: "Starting" },
-  [CLUSTER_STATE.stopping]: { src: "Decommissioning.svg", text: "Stopping" },
-  [CLUSTER_STATE.deleted]: { src: "Blocked.svg", text: "Deleted" },
-  [CLUSTER_STATE.pending]: { src: "PendingState.svg", text: "Pending" },
+  [CLUSTER_STATE.running]: { src: "online", text: "Online" },
+  [CLUSTER_STATE.stopped]: { src: "disconnected", text: "Stopped" },
+  [CLUSTER_STATE.starting]: { src: "starting-engine", text: "Starting" },
+  [CLUSTER_STATE.stopping]: { src: "decommissioning", text: "Stopping" },
+  [CLUSTER_STATE.deleted]: { src: "blocked", text: "Deleted" },
+  [CLUSTER_STATE.pending]: { src: "pending", text: "Pending" },
   [CLUSTER_STATE.provisioning]: {
-    src: "Provisioning.svg",
+    src: "provisioning",
     text: "Provisioning",
   },
-  [CLUSTER_STATE.failed]: { src: "Error.svg", text: "Failed" },
-  [CLUSTER_STATE.unknown]: { src: "Trace.svg", text: "Unknown" },
+  [CLUSTER_STATE.failed]: { src: "error", text: "Failed" },
+  [CLUSTER_STATE.unknown]: { src: "trace", text: "Unknown" },
 };
 
 export const EC2_CLUSTER_FIELDS = ["name"];
@@ -157,23 +157,26 @@ export const ENGINE_COLUMNS_CONFIG = [
     width: 90,
     minWidth: 95,
     headerStyle: { paddingLeft: "8px" },
-    style: { paddingLeft: "8px" },
+    style: { paddingLeft: "8px", textAlign: "right" },
+    columnAlignment: "alignRight",
   }, //# of workers
   {
     key: "cores",
     label: "Cores per Executor",
-    width: 130,
-    minWidth: 130,
+    width: 186,
+    minWidth: 186,
     headerStyle: { paddingLeft: "8px" },
-    style: { paddingLeft: "8px" },
+    style: { textAlign: "right" },
+    columnAlignment: "alignRight",
   },
   {
     key: "memory",
     label: "Memory per Executor",
-    width: 190,
-    minWidth: 190,
+    width: 205,
+    minWidth: 205,
     headerStyle: { paddingLeft: "8px" },
-    style: { paddingLeft: "8px" },
+    style: { paddingLeft: "8px", textAlign: "right" },
+    columnAlignment: "alignRight",
   },
   {
     key: "ip",
@@ -181,9 +184,17 @@ export const ENGINE_COLUMNS_CONFIG = [
     width: 120,
     minWidth: 120,
     headerStyle: { paddingLeft: "8px" },
-    style: { paddingLeft: "8px" },
+    style: { paddingLeft: "8px", textAlign: "right" },
+    columnAlignment: "alignRight",
   },
-  { key: "nodes", label: "Online Nodes", width: 100, minWidth: 100 },
+  {
+    key: "nodes",
+    label: "Online Nodes",
+    width: 100,
+    minWidth: 100,
+    style: { textAlign: "right" },
+    columnAlignment: "alignRight",
+  },
   {
     key: "action",
     label: "",

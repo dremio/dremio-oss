@@ -22,12 +22,11 @@
    - "USING"
   output:
    - "ALTER: ALTER TABLE EMP CREATE EXTERNAL REFLECTION myReflection USING^ "
+   - "  TABLE REFERENCE: EMP "
+   - "    CatalogPath: EMP "
    - "  EXTERNAL REFLECTION CREATE: "
-   - "    CATALOG PATH: EMP."
    - "    NAME: myReflection"
-   - "    CATALOG PATH: "
    - "  TYPE: TABLE"
-   - "  CATALOG PATH: EMP."
  -
   description: "USING + PATH"
   input:
@@ -36,9 +35,10 @@
    - "\"External\".EMP"
   output:
    - "ALTER: ALTER TABLE EMP CREATE EXTERNAL REFLECTION myReflection USING External . EMP^ "
+   - "  TABLE REFERENCE: EMP "
+   - "    CatalogPath: EMP "
    - "  EXTERNAL REFLECTION CREATE: External . EMP^ "
-   - "    CATALOG PATH: EMP."
+   - "    TABLE REFERENCE: External . EMP^ "
+   - "      CatalogPath: External . EMP^ "
    - "    NAME: myReflection"
-   - "    CATALOG PATH: External.EMP^."
    - "  TYPE: TABLE"
-   - "  CATALOG PATH: EMP."

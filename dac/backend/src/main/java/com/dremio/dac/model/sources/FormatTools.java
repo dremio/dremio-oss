@@ -52,7 +52,6 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.dfs.FileCountTooLargeException;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -61,7 +60,6 @@ import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
-import com.dremio.io.file.FilterDirectoryStream;
 import com.dremio.io.file.Path;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
@@ -215,7 +213,8 @@ public class FormatTools {
     }
 
     // was something other than file.
-    try (DirectoryStream<FileAttributes> files = getFilesForFormatting(fs, path)) {
+    int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
+    try (DirectoryStream<FileAttributes> files = FileSystemUtils.listFilterDirectoryRecursive(fs, path, maxFilesLimit, NO_HIDDEN_FILES)) {
       for (FileAttributes child: files) {
         if(!child.isRegularFile()) {
           continue;
@@ -238,22 +237,6 @@ public class FormatTools {
         .build(logger);
 
     }
-  }
-
-  private DirectoryStream<FileAttributes> getFilesForFormatting(FileSystem fs, Path path) throws IOException, FileCountTooLargeException {
-    final int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
-
-    final DirectoryStream<FileAttributes> baseIterator = FileSystemUtils.listRecursive(fs, path, NO_HIDDEN_FILES);
-    if (maxFilesLimit <= 0) {
-      return baseIterator;
-    }
-
-    return new FilterDirectoryStream<FileAttributes>(baseIterator) {
-      @Override
-      public Iterator<FileAttributes> iterator() {
-        return Iterators.limit(super.iterator(), maxFilesLimit);
-      }
-    };
   }
 
   private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder, FileFormat fileFormat) {
@@ -316,19 +299,16 @@ public class FormatTools {
     }
 
     try {
+      final FormatPluginConfig formatPluginConfig = PhysicalDatasetUtils.toFormatPlugin(format.asFileConfig(), Collections.<String>emptyList());
+      final FormatPlugin formatPlugin = plugin.getFormatPlugin(formatPluginConfig);
 
       if(attributes.isRegularFile()) {
-        return getData(format, plugin, fs, Collections.singleton(attributes).iterator());
+        return getData(formatPlugin, fs, Collections.singleton(attributes).iterator());
       }
 
-      try(DirectoryStream<FileAttributes> files = getFilesForFormatting(fs, path)) {
+      try(DirectoryStream<FileAttributes> files = formatPlugin.getFilesForSamples(fs, plugin, path)) {
         Iterator<FileAttributes> iter = files.iterator();
-        return getData(
-            format,
-            plugin,
-            fs,
-            Iterators.filter(iter, FileAttributes::isRegularFile)
-            );
+        return getData(formatPlugin, fs, Iterators.filter(iter, FileAttributes::isRegularFile));
       }
     } catch (DirectoryIteratorException ex) {
       throw new RuntimeException(ex.getCause());
@@ -337,7 +317,7 @@ public class FormatTools {
     }
   }
 
-  private JobDataFragment getData(FileFormat format, FileSystemPlugin<?> plugin, FileSystem filesystem, Iterator<FileAttributes> files) throws Exception {
+  private JobDataFragment getData(FormatPlugin formatPlugin, FileSystem filesystem, Iterator<FileAttributes> files) throws Exception {
 
     final int minRecords = (int) context.getOptionManager().getOption(MIN_RECORDS);
     final long maxReadTime = context.getOptionManager().getOption(MAX_READTIME_MS);
@@ -347,8 +327,6 @@ public class FormatTools {
 
     // we need to keep reading data until we get to target records. This could happen on the first scanner or take many.
 
-    final FormatPluginConfig formatPluginConfig = PhysicalDatasetUtils.toFormatPlugin(format.asFileConfig(), Collections.<String>emptyList());
-    final FormatPlugin formatPlugin = plugin.getFormatPlugin(formatPluginConfig);
     ReleasingData data = null;
 
     // everything in here will be released on serialization if success. If failure, will release in finally.
@@ -378,7 +356,6 @@ public class FormatTools {
           break;
         }
         FileAttributes attributes = files.next();
-
         try (
           // Reader can be closed since data that we're using will be transferred to allocator owned by us
           // when added to RecordBatchData.

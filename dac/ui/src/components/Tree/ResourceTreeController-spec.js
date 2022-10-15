@@ -78,11 +78,6 @@ describe("ResourceTreeController", () => {
 
   describe("componentDidMount", () => {
     const ININTAL_LOAD = true;
-    it("should not initilize the resource tree", async () => {
-      sinon.spy(instance, "initializeTree");
-      await instance.componentDidMount();
-      expect(instance.initializeTree.called).to.be.false;
-    });
     it("should initilize the resource tree", async () => {
       const props = {
         ...minimalProps,

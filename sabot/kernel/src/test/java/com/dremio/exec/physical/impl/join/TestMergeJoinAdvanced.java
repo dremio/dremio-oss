@@ -79,7 +79,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
         .optionSettingQueriesForTestQuery("alter session set \"planner.enable_hashjoin\" = true")
         .unOrdered()
         .baselineColumns("bigint_col")
-        .baselineValues(1l)
+        .baselineValues(1L)
         .go();
 
     try (AutoCloseable c = disableUnlimitedSplitsSupportFlags()) {
@@ -92,7 +92,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("col1")
-        .baselineValues(4l)
+        .baselineValues(4L)
         .go();
     }
   }
@@ -139,7 +139,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     rightWriter.close();
   }
 
-  private void testMultipleBatchJoin(final long right, final long left,
+  private void testMultipleBatchJoin(final long left, final long right,
                                      final String joinType, final long expected) throws Exception {
     final String leftSide = BaseTestQuery.getTempDir("merge-join-left.json");
     final String rightSide = BaseTestQuery.getTempDir("merge-join-right.json");
@@ -159,32 +159,32 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
 
   @Test
   public void testMergeInnerJoinLargeRight() throws Exception {
-    testMultipleBatchJoin(1000l, 5000l, "inner", 5000l * 1000l);
+    testMultipleBatchJoin(1000L, 5000L, "inner", 5000L * 1000L);
   }
 
   @Test
   public void testMergeLeftJoinLargeRight() throws Exception {
-    testMultipleBatchJoin(1000l, 5000l, "left", 5000l * 1000l +2l);
+    testMultipleBatchJoin(1000L, 5000L, "left", 5000L * 1000L + 2L);
   }
 
   @Test
   public void testMergeRightJoinLargeRight() throws Exception {
-    testMultipleBatchJoin(1000l, 5000l, "right", 5000l*1000l +3l);
+    testMultipleBatchJoin(1000L, 5000L, "right", 5000L * 1000L + 3L);
   }
 
   @Test
   public void testMergeInnerJoinLargeLeft() throws Exception {
-    testMultipleBatchJoin(5000l, 1000l, "inner", 5000l*1000l);
+    testMultipleBatchJoin(5000L, 1000L, "inner", 5000L * 1000L);
   }
 
   @Test
   public void testMergeLeftJoinLargeLeft() throws Exception {
-    testMultipleBatchJoin(5000l, 1000l, "left", 5000l*1000l + 2l);
+    testMultipleBatchJoin(5000L, 1000L, "left", 5000L * 1000L + 2L);
   }
 
   @Test
   public void testMergeRightJoinLargeLeft() throws Exception {
-    testMultipleBatchJoin(5000l, 1000l, "right", 5000l*1000l + 3l);
+    testMultipleBatchJoin(5000L, 1000L, "right", 5000L * 1000L + 3L);
   }
 
   // Following tests can take some time.
@@ -192,8 +192,8 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Ignore
   public void testMergeInnerJoinRandomized() throws Exception {
     final Random r = new Random();
-    final long right = r.nextInt(10001) + 1l;
-    final long left = r.nextInt(10001) + 1l;
+    final long right = r.nextInt(10001) + 1L;
+    final long left = r.nextInt(10001) + 1L;
     testMultipleBatchJoin(left, right, "inner", left*right);
   }
 
@@ -201,18 +201,18 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Ignore
   public void testMergeLeftJoinRandomized() throws Exception {
     final Random r = new Random();
-    final long right = r.nextInt(10001) + 1l;
-    final long left = r.nextInt(10001) + 1l;
-    testMultipleBatchJoin(left, right, "left", left*right + 2l);
+    final long right = r.nextInt(10001) + 1L;
+    final long left = r.nextInt(10001) + 1L;
+    testMultipleBatchJoin(left, right, "left", left*right + 2L);
   }
 
   @Test
   @Ignore
   public void testMergeRightJoinRandomized() throws Exception {
     final Random r = new Random();
-    final long right = r.nextInt(10001) + 1l;
-    final long left = r.nextInt(10001) + 1l;
-    testMultipleBatchJoin(left, right, "right", left * right + 3l);
+    final long right = r.nextInt(10001) + 1L;
+    final long left = r.nextInt(10001) + 1L;
+    testMultipleBatchJoin(left, right, "right", left * right + 3L);
   }
 
   @Test
@@ -222,7 +222,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
       .sqlQuery(query1)
       .unOrdered()
       .baselineColumns("cnt")
-      .baselineValues(202452l)
+      .baselineValues(202452L)
       .go();
   }
 

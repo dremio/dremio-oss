@@ -64,6 +64,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CachingCatalog;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DelegatingCatalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
@@ -172,8 +173,13 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     }
   };
 
+  /**
+   * DescriptorCache enables {@link ReflectionManager} to make immediate updates to the {@link MaterializationCache}
+   * on the master coordinator.  Other coordinators don't run {@link ReflectionManager} and the {@link MaterializationCache}
+   * on those coordinators are updated by {@link CacheRefresher}
+   */
   interface DescriptorCache {
-    void invalidate(MaterializationId mId);
+    void invalidate(Materialization m);
     void update(Materialization m) throws CacheException;
   }
 
@@ -344,13 +350,13 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       // does not relinquish
       // important to use schedule once and reschedule since option value might
       // change dynamically
-      schedulerService.get().schedule(scheduleForRunningOnceAt(Instant.ofEpochMilli(System.currentTimeMillis() + getRefreshTimeInMillis()), LOCAL_TASK_LEADER_NAME),
+      schedulerService.get().schedule(scheduleForRunningOnceAt(ofEpochMilli(System.currentTimeMillis() + getRefreshTimeInMillis()), LOCAL_TASK_LEADER_NAME),
         new Runnable() {
           @Override
           public void run() {
-            logger.debug("periodic refresh");
+            logger.debug("Periodic refresh");
             wakeupManager("periodic refresh", true);
-            schedulerService.get().schedule(scheduleForRunningOnceAt(Instant.ofEpochMilli(System.currentTimeMillis() + getRefreshTimeInMillis()), LOCAL_TASK_LEADER_NAME), this);
+            schedulerService.get().schedule(scheduleForRunningOnceAt(ofEpochMilli(System.currentTimeMillis() + getRefreshTimeInMillis()), LOCAL_TASK_LEADER_NAME), this);
           }
 
         }
@@ -380,7 +386,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
    */
   private void masterInit() {
     logger.info("Reflections masterInit");
-    dependencyManager = new DependencyManager(reflectionSettings, materializationStore, internalStore, requestsStore, dependenciesStore);
+    dependencyManager = new DependencyManager(materializationStore, internalStore, dependenciesStore);
     dependencyManager.start();
 
     final FileSystemPlugin accelerationPlugin = sabotContext.get().getCatalogService()
@@ -411,7 +417,9 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         materializationStore,
         this::wakeupManager
       ),
-      catalogService.get()
+      catalogService.get(),
+      new DependencyResolutionContextFactory(reflectionSettings,
+        requestsStore, getOptionManager(), internalStore)
     );
 
     wakeupHandler = new WakeupHandler(executorService, reflectionManager);
@@ -459,7 +467,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   @VisibleForTesting
   public void refreshCache() {
     if (isCacheEnabled()) {
-      logger.debug("materialization cache refresh...");
+      logger.debug("Materialization cache refresh...");
       materializationCache.refresh();
     }
   }
@@ -523,7 +531,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
     userStore.save(goal);
 
-    logger.debug("create reflection goal {} (named {})", reflectionId.getId(), goal.getName());
+    logger.debug("Created reflection goal for {}", ReflectionUtils.getId(goal));
     wakeupManager("reflection goal created");
     return reflectionId;
   }
@@ -759,17 +767,12 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   @Override
-  public boolean doesReflectionHaveAnyMaterializationDone(ReflectionId reflectionId) {
-    return materializationStore.getLastMaterializationDone(reflectionId) != null;
-  }
-
-  @Override
-  public Materialization getLastDoneMaterialization(ReflectionId reflectionId) {
+  public Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId) {
     final Materialization materialization = materializationStore.getLastMaterializationDone(reflectionId);
     if (materialization == null) {
-      throw new NotFoundException("materialization not found for " + reflectionId.getId());
+      return Optional.absent();
     }
-    return materialization;
+    return Optional.of(materialization);
   }
 
   @Override
@@ -845,7 +848,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public void requestRefresh(String datasetId) {
-    logger.debug("refresh requested on {}", datasetId);
+    logger.debug("Refresh requested on dataset {}", datasetId);
     RefreshRequest request = requestsStore.get(datasetId);
     if (request == null) {
       request = new RefreshRequest()
@@ -874,10 +877,10 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public long getReflectionSize(ReflectionId reflectionId) {
-    if (doesReflectionHaveAnyMaterializationDone(reflectionId)) {
-      return getMetrics(getLastDoneMaterialization(reflectionId)).getFootprint();
+    Optional<Materialization> m = getLastDoneMaterialization(reflectionId);
+    if (m.isPresent()) {
+      return getMetrics(m.get()).getFootprint();
     }
-
     return -1;
   }
 
@@ -1189,14 +1192,15 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   private void rebuildPlan(ReflectionGoal goal, ReflectionEntry entry, Materialization materialization) {
-    ExpansionHelper helper = expansionHelper.get();
-    SqlHandlerConfig config = new SqlHandlerConfig(queryContext.get(), helper.getConverter(), AttemptObservers.of(), null);
-    ReflectionPlanGenerator generator = new ReflectionPlanGenerator(config, namespaceService.get(), sabotContext.get().getConfig(), goal,
-      entry, materialization, reflectionSettings, materializationStore, false, Optional.fromNullable(materialization.getStripVersion()).or(StrippingFactory.NO_STRIP_VERSION));
-    generator.generateNormalizedPlan();
-    ByteString logicalPlanBytes = generator.getRefreshDecision().getLogicalPlan();
-    materialization.setLogicalPlan(logicalPlanBytes);
-    materializationStore.save(materialization);
+    try (ExpansionHelper helper = expansionHelper.get()){
+      SqlHandlerConfig config = new SqlHandlerConfig(helper.getContext(), helper.getConverter(), AttemptObservers.of(), null);
+      ReflectionPlanGenerator generator = new ReflectionPlanGenerator(config, namespaceService.get(), sabotContext.get().getConfig(), goal,
+        entry, materialization, reflectionSettings, materializationStore, false, Optional.fromNullable(materialization.getStripVersion()).or(StrippingFactory.NO_STRIP_VERSION));
+      generator.generateNormalizedPlan();
+      ByteString logicalPlanBytes = generator.getRefreshDecision().getLogicalPlan();
+      materialization.setLogicalPlan(logicalPlanBytes);
+      materializationStore.save(materialization);
+    }
   }
 
   public void resetCache() {
@@ -1209,27 +1213,38 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   private final class DescriptorCacheImpl implements DescriptorCache {
     @Override
-    public void invalidate(MaterializationId mId) {
+    public void invalidate(Materialization m) {
       if (isCacheEnabled()) {
-        logger.debug("invalidating cache entry for {}", mId.getId());
-        materializationCache.invalidate(mId);
+        logger.debug("Invalidating cache entry for {}", ReflectionUtils.getId(m));
+        materializationCache.invalidate(m.getId());
       }
     }
 
     @Override
     public void update(Materialization m) throws CacheException {
       if (isCacheEnabled()) {
-        logger.debug("updating cache entry for {}", m.getId().getId());
+        logger.debug("Updating cache entry for {}", ReflectionUtils.getId(m));
         materializationCache.update(m);
       }
     }
   }
 
   private final class CacheRefresher implements Runnable {
+    private final PlanCacheSynchronizer planCacheSynchronizer;
+
+    public CacheRefresher() {
+      this.planCacheSynchronizer = new PlanCacheSynchronizer(
+          userStore,
+          internalStore,
+          planCacheInvalidationHelper
+      );
+    }
+
     @Override
     public void run() {
       try {
         refreshCache();
+        this.planCacheSynchronizer.sync();
       } finally {
         scheduleNextCacheRefresh(this);
       }
@@ -1268,6 +1283,10 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     @Override
     public void close() {
       AutoCloseables.closeNoChecked(context);
+    }
+
+    QueryContext getContext() {
+      return context;
     }
   }
 
@@ -1308,7 +1327,12 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       }
       if (catalog instanceof DelegatingCatalog || catalog instanceof CachingCatalog) {
         Queue<DatasetConfig> configQueue = new LinkedList<>();
-        configQueue.add(catalog.getTable(datasetId).getDatasetConfig());
+        DremioTable rootTable = catalog.getTable(datasetId);
+        if (rootTable == null) {
+          logger.info("Can't find dataset {}. Won't invalidate the plan cache", datasetId);
+          return;
+        }
+        configQueue.add(rootTable.getDatasetConfig());
         while (!configQueue.isEmpty()) {
           DatasetConfig config = configQueue.remove();
           if (config.getType().getNumber() > 1) {    //physical dataset types
@@ -1318,7 +1342,16 @@ public class ReflectionServiceImpl extends BaseReflectionService {
               try {
                 configQueue.add(context.getNamespaceService(SYSTEM_USERNAME).getDataset(new NamespaceKey(parent.getDatasetPathList())));
               } catch (NamespaceException ex) {
-                throw Throwables.propagate(ex);
+                //Here means Parent doesnt exist in Catalog. But it can still exist in Source (provided by the plugin).
+                //Try to resolve the Parent from the Source Plugin using Catalog.
+                //Eg. for "history" `sys.project.history.jobs` tables. These are defined only in the Source and dont exist in Catalog.
+                DremioTable table = catalog.getTable(new NamespaceKey(parent.getDatasetPathList()));
+                if (table != null) {
+                  configQueue.add(table.getDatasetConfig());
+                } else {
+                  //Could not find parent anywhere... Shouldnt occur in normal situations.
+                  logger.info("Can't find parent dataset {}", parent.getDatasetPathList());
+                }
               }
             }
           }

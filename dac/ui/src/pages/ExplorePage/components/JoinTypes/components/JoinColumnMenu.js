@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import Immutable from "immutable";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -48,7 +47,7 @@ class JoinColumnMenu extends PureComponent {
     } = this.props;
     return (
       // todo: loc
-      <div style={[styles.base]}>
+      <div style={{ ...styles.base }}>
         <div style={{ ...styles.titleWrap, ...formLabel }}>
           <EllipsedText
             text={`Select fields from “${this.props.nameForDisplay}”${
@@ -91,4 +90,4 @@ const styles = {
     height: 150,
   },
 };
-export default Radium(JoinColumnMenu);
+export default JoinColumnMenu;

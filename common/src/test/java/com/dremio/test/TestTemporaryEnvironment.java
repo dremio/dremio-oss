@@ -98,14 +98,14 @@ public class TestTemporaryEnvironment {
 
     temporaryEnvironment.after();
 
-    final String PreExistingKeyValueAfterCleanup = System.getenv(preExistingKey);
-    final String NewKeyValueAfterCleanup = System.getenv(newKey);
+    final String preExistingKeyValueAfterCleanup = System.getenv(preExistingKey);
+    final String newKeyValueAfterCleanup = System.getenv(newKey);
 
     // Assert
     assertEquals(preExistingKeyNewValue, preExistingKeyValueAfterSet);
-    assertEquals(preExistingKeyOriginalValue, PreExistingKeyValueAfterCleanup);
+    assertEquals(preExistingKeyOriginalValue, preExistingKeyValueAfterCleanup);
 
     assertEquals(newKeyNewValue, newKeyValueAfterSet);
-    assertEquals(newKeyOriginalValue, NewKeyValueAfterCleanup);
+    assertEquals(newKeyOriginalValue, newKeyValueAfterCleanup);
   }
 }

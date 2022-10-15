@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent } from "react";
-import MenuList from "@material-ui/core/MenuList";
+import { Children, PureComponent } from "react";
+import MenuList from "@mui/material/MenuList";
 import PropTypes from "prop-types";
 import DividerHr from "./DividerHr";
 
@@ -27,7 +27,7 @@ export default class Menu extends PureComponent {
   getItems() {
     // ensure no duplicate or start/end dividers (e.g. due to filters)
     const items = [];
-    React.Children.toArray(this.props.children).forEach((node) => {
+    Children.toArray(this.props.children).forEach((node) => {
       if (!(node.type === DividerHr)) {
         return items.push(node);
       }

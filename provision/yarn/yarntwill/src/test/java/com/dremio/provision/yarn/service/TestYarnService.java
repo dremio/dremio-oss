@@ -96,7 +96,6 @@ import com.google.common.collect.Lists;
  * Class to test YarnService
  */
 public class TestYarnService {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestYarnService.class);
 
   @Rule
   public final TemporarySystemProperties properties = new TemporarySystemProperties();

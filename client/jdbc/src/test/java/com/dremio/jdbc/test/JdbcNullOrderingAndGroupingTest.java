@@ -24,8 +24,6 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.test.TemporarySystemProperties;
 
 public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
-//  private static final org.slf4j.Logger logger =
-//      org.slf4j.LoggerFactory.getLogger(JdbcNullOrderingAndGroupingTest.class);
 
   private static final String ONE_DAY_STR = "+000 01:00:00.000";
   private static final String TWO_DAYS_STR = "+000 02:00:00.000";

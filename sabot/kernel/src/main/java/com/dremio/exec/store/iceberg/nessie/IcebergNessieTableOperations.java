@@ -33,6 +33,7 @@ import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.plugins.NessieClient;
 import com.dremio.plugins.NessieClientImpl;
+import com.dremio.plugins.NessieClientTableMetadata;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.google.common.base.Stopwatch;
@@ -104,7 +105,8 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
       nessieClient().commitTable(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
           newMetadataLocation,
-          metadata,
+          new NessieClientTableMetadata(
+            metadata.currentSnapshot().snapshotId(), metadata.currentSchemaId(), metadata.defaultSpecId(), metadata.sortOrder().orderId()),
           reference);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);

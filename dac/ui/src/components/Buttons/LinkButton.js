@@ -15,16 +15,14 @@
  */
 import { PureComponent } from "react";
 import { Link } from "react-router";
-import Radium from "radium";
+import clsx from "clsx";
 
 import invariant from "invariant";
 
 import PropTypes from "prop-types";
 
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import * as buttonStyles from "uiTheme/radium/buttons";
-
-//TODO Remove radium
-const RadiumLink = Radium(Link);
 
 export default class LinkButton extends PureComponent {
   static propTypes = {
@@ -46,12 +44,17 @@ export default class LinkButton extends PureComponent {
     );
 
     return (
-      <RadiumLink
+      <Link
         {...linkProps}
-        style={[styles.base, buttonStyles[buttonStyle], style]}
+        className={clsx(classes[`${buttonStyle}ButtonPsuedoClasses`])}
+        style={{
+          ...styles.base,
+          ...buttonStyles[buttonStyle],
+          ...(style || {}),
+        }}
       >
         {children}
-      </RadiumLink>
+      </Link>
     );
   }
 }

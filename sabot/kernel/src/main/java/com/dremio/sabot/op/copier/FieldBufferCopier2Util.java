@@ -291,8 +291,8 @@ public final class FieldBufferCopier2Util {
     @Override
     public void copy(long sv2, int count, Cursor cursor) {
       int targetIndex = cursor.getTargetIndex();
-      while (targetAlt.getValueCapacity() < targetIndex + count) {
-        targetAlt.reAlloc();
+      if (targetAlt.getValueCapacity() < targetIndex + count) {
+        realloc.ensureValidityAndOffsets(cursor.getTargetIndex() + count);
       }
       seekAndCopy(sv2, count, targetIndex);
       cursor.setTargetIndex(targetIndex + count);
@@ -939,6 +939,7 @@ public final class FieldBufferCopier2Util {
         }
         break;
 
+      case MAP:
       case LIST:
         if (optionManager.getOption(ExecConstants.ENABLE_VECTORIZED_COMPLEX_COPIER)) {
           copiers.add(new FieldBufferCopier2Util.ListCopier(source, target, optionManager, isTargetVectorZeroedOut));

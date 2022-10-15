@@ -15,11 +15,6 @@
  */
 package com.dremio.telemetry.api.metrics;
 
-import java.io.BufferedReader;
-import java.io.CharArrayReader;
-import java.io.CharArrayWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Collection;
@@ -27,15 +22,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
 import javax.servlet.Servlet;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
@@ -454,74 +441,5 @@ public final class Metrics {
     InstrumentedQueuedThreadPool instrumentedQTP = new InstrumentedQueuedThreadPool(RegistryHolder.REGISTRY);
     instrumentedQTP.setPrefix(prefix);
     return instrumentedQTP;
-  }
-
-  /**
-   * Wrapper class to capture servlet response to modify later.
-   */
-  public static class CharResponseWrapper extends HttpServletResponseWrapper {
-    private CharArrayWriter writer;
-
-    public CharResponseWrapper(HttpServletResponse response) {
-      super(response);
-      writer = new CharArrayWriter();
-    }
-
-    public PrintWriter getWriter() {
-      return new PrintWriter(writer);
-    }
-
-    public String toString() {
-      return writer.toString();
-    }
-
-  }
-
-  /**
-   * A servlet filter to modify the prometheus export being generated from dropwizard
-   * to add "_sum" counter for Summary and Histogram type metrics.
-   */
-  public static class HistogramSumGeneratorFilter implements Filter {
-
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException { }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-      CharResponseWrapper wrapper = new CharResponseWrapper((HttpServletResponse) response);
-
-      chain.doFilter(request, wrapper);
-
-      PrintWriter responseWriter = response.getWriter();
-
-      if (wrapper.getContentType().contains("text/plain")) {
-        BufferedReader bufferedReader = new BufferedReader(new CharArrayReader(wrapper.writer.toCharArray()));
-        String line;
-        boolean needsSum = false;
-        String metricName = null;
-        while( (line=bufferedReader.readLine()) != null) {
-          responseWriter.write(line);
-          responseWriter.write('\n');
-          if (line.contains("# TYPE ")) {
-            needsSum = false;  //If type is encountered again, then we need to reset the boolean.
-            if (line.endsWith("histogram") || line.endsWith("summary")) {
-              needsSum = true;
-              metricName = line.split(" ")[2];
-              continue;
-            }
-          }
-          if (needsSum && line.contains(metricName+"_count")) {
-            line = line.replaceAll(metricName+"_count(.*?) .*$", metricName+"_sum$1 0.0");
-            responseWriter.write(line);
-            responseWriter.write('\n');
-            needsSum = false;
-          }
-        }
-        bufferedReader.close();
-      }
-    }
-
-    @Override
-    public void destroy() {}
   }
 }

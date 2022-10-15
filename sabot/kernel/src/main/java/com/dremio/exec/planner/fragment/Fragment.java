@@ -17,6 +17,7 @@ package com.dremio.exec.planner.fragment;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import com.dremio.exec.physical.base.Exchange;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -118,6 +119,22 @@ public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
       result = prime * result + ((exchange == null) ? 0 : exchange.hashCode());
       result = prime * result + ((node == null) ? 0 : node.hashCode());
       return result;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (other == null || getClass() != other.getClass()) {
+        return false;
+      }
+
+      ExchangeFragmentPair castOther = (ExchangeFragmentPair) other;
+
+      return Objects.equals(this.exchange, castOther.exchange)
+          && Objects.equals(this.node, castOther.node);
     }
 
     @Override

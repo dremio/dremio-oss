@@ -27,6 +27,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -53,6 +54,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class ParquetTypeHelper {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetTypeHelper.class);
   private static Map<MinorType, PrimitiveTypeName> typeMap;
   private static Map<DataMode, Repetition> modeMap;
   private static Map<MinorType, OriginalType> originalTypeMap;
@@ -143,53 +145,61 @@ public class ParquetTypeHelper {
                                   PrimitiveType primitiveType,
                                   OriginalType originalType,
                                   SchemaDerivationHelper schemaHelper) {
+    return createField(colPath, primitiveType, originalType, schemaHelper, true);
+  }
+
+  private static Field createField(SchemaPath colPath,
+                            PrimitiveType primitiveType,
+                            OriginalType originalType,
+                            SchemaDerivationHelper schemaHelper,
+                            boolean isNullable) {
     final String colName = colPath.getAsNamePart().getName();
     switch (primitiveType.getPrimitiveTypeName()) {
       case BINARY:
       case FIXED_LEN_BYTE_ARRAY:
         if (originalType == OriginalType.UTF8) {
-          return CompleteType.VARCHAR.toField(colName);
+          return CompleteType.VARCHAR.toField(colName, isNullable);
         }
         if (originalType == OriginalType.DECIMAL) {
 
           return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
-            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName, isNullable);
         }
         if (schemaHelper.isVarChar(colPath)) {
-          return CompleteType.VARCHAR.toField(colName);
+          return CompleteType.VARCHAR.toField(colName, isNullable);
         }
-        return CompleteType.VARBINARY.toField(colName);
+        return CompleteType.VARBINARY.toField(colName, isNullable);
       case BOOLEAN:
-        return CompleteType.BIT.toField(colName);
+        return CompleteType.BIT.toField(colName, isNullable);
       case DOUBLE:
-        return CompleteType.DOUBLE.toField(colName);
+        return CompleteType.DOUBLE.toField(colName, isNullable);
       case FLOAT:
-        return CompleteType.FLOAT.toField(colName);
+        return CompleteType.FLOAT.toField(colName, isNullable);
       case INT32:
         if (originalType == OriginalType.DATE) {
-          return CompleteType.DATE.toField(colName);
+          return CompleteType.DATE.toField(colName, isNullable);
         } else if (originalType == OriginalType.TIME_MILLIS) {
-          return CompleteType.TIME.toField(colName);
+          return CompleteType.TIME.toField(colName, isNullable);
         } else if (originalType == OriginalType.DECIMAL) {
           return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
-            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName, isNullable);
         }
-        return CompleteType.INT.toField(colName);
+        return CompleteType.INT.toField(colName, isNullable);
       case INT64:
         if (originalType == OriginalType.TIMESTAMP_MILLIS || originalType == OriginalType.TIMESTAMP_MICROS) {
-          return CompleteType.TIMESTAMP.toField(colName);
+          return CompleteType.TIMESTAMP.toField(colName, isNullable);
         } else if (originalType == OriginalType.TIME_MICROS) {
-          return CompleteType.TIME.toField(colName);
+          return CompleteType.TIME.toField(colName, isNullable);
         } else if (originalType == OriginalType.DECIMAL) {
           return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
-            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName, isNullable);
         }
-        return CompleteType.BIGINT.toField(colName);
+        return CompleteType.BIGINT.toField(colName, isNullable);
       case INT96:
         if (schemaHelper.readInt96AsTimeStamp()) {
-          return CompleteType.TIMESTAMP.toField(colName);
+          return CompleteType.TIMESTAMP.toField(colName, isNullable);
         }
-        return CompleteType.VARBINARY.toField(colName);
+        return CompleteType.VARBINARY.toField(colName, isNullable);
       default:
         throw UserException.unsupportedError()
           .message("Parquet Primitive Type '%s', Original Type '%s' combination not supported. Column '%s'",
@@ -199,16 +209,16 @@ public class ParquetTypeHelper {
   }
 
   public static Optional<Field> toField(final Type parquetField, final SchemaDerivationHelper schemaHelper) {
-    return toField(parquetField, schemaHelper, false);
+    return toField(parquetField, schemaHelper, false, true);
   }
 
-  private static Optional<Field> toField(final Type parquetField, final SchemaDerivationHelper schemaHelper, boolean convertToStruct) {
+  private static Optional<Field> toField(final Type parquetField, final SchemaDerivationHelper schemaHelper, boolean convertToStruct, boolean isNullable) {
     if (parquetField.isPrimitive()) {
       SchemaPath columnSchemaPath = SchemaPath.getCompoundPath(parquetField.getName());
-      Field field = createField(columnSchemaPath, parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper);
+      Field field = createField(columnSchemaPath, parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper, isNullable);
       if (parquetField.isRepetition(REPEATED)) {
-        Field listChild = new Field("$data$", new FieldType(true, field.getType(), field.getDictionary()), field.getChildren());
-        return Optional.of(new Field(field.getName(), new FieldType(true, new ArrowType.List(), field.getDictionary()), Arrays.asList(listChild)));
+        Field listChild = new Field("$data$", new FieldType(isNullable, field.getType(), field.getDictionary()), field.getChildren());
+        return Optional.of(new Field(field.getName(), new FieldType(isNullable, new ArrowType.List(), field.getDictionary()), Arrays.asList(listChild)));
       }
       return Optional.of(field);
     }
@@ -218,17 +228,17 @@ public class ParquetTypeHelper {
     if (OriginalType.LIST == complexField.getOriginalType() && LogicalListL1Converter.isSupportedSchema(complexField)) {
       GroupType repeatedField = (GroupType) complexField.getFields().get(0);
       Optional<Field> subField = toField(repeatedField.getFields().get(0), schemaHelper);
-      subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
-      return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+      subField = subField.map(sf -> new Field("$data$", new FieldType(isNullable, sf.getType(), sf.getDictionary()), sf.getChildren()));
+      return subField.map(sf -> new Field(complexField.getName(), new FieldType(isNullable, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
     } else if (OriginalType.LIST == complexField.getOriginalType()) {
       if (complexField.getFieldCount() == 1) {
         Type type = complexField.getType(0);
         Optional<Field> subField = toField(type, schemaHelper);
         if (complexField.isRepetition(REPEATED)) {
-          subField = subField.map(sf -> new Field("$data$", new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
-          return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+          subField = subField.map(sf -> new Field("$data$", new FieldType(isNullable, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
+          return subField.map(sf -> new Field(complexField.getName(), new FieldType(isNullable, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
         } else {
-          return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
+          return subField.map(sf -> new Field(complexField.getName(), new FieldType(isNullable, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
         }
       }
       throw UserException.unsupportedError()
@@ -245,17 +255,24 @@ public class ParquetTypeHelper {
           .message("Parquet Map Type is expected to contain key and value fields. Column '%s' contains %d", parquetField.getName(), repeatedField.getFieldCount())
           .build();
       }
-
-      Optional<Field> subField = toField(repeatedField, schemaHelper,true);
-      if (complexField.isRepetition(REPEATED)) {
-        subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
-        subField = subField.map(sf -> new Field(repeatedField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
-        subField = subField.map(sf -> new Field("$data$", new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
-        return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+      if (isEligibleForMap(schemaHelper, repeatedField)) {
+        List<Field> keyValueFields = new ArrayList<>();
+        keyValueFields.add(toField(repeatedField.getType(0), schemaHelper, false, false).get());
+        keyValueFields.add(toField(repeatedField.getType(1), schemaHelper, false, true).get());
+        Field anonymousStruct = CompleteType.struct(keyValueFields).toField(MapVector.DATA_VECTOR_NAME, false);
+        return Optional.of(new Field(complexField.getName(), new FieldType(true, CompleteType.MAP.getType(), null), Arrays.asList(new Field[]{anonymousStruct})));
       } else {
-        subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
-        subField = subField.map(sf -> new Field(repeatedField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
-        return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
+        Optional<Field> subField = toField(repeatedField, schemaHelper,true, isNullable);
+        if (complexField.isRepetition(REPEATED)) {
+          subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
+          subField = subField.map(sf -> new Field(repeatedField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+          subField = subField.map(sf -> new Field("$data$", new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
+          return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+        } else {
+          subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
+          subField = subField.map(sf -> new Field(repeatedField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+          return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
+        }
       }
     }
 
@@ -266,6 +283,22 @@ public class ParquetTypeHelper {
 
     // Unsupported complex type
     return Optional.empty();
+  }
+
+  private static boolean isEligibleForMap(SchemaDerivationHelper schemaHelper, GroupType repeatedField) {
+    if (schemaHelper.isMapDataTypeEnabled()) {
+      boolean isEligible = true;
+      if (repeatedField.getType(0).getOriginalType() != OriginalType.UTF8) {
+        isEligible = false;
+        logger.debug(String.format(" Key of map Field %s is not of VarChar (String) type or is a Complex Type", repeatedField.getName()));
+      }
+      if (!repeatedField.getType(1).isPrimitive()) {
+        isEligible = false;
+        logger.debug(String.format(" Value of map Field %s is a Complex Type",repeatedField.getName()));
+      }
+      return isEligible;
+    }
+    return false;
   }
 
   private static Optional<Field> toComplexField(GroupType complexField, ArrowType arrowType, SchemaDerivationHelper schemaHelper, boolean convertToStruct) {
@@ -324,7 +357,7 @@ public class ParquetTypeHelper {
           if (!LogicalListL1Converter.isSupportedSchema(type.asGroupType())) {
             throw UserException.dataReadError()
               .message("Unsupported LOGICAL LIST parquet schema")
-              .addContext("schema", schema)
+              .addContext("schema: %s", schema)
               .buildSilently();
           }
           type = type.asGroupType().getType(columnPath.get(index+1));
@@ -337,7 +370,7 @@ public class ParquetTypeHelper {
             if (!LogicalListL1Converter.isSupportedSchema(type.asGroupType())) {
               throw UserException.dataReadError()
                 .message("Unsupported LOGICAL LIST parquet schema")
-                .addContext("schema", schema)
+                .addContext("schema: %s", schema)
                 .buildSilently();
             }
             stringBuilder.append(".element");

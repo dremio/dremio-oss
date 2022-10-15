@@ -22,7 +22,7 @@ import org.joda.time.DateTimeZone;
  * {@link Chronology} that wraps around any base chronology, except for {@link #dayOfWeek()} function, in which case,
  * the field is replaced with {@link DayOfWeekFromSundayDateTimeField}.
  */
-public class DayOfWeekFromSundayChronology extends AssembledChronology {
+public final class DayOfWeekFromSundayChronology extends AssembledChronology {
 
   /**
    * Serialization version.

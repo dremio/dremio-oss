@@ -175,7 +175,7 @@ public class DatasetCatalogRequestBuilder {
    * @param datasetPath
    * @return
    */
-  private UpdatableDatasetConfigFields getPreviousMetadata(DatasetCatalogGrpcClient client, List<String> datasetPath) {
+  public UpdatableDatasetConfigFields getPreviousMetadata(DatasetCatalogGrpcClient client, List<String> datasetPath) {
     try {
       logger.debug("Getting dataset config of table {} from DatasetCatalogService", datasetPath);
       return client.getCatalogServiceApi()

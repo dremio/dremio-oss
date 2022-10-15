@@ -29,6 +29,7 @@ public interface Task {
     BLOCKED_ON_UPSTREAM,
     BLOCKED_ON_DOWNSTREAM,
     BLOCKED_ON_SHARED_RESOURCE,
+    BLOCKED_ON_MEMORY, // blocked on obtaining a grant from the memory arbiter
     DONE
   }
 

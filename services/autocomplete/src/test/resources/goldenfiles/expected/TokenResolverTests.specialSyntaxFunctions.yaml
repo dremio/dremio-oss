@@ -1,0 +1,1449 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "CAST"
+  input: "SELECT CAST("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "INTERVAL"
+     - "NULL"
+     - "CASE"
+     - "("
+     - "MULTISET"
+ -
+  description: "CAST"
+  input: "SELECT CAST(myValue "
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "AS"
+     - "."
+     - "IN"
+     - "="
+     - "+"
+ -
+  description: "CAST"
+  input: "SELECT CAST(myValue AS"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "INTEGER"
+     - "BIGINT"
+     - "INTERVAL"
+     - "ANY"
+     - "ARRAY"
+ -
+  description: "CAST"
+  input: "SELECT CAST(myValue AS INTEGER"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ")"
+     - "("
+     - "CHARACTER"
+     - "MULTISET"
+ -
+  description: "CAST"
+  input: "SELECT CAST(myValue AS INTEGER)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "FROM"
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "EXTRACT"
+  input: "SELECT EXTRACT("
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "CENTURY"
+     - "DAY"
+     - "DECADE"
+     - "DOW"
+     - "DOY"
+ -
+  description: "EXTRACT"
+  input: "SELECT EXTRACT(CENTURY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - "FROM"
+ -
+  description: "EXTRACT"
+  input: "SELECT EXTRACT(CENTURY FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "EXTRACT"
+  input: "SELECT EXTRACT(CENTURY FROM datetimeColumn"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "EXTRACT"
+  input: "SELECT EXTRACT(CENTURY FROM datetimeColumn)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "POSITION"
+  input: "SELECT POSITION("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+     - "+"
+ -
+  description: "POSITION"
+  input: "SELECT POSITION(string1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - "IN"
+     - "."
+     - "("
+     - "["
+ -
+  description: "POSITION"
+  input: "SELECT POSITION(string1 IN"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "POSITION"
+  input: "SELECT POSITION(string1 IN string2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - "."
+     - ")"
+     - "="
+     - "+"
+ -
+  description: "POSITION"
+  input: "SELECT POSITION(string1 IN string2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "POSITION"
+  input: "SELECT POSITION(string1 IN string2 FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "POSITION"
+  input: "SELECT POSITION(string1 IN string2 FROM integer1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "POSITION"
+  input: "SELECT POSITION(string1 IN string2 FROM integer1)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "CONVERT"
+  input: "SELECT CONVERT("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "("
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+ -
+  description: "CONVERT"
+  input: "SELECT CONVERT(myValue"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "."
+     - "IN"
+     - "="
+     - "+"
+     - "NOT"
+ -
+  description: "CONVERT"
+  input: "SELECT CONVERT(myValue USING"
+  output:
+    hasIdentifier: true
+    hasMoreResults: false
+    tokens: []
+ -
+  description: "CONVERT"
+  input: "SELECT CONVERT(myValue USING myValue2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ")"
+ -
+  description: "CONVERT"
+  input: "SELECT CONVERT(myValue USING myValue2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "("
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE(char_value"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "USING"
+     - ")"
+     - "."
+     - "IN"
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE(char_value USING "
+  output:
+    hasIdentifier: true
+    hasMoreResults: false
+    tokens: []
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE(char_value USING translation_name"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ")"
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE(char_value USING translation_name)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE(inputString, characters"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "!="
+     - "%"
+     - "("
+     - ")"
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE(inputString, characters, translations"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - ","
+     - "="
+     - "."
+     - "NOT"
+ -
+  description: "TRANSLATE"
+  input: "SELECT TRANSLATE(inputString, characters, translations)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "FROM"
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "("
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "PLACING"
+     - "."
+     - "IN"
+     - "="
+     - "+"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING string2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - "."
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING string2 FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "FOR"
+     - "="
+     - "+"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR integer2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "."
+     - ")"
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "OVERLAY"
+  input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR integer2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "FLOOR"
+  input: "SELECT FLOOR("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "("
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+ -
+  description: "FLOOR"
+  input: "SELECT FLOOR(datetimeColumn"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "TO"
+     - ")"
+     - "."
+     - "IN"
+     - "="
+ -
+  description: "FLOOR"
+  input: "SELECT FLOOR(datetimeColumn TO"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "CENTURY"
+     - "DAY"
+     - "DECADE"
+     - "DOW"
+     - "DOY"
+ -
+  description: "FLOOR"
+  input: "SELECT FLOOR(datetimeColumn TO CENTURY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ")"
+ -
+  description: "FLOOR"
+  input: "SELECT FLOOR(datetimeColumn TO CENTURY)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "CEIL"
+  input: "SELECT CEIL("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "("
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+ -
+  description: "CEIL"
+  input: "SELECT CEIL(datetimeColumn"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "TO"
+     - ")"
+     - "."
+     - "IN"
+     - "="
+ -
+  description: "CEIL"
+  input: "SELECT CEIL(datetimeColumn TO"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "CENTURY"
+     - "DAY"
+     - "DECADE"
+     - "DOW"
+     - "DOY"
+ -
+  description: "CEIL"
+  input: "SELECT CEIL(datetimeColumn TO CENTURY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ")"
+ -
+  description: "CEIL"
+  input: "SELECT CEIL(datetimeColumn TO CENTURY)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "SUBSTRING"
+  input: "SELECT SUBSTRING("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "CASE"
+     - "("
+     - "MULTISET"
+     - "INTERVAL"
+     - "NULL"
+ -
+  description: "SUBSTRING"
+  input: "SELECT SUBSTRING(string1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "."
+     - "FROM"
+     - ","
+     - "IN"
+     - "="
+ -
+  description: "SUBSTRING"
+  input: "SELECT SUBSTRING(string1 FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "SUBSTRING"
+  input: "SELECT SUBSTRING(string1 FROM integer1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "FOR"
+     - ","
+     - "="
+ -
+  description: "SUBSTRING"
+  input: "SELECT SUBSTRING(string1 FROM integer1 FOR "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "SUBSTRING"
+  input: "SELECT SUBSTRING(string1 FROM integer1 FOR integer2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "."
+     - ")"
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "SUBSTRING"
+  input: "SELECT SUBSTRING(string1 FROM integer1 FOR integer2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "BOTH"
+     - "LEADING"
+     - "TRAILING"
+     - ")"
+     - "CASE"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(string1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ")"
+     - "."
+     - "IN"
+     - "="
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(string1 FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(string1 FROM string2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(string1 FROM string2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(BOTH"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - ")"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(BOTH string1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - "."
+     - ")"
+     - "="
+     - "+"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(BOTH string1 FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(BOTH string1 FROM string2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(BOTH string1 FROM string2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(LEADING"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - ")"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(LEADING string1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - "."
+     - ")"
+     - "="
+     - "+"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(LEADING string1 FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(LEADING string1 FROM string2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(LEADING string1 FROM string2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(TRAILING"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - ")"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(TRAILING string1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - "."
+     - ")"
+     - "="
+     - "+"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(TRAILING string1 FROM"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(TRAILING string1 FROM string2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "="
+     - "+"
+     - "<"
+ -
+  description: "TRIM"
+  input: "SELECT TRIM(TRAILING string1 FROM string2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TIMESTAMPADD"
+  input: "SELECT TIMESTAMPADD("
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "DAY"
+     - "FRAC_SECOND"
+     - "MICROSECOND"
+     - "SQL_TSI_DAY"
+     - "SQL_TSI_FRAC_SECOND"
+ -
+  description: "TIMESTAMPADD"
+  input: "SELECT TIMESTAMPADD(DAY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ","
+ -
+  description: "TIMESTAMPADD"
+  input: "SELECT TIMESTAMPADD(DAY, "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "TIMESTAMPADD"
+  input: "SELECT TIMESTAMPADD(DAY, myInteger"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "="
+     - "."
+     - "NOT"
+     - "+"
+ -
+  description: "TIMESTAMPADD"
+  input: "SELECT TIMESTAMPADD(DAY, myInteger, "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "TIMESTAMPADD"
+  input: "SELECT TIMESTAMPADD(DAY, myInteger, myDatetime"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "NOT"
+     - "+"
+     - "-"
+ -
+  description: "TIMESTAMPADD"
+  input: "SELECT TIMESTAMPADD(DAY, myInteger, myDatetime)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "FROM"
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "TIMESTAMPDIFF"
+  input: "SELECT TIMESTAMPDIFF("
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "DAY"
+     - "FRAC_SECOND"
+     - "MICROSECOND"
+     - "SQL_TSI_DAY"
+     - "SQL_TSI_FRAC_SECOND"
+ -
+  description: "TIMESTAMPDIFF"
+  input: "SELECT TIMESTAMPDIFF(DAY"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ","
+ -
+  description: "TIMESTAMPDIFF"
+  input: "SELECT TIMESTAMPDIFF(DAY, "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "TIMESTAMPDIFF"
+  input: "SELECT TIMESTAMPDIFF(DAY, myDatetime"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "="
+     - "."
+     - "NOT"
+     - "+"
+ -
+  description: "TIMESTAMPDIFF"
+  input: "SELECT TIMESTAMPDIFF(DAY, myDatetime, "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "MULTISET"
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "TIMESTAMPDIFF"
+  input: "SELECT TIMESTAMPDIFF(DAY, myDatetime, myDatetime2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - "NOT"
+     - "+"
+     - "-"
+ -
+  description: "TIMESTAMPDIFF"
+  input: "SELECT TIMESTAMPDIFF(DAY, myDatetime, myDatetime2)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ","
+     - "FROM"
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "CASE"
+  input: "SELECT CASE"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "WHEN"
+     - "("
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "TRUE"
+     - "("
+     - "FALSE"
+     - "+"
+     - "-"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "THEN"
+     - ","
+     - "IN"
+     - "."
+     - "="
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "FALSE"
+     - "("
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN result1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "ELSE"
+     - "WHEN"
+     - "IN"
+     - "."
+     - "="
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN result1 END"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN result1 ELSE"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "NULL"
+     - "FALSE"
+     - "("
+     - "+"
+     - "-"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN result1 ELSE resultZ"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "END"
+     - "."
+     - "IN"
+     - "="
+     - "+"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN result1 ELSE resultZ END"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1, when2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "."
+     - "NOT"
+     - "+"
+     - ","
+     - "-"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1, when2 THEN"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "FALSE"
+     - "("
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN result1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "ELSE"
+     - "WHEN"
+     - "IN"
+     - "."
+     - "="
+ -
+  description: "CASE"
+  input: "SELECT CASE case1 WHEN when1 THEN result1 THEN"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "!="
+     - "%"
+     - "("
+     - "*"
+     - "+"
+ -
+  description: "CASE"
+  input: "SELECT CASE"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "WHEN"
+     - "("
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "IN"
+     - "THEN"
+     - "."
+     - ","
+     - "="
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "FALSE"
+     - "("
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN result1"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "ELSE"
+     - "WHEN"
+     - "IN"
+     - "."
+     - "="
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN result1 END"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN result1 ELSE"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "NULL"
+     - "FALSE"
+     - "("
+     - "+"
+     - "-"
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN result1 ELSE resultZ"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "END"
+     - "."
+     - "IN"
+     - "="
+     - "+"
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN result1 ELSE resultZ END"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - ";"
+     - "EXCEPT"
+     - "FETCH"
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN result1 WHEN "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "TRUE"
+     - "("
+     - "FALSE"
+     - "+"
+     - "-"
+ -
+  description: "CASE"
+  input: "SELECT CASE WHEN condition1 THEN result1 WHEN condition2"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "THEN"
+     - ","
+     - "IN"
+     - "."
+     - "="
+ -
+  description: "COUNT"
+  input: "SELECT COUNT("
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "*"
+     - "DISTINCT"
+     - "SELECT"
+     - ")"
+     - "VALUES"
+ -
+  description: "COUNT"
+  input: "SELECT COUNT(*"
+  output:
+    hasIdentifier: false
+    hasMoreResults: false
+    tokens:
+     - ")"
+ -
+  description: "COUNT"
+  input: "SELECT COUNT(*)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "COUNT"
+  input: "SELECT COUNT(DISTINCT"
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "MULTISET"
+     - "("
+     - "+"
+     - "-"
+     - "?"
+ -
+  description: "COUNT"
+  input: "SELECT COUNT(DISTINCT myValue"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "+"
+     - ","
+     - "."
+     - ")"
+     - "="
+ -
+  description: "COUNT"
+  input: "SELECT COUNT(DISTINCT myValue)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"
+ -
+  description: "COUNT"
+  input: "SELECT COUNT(myValue"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - ")"
+     - "."
+     - ","
+     - "IN"
+     - "="
+ -
+  description: "COUNT"
+  input: "SELECT COUNT(myValue)"
+  output:
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "FROM"
+     - ","
+     - "ORDER"
+     - ";"
+     - "EXCEPT"

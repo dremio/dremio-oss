@@ -75,7 +75,6 @@ import com.google.protobuf.ByteString;
 @NessieDbAdapterConfigItem(name = "key.list.distance", value = "20") // testKeyListPurge() depends on this value
 class ITCommitLogMaintenance {
 
-  @SuppressWarnings("checkstyle:visibilityModifier") // this field is set via reflection, it cannot be `private`
   @NessieDbAdapter(configMethod = "configureAdapter")
   protected static DatabaseAdapter databaseAdapter;
 

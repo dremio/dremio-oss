@@ -46,8 +46,7 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 
 @SuppressWarnings({"deprecation"})
-public class StatisticsAggrFunctions {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StatisticsAggrFunctions.class);
+public final class StatisticsAggrFunctions {
 
   /**
    * The size of the array used in hll will be of size 2^x/6
@@ -594,7 +593,7 @@ public class StatisticsAggrFunctions {
     @Override
     public void add() {
       if(in.isSet == 1) {
-        ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).addInt(in.milliseconds);;
+        ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).addInt(in.milliseconds);
       }
     }
 
@@ -694,5 +693,9 @@ public class StatisticsAggrFunctions {
     public void reset() {
       ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).reset();
     }
+  }
+
+  private StatisticsAggrFunctions() {
+    // Utility class
   }
 }

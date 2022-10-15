@@ -19,257 +19,67 @@
   description: "ONE_ARG_BOOLEAN_FUNCTION"
   input: "ONE_ARG_BOOLEAN_FUNCTION"
   output:
-    description: null
     name: "ONE_ARG_BOOLEAN_FUNCTION"
     signatures:
-     -
-      operandTypes:
-       - "BOOLEAN"
-      returnType: "BOOLEAN"
-      template: null
-    syntax: "<BOOLEAN>"
+     - "(BOOLEAN) -> BOOLEAN"
  -
   description: "ONE_ARG_NUMERIC_FUNCTION"
   input: "ONE_ARG_NUMERIC_FUNCTION"
   output:
-    description: null
     name: "ONE_ARG_NUMERIC_FUNCTION"
     signatures:
-     -
-      operandTypes:
-       - "INTEGER"
-      returnType: "INTEGER"
-      template: null
-     -
-      operandTypes:
-       - "DECIMAL"
-      returnType: "INTEGER"
-      template: null
-     -
-      operandTypes:
-       - "FLOAT"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DOUBLE"
-      returnType: "DOUBLE"
-      template: null
-    syntax: "<NUMERIC>"
+     - "(NUMERIC) -> DOUBLE"
+ -
+  description: "OPTIONAL_ARGUMENT_FUNCTION"
+  input: "OPTIONAL_ARGUMENT_FUNCTION"
+  output:
+    name: "OPTIONAL_ARGUMENT_FUNCTION"
+    signatures:
+     - "(BYTES, BOOLEAN?) -> DOUBLE"
+     - "(BOOLEAN, CHARACTERS, BYTES) -> DOUBLE"
+     - "(BYTES, BOOLEAN, CHARACTERS?) -> DOUBLE"
  -
   description: "OVERLOADED_FUNCTION"
   input: "OVERLOADED_FUNCTION"
   output:
-    description: null
     name: "OVERLOADED_FUNCTION"
     signatures:
-     -
-      operandTypes:
-       - "DATE"
-       - "BINARY"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "BINARY"
-       - "BOOLEAN"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "BOOLEAN"
-       - "DATE"
-       - "BINARY"
-      returnType: "DOUBLE"
-      template: null
-    syntax: null
+     - "(BYTES, BOOLEAN) -> DOUBLE"
+     - "(DATE, BYTES) -> DOUBLE"
+     - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+     - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
  -
   description: "TWO_ARG_NUMERIC_FUNCTION"
   input: "TWO_ARG_NUMERIC_FUNCTION"
   output:
-    description: null
     name: "TWO_ARG_NUMERIC_FUNCTION"
     signatures:
-     -
-      operandTypes:
-       - "INTEGER"
-       - "INTEGER"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "INTEGER"
-       - "DECIMAL"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "INTEGER"
-       - "FLOAT"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "INTEGER"
-       - "DOUBLE"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DECIMAL"
-       - "INTEGER"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DECIMAL"
-       - "DECIMAL"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DECIMAL"
-       - "FLOAT"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DECIMAL"
-       - "DOUBLE"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "FLOAT"
-       - "INTEGER"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "FLOAT"
-       - "DECIMAL"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "FLOAT"
-       - "FLOAT"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "FLOAT"
-       - "DOUBLE"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DOUBLE"
-       - "INTEGER"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DOUBLE"
-       - "DECIMAL"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DOUBLE"
-       - "FLOAT"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "DOUBLE"
-       - "DOUBLE"
-      returnType: "DOUBLE"
-      template: null
-    syntax: "<NUMERIC>, <NUMERIC>"
+     - "(NUMERIC, NUMERIC) -> DOUBLE"
  -
   description: "UNSTABLE_RETURN_TYPE_FUNCTION"
   input: "UNSTABLE_RETURN_TYPE_FUNCTION"
   output:
-    description: null
     name: "UNSTABLE_RETURN_TYPE_FUNCTION"
     signatures:
-     -
-      operandTypes:
-       - "BOOLEAN"
-      returnType: "DECIMAL"
-      template: null
-     -
-      operandTypes:
-       - "INTEGER"
-      returnType: "INTEGER"
-      template: null
-     -
-      operandTypes:
-       - "DECIMAL"
-      returnType: "INTEGER"
-      template: null
-     -
-      operandTypes:
-       - "FLOAT"
-      returnType: "DECIMAL"
-      template: null
-     -
-      operandTypes:
-       - "DOUBLE"
-      returnType: "DECIMAL"
-      template: null
-     -
-      operandTypes:
-       - "DATE"
-      returnType: "DECIMAL"
-      template: null
-     -
-      operandTypes:
-       - "TIME"
-      returnType: "DECIMAL"
-      template: null
-     -
-      operandTypes:
-       - "VARCHAR"
-      returnType: "DECIMAL"
-      template: null
-     -
-      operandTypes:
-       - "BINARY"
-      returnType: "DECIMAL"
-      template: null
-    syntax: "<ANY>"
+     - "(BOOLEAN) -> DECIMAL"
+     - "(STRING) -> DECIMAL"
+     - "(DATEANDTIME) -> DECIMAL"
+     - "(FLOAT) -> DECIMAL"
+     - "(DECIMAL) -> INT"
+     - "(DOUBLE) -> DECIMAL"
+     - "(INT) -> INT"
+     - "(BIGINT) -> INT"
  -
   description: "VARADIC_FUNCTION"
   input: "VARADIC_FUNCTION"
   output:
-    description: null
     name: "VARADIC_FUNCTION"
     signatures:
-     -
-      operandTypes:
-       - "VARCHAR"
-       - "VARCHAR"
-      returnType: "DOUBLE"
-      template: null
-     -
-      operandTypes:
-       - "VARCHAR"
-       - "VARCHAR"
-       - "VARCHAR"
-      returnType: "DOUBLE"
-      template: null
-    syntax: null
+     - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
  -
   description: "ZERO_ARG_FUNCTION"
   input: "ZERO_ARG_FUNCTION"
   output:
-    description: null
     name: "ZERO_ARG_FUNCTION"
     signatures:
-     -
-      operandTypes: []
-      returnType: "DOUBLE"
-      template: null
-    syntax: ""
+     - "() -> DOUBLE"

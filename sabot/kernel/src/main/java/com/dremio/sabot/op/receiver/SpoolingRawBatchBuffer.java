@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -41,6 +42,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.store.LocalSyncableFileSystem;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
@@ -99,9 +101,9 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   private final int oppositeId;
   private final int bufferIndex;
 
-  // spoolingState and currentSizeInMemory can be accessed by both the fragment and fabric threads
+  // spoolingState and batchesInMemory can be accessed by both the fragment and fabric threads
   private AtomicReference<SpoolingState> spoolingState = new AtomicReference<>(SpoolingState.PAUSE_SPOOLING);
-  private volatile long currentBatchesInMemory = 0;
+  private final AtomicLong batchesInMemory = new AtomicLong(0);
 
   private BufferAllocator allocator = null;
   private SpillFile spillFile;
@@ -110,13 +112,15 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   private long inputStreamLastKnownLen;
   private final FragmentWorkQueue workQueue;
   private final DeferredException deferred = new DeferredException();
+  private final SabotConfig config;
   private SpillManager spillManager;
   private SpillService spillService;
 
-  public SpoolingRawBatchBuffer(SharedResource resource, final SabotConfig config, FragmentWorkQueue workQueue,
+  public SpoolingRawBatchBuffer(SharedResource resource, final SabotConfig config, final OptionManager options, FragmentWorkQueue workQueue,
                                 FragmentHandle handle, SpillService spillService, BufferAllocator parentAllocator,
                                 int fragmentCount, int oppositeId, int bufferIndex) {
-    super(resource, config, handle, parentAllocator, fragmentCount);
+    super(resource, options, handle, parentAllocator, fragmentCount);
+    this.config = config;
     this.threshold = config.getLong(ExecConstants.SPOOLING_BUFFER_SIZE);
     this.oppositeId = oppositeId;
     this.bufferIndex = bufferIndex;
@@ -242,11 +246,10 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     assert batch.getHeader().getSendingMajorFragmentId() == oppositeId;
 
     logger.debug("Enqueue batch. Current buffer size: {}. Sending fragment: {}", bufferQueue.size(), batch.getHeader().getSendingMajorFragmentId());
-    RawFragmentBatchWrapper wrapper;
 
     boolean spoolCurrentBatch = isCurrentlySpooling();
-    wrapper = new RawFragmentBatchWrapper(batch, !spoolCurrentBatch);
-    currentBatchesInMemory++;
+    RawFragmentBatchWrapper wrapper = new RawFragmentBatchWrapper(batch, !spoolCurrentBatch);
+    final long currentBatchesInMemory = batchesInMemory.incrementAndGet();
     if (spoolCurrentBatch) {
       addBatchForSpooling(wrapper);
     }
@@ -260,9 +263,8 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   @Override
   protected void upkeep(RawFragmentBatch batch) {
     ArrowBuf body = batch.getBody();
-    if (body != null) {
-      currentBatchesInMemory--;
-    }
+    final long currentBatchesInMemory = body != null ?
+      batchesInMemory.decrementAndGet() : batchesInMemory.get();
     if (isCurrentlySpooling() && currentBatchesInMemory < threshold * STOP_SPOOLING_FRACTION) {
       logger.debug("buffer size {} less than {}x threshold. Stop spooling.", currentBatchesInMemory, STOP_SPOOLING_FRACTION);
       pauseSpooling();

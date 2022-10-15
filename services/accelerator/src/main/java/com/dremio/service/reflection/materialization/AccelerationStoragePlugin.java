@@ -78,6 +78,9 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
+import com.dremio.service.namespace.capabilities.CapabilityValue;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl;
@@ -100,6 +103,7 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationStoragePlugin.class);
 
+  public static final BooleanCapabilityValue CAN_USE_PARTITION_STATS = new BooleanCapabilityValue(SourceCapabilities.getCanUsePartitionStats(), true);
   private static final FileUpdateKey EMPTY = FileUpdateKey.getDefaultInstance();
   private MaterializationStore materializationStore;
   private ParquetFormatPlugin formatPlugin;
@@ -323,6 +327,18 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
       GetMetadataOption... options
   ) throws ConnectorException {
     return datasetHandle.unwrap(FileDatasetHandle.class).getDatasetMetadata(options);
+  }
+
+  @Override
+  public SourceCapabilities getSourceCapabilities() {
+    List<CapabilityValue<?,?>> capabilities = super.getSourceCapabilities().getCapabilitiesList();
+    List<CapabilityValue<?,?>> newCapabilities = new ArrayList() {
+      {
+        add(CAN_USE_PARTITION_STATS);
+        addAll(capabilities);
+      }
+    };
+    return new SourceCapabilities(newCapabilities);
   }
 
   @Override

@@ -92,8 +92,8 @@ public final class DremioFutures {
   ) throws TimeoutException, X {
     Throwable cause = e.getCause();
     if (exceptionClass.isInstance(cause)
-      | cause instanceof RuntimeException
-      | cause instanceof Error) {
+      || cause instanceof RuntimeException
+      || cause instanceof Error) {
       throw mapper.apply(cause);
     } else if (cause instanceof TimeoutException) {
       throw (TimeoutException) cause;

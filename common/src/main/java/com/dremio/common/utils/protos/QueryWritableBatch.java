@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 
 public class QueryWritableBatch {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryWritableBatch.class);
 
   private final QueryData header;
   private final ByteBuf[] buffers;

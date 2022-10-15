@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 import Immutable from "immutable";
 
 import { fixedWidthSmall } from "uiTheme/radium/typography";
@@ -93,11 +92,14 @@ class CardContentView extends PureComponent {
         index === 2 ? { borderBottom: `1px solid ${BORDER}` } : {};
 
       return (
-        <div style={[styles.line, extraBorder, fixedWidthSmall]} key={index}>
+        <div
+          style={{ ...styles.line, ...extraBorder, ...fixedWidthSmall }}
+          key={index}
+        >
           {textParts.map((part) => {
             const style = part.highlight
-              ? [fixedWidthSmall, styles.hightlight]
-              : [];
+              ? { ...fixedWidthSmall, ...styles.hightlight }
+              : {};
             return (
               <span key={part.text} style={style}>
                 {part.text}
@@ -117,15 +119,16 @@ class CardContentView extends PureComponent {
     ) : (
       this.getContent()
     );
+
     return (
-      <div style={[styles.base, { height: "80%" }]}>
-        <div style={[styles.wrap, heightStyle]}>{content}</div>
+      <div style={{ ...styles.base, height: "80%" }}>
+        <div style={{ ...styles.wrap, ...heightStyle }}>{content}</div>
       </div>
     );
   }
 }
 
-export default Radium(CardContentView);
+export default CardContentView;
 
 const styles = {
   base: {

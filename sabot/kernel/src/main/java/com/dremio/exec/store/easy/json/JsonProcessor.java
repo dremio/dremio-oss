@@ -38,10 +38,9 @@ public interface JsonProcessor {
 
   void ensureAtLeastOneField(BaseWriter.ComplexWriter writer);
 
-  UserException.Builder getExceptionWithContext(UserException.Builder exceptionBuilder, String field, String msg,
-      Object... args);
+  UserException.Builder getExceptionWithContext(UserException.Builder exceptionBuilder, String field);
 
-  UserException.Builder getExceptionWithContext(Throwable exception, String field, String msg, Object... args);
+  UserException.Builder getExceptionWithContext(Throwable exception, String field);
 
   /**
    * Reset the data size counter.

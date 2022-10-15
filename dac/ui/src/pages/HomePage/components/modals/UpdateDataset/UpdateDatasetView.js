@@ -19,7 +19,8 @@ import classNames from "classnames";
 import { FormattedMessage, injectIntl } from "react-intl";
 import Immutable from "immutable";
 
-import Button from "components/Buttons/Button";
+import { Button } from "dremio-ui-lib";
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
 import ModalFooter from "components/Modals/components/ModalFooter";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
 import Message from "components/Message";
@@ -225,13 +226,19 @@ export class UpdateDatasetView extends Component {
         button.key === "cancel"
           ? hide
           : handleSubmit(submit.bind(this, button.key));
+
       return (
         <Button
           style={{ marginLeft: 5, marginBottom: 0 }}
           className={button.className}
           onClick={onClick}
           text={button.name}
-          type={button.type}
+          disableMargin
+          color={
+            button.type === ButtonTypes.NEXT
+              ? ButtonTypes.UI_LIB_PRIMARY
+              : ButtonTypes.UI_LIB_SECONDARY
+          }
           key={`${index}_button`}
         />
       );

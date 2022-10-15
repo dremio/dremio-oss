@@ -18,7 +18,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import clsx from "clsx";
 
-import MuiDialogTitle from "@material-ui/core/DialogTitle";
+import MuiDialogTitle from "@mui/material/DialogTitle";
 
 import { ReactComponent as WarningIcon } from "../../../art/WarningCircle.svg";
 import { ReactComponent as ErrorIcon } from "../../../art/ErrorCircle.svg";

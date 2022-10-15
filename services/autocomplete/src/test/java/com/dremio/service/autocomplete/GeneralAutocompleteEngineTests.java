@@ -21,32 +21,20 @@ import com.dremio.test.GoldenFileTestBuilder;
 
 public final class GeneralAutocompleteEngineTests extends AutocompleteEngineTests {
   @Test
-  public void multiSql() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add(
-        "MULTI SQL",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP; ^"))
-      .add(
-        "MULTI SQL 2",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP; SELECT ^"))
-      .add(
-        "MULTI SQL 3",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM ^;SELECT * FROM EMP"))
-      .add(
-        "MULTI SQL 4",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM ^;"))
-      .runTests();
-  }
-
-  @Test
   public void prefixFiltering() {
     new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
       .add(
         "PREFIX FILTERING FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT ONE_ARG_NUM^"))
+        GoldenFileTestBuilder.MultiLineString.create("SELECT AB^"))
+      .add(
+        "PREFIX FILTERING PARAMETER",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT ABS(EMP.DEPT^ FROM EMP"))
       .add(
         "PREFIX FILTERING CATALOG ENTRIES",
         GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM dep^"))
+      .add(
+        "PREFIX FILTERING CATALOG ENTRIES WITH DOUBLE QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"dep^\""))
       .add(
         "PREFIX FILTERING COLUMNS",
         GoldenFileTestBuilder.MultiLineString.create("SELECT E^ FROM EMP"))
@@ -70,10 +58,19 @@ public final class GeneralAutocompleteEngineTests extends AutocompleteEngineTest
         GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP LEF^"))
       .add(
         "LEFT AS FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT LEF^ FROM EMP"))
+        GoldenFileTestBuilder.MultiLineString.create("SELECT LEF^"))
       .add(
         "ABS IS ONLY EVER A FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT AB^ FROM EMP"))
+        GoldenFileTestBuilder.MultiLineString.create("SELECT AB^"))
+      .add(
+        "MIN AS FUNCTION",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT MI^"))
+      .add(
+        "MIN AS KEYWORD",
+        GoldenFileTestBuilder.MultiLineString.create("ALTER TABLE EMP CREATE AGGREGATE REFLECTION myReflection\n" +
+          "USING \n"+
+          "DIMENSIONS(EMPNO BY DAY, ENAME)\n" +
+          "MEASURES(EMPNO (COUNT, MI^"))
       .runTests();
   }
 
@@ -86,6 +83,9 @@ public final class GeneralAutocompleteEngineTests extends AutocompleteEngineTest
       .add(
         "OUTSIDE OF COMMENT BLOCK",
         GoldenFileTestBuilder.MultiLineString.create("/*SELECT */ SELECT * ^"))
+      .add(
+        "INSIDE DOUBLE QUOTES",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"^\""))
       .runTests();
   }
 

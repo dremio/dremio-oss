@@ -93,6 +93,7 @@ import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.users.SystemUser;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
@@ -267,6 +268,9 @@ public class TestDatasetCatalogServiceImpl {
         .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
       when(sabotContext.isCoordinator())
         .thenReturn(true);
+
+      when(sabotContext.getCredentialsServiceProvider())
+        .thenReturn(() -> mock(CredentialsService.class));
 
       pool = new CloseableThreadPool("catalog-test");
       fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION, MAX_ALLOCATION,

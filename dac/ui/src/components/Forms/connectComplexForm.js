@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from "react";
+import { Children, cloneElement, Component } from "react";
 import PropTypes from "prop-types";
 import invariant from "invariant";
 import { noop } from "lodash";
@@ -56,12 +56,12 @@ export class InnerComplexForm extends Component {
           />
         )}
 
-        {React.Children.map(children, (child) => {
+        {Children.map(children, (child) => {
           // will throw an error, if error has unsupported type for a component
           // I step in that case with FieldWithError component, that expect string as error, not an
           // object
           if (child) {
-            return React.cloneElement(child, { fields, handleSubmit, error });
+            return cloneElement(child, { fields, handleSubmit, error });
           }
         })}
       </form>

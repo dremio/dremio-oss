@@ -45,6 +45,7 @@ public final class PDFSLocalFileSystem extends RawLocalFileSystem {
       return CloseableRemoteIterator.of(getFileStatus(f));
     }
 
+    @SuppressWarnings("StreamResourceLeak")
     final Stream<FileStatus> statuses = Files.list(localp)
         .map(p -> {
           Path hp = new Path(f, new Path(null, null, p.toFile().getName()));

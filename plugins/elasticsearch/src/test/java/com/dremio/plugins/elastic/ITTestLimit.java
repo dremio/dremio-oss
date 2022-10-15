@@ -372,7 +372,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
       test("set planner.leaf_limit_enable = true");
       // We cannot push down complex fields
       String sqlQuery = "select t.location_field[1] as location_1 from elasticsearch." + schema + "." + table + " t offset 2 fetch next 1 row only";
-      testPlanMatchingPatterns(sqlQuery, new String[] { "Limit\\(offset=\\[2\\], fetch=\\[1\\]\\)", "Limit\\(offset=\\[0\\], fetch=\\[3\\]\\)"}, null);
+      testPlanMatchingPatterns(sqlQuery, new String[] { "Limit\\(offset=\\[2\\], fetch=\\[1\\]\\)", "Limit\\(offset=\\[0:BIGINT\\], fetch=\\[3:BIGINT\\]\\)"}, null);
       verifyJsonInPlanHelper(sqlQuery, new String[]{
           "[{\n" +
           "  \"from\" : 0,\n" +
@@ -446,7 +446,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     try {
       test("set planner.leaf_limit_enable = true");
       String sqlQueryLimit100 = "select state, city_analyzed, review_count from elasticsearch." + schema + "." + table + " where stars >= 4 limit 100000";
-      testPlanMatchingPatterns(sqlQueryLimit100, new String[] { "Limit\\(offset=\\[0\\], fetch=\\[1000\\]\\)"}, null);
+      testPlanMatchingPatterns(sqlQueryLimit100, new String[] { "Limit\\(offset=\\[0:BIGINT\\], fetch=\\[1000:BIGINT\\]\\)"}, null);
       verifyJsonInPlanHelper(sqlQueryLimit100, new String[]{
           "[{\n" +
           "  \"from\" : 0,\n" +

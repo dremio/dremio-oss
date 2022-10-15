@@ -22,15 +22,14 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.RAW;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.REFLECTION;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.USING;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 
 public final class ReflectionCreateStatement {
   private ReflectionCreateStatement() {
   }
 
-  static Statement parse(TokenBuffer tokenBuffer, CatalogPath catalogPath) {
+  static Statement parse(TokenBuffer tokenBuffer, TableReference tableReference) {
     Preconditions.checkNotNull(tokenBuffer);
     if (tokenBuffer.isEmpty()) {
       return null;
@@ -59,11 +58,11 @@ public final class ReflectionCreateStatement {
     tokenBuffer.readAndCheckKind(USING);
     switch (kind) {
     case RAW:
-      return RawReflectionCreateStatement.parse(tokenBuffer, catalogPath, reflectionName);
+      return RawReflectionCreateStatement.parse(tokenBuffer, tableReference, reflectionName);
     case AGGREGATE:
-      return AggregateReflectionCreateStatement.parse(tokenBuffer, catalogPath, reflectionName);
+      return AggregateReflectionCreateStatement.parse(tokenBuffer, tableReference, reflectionName);
     case EXTERNAL:
-      return ExternalReflectionCreateStatement.parse(tokenBuffer, catalogPath, reflectionName);
+      return ExternalReflectionCreateStatement.parse(tokenBuffer, tableReference, reflectionName);
     default:
       throw new UnsupportedOperationException("UNKNOWN REFLECTION TYPE: " + kind);
     }

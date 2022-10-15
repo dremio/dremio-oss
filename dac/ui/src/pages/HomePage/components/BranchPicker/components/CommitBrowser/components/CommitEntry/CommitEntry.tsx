@@ -20,7 +20,7 @@ import {
   formatDate,
   formatDateSince,
 } from "@app/utils/date";
-import { Tooltip } from "@material-ui/core";
+import { Tooltip } from "@mui/material";
 import classNames from "classnames";
 import { useRef } from "react";
 
@@ -44,11 +44,10 @@ function CommitEntryTooltip({
   const intl = useIntl();
   return (
     <Tooltip
-      interactive
       enterDelay={750}
       enterNextDelay={500}
       placement="right"
-      PopperProps={{ anchorEl: anchorRef.current }}
+      PopperProps={{ anchorEl: () => anchorRef.current }}
       title={
         <div className="commitEntryTooltip">
           {commit.hash && <CommitHash branch={branch} hash={commit.hash} />}
@@ -78,7 +77,7 @@ function CommitEntryTooltip({
 
 function CommitEntry({
   logEntry,
-  onClick = (_) => {},
+  onClick,
   isSelected,
   branch,
   disabled,
@@ -89,10 +88,12 @@ function CommitEntry({
   branch: string;
   disabled?: boolean;
 }) {
-  const commit = logEntry.commitMeta!;
-  const user = commit.author || "";
+  const commit = logEntry.commitMeta;
   const ref = useRef(null);
 
+  if (!commit) return null;
+
+  const user = commit.author || "";
   return (
     <div className={classNames("commitEntry", { isSelected, disabled })}>
       {!disabled && (
@@ -104,7 +105,9 @@ function CommitEntry({
         >
           <button
             className="commitEntry-select"
-            onClick={(_) => onClick(logEntry)}
+            onClick={() => {
+              if (onClick) onClick(logEntry);
+            }}
           />
         </CommitEntryTooltip>
       )}

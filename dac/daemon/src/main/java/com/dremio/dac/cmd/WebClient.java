@@ -22,6 +22,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.Optional;
 
+import javax.inject.Provider;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.ProcessingException;
@@ -44,6 +45,7 @@ import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.ssl.SSLHelper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
@@ -53,12 +55,20 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 public class WebClient {
   private WebTarget target;
   private UserLoginSession userSession;
+
+  private final Provider<CredentialsService> credentialsServiceProvider;
   private final boolean checkCertificates;
 
-  public WebClient(DACConfig dacConfig, String userName, String password, boolean checkCertificates)
+  public WebClient(
+    DACConfig dacConfig,
+    Provider<CredentialsService> credentialsServiceProvider,
+    String userName,
+    String password,
+    boolean checkCertificates
+  )
     throws IOException, GeneralSecurityException {
     this.checkCertificates = checkCertificates;
-
+    this.credentialsServiceProvider = credentialsServiceProvider;
 
     this.target = getWebClient(dacConfig);
     this.userSession = buildPost(UserLoginSession.class, "/login", new UserLogin(userName, password), false);
@@ -103,7 +113,8 @@ public class WebClient {
     Optional<KeyStore> trustStore = Optional.empty();
 
     if (checkCertificates) {
-      trustStore = new SSLConfigurator(dacConfig.getConfig(), DremioConfig.WEB_SSL_PREFIX, "web").getTrustStore();
+      // if checkCertificates is false, credentialsServiceProvider.get() will be null
+      trustStore = new SSLConfigurator(dacConfig.getConfig(), credentialsServiceProvider, DremioConfig.WEB_SSL_PREFIX, "web").getTrustStore();
       if (trustStore.isPresent()) {
         clientBuilder.trustStore(trustStore.get());
       }

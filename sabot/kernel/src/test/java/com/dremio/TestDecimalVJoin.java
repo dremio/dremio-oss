@@ -34,7 +34,7 @@ public class TestDecimalVJoin extends BaseTestQuery {
       testBuilder().sqlQuery(query)
         .unOrdered()
         .baselineColumns("EXPR$0")
-        .baselineValues(500l)
+        .baselineValues(500L)
         .go();
     } finally {
       Boolean decimalDefault = PlannerSettings.ENABLE_DECIMAL_DATA_TYPE.getDefault().getBoolVal();

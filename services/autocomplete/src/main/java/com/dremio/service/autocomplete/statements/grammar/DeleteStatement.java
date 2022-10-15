@@ -16,15 +16,11 @@
 package com.dremio.service.autocomplete.statements.grammar;
 
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.DELETE;
-import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.FROM;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.WHERE;
 
-import org.apache.arrow.util.Preconditions;
-
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -33,45 +29,35 @@ import com.google.common.collect.ImmutableList;
  *       [ WHERE booleanExpression ]
  */
 public final class DeleteStatement extends Statement {
-  private final CatalogPath catalogPath;
-  private final ImmutableList<DremioToken> condition;
+  private final FromClause fromClause;
+  private final Expression condition;
 
   protected DeleteStatement(
     ImmutableList<DremioToken> tokens,
-    CatalogPath catalogPath,
-    ImmutableList<DremioToken> condition) {
-    super(tokens, ImmutableList.of());
-    this.catalogPath = catalogPath;
+    FromClause fromClause,
+    Expression condition) {
+    super(tokens, asListIgnoringNulls(fromClause, condition));
+    this.fromClause = fromClause;
     this.condition = condition;
   }
 
-  public CatalogPath getCatalogPath() {
-    return catalogPath;
+  public FromClause getFromClause() {
+    return fromClause;
   }
 
-  public ImmutableList<DremioToken> getCondition() {
+  public Expression getCondition() {
     return condition;
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
   }
 
   public static DeleteStatement parse(TokenBuffer tokenBuffer) {
     Preconditions.checkNotNull(tokenBuffer);
     return new Builder(tokenBuffer.toList())
-      .addCatalogPath(parseCatalogPath(tokenBuffer))
-      .addCondition(parseCondition(tokenBuffer))
+      .addFromClause(parseFromClause(tokenBuffer))
+      .addCondition(tokenBuffer)
       .build();
   }
 
-  private static CatalogPath parseCatalogPath(TokenBuffer tokenBuffer) {
+  private static FromClause parseFromClause(TokenBuffer tokenBuffer) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -81,16 +67,11 @@ public final class DeleteStatement extends Statement {
       return null;
     }
 
-    tokenBuffer.readAndCheckKind(FROM);
-    if (tokenBuffer.isEmpty()) {
-      return null;
-    }
-
-    ImmutableList<DremioToken> catalogPathTokens = tokenBuffer.readUntilKind(WHERE);
-    return CatalogPath.parse(catalogPathTokens);
+    ImmutableList<DremioToken> fromClauseTokens = tokenBuffer.readUntilKind(WHERE);
+    return FromClause.parse(fromClauseTokens);
   }
 
-  private static ImmutableList<DremioToken> parseCondition(TokenBuffer tokenBuffer) {
+  private static Expression parseCondition(TokenBuffer tokenBuffer, FromClause fromClause) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -100,30 +81,30 @@ public final class DeleteStatement extends Statement {
       return null;
     }
 
-    return tokenBuffer.drainRemainingTokens();
+    return Expression.parse(tokenBuffer.drainRemainingTokens(), fromClause);
   }
 
   private static final class Builder {
     private final ImmutableList<DremioToken> tokens;
-    private CatalogPath catalogPath;
-    private ImmutableList<DremioToken> condition;
+    private FromClause fromClause;
+    private Expression condition;
 
     public Builder(ImmutableList<DremioToken> tokens) {
       this.tokens = tokens;
     }
 
-    public Builder addCatalogPath(CatalogPath catalogPath) {
-      this.catalogPath = catalogPath;
+    public Builder addFromClause(FromClause fromClause) {
+      this.fromClause = fromClause;
       return this;
     }
 
-    public Builder addCondition(ImmutableList<DremioToken> condition) {
-      this.condition = condition;
+    public Builder addCondition(TokenBuffer tokenBuffer) {
+      this.condition = parseCondition(tokenBuffer, fromClause);
       return this;
     }
 
     public DeleteStatement build() {
-      return new DeleteStatement(tokens, catalogPath, condition);
+      return new DeleteStatement(tokens, fromClause, condition);
     }
   }
 }

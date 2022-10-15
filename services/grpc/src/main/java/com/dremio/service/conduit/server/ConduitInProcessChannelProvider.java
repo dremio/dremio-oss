@@ -16,8 +16,11 @@
 package com.dremio.service.conduit.server;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
+import com.dremio.context.RequestContext;
 import com.dremio.service.Service;
+import com.dremio.service.grpc.SingleTenantClientInterceptor;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
@@ -29,16 +32,19 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 public class ConduitInProcessChannelProvider implements Service {
   private ManagedChannel inProcessChannel;
   private final String inProcessServerName;
+  private final Provider<RequestContext> requestContextProvider;
 
   @Inject
-  public ConduitInProcessChannelProvider(String inProcessServerName) {
+  public ConduitInProcessChannelProvider(String inProcessServerName, Provider<RequestContext> requestContextProvider) {
     this.inProcessServerName = inProcessServerName;
+    this.requestContextProvider = requestContextProvider;
   }
 
   @Override
   public void start() throws Exception {
     inProcessChannel =
-      InProcessChannelBuilder.forName(inProcessServerName).usePlaintext().build();
+      InProcessChannelBuilder.forName(inProcessServerName).usePlaintext().intercept(
+        new SingleTenantClientInterceptor(requestContextProvider)).build();
   }
 
   public Channel getInProcessChannelToConduit() {

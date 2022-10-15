@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Tab } from "@material-ui/core";
+import { Tab } from "@mui/material";
 import { renderJobStatus } from "@app/utils/jobsUtils";
 import { intl } from "@app/utils/intl";
 // @ts-ignore
@@ -53,11 +53,11 @@ export const handleOnTabRouting = (
     router.replace({
       ...location,
       query: {
+        ...location.query,
         jobId,
         tipVersion: version,
         version,
       },
-      search: `?jobId=${jobId}&tipVersion=${version}&version=${version}`,
       state: {
         tabValue,
       },
@@ -145,6 +145,7 @@ export const RemovedIcon = () => (
   <Tooltip title={intl.formatMessage({ id: "NewQuery.Removed" })}>
     <dremio-icon
       name="job-state/cancel"
+      style={{ height: 24, width: 24 }}
       alt={intl.formatMessage({ id: "NewQuery.Removed" })}
     />
   </Tooltip>

@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,7 +59,6 @@ import com.dremio.exec.expr.ExpressionSplitter;
 import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
-import com.dremio.exec.expr.fn.ComplexWriterFunctionHolder;
 import com.dremio.exec.physical.config.ComplexToJson;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
@@ -275,6 +275,7 @@ public class ProjectOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(outgoing, splitter);
+    addDisplayStatsWithZeroValue(context, EnumSet.allOf(Metric.class));
     context.getStats().addLongStat(Metric.JAVA_EVALUATE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     context.getStats().addLongStat(Metric.GANDIVA_EVALUATE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     javaCodeGenWatch.reset();
@@ -419,12 +420,11 @@ public class ProjectOperator implements SingleInputOperator {
         case COMPLEX: {
 
           outgoing.addOrGet(materializedExp.getCompleteType().toField(namedExpression.getRef()));
-          // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
-          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) materializedExp).getHolder()).setReference(namedExpression.getRef());
-            if (context.getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED)) {
-            cg.lazyAddExp(materializedExp, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          if (context.getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED)) {
+            cg.lazyAddExp(materializedExp, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true,
+              namedExpression.getRef());
           } else {
-            cg.addExpr(materializedExp, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+            cg.addExpr(materializedExp, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true, namedExpression.getRef());
           }
           if (nonDirectExprs != null) {
             nonDirectExprs.add(namedExpression);

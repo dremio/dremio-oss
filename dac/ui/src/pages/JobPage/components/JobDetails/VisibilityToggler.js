@@ -15,10 +15,7 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 import { injectIntl } from "react-intl";
-
-import Art from "components/Art";
 
 class VisibilityToggler extends PureComponent {
   static propTypes = {
@@ -46,7 +43,7 @@ class VisibilityToggler extends PureComponent {
   render() {
     const { title, style, intl } = this.props;
     const { isOpen } = this.state;
-    const iconType = isOpen ? "TriangleDown.svg" : "TriangleRight.svg";
+    const iconType = isOpen ? "interface/caret-down" : "interface/caret-right";
     const iconAlt = intl.formatMessage({
       id: `Common.${isOpen ? "Undisclosed" : "Disclosed"}`,
     });
@@ -54,7 +51,7 @@ class VisibilityToggler extends PureComponent {
     return (
       <div style={style}>
         <span onClick={this.toggleVisible} style={styles.title}>
-          <Art src={iconType} alt={iconAlt} style={styles.triangle} />
+          <dremio-icon name={iconType} alt={iconAlt} style={styles.triangle} />
           {title}
         </span>
         {this.state.isOpen ? this.props.children : null}
@@ -63,7 +60,7 @@ class VisibilityToggler extends PureComponent {
   }
 }
 
-export default injectIntl(Radium(VisibilityToggler));
+export default injectIntl(VisibilityToggler);
 
 const styles = {
   title: {

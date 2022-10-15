@@ -768,10 +768,10 @@
   </suppress>
   <suppress>
     <notes><![CDATA[
-      file name: netty-3.10.6.Final.jar
-      Used by Hadoop, but not for HTTP protocol
-    ]]></notes>
-    <sha1>18ed04a0e502896552854926e908509db2987a00</sha1>
+   file name: netty-3.10.6.Final-nohttp.jar
+   Used by Hadoop, but not for HTTP protocol
+   ]]></notes>
+    <sha1>742f96e5c0c5875aa0795f90f4d91bd6944310bc</sha1>
     <cve>CVE-2019-16869</cve>
     <cve>CVE-2019-20444</cve>
     <cve>CVE-2019-20445</cve>

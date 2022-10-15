@@ -122,6 +122,15 @@
     ]
   },
   {
+    "type": "STRUCT",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      }
+    ]
+  },
+  {
     "type": "BOOLEAN",
     "values": [
       {

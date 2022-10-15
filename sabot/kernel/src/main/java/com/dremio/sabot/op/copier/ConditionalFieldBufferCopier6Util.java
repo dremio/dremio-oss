@@ -142,7 +142,6 @@ public final class ConditionalFieldBufferCopier6Util {
 
     @Override
     void seekAndCopy(long offsetAddr, int count, int seekTo) {
-      targetAlt.allocateNew(count);
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
@@ -414,6 +413,7 @@ public final class ConditionalFieldBufferCopier6Util {
       copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
       break;
 
+    case MAP:
     case LIST:
     case STRUCT:
     case UNION:

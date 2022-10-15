@@ -17,13 +17,10 @@ package com.dremio.service.autocomplete.statements.grammar;
 
 import java.util.Arrays;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -49,7 +46,7 @@ public final class DropStatement extends Statement {
     ImmutableList<DremioToken> tokens,
     Type type,
     CatalogPath catalogPath) {
-    super(tokens, ImmutableList.of());
+    super(tokens, asListIgnoringNulls(catalogPath));
     this.type = type;
     this.catalogPath = catalogPath;
   }
@@ -60,16 +57,6 @@ public final class DropStatement extends Statement {
 
   public CatalogPath getCatalogPath() {
     return catalogPath;
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
   }
 
   public static DropStatement parse(TokenBuffer tokenBuffer) {

@@ -1,0 +1,55 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "NDV"
+signatures:
+ -
+  returnType: "NUMERIC"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "expression"
+    description: "Enter an expression to evaluate the number of records. This value can either be a column name or *."
+  description: "Returns an estimate of the total number of records for the specified column."
+  sampleCodes:
+   -
+    call: "SELECT NDV(column_name)"
+    result: "163"
+ -
+  returnType: "NUMERIC"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "expression"
+    description: "Enter an expression to evaluate the number of records. This value can either be a column name or *."
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "scale"
+    description: "Optional argument that maps to a precision used by the HyperLogLog (HLL) algorithm based on the mapping formula: `precision = scale +8`. Enter an NUMERIC in the range from 1 to 10."
+  description: "Returns an estimate of total number of records for the specified expression."
+  sampleCodes:
+   -
+    call: "SELECT NDV(column_name, 1)"
+    result: "162"
+dremioVersion: "1.0+"
+functionCategories:
+ - "AGGREGATE"
+ - "WINDOW"
+description: "Returns an approximate distinct value number, similar to `COUNT(DISTINCT col)`. NDV can return results faster than using the combination of COUNT and DISTINCT while using a constant amount of memory, resulting in less memory usage for columns with high cardinality."

@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-.empty-container {
-  margin: 10px 20px; // 5px top/bottom adds to 5px built in the container
-}
-
 .short-empty-container {
   margin: 10px 20px;
   min-height: initial;
@@ -65,14 +61,26 @@
       padding: 11.5px 8px;
     }
 
-    .sources-title {
+    .add-source-icon {
       height: 24px;
-      font-size: 14px;
+      width: 24px;
+      margin-right: 4px;
+      color: var(--dremio--color--link);
+    }
+
+    .sources-title {
       display: flex;
-      align-items: flex-end;
+      align-items: center;
+      justify-content: space-between;
       margin-top: 16px;
       padding-left: 8px;
+      padding-right: 16px;
+      font-size: 14px;
+      height: 24px;
       color: var(--dremio--color--text--faded);
+      .add-source-button {
+        padding: 0;
+      }
     }
 
     .add-source-container {
@@ -96,13 +104,6 @@
         padding: 8px 7px;
         height: 32px;
         border-radius: 4px;
-
-        .add-source-icon {
-          height: 24px;
-          width: 24px;
-          margin-right: 4px;
-          color: var(--dremio--color--link);
-        }
       }
       .add-source:hover {
         background: var(--dremio--color--primary--100);

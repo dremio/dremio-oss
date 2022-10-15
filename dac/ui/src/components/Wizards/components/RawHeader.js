@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -61,7 +60,7 @@ class RawHeader extends PureComponent {
 
   render() {
     return (
-      <div className="raw-wizard-header" style={[style.base]}>
+      <div className="raw-wizard-header" style={{ ...style.base }}>
         <h5 style={style.content}>
           {this.props.text}
           {this.getSeparator()}
@@ -98,4 +97,4 @@ const style = {
   },
 };
 
-export default Radium(RawHeader);
+export default RawHeader;

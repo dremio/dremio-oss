@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -25,6 +24,7 @@ import {
   FLOAT,
   DECIMAL,
   MAP,
+  STRUCT,
   BOOLEAN,
   DATE,
   TIME,
@@ -36,7 +36,15 @@ import Menu from "./Menu";
 import TypeGroup from "./TypeGroups/TypeGroup";
 import AutoGroup from "./TypeGroups/AutoGroup";
 
-export const NoParamToText = [BINARY, INTEGER, FLOAT, DECIMAL, MAP, BOOLEAN];
+export const NoParamToText = [
+  BINARY,
+  INTEGER,
+  FLOAT,
+  DECIMAL,
+  MAP,
+  STRUCT,
+  BOOLEAN,
+];
 export const NoParamToInt = [BOOLEAN];
 export const NoParamToFloat = [INTEGER];
 export const NoParamToBinary = [TEXT];
@@ -113,4 +121,4 @@ class ColumnTypeMenu extends PureComponent {
     );
   }
 }
-export default Radium(ColumnTypeMenu);
+export default ColumnTypeMenu;

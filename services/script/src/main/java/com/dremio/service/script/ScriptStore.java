@@ -43,7 +43,7 @@ public interface ScriptStore extends Service {
    * @return
    * @throws ScriptNotFoundException
    */
-  Optional<Script> getByName(String name, String createdBy)
+  Optional<Script> getByName(String name)
     throws ScriptNotFoundException;
 
   /**

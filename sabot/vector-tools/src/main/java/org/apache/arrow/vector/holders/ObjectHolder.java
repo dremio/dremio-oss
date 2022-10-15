@@ -24,5 +24,6 @@ package org.apache.arrow.vector.holders;
  */
 @Deprecated
 public class ObjectHolder implements ValueHolder {
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   public Object obj;
 }

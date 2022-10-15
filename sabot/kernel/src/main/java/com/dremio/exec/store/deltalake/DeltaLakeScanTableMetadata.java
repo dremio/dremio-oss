@@ -21,6 +21,8 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_MODIFICATION
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PATH;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_SIZE;
 
+import java.util.List;
+
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMetadataImpl;
@@ -37,15 +39,15 @@ public class DeltaLakeScanTableMetadata extends TableMetadataImpl {
   private final boolean scanForAddedPaths;
   private final BatchSchema schema;
 
-  public DeltaLakeScanTableMetadata(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits, boolean scanForAddedPaths) {
-    super(plugin, config, user, splits);
+  public DeltaLakeScanTableMetadata(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits, List<String> primaryKeys, boolean scanForAddedPaths) {
+    super(plugin, config, user, splits, primaryKeys);
     this.scanForAddedPaths = scanForAddedPaths;
     this.schema = deriveDeltaLakeScanTableSchema();
   }
 
   public static DeltaLakeScanTableMetadata createWithTableMetadata(TableMetadata tableMetadata, boolean scanForAddedPaths) {
     return new DeltaLakeScanTableMetadata(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(),
-      tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), scanForAddedPaths);
+      tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), tableMetadata.getPrimaryKey(), scanForAddedPaths);
   }
 
   @Override

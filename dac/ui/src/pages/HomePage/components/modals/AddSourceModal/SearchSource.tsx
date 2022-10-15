@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Art from "@app/components/Art";
 import { useIntl } from "react-intl";
 import Immutable from "immutable";
+//@ts-ignore
+import { Tooltip } from "dremio-ui-lib";
 import * as classes from "./SearchSource.module.less";
 
 type SearchSourceProps = {
@@ -46,11 +47,13 @@ const SearchSource = ({ sources, updateSources }: SearchSourceProps) => {
   return (
     <div className={classes["source-search-container"]}>
       <span>
-        <Art
-          title="Source.SearchSources"
-          alt="Source.SearchSources"
-          src="Search.svg"
-        />
+        <Tooltip title="Source.SearchSources">
+          <dremio-icon
+            name="interface/search"
+            alt={intl.formatMessage({ id: "Source.SearchSources" })}
+            class={classes["search-icon"]}
+          />
+        </Tooltip>
       </span>
       <input
         key="textInput"

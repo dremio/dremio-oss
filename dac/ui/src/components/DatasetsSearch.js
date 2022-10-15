@@ -19,10 +19,8 @@ import PropTypes from "prop-types";
 import { Link } from "react-router";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import { injectIntl } from "react-intl";
-import Art from "components/Art";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
-import { TagList } from "@app/pages/HomePage/components/TagList";
-import { Tooltip } from "dremio-ui-lib";
+import { Tooltip, TagList } from "dremio-ui-lib";
 
 import { bodySmall } from "uiTheme/radium/typography";
 
@@ -73,10 +71,7 @@ class DatasetsSearch extends PureComponent {
           {/* DX-11249 <div style={styles.parentDatasetsHolder} data-qa='ds-parent'>
             {this.getParentItems(value, inputValue)}
           </div> */}
-          <TagList
-            tags={value.get("tags", emptyList)}
-            style={{ flex: 1, minWidth: 0 }}
-          />
+          <TagList tags={value.get("tags", emptyList)} className="tagSearch" />
           {this.getActionButtons(value)}
         </div>
       );
@@ -127,49 +122,6 @@ class DatasetsSearch extends PureComponent {
           </Tooltip>
         </Link>
       </span>
-    );
-  }
-
-  getParentItems(dataset, inputValue) {
-    if (dataset && dataset.get("parents")) {
-      return dataset
-        .get("parents")
-        .map((value, key) => {
-          if (!value.has("type")) return; // https://dremio.atlassian.net/browse/DX-7233
-
-          const lastParent =
-            value.get("datasetPathList").size < 1
-              ? value.get("datasetPathList").size
-              : value.get("datasetPathList").size - 1;
-          return (
-            <div key={`parent_${key}`} style={styles.parentDatasets}>
-              <DatasetItemLabel
-                isSearchItem={true}
-                name={value.get("datasetPathList").get(lastParent)}
-                inputValue={inputValue}
-                fullPath={value.get("datasetPathList")}
-                showFullPath
-                typeIcon={getIconDataTypeFromDatasetType(value.get("type"))}
-              />
-            </div>
-          );
-        })
-        .filter(Boolean);
-    }
-  }
-
-  getHeader(inputValue) {
-    const { intl: { formatMessage } = {} } = this.props || {};
-    return (
-      <h3 style={styles.header}>
-        {formatMessage({ id: "Dataset.Search.Result" }, { inputValue })}
-        <Art
-          src={"XBig.svg"}
-          alt={this.props.intl.formatMessage({ id: "Common.Close" })}
-          style={styles.closeIcon}
-          onClick={this.props.handleSearchHide.bind(this)}
-        />
-      </h3>
     );
   }
 

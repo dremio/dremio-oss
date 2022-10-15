@@ -217,7 +217,7 @@ public class TestNestedLoopJoin extends PlanTestBase {
 
   @Test
   public void testNLJWithEmptyBatch() throws Exception {
-    Long result = 0l;
+    Long result = 0L;
 
     test(DISABLE_HJ);
     test(DISABLE_MJ);

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
@@ -38,12 +37,12 @@ class ChooseDataset extends Component {
 
   render() {
     return (
-      <div style={[styles.searchRoot]}>
-        <div style={[styles.header, formLabel]}>
+      <div style={{ ...styles.searchRoot }}>
+        <div style={{ ...styles.header, ...formLabel }}>
           <div style={styles.name}>Dataset</div>
           <div style={styles.type}>Join Type</div>
           <div style={styles.cur}>{la("Current Dataset Key")}</div>
-          <div style={[styles.cur, { left: 10 }]}>Matching Key</div>
+          <div style={{ ...styles.cur, left: 10 }}>Matching Key</div>
         </div>
         {this.props.recommendedJoins.size > 0 && (
           <RecommendedJoins
@@ -92,4 +91,4 @@ const styles = {
     flex: 1,
   },
 };
-export default Radium(ChooseDataset);
+export default ChooseDataset;

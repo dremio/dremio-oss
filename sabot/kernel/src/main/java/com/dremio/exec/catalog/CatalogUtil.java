@@ -22,6 +22,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceNotFoundException;
@@ -161,5 +162,36 @@ public final class CatalogUtil {
     }
 
     return ((MutablePlugin) storagePlugin).isSupportUserDefinedSchema(dataset);
+
+}
+
+  /**
+   * Utility to return TimeTravelRequest for query : select * from iceberg_table AT SNAPSHOT/TIMESTAMP
+   * @param key
+   * @param context
+   * @return
+   */
+  public static TimeTravelOption.TimeTravelRequest getTimeTravelRequest(NamespaceKey key, TableVersionContext context) {
+    switch (context.getType()) {
+      case SNAPSHOT_ID:
+        return TimeTravelOption.newSnapshotIdRequest(context.getValueAs(String.class));
+      case TIMESTAMP:
+        final long millis = context.getValueAs(Long.class);
+        if (millis > System.currentTimeMillis()) {
+          throw UserException.validationError()
+            .message("For table '%s', the provided time travel timestamp value '%d' is out of range",
+              key.getPathComponents(), millis)
+            .buildSilently();
+        }
+        return TimeTravelOption.newTimestampRequest(millis);
+      case LATEST_VERSION:
+      case BRANCH:
+      case TAG:
+      case COMMIT_HASH_ONLY:
+      case REFERENCE:
+        return null;
+      default:
+        throw new AssertionError("Unsupported type " + context.getType());
+    }
   }
 }

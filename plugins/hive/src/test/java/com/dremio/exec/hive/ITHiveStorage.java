@@ -80,6 +80,7 @@ import com.google.common.collect.Lists;
 
 public class ITHiveStorage extends HiveTestBase {
   protected static Boolean runWithUnlimitedSplitSupport = false;
+  private static AutoCloseable mapEnabled;
   private static AutoCloseable icebergDisabled;
 
   @BeforeClass
@@ -90,6 +91,16 @@ public class ITHiveStorage extends HiveTestBase {
   @AfterClass
   public static void resetUnlimitedSplitFeature() throws Exception {
     icebergDisabled.close();
+  }
+
+  @BeforeClass
+  public static void enableMapFeature() {
+    mapEnabled = enableMapDataType();
+  }
+
+  @AfterClass
+  public static void resetMapFeature() throws Exception {
+    mapEnabled.close();
   }
 
   @BeforeClass
@@ -982,10 +993,10 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
-        .setAuthTtlMs(0l)
+        .setAuthTtlMs(0L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setDatasetDefinitionTtlMs(0l)
-        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+        .setDatasetDefinitionTtlMs(0L)
+        .setNamesRefreshMs(0L), CatalogServiceImpl.UpdateType.FULL);
 
     List<NamespaceKey> tables1 = Lists.newArrayList(getSabotContext()
         .getNamespaceService(SystemUser.SYSTEM_USERNAME)
@@ -998,10 +1009,10 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
-        .setAuthTtlMs(0l)
+        .setAuthTtlMs(0L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setDatasetDefinitionTtlMs(0l)
-        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+        .setDatasetDefinitionTtlMs(0L)
+        .setNamesRefreshMs(0L), CatalogServiceImpl.UpdateType.FULL);
 
     // make sure new table is visible
     List<NamespaceKey> tables2 = Lists.newArrayList(getSabotContext()
@@ -1035,10 +1046,10 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
-      .setAuthTtlMs(0l)
+      .setAuthTtlMs(0L)
       .setDatasetUpdateMode(UpdateMode.PREFETCH)
-      .setDatasetDefinitionTtlMs(0l)
-      .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+      .setDatasetDefinitionTtlMs(0L)
+      .setNamesRefreshMs(0L), CatalogServiceImpl.UpdateType.FULL);
 
     // make sure table is deleted from namespace
     List<NamespaceKey> tables4 = Lists.newArrayList(getSabotContext()
@@ -1058,9 +1069,9 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
-        .setAuthTtlMs(0l)
+        .setAuthTtlMs(0L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+        .setNamesRefreshMs(0L), CatalogServiceImpl.UpdateType.FULL);
     List<NamespaceKey> tables1 = Lists.newArrayList(getSabotContext()
       .getNamespaceService(SystemUser.SYSTEM_USERNAME)
       .getAllDatasets(new NamespaceKey("hive")));
@@ -1072,9 +1083,9 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
-        .setAuthTtlMs(0l)
+        .setAuthTtlMs(0L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+        .setNamesRefreshMs(0L), CatalogServiceImpl.UpdateType.FULL);
     List<NamespaceKey> tables2 = Lists.newArrayList(getSabotContext()
       .getNamespaceService(SystemUser.SYSTEM_USERNAME)
       .getAllDatasets(new NamespaceKey("hive")));
@@ -1114,9 +1125,9 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
-        .setAuthTtlMs(0l)
+        .setAuthTtlMs(0L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+        .setNamesRefreshMs(0L), CatalogServiceImpl.UpdateType.FULL);
 
     // check if table is deleted from namespace
     List<NamespaceKey> tables3 = Lists.newArrayList(getSabotContext()
@@ -1197,10 +1208,10 @@ public class ITHiveStorage extends HiveTestBase {
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
-        .setAuthTtlMs(0l)
+        .setAuthTtlMs(0L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setDatasetDefinitionTtlMs(0l)
-        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+        .setDatasetDefinitionTtlMs(0L)
+        .setNamesRefreshMs(0L), CatalogServiceImpl.UpdateType.FULL);
 
     // make sure table is deleted from namespace
     List<NamespaceKey> tables4 = Lists.newArrayList(getSabotContext()
@@ -1578,16 +1589,30 @@ public class ITHiveStorage extends HiveTestBase {
       liststruct2.put("name", new Text("name" + (index + 1)));
       liststruct2.put("age", index + 1);
 
+      JsonStringHashMap<String, Object> mapstruct1 = new JsonStringHashMap<>();
+      mapstruct1.put("key", new Text("name" + index));
+      mapstruct1.put("value", index);
+      JsonStringHashMap<String, Object> mapstruct2 = new JsonStringHashMap<>();
+      mapstruct2.put("key", new Text("name" + (index + 1)));
+      mapstruct2.put("value", index + 1);
+      JsonStringHashMap<String, Object> mapstruct3 = null;
+      if (index % 2 == 0) {
+        mapstruct3 = new JsonStringHashMap<>();
+        mapstruct3.put("key", new Text("name" + (index + 2)));
+        mapstruct3.put("value", index + 2);
+      }
+
       testBuilder()
           .sqlQuery("SELECT * FROM hive." + table + " order by rownum limit 1 offset " + index)
           .ordered()
-          .baselineColumns("rownum", "list_field", "struct_field", "struct_list_field", "list_struct_field")
+          .baselineColumns("rownum", "list_field", "struct_field", "struct_list_field", "list_struct_field", "map_field")
           .baselineValues(
               index,
               asList(index, index + 1, index + 2, index + 3, index + 4),
               structrow1,
               structlistrow1,
-              asList(liststruct1, liststruct2))
+              asList(liststruct1, liststruct2),
+              index % 2 == 0 ? asList(mapstruct1, mapstruct2, mapstruct3) : asList(mapstruct1, mapstruct2))
           .go();
     }
   }

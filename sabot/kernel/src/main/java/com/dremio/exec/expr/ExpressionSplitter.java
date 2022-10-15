@@ -735,7 +735,7 @@ public class ExpressionSplitter implements AutoCloseable {
   }
 
   // Checks if the expression is a candidate for split
-  // Split only functions, if expressions and boolean operators
+  // Split only functions, if expressions, case expressions  and boolean operators
   boolean candidateForSplit(LogicalExpression e) {
 
     if (e instanceof FunctionHolderExpression) {
@@ -747,6 +747,10 @@ public class ExpressionSplitter implements AutoCloseable {
     }
 
     if (e instanceof IfExpression) {
+      return true;
+    }
+
+    if (e instanceof CaseExpression) {
       return true;
     }
 

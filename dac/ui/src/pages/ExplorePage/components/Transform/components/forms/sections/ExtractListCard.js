@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import Tabs from "components/Tabs";
@@ -130,4 +129,4 @@ export const styles = {
     margin: 10,
   },
 };
-export default Radium(ExtractListCard);
+export default ExtractListCard;

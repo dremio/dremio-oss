@@ -16,7 +16,6 @@
 import { PureComponent } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 import * as IntervalTypes from "./IntervalTypes";
 import RightPanelView from "./RightPanelView";
@@ -73,4 +72,4 @@ class RightPanel extends PureComponent {
     );
   }
 }
-export default Radium(RightPanel);
+export default RightPanel;

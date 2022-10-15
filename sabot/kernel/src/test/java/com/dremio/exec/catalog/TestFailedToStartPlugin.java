@@ -87,6 +87,7 @@ import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Sets;
@@ -184,6 +185,9 @@ public class TestFailedToStartPlugin extends DremioTest {
     when(sabotContext.getRoles())
         .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER));
 
+    when(sabotContext.getCredentialsServiceProvider())
+      .thenReturn(() -> mock(CredentialsService.class));
+
     schedulerService = new SchedulerService() {
       SchedulerService delegate = new LocalSchedulerService(3);
       @Override
@@ -237,18 +241,15 @@ public class TestFailedToStartPlugin extends DremioTest {
     AutoCloseables.close(modifiableSchedulerService);
   }
 
-  /**
-   * Simple counter
-   */
-  private class InvocationCounter {
-    private volatile long count = 0;
+  private static final class InvocationCounter {
+    private long counter = 0;
 
-    public long getCount() {
-      return count;
+    public synchronized long getCount() {
+      return counter;
     }
 
-    public void incrementCount() {
-      count++;
+    public synchronized void incrementCount() {
+      counter++;
     }
   }
 

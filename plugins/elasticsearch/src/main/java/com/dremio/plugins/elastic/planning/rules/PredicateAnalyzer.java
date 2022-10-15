@@ -769,7 +769,7 @@ public class PredicateAnalyzer {
     }
   }
 
-  public static class CompoundQueryExpression extends QueryExpression {
+  public static final class CompoundQueryExpression extends QueryExpression {
 
     private final boolean partial;
     private BoolQueryBuilder builder = boolQuery();

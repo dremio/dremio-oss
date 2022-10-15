@@ -476,7 +476,8 @@ public class HashJoinOperator implements DualInputOperator {
     @Override
     public DualInputOperator create(OperatorContext context, HashJoinPOP config) throws ExecutionSetupException {
       if(config.isVectorize()) {
-        if (context.getOptions().getOption(ENABLE_SPILL)) {
+        if (context.getOptions().getOption(ENABLE_SPILL) &&
+            config.getExtraCondition() == null) {  // TODO: remove this check after adding support for extra conditions
           return new VectorizedSpillingHashJoinOperator(context, config);
         } else {
           return new VectorizedHashJoinOperator(context, config);

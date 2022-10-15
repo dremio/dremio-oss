@@ -165,6 +165,21 @@ class AdjacencyList<V extends GraphValue<V>> {
       return nodeValue.hashCode();
     }
 
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (other == null || getClass() != other.getClass()) {
+        return false;
+      }
+
+      Node castOther = (Node) other;
+
+      return this.nodeValue.equals(castOther.nodeValue);
+    }
+
     public V getNodeValue() {
       return nodeValue;
     }

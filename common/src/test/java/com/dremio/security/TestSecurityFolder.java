@@ -23,6 +23,7 @@ import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
@@ -162,6 +163,7 @@ public class TestSecurityFolder extends DremioTest {
     Files.setPosixFilePermissions(testfilePath, EnumSet.of(OWNER_WRITE, OWNER_READ, GROUP_READ, OTHERS_READ));
 
     try (InputStream inputStream = securityFolder.newSecureInputStream("testfile")) {
+      assertNotNull(inputStream);
     }
   }
 
@@ -173,6 +175,7 @@ public class TestSecurityFolder extends DremioTest {
     final SecurityFolder securityFolder = SecurityFolder.of(config);
 
     try (InputStream inputStream = securityFolder.newSecureInputStream("testfile")) {
+      assertNotNull(inputStream);
     }
   }
 
@@ -227,6 +230,7 @@ public class TestSecurityFolder extends DremioTest {
 
     final SecurityFolder securityFolder = SecurityFolder.of(config);
     try (OutputStream outputStream = securityFolder.newSecureOutputStream("testfile", SecurityFolder.OpenOption.CREATE_OR_WRITE)) {
+      assertNotNull(outputStream);
     }
   }
 
@@ -237,6 +241,7 @@ public class TestSecurityFolder extends DremioTest {
 
     final SecurityFolder securityFolder = SecurityFolder.of(config);
     try (OutputStream outputStream = securityFolder.newSecureOutputStream("testfile", SecurityFolder.OpenOption.NO_CREATE)) {
+      assertNotNull(outputStream);
     }
   }
 
@@ -274,6 +279,7 @@ public class TestSecurityFolder extends DremioTest {
 
     final SecurityFolder securityFolder = SecurityFolder.of(config);
     try (OutputStream outputStream = securityFolder.newSecureOutputStream("testfile", SecurityFolder.OpenOption.NO_CREATE)) {
+      assertNotNull(outputStream);
     }
   }
 
@@ -308,6 +314,7 @@ public class TestSecurityFolder extends DremioTest {
 
     final SecurityFolder securityFolder = SecurityFolder.of(config);
     try (OutputStream outputStream = securityFolder.newSecureOutputStream("testfile", SecurityFolder.OpenOption.CREATE_ONLY)) {
+      assertNotNull(outputStream);
     }
   }
 }

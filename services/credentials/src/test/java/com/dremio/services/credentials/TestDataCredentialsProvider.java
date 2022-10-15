@@ -26,6 +26,7 @@ import java.util.Collection;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
@@ -56,16 +57,13 @@ public class TestDataCredentialsProvider {
     });
   }
 
-  @SuppressWarnings("checkstyle:VisibilityModifier")
-  @Parameterized.Parameter
+  @Parameter
   public TEST_TYPE type;
 
-  @SuppressWarnings("checkstyle:VisibilityModifier")
-  @Parameterized.Parameter (1)
+  @Parameter(1)
   public String originalString;
 
-  @SuppressWarnings("checkstyle:VisibilityModifier")
-  @Parameterized.Parameter(2)
+  @Parameter(2)
   public String pattern;
 
   @Test

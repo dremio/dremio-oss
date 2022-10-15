@@ -26,6 +26,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
@@ -38,6 +39,7 @@ import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.test.DremioTest;
 
 /**
@@ -66,6 +68,31 @@ public class TestSourceResource extends BaseTestServer {
     SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildPost(Entity.entity(newSource, JSON)), SourceResource.SourceDeprecated.class);
     assertEquals(source.getName(), newSource.getName());
     assertNotNull(source.getState());
+    assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS, source.getMetadataPolicy().getDatasetRefreshAfterMs());
+    assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS, source.getMetadataPolicy().getDatasetExpireAfterMs());
+
+    deleteSource(source.getName());
+  }
+
+  @Test
+  public void testAddSourceWithMetadataPolicy() throws Exception {
+    SourceResource.SourceDeprecated newSource = new SourceResource.SourceDeprecated();
+    newSource.setName("Src" + System.currentTimeMillis());
+    newSource.setType("NAS");
+    NASConf config = new NASConf();
+    config.path = "/";
+    newSource.setConfig(config);
+    // Set partial metadata
+    MetadataPolicy policy = new MetadataPolicy();
+    policy.setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED.name());
+    newSource.setMetadataPolicy(policy);
+
+    SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildPost(Entity.entity(newSource, JSON)), SourceResource.SourceDeprecated.class);
+    assertEquals(source.getName(), newSource.getName());
+    assertNotNull(source.getState());
+    assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS, source.getMetadataPolicy().getDatasetRefreshAfterMs());
+    assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS, source.getMetadataPolicy().getDatasetExpireAfterMs());
+    assertEquals(CatalogService.DEFAULT_AUTHTTLS_MILLIS, source.getMetadataPolicy().getAuthTTLMs().longValue());
 
     deleteSource(source.getName());
   }
@@ -107,6 +134,32 @@ public class TestSourceResource extends BaseTestServer {
     assertNotNull(source.getState());
     assertNotNull(source.getTag());
     deleteSource(source.getName());
+  }
+
+  @Test
+  public void testSourceDefaultMetadataPolicy() {
+    SourceConfig sourceConfig = new SourceConfig();
+    final MetadataPolicy defaultPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+
+    sourceConfig.setMetadataPolicy(defaultPolicy.toMetadataPolicy());
+
+    Assert.assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS,
+      sourceConfig.getMetadataPolicy().getDatasetDefinitionRefreshAfterMs().longValue());
+    Assert.assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS,
+      sourceConfig.getMetadataPolicy().getDatasetDefinitionExpireAfterMs().longValue());
+  }
+
+  @Test
+  public void testSourceDefaultMetadataPolicyWithAutoPromote() {
+    SourceConfig sourceConfig = new SourceConfig();
+    final MetadataPolicy defaultPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
+
+    sourceConfig.setMetadataPolicy(defaultPolicy.toMetadataPolicy());
+
+    Assert.assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS,
+      sourceConfig.getMetadataPolicy().getDatasetDefinitionRefreshAfterMs().longValue());
+    Assert.assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS,
+      sourceConfig.getMetadataPolicy().getDatasetDefinitionExpireAfterMs().longValue());
   }
 
   @Test

@@ -19,13 +19,9 @@ package com.dremio.exec.store.deltalake;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.IntStream;
@@ -84,21 +80,6 @@ public class TestDeltaScan extends BaseTestQuery {
   public void cleanup() throws Exception {
     Path p = new Path(testRootPath);
     fs.delete(p, true);
-  }
-
-  private void copy(java.nio.file.Path source, java.nio.file.Path dest) {
-    try {
-      Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
-    } catch (Exception e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
-  }
-
-  private void copyFromJar(String sourceElement, final java.nio.file.Path target) throws URISyntaxException, IOException {
-    URI resource = Resources.getResource(sourceElement).toURI();
-    java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
-    Files.walk(srcDir)
-            .forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
   }
 
   @Test
@@ -471,9 +452,9 @@ public class TestDeltaScan extends BaseTestQuery {
         .sqlQuery(sql)
         .unOrdered()
         .baselineColumns("id")
-        .baselineValues(0l)
-        .baselineValues(1l)
-        .baselineValues(2l)
+        .baselineValues(0L)
+        .baselineValues(1L)
+        .baselineValues(2L)
         .unOrdered().go();
     }
   }

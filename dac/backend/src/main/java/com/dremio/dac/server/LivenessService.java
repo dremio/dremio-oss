@@ -28,8 +28,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.FilterMapping;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
@@ -37,7 +35,6 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import com.dremio.common.liveness.LiveHealthMonitor;
 import com.dremio.config.DremioConfig;
 import com.dremio.service.Service;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Preconditions;
 
 /**
@@ -94,7 +91,6 @@ public class LivenessService implements Service {
 
     handler.addServletWithMapping(new ServletHolder(new LivenessServlet()), "/live");
     handler.addServletWithMapping(new ServletHolder(createMetricsServlet()), "/metrics");
-    handler.addFilterWithMapping(new FilterHolder(new Metrics.HistogramSumGeneratorFilter()), "/metrics", FilterMapping.ALL);
 
     embeddedLivenessJetty.start();
     livenessPort = serverConnector.getLocalPort();

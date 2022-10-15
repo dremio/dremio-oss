@@ -325,8 +325,8 @@ public class MergeJoinOperator implements DualInputOperator {
 
 
     // create left and right logical expressions
-    LogicalExpression leftExpr[] = new LogicalExpression[conditions.size()];
-    LogicalExpression rightExpr[] = new LogicalExpression[conditions.size()];
+    LogicalExpression[] leftExpr = new LogicalExpression[conditions.size()];
+    LogicalExpression[] rightExpr = new LogicalExpression[conditions.size()];
 
     // Set up project blocks
     int outputFieldId = 0;

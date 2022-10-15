@@ -174,6 +174,11 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     return new ComplexStringFieldConverter(fieldId, fieldName, reader);
   }
 
+  @Override
+  public FieldConverter getNewStructConverter(int fieldId, String fieldName, FieldReader reader) {
+    return new ComplexStringFieldConverter(fieldId, fieldName, reader);
+  }
+
   public class ComplexStringFieldConverter extends FieldConverter {
 
     public ComplexStringFieldConverter(int fieldId, String fieldName, FieldReader reader) {

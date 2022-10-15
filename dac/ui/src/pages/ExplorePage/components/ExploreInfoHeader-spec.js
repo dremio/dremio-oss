@@ -334,7 +334,6 @@ describe("ExploreInfoHeader", () => {
     });
   });
 
-  // SUSANNAH fix these tests when working on the other ones
   describe("#renderDatasetLabel", () => {
     it("should render (edited) dataset label when isEditedDataset returns true", () => {
       sinon.stub(instance, "isEditedDataset").returns(true);

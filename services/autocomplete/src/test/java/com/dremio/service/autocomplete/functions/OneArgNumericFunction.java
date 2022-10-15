@@ -25,8 +25,10 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+
 /**
- * A SqlFunction that takes one numeric operand and return that same numeric type.
+ * A SqlFunction that takes one numeric operand and returns a double.
  * Note that there are many numeric types (INTEGER, DOUBLE, etc.).
  */
 public final class OneArgNumericFunction extends SqlFunction {
@@ -57,6 +59,6 @@ public final class OneArgNumericFunction extends SqlFunction {
 
   public RelDataType inferReturnType(
     SqlOperatorBinding opBinding) {
-    return opBinding.getOperandType(0);
+    return JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.DOUBLE);
   }
 }

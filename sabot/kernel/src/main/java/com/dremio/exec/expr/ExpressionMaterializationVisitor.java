@@ -44,8 +44,10 @@ import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.IfExpression.IfCondition;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
@@ -625,6 +627,32 @@ class ExpressionMaterializationVisitor
   }
 
   @Override
+  public LogicalExpression visitOrdering(Ordering e, FunctionLookupContext functionLookupContext) throws RuntimeException {
+    LogicalExpression newInput = e.getField().accept(this, functionLookupContext);
+    return new Ordering(newInput, e.getDirection(), e.getNullDirection());
+  }
+
+  @Override
+  public LogicalExpression visitListAggExpression(ListAggExpression e, FunctionLookupContext functionLookupContext) throws RuntimeException {
+    List<LogicalExpression> newArgs = new ArrayList<>();
+    for (LogicalExpression ex : e.args) {
+      newArgs.add(ex.accept(this, functionLookupContext));
+    }
+
+    List<Ordering> orderings = new ArrayList<>();
+    for (Ordering ex : e.getOrderings()) {
+      orderings.add((Ordering) ex.accept(this, functionLookupContext));
+    }
+
+    List<LogicalExpression> extraExpressions = new ArrayList<>();
+    for (LogicalExpression ex : e.getExtraExpressions()) {
+      extraExpressions.add(ex.accept(this, functionLookupContext));
+    }
+
+    return new ListAggExpression(e.getName(), newArgs, e.isDistinct(), orderings, extraExpressions);
+  }
+
+  @Override
   public LogicalExpression visitCastExpression(CastExpression e, FunctionLookupContext functionLookupContext) {
 
     final LogicalExpression input = e.getInput().accept(this, functionLookupContext);
@@ -713,7 +741,7 @@ class ExpressionMaterializationVisitor
       return to.getWidth() == BasicTypeHelper.VARCHAR_DEFAULT_CAST_LEN || to.getWidth() == 0;
 
     default:
-      errorCollector.addGeneralError(String.format("Casting rules are unknown for type %s.", from));
+      errorCollector.addGeneralError("Casting rules are unknown for type %s.", from);
       return false;
     }
   }

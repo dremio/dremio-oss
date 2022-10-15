@@ -17,10 +17,14 @@ package com.dremio.common.expression;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.google.common.collect.Range;
+import com.google.errorprone.annotations.FormatMethod;
 
 public interface ErrorCollector extends AutoCloseable {
 
-    public void addGeneralError(String s, Object... args);
+    public void addGeneralError(String error);
+
+    @FormatMethod
+    public void addGeneralError(String format, Object... args);
 
     public void addUnexpectedArgumentType(String name, MajorType actual, MajorType[] expected, int argumentIndex);
 

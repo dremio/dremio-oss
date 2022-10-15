@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Supplier;
 
 import org.apache.calcite.avatica.util.TimeUnit;
@@ -1339,7 +1340,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         // Ensure the query isn't changed into a SELECT * to preserve the field ordering.
         selectList = new SqlNodeList(getSelectNodes((SqlIdentifier) node, new HashSet<>()), POS);
       } else if (node instanceof SqlJoin && this.neededType == null) {
-        final Set<String> usedNames = new HashSet<>();
+        final Set<String> usedNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         // Avoid * where possible when used with JOINs, as it can lead to ambiguous column references.
         final List<SqlNode> nodeList = addJoinChildSelectNodes(node, usedNames);
         if (nodeList != null) {
@@ -1351,7 +1352,8 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
           final SqlNode operand = basicCall.getOperands()[0];
           if (operand instanceof SqlSelect && (null != ((SqlSelect) operand).getSelectList())) {
             // Ensure there is a select list to avoid a * expansion which may result in ambiguous columns.
-            final List<SqlNode> nodeList = getSelectNodes(null, (SqlSelect) operand, new HashSet<>(), false);
+            final List<SqlNode> nodeList =
+              getSelectNodes(null, (SqlSelect) operand, new TreeSet<>(String.CASE_INSENSITIVE_ORDER), false);
             selectList = new SqlNodeList(nodeList, POS);
           }
         }

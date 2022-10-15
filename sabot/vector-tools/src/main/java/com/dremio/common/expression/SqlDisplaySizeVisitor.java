@@ -66,8 +66,9 @@ public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
     case 16:        return 6; // sign + 5 digits
     case 32:        return 11; // sign + 10 digits
     case 64:        return 20; // sign + 19 digits
+    default:
+      throw new IllegalStateException("Unknown int width " + paramInt.getBitWidth());
     }
-    throw new IllegalStateException("Unknown int width " + paramInt.getBitWidth());
   }
 
   @Override
@@ -156,8 +157,8 @@ public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
   }
 
   @Override
-  public Integer visit(ArrowType.Map paramDuration) {
-    throw new UnsupportedOperationException("Dremio does not support map.");
+  public Integer visit(ArrowType.Map paramMap) {
+    return 0;
   }
 
 }

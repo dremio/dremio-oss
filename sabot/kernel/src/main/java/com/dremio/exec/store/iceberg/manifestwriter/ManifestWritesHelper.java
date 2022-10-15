@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.avro.file.DataFileConstants;
@@ -63,6 +62,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -221,7 +221,7 @@ public class ManifestWritesHelper {
       CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap = newImmutableMap(icebergColumns);
       if (icebergColumnIDMap != null && icebergColumnIDMap.size() > 0) {
         FieldIdBroker.SeededFieldIdBroker fieldIdBroker = new FieldIdBroker.SeededFieldIdBroker(icebergColumnIDMap);
-        SchemaConverter schemaConverter = new SchemaConverter(tableName);
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
         return schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
       } else {
         return null;

@@ -16,6 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
+import clsx from "clsx";
 
 import FontIcon from "components/Icon/FontIcon";
 import SimpleButton from "components/Buttons/SimpleButton";
@@ -25,6 +26,7 @@ import AccelerationRawMixin from "@inject/components/Acceleration/Advanced/Accel
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 import { commonThemes } from "../commonThemes";
 import AccelerationGridController from "./AccelerationGridController";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 @AccelerationRawMixin
 export default class AccelerationRaw extends Component {
@@ -79,6 +81,7 @@ export default class AccelerationRaw extends Component {
         <SimpleButton
           onClick={this.addNewLayout}
           buttonStyle="secondary"
+          className={clsx(classes["secondaryButtonPsuedoClasses"])}
           // DX-34369
           style={
             this.checkIfButtonShouldBeRendered()

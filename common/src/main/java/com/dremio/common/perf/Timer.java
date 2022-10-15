@@ -147,6 +147,7 @@ public final class Timer {
   /**
    * to track trace events
    */
+  @SuppressWarnings("checkstyle:FinalClass")
   public static class Ticker {
     private final List<Event> events = new ArrayList<>();
 

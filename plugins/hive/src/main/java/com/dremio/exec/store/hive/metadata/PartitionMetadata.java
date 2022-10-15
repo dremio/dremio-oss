@@ -31,7 +31,7 @@ import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
  * each instance is checked by {@link HivePartitionChunkListing} to see if the {@link #inputSplitBatchIterator}
  * has been exhausted to determine if another PartitionChunk is needed for this Hive Partition.
  */
-public class PartitionMetadata {
+public final class PartitionMetadata {
 
   private final int partitionId;
   private final Partition partition;

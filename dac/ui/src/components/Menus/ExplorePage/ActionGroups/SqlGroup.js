@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
 
-import { LIST, MAP, TEXT } from "@app/constants/DataTypes";
+import { LIST, TEXT, STRUCT } from "@app/constants/DataTypes";
 import { ALL_TYPES } from "@app/constants/columnTypeGroups";
 
 import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
@@ -50,7 +50,7 @@ class SqlGroup extends PureComponent {
         columnType={columnType}
         actionType="EXTRACT_ELEMENT"
         title={la("Extract Element…")}
-        availableTypes={[MAP]}
+        availableTypes={[STRUCT]}
         onClick={onClick}
       />,
       <ColumnMenuItem

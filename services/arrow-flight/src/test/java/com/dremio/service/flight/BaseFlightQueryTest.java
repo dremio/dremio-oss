@@ -41,8 +41,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.auth.BasicServerAuthHandler;
+import org.apache.arrow.memory.BufferAllocator;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.junit.After;
 import org.junit.AfterClass;
 
 import com.dremio.BaseTestQuery;
@@ -67,6 +70,7 @@ import com.dremio.service.users.UserService;
 import com.dremio.service.usersessions.UserSessionService;
 import com.dremio.service.usersessions.UserSessionServiceImpl;
 import com.dremio.service.usersessions.store.UserSessionStoreProvider;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.ssl.SSLConfig;
 import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
@@ -174,13 +178,17 @@ public class BaseFlightQueryTest extends BaseTestQuery {
       getBindingProvider().provider(OptionManager.class),
       userSessionServiceProvider,
       () -> new DremioFlightAuthProviderImpl(Providers.of(dremioConfig), getBindingProvider().provider(UserService.class), getBindingProvider().provider(TokenManager.class)),
+      getBindingProvider().provider(CredentialsService.class),
       runQueryResponseHandlerFactory
       );
 
     flightService.start();
+    final BufferAllocator flightClientAllocator = getSabotContext()
+      .getAllocator()
+      .newChildAllocator("(createFlightService)flight-client-allocator", 0, Long.MAX_VALUE);
     flightClientWrapper =
       FlightClientUtils.openFlightClient(flightServicePort, DUMMY_USER, DUMMY_PASSWORD,
-        getSabotContext(), authMode);
+        flightClientAllocator, authMode);
   }
 
   protected void assertThatServerStartedOnPort() {
@@ -195,6 +203,13 @@ public class BaseFlightQueryTest extends BaseTestQuery {
     kvStore = null;
     closeClient();
     resetNodeCount();
+  }
+
+  @After
+  public void resetFlightClient() throws Exception {
+    if (flightClientWrapper != null) {  // Encryption tests might have a null FlightClientWrapper
+      flightClientWrapper.resetClient();
+    }
   }
 
   protected FlightTestBuilder flightTestBuilder() {
@@ -212,18 +227,31 @@ public class BaseFlightQueryTest extends BaseTestQuery {
    * Opens a client which the test is responsible for closing.
    */
   protected static FlightClient openFlightClient(String user, String password, String authMode) throws Exception {
-    return FlightClientUtils.openFlightClient(flightServicePort, user, password, getSabotContext(),
-      authMode).getClient();
+    final BufferAllocator flightClientAllocator = getSabotContext()
+      .getAllocator()
+      .newChildAllocator("(openFlightClient)flight-client-allocator", 0, Long.MAX_VALUE);
+
+    return FlightClientUtils.openFlightClient(
+      flightServicePort,
+      user,
+      password,
+      flightClientAllocator,
+      authMode)
+      .getClient();
   }
 
   protected static FlightClientWrapper openFlightClientWrapperWithOptions(String user, String password, String authMode,
                                                                           Collection<CallOption> options)
     throws Exception {
+    final BufferAllocator flightClientAllocator = getSabotContext()
+      .getAllocator()
+      .newChildAllocator("(openFlightClientWrapperWithOptions)flight-client-allocator", 0, Long.MAX_VALUE);
+
     return FlightClientUtils.openFlightClientWithOptions(
       flightServicePort,
       user,
       password,
-      getSabotContext(),
+      flightClientAllocator,
       authMode,
       new ArrayList<>(options)
     );
@@ -231,8 +259,19 @@ public class BaseFlightQueryTest extends BaseTestQuery {
 
   protected static FlightClient openEncryptedFlightClient(String user, String password,
                                                           InputStream trustedCerts, String authMode) throws Exception {
-    return FlightClientUtils.openEncryptedFlightClient(dremioConfig.getThisNode(), flightServicePort, user, password,
-      trustedCerts, BaseTestQuery.getSabotContext(), authMode).getClient();
+    final BufferAllocator flightClientAllocator = getSabotContext()
+      .getAllocator()
+      .newChildAllocator("(openEncryptedFlightClient)flight-client-allocator", 0, Long.MAX_VALUE);
+
+    return FlightClientUtils.openEncryptedFlightClient(
+      dremioConfig.getThisNode(),
+      flightServicePort,
+      user,
+      password,
+      trustedCerts,
+      flightClientAllocator,
+      authMode)
+      .getClient();
   }
 
   private static void createEncryptedFlightService(RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) throws Exception {
@@ -263,6 +302,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
           }
         }
       )),
+      getBindingProvider().provider(CredentialsService.class),
       runQueryResponseHandlerFactory) {
 
       @Override
@@ -308,6 +348,12 @@ public class BaseFlightQueryTest extends BaseTestQuery {
       }
       pemWriter.flush();
       return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
+    }
+  }
+
+  protected static void drainStream(FlightStream stream) {
+    while (stream.next()) {
+      // Draining the stream
     }
   }
 }

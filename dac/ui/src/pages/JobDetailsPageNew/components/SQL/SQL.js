@@ -16,6 +16,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Tooltip } from "dremio-ui-lib";
+import { intl } from "@app/utils/intl";
 import CopyButton from "components/Buttons/CopyButton";
 import SqlEditor from "@app/components/SQLEditor.js";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
@@ -44,6 +45,9 @@ export const SQL = ({
   const [isContrast, setIsContrast] = useState(defaultContrast);
   const theme = isContrast ? "vs-dark" : "vs";
   const background = isContrast ? "#333333" : "#F3F4F4";
+  const selectionBackground = isContrast ? "#304D6D" : "#B5D5FB";
+  const inactiveSelectionBackground = isContrast ? "#505862" : "#c6e9ef";
+
   const handleClick = () => {
     localStorageUtils.setSqlThemeContrast(!isContrast);
     setIsContrast(!isContrast);
@@ -59,10 +63,8 @@ export const SQL = ({
           <span className="sql__copyIcon">
             <CopyButton
               data-qa="copy-icon"
-              title={"copy"}
+              title={intl.formatMessage({ id: "Job.SQL.Copy" })}
               text={sqlString}
-              iconVersion={2}
-              iconStyle={{ width: "16px", height: "16px" }}
             />
           </span>
         </div>
@@ -96,6 +98,8 @@ export const SQL = ({
           customTheme
           theme={theme}
           background={background}
+          selectionBackground={selectionBackground}
+          inactiveSelectionBackground={inactiveSelectionBackground}
           customOptions={{ ...options, ...customOptions }}
         />
       </div>

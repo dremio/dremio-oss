@@ -55,6 +55,9 @@ public class TableModifyRelBase extends TableModify {
   // CALCITE-3921 fixed this issue. https://dremio.atlassian.net/browse/DX-46901
   private final List<String> mergeUpdateColumnList;
 
+  // If the TableModify operation has a source
+  private final boolean hasSource;
+
   protected TableModifyRelBase(Convention convention,
                                RelOptCluster cluster,
                                RelTraitSet traitSet,
@@ -66,7 +69,8 @@ public class TableModifyRelBase extends TableModify {
                                List<RexNode> sourceExpressionList,
                                boolean flattened,
                                CreateTableEntry createTableEntry,
-                               List<String> mergeUpdateColumnList) {
+                               List<String> mergeUpdateColumnList,
+                               boolean hasSource) {
     super(cluster, traitSet, table, catalogReader, input, operation, updateColumnList, sourceExpressionList, flattened);
     assert getConvention() == convention;
 
@@ -74,6 +78,7 @@ public class TableModifyRelBase extends TableModify {
     this.expectedInputRowType = evaluateExpectedInputRowType(updateColumnList, mergeUpdateColumnList);
     this.createTableEntry = createTableEntry;
     this.mergeUpdateColumnList = mergeUpdateColumnList;
+    this.hasSource = hasSource;
   }
 
   /**
@@ -140,5 +145,9 @@ public class TableModifyRelBase extends TableModify {
 
   public List<String> getMergeUpdateColumnList() {
     return mergeUpdateColumnList;
+  }
+
+  public boolean hasSource() {
+    return hasSource;
   }
 }

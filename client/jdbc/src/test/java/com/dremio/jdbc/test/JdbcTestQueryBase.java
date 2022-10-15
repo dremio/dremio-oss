@@ -50,7 +50,7 @@ public class JdbcTestQueryBase extends JdbcWithServerTestBase {
         boolean first = true;
         while (r.next()) {
           ResultSetMetaData md = r.getMetaData();
-          if (first == true) {
+          if (first) {
             for (int i = 1; i <= md.getColumnCount(); i++) {
               System.out.print(md.getColumnName(i));
               System.out.print('\t');

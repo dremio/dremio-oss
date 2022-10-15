@@ -578,4 +578,37 @@ public class TestSourceMetadataManager {
 
   }
 
+  @Test
+  public void refreshNonexistentDataset() throws Exception {
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    NamespaceService ns = mock(NamespaceService.class);
+    ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
+
+    when(sp.getDatasetHandle(any(), any(), any()))
+      .thenReturn(Optional.empty());
+    when(msp.getMetadata())
+      .thenReturn(sp);
+    when(msp.getNamespaceService())
+      .thenReturn(ns);
+    doThrow(new NamespaceNotFoundException("not found"))
+      .when(ns)
+      .getDataset(any());
+
+    SourceMetadataManager manager = new SourceMetadataManager(
+      new NamespaceKey("testing"),
+      modifiableSchedulerService,
+      true,
+      mock(LegacyKVStore.class),
+      msp,
+      optionManager,
+      CatalogServiceMonitor.DEFAULT,
+      () -> broadcaster
+    );
+
+    assertThatThrownBy(() -> manager.refreshDataset(new NamespaceKey("nonExistentDataset"),
+        DatasetRetrievalOptions.DEFAULT.toBuilder().build()))
+      .isInstanceOf(DatasetNotFoundException.class)
+      .hasMessageContaining("Dataset [nonExistentDataset] not found.");
+  }
+
 }

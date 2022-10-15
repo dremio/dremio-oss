@@ -43,7 +43,7 @@ import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
-import org.apache.hadoop.hive.serde2.SerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.compress.snappy.SnappyDecompressor;
 import org.apache.hadoop.io.compress.zlib.ZlibDecompressor;
@@ -162,7 +162,7 @@ class ScanWithHiveReader {
   private static Constructor<? extends HiveAbstractReader> getNativeReaderCtor(Class<? extends HiveAbstractReader> clazz)
       throws NoSuchMethodException {
     return clazz.getConstructor(HiveTableXattr.class, SplitAndPartitionInfo.class, List.class, OperatorContext.class,
-                                JobConf.class, SerDe.class, StructObjectInspector.class, SerDe.class, StructObjectInspector.class,
+                                JobConf.class, AbstractSerDe.class, StructObjectInspector.class, AbstractSerDe.class, StructObjectInspector.class,
                                 ScanFilter.class, Collection.class, UserGroupInformation.class);
   }
 
@@ -207,10 +207,10 @@ class ScanWithHiveReader {
       final boolean isTransactional = AcidUtils.isTablePropertyTransactional(jobConf);
       final Optional<String> tableInputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
 
-      final SerDe tableSerDe = createSerDe(jobConf, HiveReaderProtoUtil.getTableSerializationLib(tableXattr).get(),
+      final AbstractSerDe tableSerDe = createSerDe(jobConf, HiveReaderProtoUtil.getTableSerializationLib(tableXattr).get(),
               tableProperties);
       final StructObjectInspector tableOI = getStructOI(tableSerDe);
-      final SerDe partitionSerDe;
+      final AbstractSerDe partitionSerDe;
       final StructObjectInspector partitionOI;
 
       boolean hasDeltas = false;

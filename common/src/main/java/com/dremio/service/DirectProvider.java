@@ -20,7 +20,7 @@ import javax.inject.Provider;
 /**
  * Wraps an instance with a provider to fit some interfaces.
  */
-public class DirectProvider<T> implements Provider<T> {
+public final class DirectProvider<T> implements Provider<T> {
 
   private final T value;
 

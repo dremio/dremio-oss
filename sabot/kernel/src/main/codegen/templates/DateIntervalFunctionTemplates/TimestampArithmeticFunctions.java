@@ -44,10 +44,30 @@ public class TimestampArithmeticFunctions {
 <#if !(inputUnit == "DateMilli" &&
     (addUnit == "MicroSecond" || addUnit == "Second" || addUnit == "Minute" || addUnit == "Hour"))>
 
-  @FunctionTemplate(name = "timestampadd${addUnit}", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(names = {"timestampadd${addUnit}", "add_${addUnit}s"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class TimestampAdd${addUnitType}${addUnit}To${inputUnit} implements SimpleFunction {
     @Param ${addUnitType}Holder count;
     @Param ${inputUnit}Holder in;
+    @Workspace MutableDateTime temp;
+    @Workspace com.dremio.exec.util.TSI tsi;
+    @Output ${inputUnit}Holder out;
+
+    public void setup() {
+      temp = new MutableDateTime(org.joda.time.DateTimeZone.UTC);
+      tsi = com.dremio.exec.util.TSI.getByName("${addUnit?upper_case}");
+    }
+
+    public void eval() {
+      temp.setMillis(in.value);
+      tsi.addCount(temp, count.value);
+      out.value = temp.getMillis();
+    }
+  }
+
+  @FunctionTemplate(names = {"add_${addUnit}s", "timestampadd${addUnit}"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class Add_${addUnitType}${addUnit}To${inputUnit} implements SimpleFunction {
+    @Param ${inputUnit}Holder in;
+    @Param ${addUnitType}Holder count;
     @Workspace MutableDateTime temp;
     @Workspace com.dremio.exec.util.TSI tsi;
     @Output ${inputUnit}Holder out;

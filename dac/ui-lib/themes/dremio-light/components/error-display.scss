@@ -15,14 +15,14 @@
  */
 
 .dremio-error-display {
-  --dremio--error-display--background: hsl(30deg 95% 95%);
-  --dremio--error-display--padding: var(--dremio--spacing--1);
+  --dremio--error-display--background: var(--dremio--color--neutral--100);
+  --dremio--error-display--padding: var(--dremio--spacing--2);
 
-  --dremio--error-display--title--font-size: 18px;
-  --dremio--error-display--title--gap: var(--dremio--spacing--1);
-  --dremio--error-display--title--line-height: 28px;
+  --dremio--error-display--title--font-size: 16px;
+  --dremio--error-display--title--font-weight: 600;
+  --dremio--error-display--title--line-height: 24px;
 
-  --dremio--error-display--title--icon--size: 36px;
+  --dremio--error-display--title--icon--size: 120px;
 
   block-size: 100%;
   box-sizing: border-box;
@@ -33,8 +33,10 @@
   background: var(--dremio--error-display--background);
   color: black;
   padding: var(--dremio--error-display--padding);
+  text-align: center;
 
   &__wrapper {
+    margin-inline: auto;
     max-inline-size: 75ch;
     inline-size: 100%;
 
@@ -43,23 +45,18 @@
     }
   }
 
-  &__title {
+  &__title-text {
     font-size: var(--dremio--error-display--title--font-size);
-    font-weight: 300;
-    gap: var(--dremio--error-display--title--gap);
+    font-weight: var(--dremio--error-display--title--font-weight);
     line-height: var(--dremio--error-display--title--line-height);
-    align-items: center;
-    display: flex;
-    flex-direction: row;
-
-    > * {
-      flex-shrink: 0;
-    }
   }
 
   &__title-icon {
-    block-size: var(--dremio--error-display--title--icon--size);
-    inline-size: var(--dremio--error-display--title--icon--size);
+    block-size: 100%;
+    inline-size: 100%;
+    max-block-size: var(--dremio--error-display--title--icon--size);
+    max-inline-size: var(--dremio--error-display--title--icon--size);
+    margin-block-end: var(--dremio--spacing--2);
   }
 
   &__codeblock {
@@ -70,5 +67,16 @@
     border: 1px solid black;
     border-radius: var(--dremio--radius--1);
     padding: var(--dremio--spacing--2);
+    max-block-size: 200px;
+    overflow: auto;
+    text-align: start;
+  }
+
+  &__collapsible-stacktrace {
+    text-align: start;
+
+    &-icon {
+      margin-inline-start: -13px;
+    }
   }
 }

@@ -39,12 +39,13 @@ import ViewStateWrapper from "components/ViewStateWrapper";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import jobsUtils from "@app/utils/jobsUtils";
 import { renderContent } from "dyn-load/utils/jobsUtils";
-import SideNav from "@app/components/SideNav/SideNav";
 import socket from "@inject/utils/socket";
 import { GetIsSocketForSingleJob } from "@inject/pages/JobDetailsPageNew/utils";
+import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
 
 import TopPanel from "./components/TopPanel/TopPanel";
 import "./JobDetailsPage.less";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 
 const POLL_INTERVAL = 3000;
 
@@ -225,8 +226,9 @@ const JobDetailsPage = (props) => {
     <div style={{ height: "100%" }}>
       <DocumentTitle title={formatMessage({ id: "Job.Jobs" })} />
       <div className={"jobsPageBody"}>
-        <SideNav />
+        <SonarSideNav />
         <div className={"jobPageContentDiv"}>
+          <NavCrumbs />
           <ViewStateWrapper
             hideChildrenWhenFailed={false}
             viewState={viewState}

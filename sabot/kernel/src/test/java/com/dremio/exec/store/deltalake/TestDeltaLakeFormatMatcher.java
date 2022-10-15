@@ -16,8 +16,8 @@
 
 package com.dremio.exec.store.deltalake;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -98,7 +98,7 @@ public class TestDeltaLakeFormatMatcher {
 
     deltaLog.setReadable(false);
 
-    assertFalse(matcher.matches(fs, fileSelection, null));
+    assertTrue(matcher.matches(fs, fileSelection, null));
 
     //Setting readable again so is cleaned up after test
     deltaLog.setReadable(true);

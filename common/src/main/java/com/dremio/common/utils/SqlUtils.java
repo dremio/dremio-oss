@@ -66,6 +66,7 @@ public class SqlUtils {
   private static final CharMatcher NEWLINE_MATCHER = CharMatcher.anyOf("\n\r").precomputed();
 
   /** list of reserved keywords in parser */
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   public static ImmutableSet<String> RESERVED_SQL_KEYWORDS;
 
   static {
@@ -155,8 +156,7 @@ public class SqlUtils {
       default:
         if (c == QUOTE) {
           sb.append(QUOTE_WITH_ESCAPE);
-        }
-        else {
+        } else {
           sb.append(c);
         }
       }
@@ -198,10 +198,5 @@ public class SqlUtils {
         .getTokenList();
   }
 
-  public static Function<String, String> QUOTER = new Function<String, String>(){
-
-    @Override
-    public String apply(String input) {
-      return quoteIdentifier(input);
-    }};
+  public static final Function<String, String> QUOTER = SqlUtils::quoteIdentifier;
 }

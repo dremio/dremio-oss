@@ -43,6 +43,7 @@ import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
@@ -105,7 +106,7 @@ public class IcebergTableWrapper {
         table = icebergModel.getIcebergTable(
                   icebergModel.getTableIdentifier(rootDir));
         schema = table.schema();
-        SchemaConverter schemaConverter = new SchemaConverter(table.name());
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().setMapTypeEnabled(context.getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).setTableName(table.name()).build();
         batchSchema = schemaConverter.fromIceberg(table.schema());
         buildPartitionColumns();
         buildPartitionsAndSplits();

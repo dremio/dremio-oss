@@ -227,8 +227,9 @@ public class BlackListOutput implements Output {
     return false;
   }
 
-  public static class Builder{
-    Map<String, int[]> blackListed = new HashMap<>();
+  public static class Builder {
+    private final Map<String, int[]> blackListed = new HashMap<>();
+
     public Builder blacklist(Schema<?> schema, String...fields){
       int[] blackListFieldsNumbers = new int[fields.length];
       if(blackListed.containsKey(schema.messageFullName())){

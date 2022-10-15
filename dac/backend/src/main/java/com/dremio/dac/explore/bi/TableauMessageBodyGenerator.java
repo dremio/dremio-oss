@@ -214,7 +214,8 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
   private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
   private final boolean customizationEnabled;
-  private final DremioConfig config;
+  @SuppressWarnings("checkstyle:VisibilityModifier")
+  protected final DremioConfig config;
 
   @Inject
   public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager,
@@ -310,7 +311,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
             TableauSDKConstants.ENGINE, "");
   }
 
-  protected Map<String, String> getSdkAuthenticationMethod(String hostname, TableauExportType tableauExportType) {
+  protected Map<String, String> getSdkAuthenticationMethod(String hostname) {
     return ImmutableMap.of(TableauSDKConstants.AUTHENTICATION, TableauSDKConstants.BASIC);
   }
 
@@ -353,7 +354,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
             .build();
 
     writeAttributes(xmlStreamWriter, basicAttributes);
-    writeAttributes(xmlStreamWriter, getSdkAuthenticationMethod(hostname, tableauExportType));
+    writeAttributes(xmlStreamWriter, getSdkAuthenticationMethod(hostname));
     writeAttributes(xmlStreamWriter, getSdkCustomProperties());
 
     writeRelation(xmlStreamWriter, datasetConfig);

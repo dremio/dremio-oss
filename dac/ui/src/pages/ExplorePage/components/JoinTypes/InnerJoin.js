@@ -23,14 +23,30 @@ import Select from "components/Fields/Select";
 import { bodySmall, formDefault } from "uiTheme/radium/typography";
 import { PALE_BLUE, PALE_GREY } from "uiTheme/radium/colors";
 import { LINE_CENTER_CENTER } from "uiTheme/radium/flexStyle";
-import { MAP, LIST, OTHER, GEO, MIXED, ANY } from "@app/constants/DataTypes";
+import {
+  MAP,
+  LIST,
+  OTHER,
+  GEO,
+  MIXED,
+  ANY,
+  STRUCT,
+} from "@app/constants/DataTypes";
 import JoinColumnMenu from "./components/JoinColumnMenu";
 import JoinDragArea from "./components/JoinDragArea";
 import { ddList as ddListCls, ddItem as ddItemCls } from "./InnerJoin.less";
 
 const DEFAULT_WIDTH = 200;
 
-export const NOT_SUPPORTED_TYPES = new Set([MAP, LIST, OTHER, GEO, MIXED, ANY]);
+export const NOT_SUPPORTED_TYPES = new Set([
+  MAP,
+  LIST,
+  OTHER,
+  GEO,
+  MIXED,
+  ANY,
+  STRUCT,
+]);
 
 export class InnerJoin extends Component {
   static propTypes = {

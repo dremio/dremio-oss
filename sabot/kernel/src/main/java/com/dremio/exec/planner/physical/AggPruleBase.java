@@ -18,15 +18,19 @@ package com.dremio.exec.planner.physical;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlKind;
 
 import com.dremio.exec.expr.fn.ItemsSketch.ItemsSketchFunctions;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 
@@ -80,6 +84,7 @@ public abstract class AggPruleBase extends Prule {
     "HLL_MERGE",
     "HLL",
     "TDIGEST",
+    "LISTAGG",
     ItemsSketchFunctions.FUNCTION_NAME
   );
 
@@ -99,6 +104,29 @@ public abstract class AggPruleBase extends Prule {
       }
     }
     return true;
+  }
+
+  public static List<AggregateCall> getUpdatedPhase1AggregateCall(AggregateRel aggregateRel) {
+    final RelDataTypeFactory relDataTypeFactory = aggregateRel.getCluster().getTypeFactory();
+    // return rewritten phase1 aggregate calls after expansion
+    return aggregateRel.getAggCallList().stream().map(call -> {
+      if (call.getAggregation().getKind() == SqlKind.LISTAGG) {
+        return AggregateCall.create(
+          DremioSqlOperatorTable.LOCAL_LISTAGG,
+          call.isDistinct(),
+          call.isApproximate(),
+          call.getArgList(),
+          call.filterArg,
+          call.collation,
+          DremioSqlOperatorTable.LOCAL_LISTAGG.inferReturnType(
+            relDataTypeFactory,
+            call.getArgList().stream().map(i ->
+              aggregateRel.getInput().getRowType().getFieldList().get(i).getType()).collect(Collectors.toList())),
+          call.name);
+      } else {
+        return call;
+      }
+    }).collect(Collectors.toList());
   }
 
   protected static boolean isSingleton(RelOptRuleCall call) {

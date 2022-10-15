@@ -13,23 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { QueryRange } from "@app/utils/statements/statement";
+
 export type ErrorResponse = {
-    readonly errorMessage?: string;
-    readonly details?: {
-        readonly errors?: SqlError[];
-    }
+  readonly errorMessage?: string;
+  readonly details?: {
+    readonly errors?: SqlError<QueryRangeResponse>[];
+  }
 }
 
-export type QueryRange = {
-    readonly startLine: number;
-    readonly startColumn: number;
-    readonly endLine: number;
-    readonly endColumn: number;
+export type QueryRangeResponse = {
+  readonly startLine: number;
+  readonly startColumn: number;
+  readonly endLine: number;
+  readonly endColumn: number;
 }
 
-export type SqlError = {
-    readonly message: string;
-    readonly range: QueryRange;
+export type SqlError<TRange> = {
+  readonly message: string;
+  readonly range: TRange;
 }
 
 export const DEFAULT_ERROR_MESSAGE = "Error";
@@ -38,8 +41,35 @@ export const DEFAULT_ERROR_MESSAGE = "Error";
  * Error message will be in the only error within the error details. 
  * NOTE: if this behavior changes on the server, this is the place to update.
  */
-const getSqlError = (errorResponse: ErrorResponse | undefined): SqlError | undefined => {
-    return errorResponse?.details?.errors?.[0];
+const getSqlError = (errorResponse: ErrorResponse | undefined): SqlError<QueryRangeResponse | undefined> | undefined => {
+  return errorResponse?.details?.errors?.[0];
+}
+
+/**
+ * Given an absolute range of the full statement and a range of an error within that statement, 
+ * returns an absolute range of an error
+ */
+const getErrorRange = (statementRange: QueryRange, relativeErrorRange: QueryRangeResponse | undefined): QueryRange => {
+  if (relativeErrorRange === undefined) {
+    return statementRange;
+  }
+  const lineOffset = statementRange.startLineNumber - 1; // lines are 1-based, but offsets are 0-based
+  const columnOffset = statementRange.startColumn - 1; // same here
+
+  // Two observations:
+  // 1. start and end lines within the error will be offset by the line offset
+  // 2. columns on the FIRST LINE ONLY will be offset by the column offset
+  return {
+    startLineNumber: relativeErrorRange.startLine + lineOffset,
+    endLineNumber: relativeErrorRange.endLine + lineOffset,
+    startColumn: relativeErrorRange.startLine === 1
+      ? relativeErrorRange.startColumn + columnOffset
+      : relativeErrorRange.startColumn,
+    // monaco looks at how to draw error by using end column as an exclusive index, hence +1
+    endColumn: relativeErrorRange.startLine === 1
+      ? relativeErrorRange.endColumn + columnOffset + 1
+      : relativeErrorRange.endColumn + 1,
+  }
 }
 
 /**
@@ -48,20 +78,16 @@ const getSqlError = (errorResponse: ErrorResponse | undefined): SqlError | undef
  * @param queryRange range within sql editor of where the error happened
  * @returns error message along with a (potentially) narrowed down range of where the error happened within the editor.
  */
-export const extractSqlErrorFromResponse = (errorResponse: ErrorResponse | undefined, queryRange: QueryRange): SqlError => {
-    const sqlError = getSqlError(errorResponse);
-    if (!sqlError) {
-        return {
-            message: errorResponse?.errorMessage ?? DEFAULT_ERROR_MESSAGE,
-            range: queryRange,
-        };
-    }
-    // for now, we return absolute range always because there are issues with how it is computed 
-    // and we can't rely on the range in response as the result.
-    // Specifically, when we chop multi-sql statements, we trim new line/whitespaces in the expression that is sent to the server.
-    // So when the result is back, we can't easily reconsile line/column numbers.
+export const extractSqlErrorFromResponse = (errorResponse: ErrorResponse | undefined, queryRange: QueryRange): SqlError<QueryRange> => {
+  const sqlError = getSqlError(errorResponse);
+  if (!sqlError) {
     return {
-        message: sqlError.message,
-        range: queryRange,
+      message: errorResponse?.errorMessage ?? DEFAULT_ERROR_MESSAGE,
+      range: queryRange,
     };
+  }
+  return {
+    message: sqlError.message,
+    range: getErrorRange(queryRange, sqlError.range),
+  };
 }

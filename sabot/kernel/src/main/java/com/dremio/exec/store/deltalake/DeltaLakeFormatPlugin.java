@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.NotImplementedException;
@@ -79,6 +78,7 @@ import com.dremio.sabot.exec.store.deltalake.proto.DeltaLakeProtobuf;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfig> {

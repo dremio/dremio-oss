@@ -15,5 +15,7 @@
  */
 
 @use "./tokens.scss";
+@use "./utility-classes/no-underline";
+@use "./utility-classes/overlay-container";
 @use "./utility-classes/typography";
 @use "./components.scss";

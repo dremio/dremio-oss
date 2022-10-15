@@ -70,9 +70,9 @@ public class TestAutoRefresh extends BaseTestQuery {
     config.setName("testRefresh");
     config.setMetadataPolicy(
       new MetadataPolicy()
-        .setAuthTtlMs(0l)
+        .setAuthTtlMs(0L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setNamesRefreshMs(0l)
+        .setNamesRefreshMs(0L)
         .setDatasetDefinitionExpireAfterMs(Long.MAX_VALUE)
     );
     config.setConfig(nasConf.toBytesString());

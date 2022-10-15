@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 import { createRef, PureComponent } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
-import Divider from "@material-ui/core/Divider";
+import Divider from "@mui/material/Divider";
 
 import { AUTO_TYPES } from "@app/constants/columnTypeGroups";
 import { JSONTYPE } from "@app/constants/DataTypes";
@@ -80,4 +79,4 @@ class AutoGroup extends PureComponent {
     );
   }
 }
-export default Radium(AutoGroup);
+export default AutoGroup;

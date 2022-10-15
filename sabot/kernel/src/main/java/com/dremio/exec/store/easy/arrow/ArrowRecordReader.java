@@ -209,7 +209,7 @@ public class ArrowRecordReader extends AbstractRecordReader {
             .message("RecordBatch has different schema than the one stored in footer")
             .addContext("filePath", path.toString())
             .addContext("RecordBatch schema", batchSchema.toString())
-            .addContext("Schema in footer", footerSchema)
+            .addContext("Schema in footer", footerSchema.toString())
             .build(logger);
       }
 

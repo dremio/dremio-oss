@@ -15,16 +15,14 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.ValueListFilter;
+import org.apache.arrow.memory.ArrowBuf;
+
 
 public interface JoinTable extends AutoCloseable {
-  public void insert(final long outputAddr, final int records);
-  public void find(final long outputAddr, final int records);
+  public void insert(final ArrowBuf output, final int records);
+  public void find(final ArrowBuf output, final int records);
   public int size();
   public int capacity();
   public int getRehashCount();
@@ -41,35 +39,31 @@ public interface JoinTable extends AutoCloseable {
    * @param numRecords number of records in the current data batch
    * @return an autocloseable that, when closed, will release the resources held by the trace
    */
-  public AutoCloseable traceStart(int numRecords);
-
+  AutoCloseable traceStart(int numRecords);
   /**
    * Report the details of the trace
    */
-  public String traceReport();
-  public long getBuildHashComputationTime(TimeUnit unit);
-  public long getProbeHashComputationTime(TimeUnit unit);
+  String traceReport();
+
+  long getBuildHashComputationTime(TimeUnit unit);
+  long getProbeHashComputationTime(TimeUnit unit);
 
   /**
-   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
-   * the consumer. Instead, they get an empty optional.
-   * @param fieldNames
-   * @param sizeDynamically Size the filter according to the number of entries in table.
-   * @param maxKeySize Max key width
-   * @return
+   * Prepares bloomfilters for each probe target (field keys) in PartitionColFilters.
+   * Since this is an optimisation, errors are not propagated to the consumer,
+   * instead, they marked as an empty optional.
+   *
+   * @param partitionColFilters Previously created bloomfilters, one per probe target.
+   * @param sizeDynamically Only used for EightByteInnerLeftProbeOff
    */
-  Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize);
+  void prepareBloomFilters(PartitionColFilters partitionColFilters, boolean sizeDynamically);
 
   /**
-   * Returns distinct keys for a given field. In case of composite keys, this method can be used to get distinct values
-   * for a given join field. Returns empty if number of distinct keys are more than max elements or if there is an
-   * error while processing keys.
+   * Prepares ValueListFilters for each probe target (and for each field for composite keys).
+   * Since this is an optimisation, errors are not propagated to the consumer, instead they
+   * are ignored.
    *
-   * Primarily used for Runtime Filtering at Joins
-   *
-   * @param fieldName
-   * @param maxElements
-   * @return
+   * @param nonPartitionColFilters Previously created value list builders, one list per probe target.
    */
-  Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements);
+  void prepareValueListFilters(NonPartitionColFilters nonPartitionColFilters);
 }

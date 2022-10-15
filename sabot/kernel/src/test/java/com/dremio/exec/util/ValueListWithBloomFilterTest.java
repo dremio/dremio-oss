@@ -90,7 +90,7 @@ public class ValueListWithBloomFilterTest {
          AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
          ArrowBuf keyBuf = testAllocator.buffer(8)) {
       builder.setup();
-      List<Long> insertedVals = Arrays.asList(1l, 2l, 3l, 123l, 132l, 12l, 11l, 41l, 90l, 37l);
+      List<Long> insertedVals = Arrays.asList(1L, 2L, 3L, 123L, 132L, 12L, 11L, 41L, 90L, 37L);
       insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
       builder.setName(TEST_NAME);
       builder.setFieldType(Types.MinorType.BIGINT);
@@ -121,7 +121,7 @@ public class ValueListWithBloomFilterTest {
          AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable();
          ArrowBuf keyBuf = testAllocator.buffer(8)) {
       builder.setup();
-      List<Long> insertedVals = Arrays.asList(1l, 2l, 3l, 123l, 132l, 12l, 11l, 41l, 90l, 37l);
+      List<Long> insertedVals = Arrays.asList(1L, 2L, 3L, 123L, 132L, 12L, 11L, 41L, 90L, 37L);
       insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
       builder.setName(TEST_NAME);
       builder.setFieldType(Types.MinorType.BIGINT);

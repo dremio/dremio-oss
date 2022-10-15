@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from "react";
+import { createElement } from "react";
 import { shallow } from "enzyme";
 
 import FontIcon, { FullFontIcon } from "./FontIcon";
@@ -87,7 +87,7 @@ describe("FontIcon", () => {
         iconStyle,
         containerStyle
       );
-      const wrapper = shallow(React.createElement(component));
+      const wrapper = shallow(createElement(component));
       expect(wrapper.find("span").at(1).props().className).to.eql(
         "fa Bar icon-type"
       );
@@ -103,7 +103,7 @@ describe("FontIcon", () => {
       };
 
       const component = instance.createFastIconComponent("Baz");
-      const wrapper = shallow(React.createElement(component, { theme }));
+      const wrapper = shallow(createElement(component, { theme }));
       expect(wrapper.find("span").at(0).props().style).to.equal(
         theme.Container
       );

@@ -32,12 +32,12 @@ import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.NoOutputLogger;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -149,7 +149,16 @@ public class TestQueryReAttempt extends BaseTestQuery {
   public static void enableReAttempts() {
     setSessionOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG, "false");
     setSessionOption(ExecConstants.ENABLE_REATTEMPTS.getOptionName(), "true");
+    setSessionOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM.getOptionName(), "true");
     setSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
+  }
+
+  @AfterClass
+  public static void resetReAttempts() {
+    resetSessionOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG);
+    resetSessionOption(ExecConstants.ENABLE_REATTEMPTS.getOptionName());
+    resetSessionOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM.getOptionName());
+    resetSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName());
   }
 
   /**
@@ -243,7 +252,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
     OptionManager options = Mockito.mock(OptionManager.class);
     ReAttemptHandler attemptHandler = new ExternalAttemptHandler(options);
     AttemptId id = new AttemptId();
-    final UserException userException = UserException.memoryError(null).build(NoOutputLogger.INSTANCE);
+    final UserException userException = UserException.memoryError(null).buildSilently();
     assertEquals(AttemptReason.NONE, attemptHandler.isRecoverable(new ReAttemptContext(id, userException, false, true)));
   }
 

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Select from "components/Fields/Select";
 
@@ -123,4 +122,4 @@ const styles = {
     margin: "0 10px",
   },
 };
-export default Radium(ReplacePattern);
+export default ReplacePattern;

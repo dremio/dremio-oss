@@ -16,7 +16,7 @@
 import React from "react";
 import { shallow } from "enzyme";
 
-import TextareaAutosize from "@material-ui/core/TextareaAutosize";
+import TextareaAutosize from "@mui/material/TextareaAutosize";
 
 import Label from "../Label";
 import CopyToClipboard from "../CopyToClipboard";
@@ -73,7 +73,7 @@ describe("TextArea", () => {
         value: minimalProps.value,
         disabled: true,
         className: "--noResize",
-        rowsMax: 4,
+        maxRows: 4,
       })
     );
     expect(wrapper.find(CopyToClipboard).exists()).toBe(true);

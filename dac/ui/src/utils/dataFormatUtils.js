@@ -13,7 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { MAP, LIST, BOOLEAN, TEXT, FLOAT } from "@app/constants/DataTypes";
+import {
+  MAP,
+  LIST,
+  BOOLEAN,
+  TEXT,
+  FLOAT,
+  STRUCT,
+} from "@app/constants/DataTypes";
 import { padStart } from "lodash/string";
 
 // todo: loc
@@ -111,6 +118,7 @@ class DataFormatUtils {
     }
     switch (columnType) {
       case MAP:
+      case STRUCT:
       case LIST:
       case BOOLEAN:
         if (typeof value === "string") {

@@ -16,11 +16,13 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -127,6 +129,8 @@ public class CalciteArrowHelper {
         return Optional.of(getStructField(name, relDataType));
       } else if (minorType == MinorType.LIST) {
         return Optional.of(getListField(name, relDataType));
+      } else if (minorType == MinorType.MAP) {
+        return Optional.of(getMapField(name, relDataType));
       } else {
         majorType = Types.optional(minorType);
       }
@@ -151,7 +155,7 @@ public class CalciteArrowHelper {
 
   private static Field getListField(String name, RelDataType relDataType) {
     final List<Field> onlyChild = new ArrayList<>();
-    if (relDataType != null) {
+    if ((relDataType != null) && (relDataType.getComponentType() != null)) {
       fieldFromCalciteRowType("$data$", relDataType.getComponentType()).ifPresent(onlyChild::add);
     }
 
@@ -160,6 +164,22 @@ public class CalciteArrowHelper {
       new FieldType(true,
         MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.LIST)), null),
       onlyChild
+    );
+  }
+
+  private static Field getMapField(String name, RelDataType relDataType) {
+    final List<Field> structChild = new ArrayList<>();
+    if (relDataType != null) {
+      fieldFromCalciteRowType("key", relDataType.getKeyType()).ifPresent(structChild::add); // issues may be because of key field to be nullable from MajorTypeHelper
+      fieldFromCalciteRowType("value", relDataType.getValueType()).ifPresent(structChild::add);
+    }
+    Field entriesStruct = new Field("entries", new FieldType(false, MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.STRUCT)), null),
+      structChild);
+    return new Field(
+      name,
+      new FieldType(true,
+        new ArrowType.Map(false), null),
+      Collections.singletonList(entriesStruct)
     );
   }
 
@@ -241,6 +261,17 @@ public class CalciteArrowHelper {
           }
         }
 
+      if (completeType.isMap()) {
+        if (withComplexTypeSupport) {
+          Preconditions.checkArgument(completeType.getOnlyChild().getChildren().size() == 2);
+          return convertFieldsToMap(completeType.getOnlyChild().getChildren().get(0),
+            completeType.getOnlyChild().getChildren().get(1), typeFactory, true);
+        } else {
+          return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.ANY), true);
+        }
+      }
+
+
       final SqlTypeName sqlTypeName = getCalciteTypeFromMinorType(type);
 
       if(completeType.isVariableWidthScalar()){
@@ -271,6 +302,14 @@ public class CalciteArrowHelper {
       return typeFactory.createTypeWithNullability(typeFactory.createSqlType(sqlTypeName), true);
     }
 
+    public static RelDataType convertFieldsToMap(Field key, Field value, RelDataTypeFactory typeFactory, boolean withComplexTypeSupport) {
+
+      return typeFactory.createTypeWithNullability(
+        typeFactory.createMapType(
+          toCalciteFieldType(key, typeFactory, withComplexTypeSupport),
+          toCalciteFieldType(value, typeFactory, withComplexTypeSupport)
+        ), true);
+    }
 
     public RelDataType convertFieldsToStruct(List<Field> fields, RelDataTypeFactory typeFactory, boolean withComplexTypeSupport) {
       List<RelDataType> types = new ArrayList<>();

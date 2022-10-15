@@ -1,0 +1,46 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "SPLIT_PART"
+signatures:
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "expression"
+    description: "Input expression."
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "delimiter"
+    description: "String representing the delimiter to split the input expression by."
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "part_number"
+    description: "Requested part of the split. Must be an NUMERIC greater than zero."
+  description: "Returns the requested part of the STRING."
+  sampleCodes:
+   -
+    call: "SELECT SPLIT_PART('127.0.0.1', '.', 1)"
+    result: "127"
+dremioVersion: "1.0+"
+functionCategories:
+ - "CHARACTER"
+description: "Splits a given STRING at a specified character and returns the requested part."

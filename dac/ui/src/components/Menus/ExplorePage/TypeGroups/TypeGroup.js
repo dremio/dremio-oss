@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { createRef, PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -54,6 +53,10 @@ class TypeGroup extends PureComponent {
 
   constructor(props) {
     super(props);
+
+    this.state = {
+      visibility: false,
+    };
     this.setVisibility = this.setVisibility.bind(this);
     this.rootRef = createRef();
   }
@@ -158,4 +161,4 @@ class TypeGroup extends PureComponent {
     );
   }
 }
-export default Radium(TypeGroup);
+export default TypeGroup;

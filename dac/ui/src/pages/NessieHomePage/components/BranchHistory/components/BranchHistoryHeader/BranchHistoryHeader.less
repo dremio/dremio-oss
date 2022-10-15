@@ -19,14 +19,15 @@
 :global {
   .branch-history-header {
     height: 48px;
-    padding: 0 16px;
+    padding-left: 16px;
+    padding-right: 12px;
     border-bottom: 1px solid @TABLE_BORDER;
     display: flex;
     align-items: center;
 
     .merge-branch-wrap {
       padding-left: 8px;
-      padding-right: 8px;
+      padding-right: 4px;
       .branch-button {
         .font-icon {
           transform: scaleY(-1);
@@ -76,8 +77,8 @@
       }
     }
 
-    &-ellipsis {
-      cursor: pointer;
+    &-more {
+      color: var(--dremio--color--neutral--600);
     }
   }
 }

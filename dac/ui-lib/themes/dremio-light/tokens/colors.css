@@ -55,4 +55,8 @@
 
   --dremio--color--icon--main: var(--dremio--color--neutral--600);
   --dremio--color--icon--dremio--disabled: var(--dremio--color--neutral--200);
+
+  --dremio--color--arctic--100: #5a5dee;
+  --dremio--color--arctic--300: #6c6da4;
+  --dremio--color--arctic--400: #47498d;
 }

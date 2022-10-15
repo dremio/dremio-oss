@@ -43,7 +43,7 @@
 }
 
 .base {
-  min-height: @row-element-height;
+  min-height: 32px;
 }
 
 .itemContainer {
@@ -78,15 +78,12 @@
 }
 
 .dataset-add {
-  filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg)
-    brightness(91%) contrast(85%);
-  height: 2.4rem;
+  color: var(--dremio--color--icon--main);
   opacity: 0;
   transition: 300ms ease all;
-  width: 2.4rem;
 
   &:hover {
-    .gray-icon-hover();
+    color: var(--dremio--color--link);
   }
 }
 
@@ -100,9 +97,16 @@
   }
 }
 
-.icon {
-  @size: 16px;
-  width: @size;
-  height: @size;
+.iconInDropdown {
+  width: 28px;
+  height: 28px;
   margin-left: 5px;
+  color: var(--dremio--color--icon--main);
+}
+
+.icon {
+  width: 24x;
+  height: 24px;
+  margin-left: 5px;
+  color: var(--dremio--color--icon--main);
 }

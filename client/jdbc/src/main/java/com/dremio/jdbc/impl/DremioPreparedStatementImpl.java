@@ -369,7 +369,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public int executeUpdate(String sql, int columnIndexes[]) throws SQLException {
+  public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
     throwIfClosed();
     try {
       return super.executeUpdate(sql, columnIndexes);
@@ -380,7 +380,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public int executeUpdate(String sql, String columnNames[]) throws SQLException {
+  public int executeUpdate(String sql, String[] columnNames) throws SQLException {
     throwIfClosed();
     try {
       return super.executeUpdate(sql, columnNames);
@@ -402,7 +402,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public boolean execute(String sql, int columnIndexes[]) throws SQLException {
+  public boolean execute(String sql, int[] columnIndexes) throws SQLException {
     throwIfClosed();
     try {
       return super.execute(sql, columnIndexes);
@@ -413,7 +413,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public boolean execute(String sql, String columnNames[]) throws SQLException {
+  public boolean execute(String sql, String[] columnNames) throws SQLException {
     throwIfClosed();
     try {
       return super.execute(sql, columnNames);

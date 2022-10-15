@@ -20,9 +20,12 @@ import PropTypes from "prop-types";
 import { createSelector } from "reselect";
 import { injectIntl } from "react-intl";
 import { LINE_NOROW_START_STRETCH } from "uiTheme/radium/flexStyle";
+import { getSortedSources } from "@app/selectors/home";
+import { isDcsEdition } from "dyn-load/utils/versionUtils";
 
 import { loadDatasetForDatasetType } from "actions/resources";
-
+//@ts-ignore
+import Message from "@app/components/Message";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import { getViewState, getEntity } from "selectors/resources";
 import { getHomeEntityOrChild } from "@app/selectors/home";
@@ -32,12 +35,25 @@ import AccelerationController from "components/Acceleration/AccelerationControll
 import DatasetSettingsMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetSettingsMixin";
 
 import { showUnsavedChangesConfirmDialog } from "actions/confirmation";
-
 import NavPanel from "components/Nav/NavPanel";
 import FileFormatController from "./FileFormatController";
 import AccelerationUpdatesController from "./AccelerationUpdates/AccelerationUpdatesController";
 import DatasetOverviewForm from "./DatasetOverviewForm";
+import DatasetCompactionForm from "@inject/pages/HomePage/components/modals/DatasetSettings/DatasetCompaction/DatasetCompactionForm";
+import {
+  postCompactionData,
+  getAllCompactionData,
+  patchCompactionData,
+  startCompaction,
+  clearCompactionStateData,
+} from "@inject/actions/resources/compaction";
+import {
+  getSourceName,
+  getArcticProjectId,
+  getBranchName,
+} from "@inject/pages/HomePage/components/modals/DatasetSettings/compactionUtils";
 
+const COMPACTION = "COMPACTION";
 const DATASET_SETTINGS_VIEW_ID = "DATASET_SETTINGS_VIEW_ID";
 
 @DatasetSettingsMixin
@@ -60,10 +76,24 @@ export class DatasetSettings extends PureComponent {
     updateFormDirtyState: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
     loadDatasetForDatasetType: PropTypes.func.isRequired,
+    branchName: PropTypes.string,
+    postCompactionData: PropTypes.func,
+    startCompaction: PropTypes.func,
+    getAllCompactionData: PropTypes.func,
+    patchCompactionData: PropTypes.func,
+    getCompactionData: PropTypes.func,
+    clearCompactionStateData: PropTypes.func,
+    arcticProjectId: PropTypes.string,
+    compactionTasks: PropTypes.array,
+    enableCompaction: PropTypes.bool,
+    isAdmin: PropTypes.bool,
+    isIcebergTable: PropTypes.bool,
   };
 
   state = {
     isFormDirty: false,
+    loadingTask: true,
+    loadingCompactionError: null,
   };
 
   componentWillMount() {
@@ -96,7 +126,33 @@ export class DatasetSettings extends PureComponent {
   }
 
   componentDidMount() {
-    const { location, tab } = this.props;
+    const {
+      location,
+      tab,
+      arcticProjectId,
+      getAllCompactionData: dispatchGetAllCompactionData,
+      branchName,
+      entity,
+      isAdmin,
+      enableCompaction,
+    } = this.props;
+
+    if (enableCompaction && isAdmin && arcticProjectId && entity) {
+      const spaceName = [...entity.get("fullPathList").remove(0)].join(".");
+      dispatchGetAllCompactionData({
+        projectId: arcticProjectId,
+        filter: `tableIdentifier=='${spaceName}'&&ref=='${branchName}'&&actionType=='${COMPACTION}'`,
+        maxResults: "1",
+      })
+        .then(() => this.setState({ taskLoading: false }))
+        .catch((error) => {
+          this.setState({
+            taskLoading: false,
+            loadingCompactionError: error.errorMessage,
+          });
+        });
+    }
+
     if (!tab) {
       this.context.router.replace({
         ...location,
@@ -148,7 +204,20 @@ export class DatasetSettings extends PureComponent {
   );
 
   renderContent() {
-    const { hide, location, entity } = this.props;
+    const {
+      hide,
+      location,
+      entity,
+      branchName,
+      arcticProjectId,
+      isIcebergTable,
+      compactionTasks,
+      clearCompactionStateData: dispatchClearCompactionStateData,
+      startCompaction: dispatchStartCompaction,
+      patchCompactionData: dispatchPatchCompactionData,
+      postCompactionData: dispatchPostCompactionData,
+      isAdmin,
+    } = this.props;
 
     if (!entity) {
       return null;
@@ -159,6 +228,39 @@ export class DatasetSettings extends PureComponent {
       onDone: hide,
       location,
     };
+
+    const renderDataOptimization =
+      arcticProjectId && isAdmin && isIcebergTable
+        ? {
+            dataOptimization: () => {
+              return this.state.loadingCompactionError ? (
+                <Message
+                  messageType="error"
+                  inFlow={false}
+                  message={this.state.loadingCompactionError}
+                  messageId={this.state.loadingCompactionError}
+                />
+              ) : (
+                <DatasetCompactionForm
+                  {...commonProps}
+                  compactionTasks={compactionTasks}
+                  spaceName={[...entity.get("fullPathList").remove(0)]}
+                  entity={entity}
+                  projectId={arcticProjectId}
+                  dispatchClearCompactionStateData={
+                    dispatchClearCompactionStateData
+                  }
+                  taskLoading={this.state.taskLoading}
+                  dispatchStartCompaction={dispatchStartCompaction}
+                  dispatchPatchCompactionData={dispatchPatchCompactionData}
+                  dispatchPostCompactionData={dispatchPostCompactionData}
+                  branchName={branchName}
+                  updateFormDirtyState={this.updateFormDirtyState}
+                />
+              );
+            },
+          }
+        : {};
 
     let contentRenderers = {
       format: () => {
@@ -198,6 +300,7 @@ export class DatasetSettings extends PureComponent {
         // TODO refactor - uses only: name, fullPathList, fileType, queryable
         return <DatasetOverviewForm {...commonProps} entity={entity} />;
       },
+      ...renderDataOptimization,
     };
 
     contentRenderers = this.extendContentRenderers(
@@ -220,6 +323,7 @@ export class DatasetSettings extends PureComponent {
           changeTab={this.handleChangeTab}
           activeTab={this.getActiveTab()}
           tabs={this.getTabs()}
+          showSingleTab
         />
         <ViewStateWrapper viewState={viewState} style={styles.wrap}>
           {this.renderContent()}
@@ -231,17 +335,37 @@ export class DatasetSettings extends PureComponent {
 DatasetSettings = injectIntl(DatasetSettings);
 
 const mapStateToProps = (state, { isHomePage }) => {
+  // Loaction Related variables
   const location = state.routing.locationBeforeTransitions;
   const { entityType, entityId } = location.state || {};
-
+  const isCloudEdition = isDcsEdition();
+  // Compaction Related variables, isCloudEdition is not necessary but just incase
+  const sources = isCloudEdition && getSortedSources(state);
+  const nessieSources = state.nessie || {};
+  const sourceName = isCloudEdition && getSourceName(nessieSources, location);
+  const branchName =
+    (isCloudEdition && getBranchName(nessieSources, sourceName)) || "";
+  const arcticProjectId =
+    (isCloudEdition && getArcticProjectId(sources, sourceName)) || null;
+  const compactionTasks = state.compactionTasks;
+  const isAdmin =
+    (isCloudEdition && state.privileges.organization.isAdmin) || false;
+  const enableCompaction =
+    isCloudEdition && state.featureFlag.data_optimization === "ENABLED";
+  const isIcebergTable = entityType === "physicalDataset";
   // Entity could be stored in different places of redux state, depending on current page
   // Entity is used to be stored in resources, but now for home page it is stored in separate place.
   // We need support both options. At this moment an only place where entity is stored in resources
   // is explore page ExploreSettingsButton
   const finalEntitySelector = isHomePage ? getHomeEntityOrChild : getEntity;
-
   return {
+    arcticProjectId,
+    branchName,
+    compactionTasks,
     location,
+    isAdmin,
+    enableCompaction,
+    isIcebergTable,
     entity: entityId && finalEntitySelector(state, entityId, entityType),
     viewState: getViewState(state, DATASET_SETTINGS_VIEW_ID),
   };
@@ -250,6 +374,11 @@ const mapStateToProps = (state, { isHomePage }) => {
 export default connect(mapStateToProps, {
   loadDatasetForDatasetType,
   showUnsavedChangesConfirmDialog,
+  startCompaction,
+  postCompactionData,
+  getAllCompactionData,
+  patchCompactionData,
+  clearCompactionStateData,
 })(DatasetSettings);
 
 const styles = {

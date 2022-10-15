@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieClientTableMetadata;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.google.common.base.Preconditions;
@@ -41,11 +42,13 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   private final List<String> tableKey;
   private final String fullTableName;
   private final ResolvedVersionContext version;
+  private final String jobId;
 
   public IcebergNessieVersionedTableOperations(OperatorStats operatorStats,
                                                FileIO fileIO,
                                                NessieClient nessieClient,
-                                               IcebergNessieVersionedTableIdentifier nessieVersionedTableIdentifier) {
+                                               IcebergNessieVersionedTableIdentifier nessieVersionedTableIdentifier,
+                                               String jobId) {
     this.operatorStats = operatorStats;
     this.fileIO = fileIO;
     this.fullTableName = nessieVersionedTableIdentifier.getTableIdentifier().toString();
@@ -54,6 +57,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
     Preconditions.checkNotNull(nessieVersionedTableIdentifier);
     this.tableKey = nessieVersionedTableIdentifier.getTableKey();
     this.version = nessieVersionedTableIdentifier.getVersion();
+    this.jobId = jobId;
   }
 
   @Override
@@ -68,7 +72,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
 
   @Override
   protected void doRefresh() {
-    String metadataLocation = nessieClient.getMetadataLocation(tableKey, version);
+    String metadataLocation = nessieClient.getMetadataLocation(tableKey, version, jobId);
     refreshFromMetadataLocation(metadataLocation, 2);
   }
 
@@ -83,7 +87,11 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
     boolean threw = true;
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-      nessieClient.commitTable(tableKey, newMetadataLocation, metadata, version);
+      nessieClient.commitTable(tableKey,
+        newMetadataLocation,
+        new NessieClientTableMetadata(
+          metadata.currentSnapshot().snapshotId(), metadata.currentSchemaId(), metadata.defaultSpecId(), metadata.sortOrder().orderId()),
+        version, jobId);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {

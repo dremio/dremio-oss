@@ -50,7 +50,7 @@ public final class QBlockHashTable implements AutoCloseable {
   public static final int MAX_VALUES_PER_BATCH = 1 << BITS_IN_CHUNK;
   public static final int CHUNK_OFFSET_MASK = 0xFFFFFFFF >>> (32 - BITS_IN_CHUNK);
   public static final int FREE = -1; // same for both int and long.
-  public static final long LFREE = -1l; // same for both int and long.
+  public static final long LFREE = -1L; // same for both int and long.
   public static final int NEGATIZE = 0x80000000;
   public static final int POSITIVE_MASK = 0x7FFFFFFF;
   public static final int NO_MATCH = -1;
@@ -72,11 +72,11 @@ public final class QBlockHashTable implements AutoCloseable {
   private ControlBlock[] controlBlocks;
   private FixedBlockVector[] fixedBlocks = new FixedBlockVector[0];
   private VariableBlockVector[] variableBlocks = new VariableBlockVector[0];
-  private long tableControlAddresses[] = new long[0];
-  private long tableFixedAddresses[] = new long[0];
-  private long openVariableAddresses[] = new long[0]; // current pointer where we should add values.
-  private long initVariableAddresses[] = new long[0];
-  private long maxVariableAddresses[] = new long[0];
+  private long[] tableControlAddresses = new long[0];
+  private long[] tableFixedAddresses = new long[0];
+  private long[] openVariableAddresses = new long[0]; // current pointer where we should add values.
+  private long[] initVariableAddresses = new long[0];
+  private long[] maxVariableAddresses = new long[0];
 
   private int rehashCount = 0;
   private Stopwatch rehashTimer = Stopwatch.createUnstarted();

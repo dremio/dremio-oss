@@ -145,6 +145,9 @@ public class JobInfoDetailsUI {
   private long totalMemory;
   private long cpuUsed;
   private Boolean isOutputLimited;
+  private String graphExceptionTable;
+  // Dataset paths of the container, not the dataset paths within the query.
+  private List<String> datasetPaths;
 
   public JobInfoDetailsUI() {
   }
@@ -197,7 +200,8 @@ public class JobInfoDetailsUI {
     @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
     @JsonProperty("totalMemory") Long totalMemory,
     @JsonProperty("cpuUsed") Long cpuUsed,
-    @JsonProperty("isOutputLimited") Boolean isOutputLimited) {
+    @JsonProperty("isOutputLimited") Boolean isOutputLimited,
+    @JsonProperty("datasetPaths") List<String> datasetPaths) {
     this.id = id;
     this.jobStatus = jobStatus;
     this.queryType = queryType;
@@ -243,6 +247,7 @@ public class JobInfoDetailsUI {
     this.totalMemory = totalMemory;
     this.cpuUsed = cpuUsed;
     this.isOutputLimited = isOutputLimited;
+    this.datasetPaths = datasetPaths;
   }
 
   public JobInfoDetailsUI of(JobDetails jobDetails, UserBitShared.QueryProfile profile, CatalogServiceHelper catalogServiceHelper, ReflectionServiceHelper reflectionServiceHelper, NamespaceService namespaceService, int detailLevel, int attemptIndex) throws NamespaceException {
@@ -281,6 +286,7 @@ public class JobInfoDetailsUI {
     description = jobInfo.getDescription();
     attemptDetails = AttemptsUIHelper.fromAttempts(jobId, attempts);
     attemptsSummary = AttemptsUIHelper.constructSummary(attempts);
+    datasetPaths = jobInfo.getDatasetPathList();
     if(queryType != QueryType.ACCELERATOR_DROP) {
       queriedDatasets = JobUtil.getQueriedDatasets(JobsProtoUtil.toStuff(jobAttempt.getInfo()), requestType);
       if (detailLevel == 1) {
@@ -297,7 +303,7 @@ public class JobInfoDetailsUI {
             if(isGraphException || isAlgebraicException) {
               if (isGraphException) {
                 datasetGraph.clear();
-                datasetGraph.add(new DatasetGraph().setDescription(DATASET_GRAPH_ERROR));
+                datasetGraph.add(new DatasetGraph().setDescription(DATASET_GRAPH_ERROR + graphExceptionTable));
               }
               algebraicReflectionsDataset.clear();
             }
@@ -365,7 +371,8 @@ public class JobInfoDetailsUI {
       plannerEstimatedCost,
       totalMemory,
       cpuUsed,
-      isOutputLimited
+      isOutputLimited,
+      datasetPaths
     );
   }
 
@@ -549,6 +556,9 @@ public class JobInfoDetailsUI {
 
   public boolean getIsOutputLimited() {return isOutputLimited;}
 
+  public List<String> getDatasetPaths() {
+    return datasetPaths;
+  }
 
   private void convertReflectionListToMap(List<Reflection> reflectionsUsed, List<Reflection> reflectionsMatched) {
     reflectionsUsedMap = reflectionsUsed.stream().collect(Collectors.toMap(reflection -> reflection.getReflectionID(), reflection -> reflection));
@@ -658,6 +668,7 @@ public class JobInfoDetailsUI {
     } catch (IllegalArgumentException ex) {
       handleCatalogEntityByPathException(dGraph, pathList, sqlQuery, dbId, null);
     } catch (Exception e) {
+      graphExceptionTable = String.join(".", pathList);
       throw e;
     }
   }

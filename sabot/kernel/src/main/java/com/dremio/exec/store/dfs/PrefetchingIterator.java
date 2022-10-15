@@ -17,7 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import java.util.List;
 
-import org.apache.arrow.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +29,7 @@ import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
+import com.google.common.base.Preconditions;
 
 /**
  * A split, separates initialization of the input reader from actually constructing the reader to allow prefetching.

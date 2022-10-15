@@ -31,7 +31,6 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
 public abstract class PopUnitTestBase extends ExecTest {
-//  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PopUnitTestBase.class);
 
   public static int getFragmentCount(Fragment b) {
     int i = 1;

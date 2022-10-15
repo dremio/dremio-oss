@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.DateMilliVector;
@@ -49,8 +50,8 @@ public class IcebergPartitionTransformTableFunction extends AbstractTableFunctio
     private final List<TransferPair> transfers = new ArrayList<>();
     private final PartitionSpec partitionSpec;
     private final Schema schema;
-    private final HashMap<String, CompleteType> inputFieldsType = new HashMap<>();
-    private final HashMap<String, ValueVector> outputValueVectorMap = new HashMap<>();
+    private final Map<String, CompleteType> inputFieldsType = new HashMap<>();
+    private final Map<String, ValueVector> outputValueVectorMap = new HashMap<>();
     private boolean doneWithRow = false;
 
     public IcebergPartitionTransformTableFunction(OperatorContext context, TableFunctionConfig functionConfig) {

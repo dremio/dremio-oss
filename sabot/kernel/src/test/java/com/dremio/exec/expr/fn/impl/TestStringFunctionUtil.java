@@ -17,9 +17,12 @@ package com.dremio.exec.expr.fn.impl;
 
 import static org.junit.Assert.assertEquals;
 
+import java.nio.charset.StandardCharsets;
+
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -126,5 +129,37 @@ public class TestStringFunctionUtil extends DremioTest {
     testIsUtf8Helper(new byte[] {'b', 'a', 'd', (byte)0xff, 'v', 'a', 'l'}, false);
     testIsUtf8Helper(new byte[] {(byte)0xf9, 'x', 'y', 'z'}, false);
     testIsUtf8Helper(new byte[] {'x', 'y', 'z', (byte)0xf9}, false);
+  }
+
+  // This function separates and returns a string containing only the alphabetic characters of the input in uppercase.
+  private void testSoundexCleanUtf8Helper(String in, String expected) {
+    NullableVarCharHolder holder = new NullableVarCharHolder();
+    final byte[] outBytea = in.getBytes(StandardCharsets.UTF_8);
+    holder.buffer = allocator.buffer(outBytea.length);
+    holder.start = 0;
+    holder.end = outBytea.length;
+    holder.buffer.setBytes(holder.start, outBytea);
+    holder.isSet = 1;
+
+    String cleaned = StringFunctionUtil.soundexCleanUtf8(holder, null);
+    assertEquals(expected, cleaned);
+    holder.buffer.close();
+  }
+
+  @Test
+  public void testSoundexCleanUtf8() throws Exception {
+    testSoundexCleanUtf8Helper("A0B1C2D3", "ABCD");
+    testSoundexCleanUtf8Helper("123456", "");
+    testSoundexCleanUtf8Helper("123456789a123456789", "A");
+    testSoundexCleanUtf8Helper("aBcD", "ABCD");
+    testSoundexCleanUtf8Helper("!@#$%*(a)*¨", "A");
+    testSoundexCleanUtf8Helper("学b路", "B");
+    testSoundexCleanUtf8Helper("हकुsना", "S");
+    testSoundexCleanUtf8Helper("学路", "");
+    testSoundexCleanUtf8Helper("हकुs学路ना", "S");
+    testSoundexCleanUtf8Helper("AAAbbbCCCddd", "AAABBBCCCDDD");
+    testSoundexCleanUtf8Helper("\0]sdr/95s3xz23", "SDRSXZ");
+    testSoundexCleanUtf8Helper("", "");
+
   }
 }

@@ -26,6 +26,7 @@ import org.apache.calcite.schema.Statistics;
 
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.DremioToRelContext;
@@ -41,8 +42,8 @@ public class ViewTable implements DremioTable {
   private final CatalogIdentity viewOwner;
   private final NamespaceKey path;
   private final DatasetConfig config;
-
   private BatchSchema schema;
+  private final VersionContext versionContext;
 
   public ViewTable(
     NamespaceKey path,
@@ -50,7 +51,7 @@ public class ViewTable implements DremioTable {
     CatalogIdentity viewOwner,
     BatchSchema schema
   ) {
-    this(path, view, viewOwner, null, schema);
+    this(path, view, viewOwner, null, schema, null);
   }
 
   public ViewTable(
@@ -60,11 +61,23 @@ public class ViewTable implements DremioTable {
     DatasetConfig config,
     BatchSchema schema
   ) {
+    this(path, view, viewOwner, config, schema, null);
+  }
+
+  public ViewTable(
+    NamespaceKey path,
+    View view,
+    CatalogIdentity viewOwner,
+    DatasetConfig config,
+    BatchSchema schema,
+    VersionContext versionContext
+  ) {
     this.view = view;
     this.path = path;
     this.viewOwner = viewOwner;
     this.config = config;
     this.schema = schema;
+    this.versionContext = versionContext;
   }
 
   @Override
@@ -117,4 +130,13 @@ public class ViewTable implements DremioTable {
   public String getVersion() {
     throw new UnsupportedOperationException("getVersion() is not supported");
   }
+
+  public VersionContext getVersionContext() {
+    return versionContext;
+  }
+
+  public ViewTable withVersionContext(VersionContext versionContext) {
+    return new ViewTable(path, view, viewOwner, config, schema, versionContext);
+  }
+
 }

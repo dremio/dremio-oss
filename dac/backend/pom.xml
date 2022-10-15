@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -205,7 +205,6 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-access</artifactId>
-      <version>${logback.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
@@ -240,12 +239,10 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-core</artifactId>
-      <version>${logback.version}</version>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>${logback.version}</version>
     </dependency>
     <dependency>
       <groupId>de.huxhorn.lilith</groupId>
@@ -359,7 +356,6 @@
     <dependency>
       <groupId>org.glassfish.jersey.inject</groupId>
       <artifactId>jersey-hk2</artifactId>
-      <version>${jersey.version}</version>
     </dependency>
     <dependency>
       <groupId>org.glassfish.jersey.test-framework</groupId>
@@ -378,12 +374,10 @@
     <dependency>
       <groupId>io.protostuff</groupId>
       <artifactId>protostuff-core</artifactId>
-      <version>${protostuff.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
@@ -421,11 +415,6 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-usersessions</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -471,6 +460,8 @@
             <exclude>src/main/resources/rest/static/js/jquery.form.js</exclude>
             <exclude>src/main/resources/rest/static/js/jquery.min.js</exclude>
             <exclude>src/main/resources/rest/static/js/respond.min.js</exclude>
+            <!-- Exclude license checking for files used in tests -->
+            <exclude>src/test/resources/datasets/iceberg/**</exclude>
           </excludes>
         </configuration>
       </plugin>

@@ -1,18 +1,43 @@
 # Protostuff
 io.protostuff.JsonIOUtil @ Use io.protostuff.JsonIOUtils instead
 
+# JUnit
+junit.framework.TestCase @ Use org.junit.Test or org.junit.Assert instead
+junit.framework.Assert @ Use org.junit.Assert instead
+junit.framework.AssertionFailedError @ Use java.lang.AssertionError instead
+org.hamcrest.** @ Use org.assertj package instead (for example org.assertj.core.api.Assertions)
+org.junit.rules.ExpectedException @ Use org.assertj.core.api.Assertions.assertThatThrownBy instead
+
+# Guava copies
+org.apache.arrow.util.Preconditions @ Use com.google.common.base.Preconditions instead
+org.apache.arrow.util.VisibleForTesting @ Use com.google.common.annotations.VisibleForTesting instead
+org.apache.parquet.Preconditions @ Use com.google.common.base.Preconditions instead
+org.apache.parquet.Strings @ Use com.google.common.base.Strings instead
+
+# Mockito
+org.mockito.MockitoAnnotations#initMocks(**) @ For JUnit5 use ExtendWith(MockitoExtension.class). For JUnit4 use RunWith(MockitoJUnitRunner.class), MockitoJUnit.rule() or MockitoAnnotations.openMocks
+
+# Internal helpers from other libraries
+org.glassfish.grizzly.utils.** @ Use Standard-Library or Guava instead
+org.mockito.internal.** @ Use org.mockito.Mockito instead (or com.google.common for collections)
+com.google.api.client.util.** @ Use Guava (com.google.common) instead
+org.apache.logging.log4j.util.** @ Use Guava (com.google.common) instead
+org.modelmapper.internal.** @ Use org.junit.Assert or Guava (com.google.common) instead
+io.micrometer.core.instrument.util.** @ Use Guava (com.google.common) instead
+org.eclipse.jetty.util.StringUtil @ Use com.google.common.base.Strings instead
+
 # XML Factories
 @defaultMessage Use SafeXMLFactories methods instead
-javax.xml.parsers.DocumentBuilderFactory#newInstance()
-javax.xml.parsers.DocumentBuilderFactory#newInstance(java.lang.String, java.lang.ClassLoader)
-javax.xml.parsers.SAXParserFactory#newInstance()
-javax.xml.parsers.SAXParserFactory#newInstance(java.lang.String, java.lang.ClassLoader)
-javax.xml.stream.XMLInputFactory#newFactory()
-javax.xml.stream.XMLInputFactory#newFactory(java.lang.String, java.lang.ClassLoader)
-javax.xml.stream.XMLInputFactory#newInstance()
-javax.xml.stream.XMLInputFactory#newInstance(java.lang.String, java.lang.ClassLoader)
-javax.xml.transform.TransformerFactory#newInstance()
-javax.xml.transform.TransformerFactory#newInstance(java.lang.String, java.lang.ClassLoader)
+javax.xml.parsers.DocumentBuilderFactory#newInstance(**)
+javax.xml.parsers.SAXParserFactory#newInstance(**)
+javax.xml.stream.XMLInputFactory#newFactory(**)
+javax.xml.stream.XMLInputFactory#newInstance(**)
+javax.xml.transform.TransformerFactory#newInstance(**)
+# TODO: uncomment when we no longer have to support builds on jdk8
+# javax.xml.parsers.DocumentBuilderFactory#newDefaultInstance(**)
+# javax.xml.parsers.SAXParserFactory#newDefaultInstance(**)
+# javax.xml.stream.XMLInputFactory#newDefaultFactory(**)
+# javax.xml.transform.TransformerFactory#newDefaultInstance(**)
 
 # EC2MetadataUtil
 com.amazonaws.util.EC2MetadataUtils @ Do not use Amazon's EC2MetadataUtils, use Dremio's internal EC2MetadataUtils instead

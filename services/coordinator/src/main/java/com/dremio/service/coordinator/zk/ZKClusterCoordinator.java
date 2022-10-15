@@ -61,6 +61,10 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
     this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(new ZKSabotConfig(config), localPort);
   }
 
+  public ZKClusterCoordinator(ZKClusterConfig zkClusterConfig, Provider<Integer> localPort) throws IOException {
+    this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(zkClusterConfig, localPort);
+  }
+
   public ZKClusterCoordinator(ZKClusterConfig zkClusterConfig, String connect) throws IOException {
     this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(zkClusterConfig, connect);
   }

@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.RecordReader;
@@ -31,6 +29,7 @@ import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
+import com.google.common.base.Preconditions;
 
 /**
  * Abstract class whose implementations are used in {@link PrefetchingIterator} to create a parquet split's reader

@@ -71,7 +71,6 @@ import com.dremio.exec.expr.ClassProducerImpl;
 import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
-import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
@@ -171,7 +170,7 @@ public class BaseTestOperator extends ExecTest {
   @Before
   public void setupBeforeTest() {
     testCloseables.add(MockitoAnnotations.openMocks(this));
-    testAllocator = testContext.allocator.newChildAllocator(TEST_NAME.getMethodName(), 0, Long.MAX_VALUE);
+    testAllocator = testContext.allocator.newChildAllocator(testName.getMethodName(), 0, Long.MAX_VALUE);
     testCloseables.add(testAllocator);
   }
 
@@ -364,8 +363,8 @@ public class BaseTestOperator extends ExecTest {
         compiler = new CodeCompiler(config, options);
         expressionSplitCache = new ExpressionSplitCache(options, config);
         ec = new ExecutionControls(options, NodeEndpoint.getDefaultInstance());
-        decimalFunctionLookup = new DecimalFunctionImplementationRegistry(config, result, options);
-        functionLookup = new FunctionImplementationRegistry(config, result, options);
+        decimalFunctionLookup = FunctionImplementationRegistry.create(config, result, options, true);
+        functionLookup = FunctionImplementationRegistry.create(config, result, options,false);
         contextInformation = new ContextInformationImpl(UserCredentials.getDefaultInstance(), QueryContextInformation.getDefaultInstance());
 
       }catch(Exception e){
@@ -637,7 +636,8 @@ public class BaseTestOperator extends ExecTest {
     // straight close, no leak.
     try(T op = newOperator(clazz, pop, batchSize);
         TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
-        ){
+        ) {
+      // no leak
     }
 
     // setup, no execute, no leak.
@@ -661,32 +661,32 @@ public class BaseTestOperator extends ExecTest {
     return validateSingle(pop, clazz, generator, null, batchSize, null);
   }
 
-  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Fixtures.Table result) throws Exception {
-    assertSingleInput(pop, clazz, table, scale, null, 4095, result);
+  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, RecordBatchValidator validator) throws Exception {
+    assertSingleInput(pop, clazz, table, scale, null, 4095, validator);
   }
 
   protected <T extends SingleInputOperator> void assertSingleInput(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Long expectedCount, int batchSize) throws Exception {
     assertSingleInput(pop, clazz, table, scale, expectedCount, batchSize, null);
   }
 
-  protected <T extends SingleInputOperator> void assertSingleInput(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Long expectedCount, int batchSize, Table result) throws Exception {
+  protected <T extends SingleInputOperator> void assertSingleInput(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Long expectedCount, int batchSize, RecordBatchValidator validator) throws Exception {
     TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
-    validateSingle(pop, clazz, generator, result, batchSize, expectedCount);
+    validateSingle(pop, clazz, generator, validator, batchSize, expectedCount);
   }
 
-  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, Fixtures.Table input, Fixtures.Table result) throws Exception {
-    validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), result, DEFAULT_BATCH);
+  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, Generator.Creator input, RecordBatchValidator validator) throws Exception {
+    validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), validator, DEFAULT_BATCH);
   }
 
-  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, Fixtures.Table input, Fixtures.Table result, int batchSize) throws Exception {
-    validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), result, batchSize);
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator.Creator input, RecordBatchValidator validator, int batchSize) throws Exception {
+    return validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), validator, batchSize);
   }
 
-  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize) throws Exception {
-    return validateSingle(pop, clazz, generator, result, batchSize, null);
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, RecordBatchValidator validator, int batchSize) throws Exception {
+    return validateSingle(pop, clazz, generator, validator, batchSize, null);
   }
 
-  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize, Long expected) throws Exception {
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, RecordBatchValidator validator, int batchSize, Long expected) throws Exception {
     long recordCount = 0;
     final List<RecordBatchData> data = new ArrayList<>();
     OperatorStats stats;
@@ -707,7 +707,7 @@ public class BaseTestOperator extends ExecTest {
         while(op.getState() == State.CAN_PRODUCE){
           int recordsOutput = op.outputData();
           recordCount += recordsOutput;
-          if(result != null && recordsOutput > 0){
+          if(validator != null && recordsOutput > 0){
             data.add(new RecordBatchData(output, getTestAllocator()));
           }
         }
@@ -731,8 +731,8 @@ public class BaseTestOperator extends ExecTest {
 
       stats.stopProcessing();
       assertState(op, State.DONE);
-      if(result != null){
-        result.checkValid(data);
+      if(validator != null){
+        validator.checkValid(data);
       }
 
       if(expected != null){

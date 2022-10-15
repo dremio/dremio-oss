@@ -19,6 +19,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -201,7 +202,6 @@ public class TestParquetScan extends BaseTestQuery {
 
   @Test
   public void testMaxFooterSizeLimit() throws Exception {
-    boolean failed = false;
     final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
     test("ALTER SYSTEM SET \"" + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName() + "\" = 32");
 
@@ -213,14 +213,11 @@ public class TestParquetScan extends BaseTestQuery {
         .baselineValues(5L)
         .build()
         .run();
+      Assert.fail("Did not throw expected footer size exception!");
     } catch (Exception e) {
-      failed = true;
       System.out.println("Encountered footer size exception");
     } finally {
       test("ALTER SYSTEM RESET \"" + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName() + "\"");
-    }
-    if (!failed) {
-      assert (false);
     }
   }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { createRef, PureComponent } from "react";
-
+import { intl } from "@app/utils/intl";
 import PropTypes from "prop-types";
 
 import Spinner from "components/Spinner";
@@ -34,11 +34,16 @@ export default class JobProgress extends PureComponent {
   }
 
   getCurrentProgress() {
+    const { formatMessage } = intl;
     if (!this.props.end) {
       return (
         <div>
-          <span className="progress-message">Job Inprogress</span>
-          <span className="progress-view-jobs">View running jobs (3) »</span>
+          <span className="progress-message">
+            {formatMessage({ id: "Job.JobInProgress" })}
+          </span>
+          <span className="progress-view-jobs">
+            {formatMessage({ id: "Job.ViewRunningJobs" })} (3) »
+          </span>
         </div>
       );
     }
@@ -52,9 +57,9 @@ export default class JobProgress extends PureComponent {
       <div>
         <span className="result">
           <span className="end-items">{this.props.start}</span>
-          of
+          {formatMessage({ id: "Common.Of" })}
           <span className="all-items">{this.props.end}</span>
-          records
+          {formatMessage({ id: "Common.Rows.LowerCase" })}
         </span>
         <div className="progress-line" ref={this.totalRef} />
         <div className="current-progress" style={currentProgress} />
@@ -69,7 +74,7 @@ export default class JobProgress extends PureComponent {
           <Spinner
             style={{ display: this.props.hideSpinner ? "none" : "block" }}
           />
-          Processing...
+          {intl.formatMessage({ id: "Common.Processing" })}
         </div>
         <div className="progress-part">{this.getCurrentProgress()}</div>
       </div>

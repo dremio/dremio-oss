@@ -17,9 +17,10 @@
 import { useContext, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import Art from "@app/components/Art";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { Menu, MenuItem } from "@material-ui/core";
+import { Menu, MenuItem } from "@mui/material";
+//@ts-ignore
+import { IconButton } from "dremio-ui-lib";
 import NewBranchDialog from "../../../NewBranchDialog/NewBranchDialog";
 import BranchButton from "../../../BranchButton/BranchButton";
 import MergeBranchDialog from "../../../MergeBranchDialog/MergeBranchDialog";
@@ -87,7 +88,7 @@ function BranchHistoryHeader() {
                 manageDialogs(dialogStates, setDialogStates, "merge", true)
               }
               text={<FormattedMessage id="BranchHistory.Header.Merge" />}
-              iconType="GitBranch"
+              iconType="vcs/merge"
             />
             <MergeBranchDialog
               open={dialogStates.merge}
@@ -99,18 +100,13 @@ function BranchHistoryHeader() {
               setSuccessMessage={setSuccessMessage}
             />
           </span>
-
-          <span
-            className="branch-history-header-ellipsis"
+          <IconButton
+            aria-label={intl.formatMessage({ id: "RepoView.BranchMenu" })}
             onClick={openBranchOptions}
-            aria-haspopup="true"
+            className="branch-history-header-more"
           >
-            <Art
-              src="Ellipsis.svg"
-              alt={intl.formatMessage({ id: "RepoView.BranchMenu" })}
-              style={{ width: 24, height: 24 }}
-            />
-          </span>
+            <dremio-icon name="interface/more" />
+          </IconButton>
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}

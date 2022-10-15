@@ -15,13 +15,18 @@
  */
 package com.dremio.exec.physical.impl;
 
+import static com.dremio.common.util.JodaDateUtility.formatDate;
 import static com.dremio.sabot.Fixtures.ts;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.sabot.BaseTestFunction;
 
 public class TestDateTimeFunctions extends BaseTestFunction {
@@ -103,5 +108,93 @@ public class TestDateTimeFunctions extends BaseTestFunction {
       UserException uex =  (UserException) e.getCause().getCause();
       assertTrue(uex.getContextStrings().stream().anyMatch(s -> s.contains("Invalid timezone abbreviation ABC")));
     }
+  }
+
+  @Test
+  public void testAddTimesTypes() {
+    LocalDateTime fixedDate = formatDate.parseLocalDateTime("2003-07-09");
+    DateTimeFormatter dateTimeFormatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS").withZone(DateTimeZone.UTC);
+    testFunctions(new Object[][]{
+      // Test add days
+      {"add_Days(c0, c1)", fixedDate, 4, formatDate.parseLocalDateTime("2003-07-13")},
+      {"add_Days(c0, c1)", fixedDate, 0, fixedDate},
+      {"add_Days(c0, c1)", fixedDate, -2, formatDate.parseLocalDateTime("2003-07-07")},
+      {"add_Days(c0, c1)", fixedDate, 12, formatDate.parseLocalDateTime("2003-07-21")},
+      {"add_Days(c0, c1)", fixedDate, -7, formatDate.parseLocalDateTime("2003-07-02")},
+
+      // Test add days inverted inputs
+      {"add_Days(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2003-07-13")},
+      {"add_Days(c0, c1)", 0, fixedDate, fixedDate},
+      {"add_Days(c0, c1)", -2, fixedDate, formatDate.parseLocalDateTime("2003-07-07")},
+      {"add_Days(c0, c1)", 12, fixedDate, formatDate.parseLocalDateTime("2003-07-21")},
+      {"add_Days(c0, c1)", -7, fixedDate, formatDate.parseLocalDateTime("2003-07-02")},
+
+      // Test add months
+      {"add_Months(c0, c1)", fixedDate, 4, formatDate.parseLocalDateTime("2003-11-09")},
+      {"add_Months(c0, c1)", fixedDate, 0, fixedDate},
+      {"add_Months(c0, c1)", fixedDate, -2, formatDate.parseLocalDateTime("2003-05-09")},
+      {"add_Months(c0, c1)", fixedDate, 12, formatDate.parseLocalDateTime("2004-07-09")},
+      {"add_Months(c0, c1)", fixedDate, -7, formatDate.parseLocalDateTime("2002-12-09")},
+
+      // Test add months inverted inputs
+      {"add_Months(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2003-11-09")},
+      {"add_Months(c0, c1)", 0, fixedDate, fixedDate},
+      {"add_Months(c0, c1)", -2, fixedDate, formatDate.parseLocalDateTime("2003-05-09")},
+      {"add_Months(c0, c1)", 12, fixedDate, formatDate.parseLocalDateTime("2004-07-09")},
+      {"add_Months(c0, c1)", -7, fixedDate, formatDate.parseLocalDateTime("2002-12-09")},
+
+      // Test add years
+      {"add_Years(c0, c1)", fixedDate, 4, formatDate.parseLocalDateTime("2007-07-09")},
+      {"add_Years(c0, c1)", fixedDate, 0, fixedDate},
+      {"add_Years(c0, c1)", fixedDate, -2, formatDate.parseLocalDateTime("2001-07-09")},
+      {"add_Years(c0, c1)", fixedDate, 12, formatDate.parseLocalDateTime("2015-07-09")},
+      {"add_Years(c0, c1)", fixedDate, -7, formatDate.parseLocalDateTime("1996-07-09")},
+
+      // Test add years inverted inputs
+      {"add_Years(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2007-07-09")},
+      {"add_Years(c0, c1)", 0, fixedDate, fixedDate},
+      {"add_Years(c0, c1)", -2, fixedDate, formatDate.parseLocalDateTime("2001-07-09")},
+      {"add_Years(c0, c1)", 12, fixedDate, formatDate.parseLocalDateTime("2015-07-09")},
+      {"add_Years(c0, c1)", -7, fixedDate, formatDate.parseLocalDateTime("1996-07-09")},
+
+      // Test add times
+      {"add_Seconds(c0, c1)", 30, fixedDate, dateTimeFormatter.parseLocalDateTime("2003-07-09 00:00:30")},
+      {"add_Minutes(c0, c1)", -30L, fixedDate, dateTimeFormatter.parseLocalDateTime("2003-07-08 23:30:00")},
+      {"add_Hours(c0, c1)", 20, fixedDate, dateTimeFormatter.parseLocalDateTime("2003-07-09 20:00:00")},
+
+      // Test add times inverted inputs
+      {"add_Seconds(c0, c1)",fixedDate, 30, dateTimeFormatter.parseLocalDateTime("2003-07-09 00:00:30")},
+      {"add_Minutes(c0, c1)", fixedDate, -30L, dateTimeFormatter.parseLocalDateTime("2003-07-08 23:30:00")},
+      {"add_Hours(c0, c1)", fixedDate, 20, dateTimeFormatter.parseLocalDateTime("2003-07-09 20:00:00")},
+
+      // Test add epoch cycles
+      {"add_Weeks(c0, c1)", 4L, fixedDate, formatDate.parseLocalDateTime("2003-08-06")},
+      {"add_Quarters(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2004-07-09")},
+
+      // Test add epoch cycles inverted inputs
+      {"add_Weeks(c0, c1)", fixedDate, 4L, formatDate.parseLocalDateTime("2003-08-06")},
+      {"add_Quarters(c0, c1)", fixedDate, 4, formatDate.parseLocalDateTime("2004-07-09")},
+
+      // Test timestamp add all
+      {"timestampaddDay(c0, c1)", fixedDate, 4, formatDate.parseLocalDateTime("2003-07-13")},
+      {"timestampaddMonth(c0, c1)", fixedDate, 4, formatDate.parseLocalDateTime("2003-11-09")},
+      {"timestampaddYear(c0, c1)", fixedDate, 4, formatDate.parseLocalDateTime("2007-07-09")},
+      {"timestampaddWeek(c0, c1)", 4L, fixedDate, formatDate.parseLocalDateTime("2003-08-06")},
+      {"timestampaddQuarter(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2004-07-09")},
+      {"timestampaddSecond(c0, c1)", fixedDate, 30, dateTimeFormatter.parseLocalDateTime("2003-07-09 00:00:30")},
+      {"timestampaddMinute(c0, c1)", fixedDate, -30L, dateTimeFormatter.parseLocalDateTime("2003-07-08 23:30:00")},
+      {"timestampaddHour(c0, c1)", fixedDate, 20, dateTimeFormatter.parseLocalDateTime("2003-07-09 20:00:00")},
+
+      // Test timestamp add all inverted inputs
+      {"timestampaddDay(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2003-07-13")},
+      {"timestampaddMonth(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2003-11-09")},
+      {"timestampaddYear(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2007-07-09")},
+      {"timestampaddWeek(c0, c1)", 4L, fixedDate, formatDate.parseLocalDateTime("2003-08-06")},
+      {"timestampaddQuarter(c0, c1)", 4, fixedDate, formatDate.parseLocalDateTime("2004-07-09")},
+      {"timestampaddSecond(c0, c1)", 30, fixedDate, dateTimeFormatter.parseLocalDateTime("2003-07-09 00:00:30")},
+      {"timestampaddMinute(c0, c1)", -30L, fixedDate, dateTimeFormatter.parseLocalDateTime("2003-07-08 23:30:00")},
+      {"timestampaddHour(c0, c1)", 20, fixedDate, dateTimeFormatter.parseLocalDateTime("2003-07-09 20:00:00")},
+
+    });
   }
 }

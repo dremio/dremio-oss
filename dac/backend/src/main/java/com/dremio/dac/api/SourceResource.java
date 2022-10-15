@@ -119,7 +119,9 @@ public class SourceResource {
     for (SourceConfig sourceConfig : sourceConfigs) {
       Source source = fromSourceConfig(sourceConfig);
 
-      sources.add(source);
+      if (sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType())) {
+        sources.add(source);
+      }
     }
 
     return sources;
@@ -129,6 +131,10 @@ public class SourceResource {
   @RolesAllowed({"admin"})
   public SourceDeprecated addSource(SourceDeprecated source) {
     try {
+      if (!sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType())) {
+        throw new IllegalArgumentException(source.getType() + " source type is not supported.");
+      }
+
       SourceConfig newSourceConfig = sourceService.createSource(source.toSourceConfig());
 
       return fromSourceConfig(newSourceConfig);
@@ -152,6 +158,10 @@ public class SourceResource {
   public SourceDeprecated updateSource(@PathParam("id") String id, SourceDeprecated source) {
     SourceConfig sourceConfig;
     try {
+      if (!sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType())) {
+        throw new IllegalArgumentException(source.getType() + " source type is not supported.");
+      }
+
       sourceConfig = sourceService.updateSource(id, source.toSourceConfig());
 
       return fromSourceConfig(sourceConfig);
@@ -182,11 +192,15 @@ public class SourceResource {
     for(Class<? extends ConnectionConf<?, ?>> input : connectionReader.getAllConnectionConfs().values()) {
       // we can't use isInternal as its not a static method, instead we only show listable sources
       if (isListable(input)) {
+        String sourceType = input.getAnnotation(SourceType.class).value();
         // Hive is listed by default, but hidden in DCS currently
-        if (!showHive && input.getAnnotation(SourceType.class).value().equals("HIVE")) {
+        if (!showHive && "HIVE".equals(sourceType)) {
           continue;
         }
-        types.add(SourceTypeTemplate.fromSourceClass(input, false));
+
+        if (sabotContext.getSourceVerifierProvider().get().isSourceSupported(sourceType)) {
+          types.add(SourceTypeTemplate.fromSourceClass(input, false));
+        }
       }
     }
 
@@ -198,15 +212,20 @@ public class SourceResource {
   @RolesAllowed({"admin", "user"})
   @Path("/type/{name}")
   public SourceTypeTemplate getSourceByType(@PathParam("name") String name) {
-    final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();
-    Optional<Class<? extends ConnectionConf<?, ?>>> connectionConf = Optional.ofNullable(connectionReader.getAllConnectionConfs().get(name));
+    final Optional<Class<? extends ConnectionConf<?, ?>>> connectionConf = getConnectionConf(name);
+
     return connectionConf
       .filter(this::isConfigurable)
       .map(sourceClass -> SourceTypeTemplate.fromSourceClass(sourceClass, true))
-        .orElseThrow(() -> new NotFoundException(String.format("Could not find source of type [%s]", name)));
+      .orElseThrow(() -> new NotFoundException(String.format("Could not find source of type [%s]", name)));
   }
 
-  private boolean isConfigurable(Class<? extends ConnectionConf<?, ?>> clazz) {
+  protected Optional<Class<? extends ConnectionConf<?, ?>>> getConnectionConf(String name) {
+    final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();
+    return Optional.ofNullable(connectionReader.getAllConnectionConfs().get(name));
+  }
+
+  protected boolean isConfigurable(Class<? extends ConnectionConf<?, ?>> clazz) {
     SourceType type = clazz.getAnnotation(SourceType.class);
     return type != null && type.configurable();
   }
@@ -215,6 +234,7 @@ public class SourceResource {
     SourceType type = clazz.getAnnotation(SourceType.class);
     return type != null && type.configurable() && type.listable();
   }
+
 
   @VisibleForTesting
   protected SourceDeprecated fromSourceConfig(SourceConfig sourceConfig) {

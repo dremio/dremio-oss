@@ -17,10 +17,9 @@ package com.dremio.service.autocomplete.functions;
 
 import java.util.Optional;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
 import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -214,7 +213,7 @@ public final class TokenTypeDetector {
           }
         }
 
-        return true;
+        return false;
       }
     }
 

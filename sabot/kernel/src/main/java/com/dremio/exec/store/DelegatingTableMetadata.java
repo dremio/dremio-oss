@@ -140,4 +140,9 @@ public class DelegatingTableMetadata implements TableMetadata {
   public TableMetadata getTableMetadata() {
     return tableMetadata;
   }
+
+  @Override
+  public List<String> getPrimaryKey() {
+    return tableMetadata.getPrimaryKey();
+  }
 }

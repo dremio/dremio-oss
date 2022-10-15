@@ -15,7 +15,7 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.partition.io;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
@@ -56,9 +56,9 @@ import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Pivots;
 import com.dremio.sabot.op.common.ht2.Unpivots;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.join.vhash.spill.io.BatchCombiningSpillReader;
 import com.dremio.sabot.op.join.vhash.spill.io.SpillChunk;
-import com.dremio.sabot.op.join.vhash.spill.io.SpillReader;
-import com.dremio.sabot.op.join.vhash.spill.io.SpillSerializable;
+import com.dremio.sabot.op.join.vhash.spill.io.SpillSerializableImpl;
 import com.dremio.sabot.op.join.vhash.spill.io.SpillWriter;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.dremio.sabot.op.sort.external.SpillManager;
@@ -117,8 +117,18 @@ public class TestSpillSerDe extends ExecTest {
   }
 
   @Test
+  public void manyBatchesMerge() throws Exception {
+    check(GenerationDefinition.TpchTable.CUSTOMER, 0.1, 64_000, 100, 1);
+  }
+
+  @Test
   public void manyBatchesMultiplePivotColumns() throws Exception {
     check(GenerationDefinition.TpchTable.CUSTOMER, 0.1, 64_000, 4095, 3);
+  }
+
+  @Test
+  public void manyBatchesMultiplePivotColumnsMerge() throws Exception {
+    check(GenerationDefinition.TpchTable.CUSTOMER, 0.01, 64_000, 100, 3);
   }
 
   @Test
@@ -156,7 +166,7 @@ public class TestSpillSerDe extends ExecTest {
       SpillManager.SpillFile spillFile = streamToOutput(fileName, generator, batchSize, pivotDef,  unpivotedBitSet, pool);
 
       // read back from the spill file
-      List<SpillChunk> chunks = readAllFromInput(spillFile, generator.getOutput(), unpivotedBitSet, pool);
+      List<SpillChunk> chunks = readAllFromInput(spillFile, generator.getOutput(), pivotDef, unpivotedBitSet, pool);
       rc.addAll(chunks);
 
       // The pivoted data is present in the fixed/variable blocks, while the container has the unpivoted data.
@@ -200,22 +210,23 @@ public class TestSpillSerDe extends ExecTest {
          FixedBlockVector pivotedFixed = new FixedBlockVector(getAllocator(), pivotDef.getBlockWidth());
          VariableBlockVector pivotedVariable = new VariableBlockVector(getAllocator(), pivotDef.getVariableCount())) {
 
-      try (SpillWriter writer = new SpillWriter(spillManager, new SpillSerializable(), fileName, pool, sv2Buf.memoryAddress(),
+      try (SpillWriter writer = new SpillWriter(spillManager, new SpillSerializableImpl(), fileName, pool, sv2Buf,
            generator.getOutput(), unpivotedColumns, pivotedFixed, pivotedVariable)) {
         int records;
         while ((records = generator.next(batchSize)) != 0) {
           pivotedFixed.reset();
           pivotedVariable.reset();
           Pivots.pivot(pivotDef, batchSize, pivotedFixed, pivotedVariable);
-          writer.writeBatch(records);
+          writer.writeBatch(0, records);
         }
 
-        return writer.getSpillFile();
+        return writer.getSpillFileDescriptor().getFile();
       }
     }
   }
 
-  private List<SpillChunk> readAllFromInput(SpillManager.SpillFile spillFile, VectorAccessible incoming, ImmutableBitSet unpivotedColumns, PagePool pool) throws Exception {
+  private List<SpillChunk> readAllFromInput(SpillManager.SpillFile spillFile, VectorAccessible incoming,
+                                            PivotDef pivotDef, ImmutableBitSet unpivotedColumns, PagePool pool) throws Exception {
     int index = 0;
     List<Field> unpivotedFields = new ArrayList<>();
     for (VectorWrapper<?> vector : incoming) {
@@ -225,7 +236,7 @@ public class TestSpillSerDe extends ExecTest {
       ++index;
     }
 
-    try (SpillReader reader = new SpillReader(spillFile, new SpillSerializable(), pool, new BatchSchema(unpivotedFields))) {
+    try (BatchCombiningSpillReader reader = new BatchCombiningSpillReader(spillFile, new SpillSerializableImpl(), pool, pivotDef, new BatchSchema(unpivotedFields), 4095)) {
       return Lists.newArrayList(reader);
     }
   }

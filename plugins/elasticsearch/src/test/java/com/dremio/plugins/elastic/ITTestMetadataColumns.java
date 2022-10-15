@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
@@ -91,7 +92,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
             uids[4] = uid;
             break;
           default:
-            assert false;
+            fail("Unhandled bid: " + bid);
         }
       }
   }

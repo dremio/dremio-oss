@@ -23,13 +23,12 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.util.VisibleForTesting;
-
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.util.Closeable;
 import com.dremio.telemetry.api.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 

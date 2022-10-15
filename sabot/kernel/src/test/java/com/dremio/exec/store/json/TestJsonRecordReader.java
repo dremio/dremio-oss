@@ -32,7 +32,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.google.common.io.Resources;
 
 public class TestJsonRecordReader extends BaseTestQuery {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJsonRecordReader.class);
 
   static FileSystem fs;
 
@@ -138,7 +137,7 @@ public class TestJsonRecordReader extends BaseTestQuery {
           .sqlQuery(query)
           .unOrdered()
           .baselineColumns("cnt")
-          .baselineValues(1l)
+          .baselineValues(1L)
           .go();
     } finally {
       testNoResult("alter session set \"store.json.all_text_mode\" = false");

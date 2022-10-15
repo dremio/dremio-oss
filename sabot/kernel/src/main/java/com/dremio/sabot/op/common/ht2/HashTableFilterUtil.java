@@ -15,61 +15,53 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Optional;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.util.CloseableIterator;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.ValueListFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
-/** Creation of bloom filter and value list filter like functions for the HashTable.*/
 public class HashTableFilterUtil {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashTableFilterUtil.class);
-  static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
-  static final int MAX_VAL_LIST_FILTER_KEY_SIZE = 17;
-
-  private static HashTableKeyReader.Builder getKeyReaderBuilder(List<String> fieldNames, BufferAllocator allocator, PivotDef pivot) {
-    return new HashTableKeyReader.Builder()
-      .setBufferAllocator(allocator)
-      .setFieldsToRead(fieldNames)
-      .setPivot(pivot);
-  }
+  private static Logger logger = LoggerFactory.getLogger(HashTable.class);
 
   /**
-   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
-   * the consumer. Instead, they get an empty optional.
-   * @param fieldNames
-   * @param sizeDynamically Size the filter according to the number of entries in table.
-   * @return
+   * Prepares bloomFilter for the given probe target. BloomFilter and corresponding
+   * KeyReader for each probe target are passed as parameters. The updated bloomfilter
+   * returned on success otherwise null if encountered any error, by closing the input
+   * bloomfilter.
+   *
+   * This function can be called just before spilling the partition as well as at the end
+   * of build (right) side data so that bloomfilter's will have the info about all the keys.
+   *
+   * Since this is an optimisation, errors are not propagated to the consumer. Instead,
+   * the corresponding bloom filter is freed and set with an empty Optional.
    */
-  public static Optional<BloomFilter> prepareBloomFilter(HashTable hashTable, BufferAllocator allocator, PivotDef pivot,
-                                                         List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    if (CollectionUtils.isEmpty(fieldNames)) {
-      return Optional.empty();
-    }
+  public static Optional<BloomFilter> prepareBloomFilters(RuntimeFilterProbeTarget probeTarget,
+                                                          Optional<BloomFilter> inputBloomFilter,
+                                                          HashTableKeyReader keyReader, HashTable hashTable) {
+    Preconditions.checkState(inputBloomFilter.isPresent());
+    BloomFilter bloomFilter = inputBloomFilter.get();
 
-    final int hashTableSize = hashTable.size();
-    // Not dropping the filter even if expected size is more than max possible size since there could be repeated keys.
-    long bloomFilterSize = sizeDynamically ?
-      Math.min(BloomFilter.getOptimalSize(hashTableSize), BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
+    List<String> fieldNames = probeTarget.getPartitionBuildTableKeys();
+    Preconditions.checkArgument(!CollectionUtils.isEmpty(fieldNames));
 
-    final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
-    try (AutoCloseables.RollbackCloseable closeOnError = new AutoCloseables.RollbackCloseable();
-         CloseableIterator<HashTable.HashTableKeyAddress> hashTableKeyAddressIterator = hashTable.keyIterator();
-         HashTableKeyReader keyReader = getKeyReaderBuilder(fieldNames, allocator, pivot).setMaxKeySize(maxKeySize).build()) {
+    try (AutoCloseables.RollbackCloseable closeOnError = new AutoCloseables.RollbackCloseable()) {
+      /* On error, close the BloomFilter */
       closeOnError.add(bloomFilter);
-      bloomFilter.setup();
+
+      Iterator<HashTable.HashTableKeyAddress> hashTableKeyAddressIterator = hashTable.keyIterator();
+      Preconditions.checkState(hashTableKeyAddressIterator != null,
+        "Failed to create hashtable key iterator");
 
       final ArrowBuf keyHolder = keyReader.getKeyHolder();
 
@@ -79,7 +71,8 @@ public class HashTableFilterUtil {
         bloomFilter.put(keyHolder, keyReader.getKeyBufSize());
       }
 
-      Preconditions.checkState(!bloomFilter.isCrossingMaxFPP(), "Bloom filter overflown over its capacity.");
+      Preconditions.checkState(!bloomFilter.isCrossingMaxFPP(), "Bloomfilter has overflown its capacity.");
+
       closeOnError.commit();
       return Optional.of(bloomFilter);
     } catch (Exception e) {
@@ -88,79 +81,69 @@ public class HashTableFilterUtil {
     }
   }
 
-  private static boolean isBoolField(PivotDef pivot, final String fieldName) {
-    return pivot.getBitPivots().stream().anyMatch(p -> p.getIncomingVector().getField().getName()
-      .equalsIgnoreCase(fieldName));
-  }
-
-  private static ArrowType getFieldType(final List<VectorPivotDef> vectorPivotDefs, final String fieldName) {
-    return vectorPivotDefs.stream()
-      .map(p -> p.getIncomingVector().getField())
-      .filter(f -> f.getName().equalsIgnoreCase(fieldName))
-      .map(f -> f.getType())
-      .findAny().orElse(null);
-  }
-
-  private static void setFieldType(PivotDef pivot, final ValueListFilterBuilder filterBuilder, final String fieldName) {
-    // Check fixed and variable width vectorPivotDefs one by one
-    ArrowType fieldType = getFieldType(pivot.getFixedPivots(), fieldName);
-    byte precision = 0;
-    byte scale = 0;
-    if (fieldType == null) {
-      fieldType = getFieldType(pivot.getVariablePivots(), fieldName);
-      filterBuilder.setFixedWidth(false);
-    }
-    Preconditions.checkNotNull(fieldType, "Not able to find %s in build pivot", fieldName);
-    if (fieldType instanceof ArrowType.Decimal) {
-      precision = (byte) ((ArrowType.Decimal) fieldType).getPrecision();
-      scale = (byte) ((ArrowType.Decimal) fieldType).getScale();
-    }
-
-    filterBuilder.setFieldType(Types.getMinorTypeForArrowType(fieldType), precision, scale);
-  }
-
-  private static boolean readBoolean(final ArrowBuf key) {
+  static boolean readBoolean(final ArrowBuf key) {
     // reads the first column
     return (key.getByte(0) & (1L << 1)) != 0;
   }
 
-  public static Optional<ValueListFilter> prepareValueListFilter(HashTable hashTable, BufferAllocator allocator, PivotDef pivot,
-                                                                 String fieldName, int maxElements) {
-    if (StringUtils.isEmpty(fieldName)) {
-      return Optional.empty();
+  /**
+   * Prepare ValueListFilters for given probe target (i.e for each field for composite keys).
+   * ValueListFilterBuilder and corresponding KeyReader for given probe target were passed as
+   * parameters. This function can be called just before spilling the partition as well as at
+   * the end of build (right) side data so that valuelistfilter will have the info about all
+   * the keys.
+   * Since this is an optimisation, errors are not propagated to the consumer. Instead,
+   * they marked as an empty optional.
+   */
+  public static void prepareValueListFilters(List<HashTableKeyReader> keyReaderList,
+                                             List<ValueListFilterBuilder> valueListFilterBuilderList,
+                                             PivotDef pivot, HashTable hashTable) {
+    Preconditions.checkState(keyReaderList.size() == valueListFilterBuilderList.size());
+
+    if (CollectionUtils.isEmpty(keyReaderList)) {
+      Preconditions.checkState(CollectionUtils.isEmpty(valueListFilterBuilderList));
+      return;
     }
 
-    final boolean isBooleanField = isBoolField(pivot, fieldName);
+    ListIterator<HashTableKeyReader> keyReaderListIterator = keyReaderList.listIterator();
+    ListIterator<ValueListFilterBuilder> valueListFilterBuilderListIterator = valueListFilterBuilderList.listIterator();
 
-    try (final HashTableKeyReader keyReader = getKeyReaderBuilder(ImmutableList.of(fieldName), allocator, pivot)
-        .setSetVarFieldLenInFirstByte(true) // Set length at first byte, to avoid comparison issues for different size values.
-        .setMaxKeySize(MAX_VAL_LIST_FILTER_KEY_SIZE).build(); // Max key size 16, excluding one byte for validity bits.
-         CloseableIterator<HashTable.HashTableKeyAddress> hashTableKeyAddressIterator = hashTable.keyIterator();
-         ValueListFilterBuilder filterBuilder = new ValueListFilterBuilder(allocator, maxElements,
-           isBooleanField ? 0 : keyReader.getEffectiveKeySize(), isBooleanField)) {
-      filterBuilder.setup();
-      filterBuilder.setFieldName(fieldName);
-      filterBuilder.setName(Thread.currentThread().getName());
-      setFieldType(pivot, filterBuilder, fieldName);
+    while (keyReaderListIterator.hasNext()) {
+      Preconditions.checkState(valueListFilterBuilderListIterator.hasNext());
+      HashTableKeyReader keyReader = keyReaderListIterator.next();
+      ValueListFilterBuilder valueListFilterBuilder = valueListFilterBuilderListIterator.next();
 
-      final ArrowBuf key = keyReader.getKeyValBuf();
+      try (AutoCloseables.RollbackCloseable closeOnError = new AutoCloseables.RollbackCloseable()) {
+        closeOnError.add(keyReader);
+        closeOnError.add(valueListFilterBuilder);
 
-      while (hashTableKeyAddressIterator.hasNext()) {
-        HashTable.HashTableKeyAddress hashTableKeyAddress = hashTableKeyAddressIterator.next();
-        keyReader.loadNextKey(hashTableKeyAddress.getFixedKeyAddress(), hashTableKeyAddress.getVarKeyAddress());
+        final boolean isBooleanField = pivot.isBoolField(valueListFilterBuilder.getFieldName());
 
-        if (keyReader.areAllValuesNull()) {
-          filterBuilder.insertNull();
-        } else if (isBooleanField) {
-          filterBuilder.insertBooleanVal(readBoolean(keyReader.getKeyHolder()));
-        } else {
-          filterBuilder.insert(key);
+        Iterator<HashTable.HashTableKeyAddress> hashTableKeyAddressIterator = hashTable.keyIterator();
+        Preconditions.checkState(hashTableKeyAddressIterator != null,
+          "Failed to create hashtable key iterator");
+
+        final ArrowBuf key = keyReader.getKeyValBuf();
+
+        while (hashTableKeyAddressIterator.hasNext()) {
+          HashTable.HashTableKeyAddress hashTableKeyAddress = hashTableKeyAddressIterator.next();
+          keyReader.loadNextKey(hashTableKeyAddress.getFixedKeyAddress(), hashTableKeyAddress.getVarKeyAddress());
+
+          if (keyReader.areAllValuesNull()) {
+            valueListFilterBuilder.insertNull();
+          } else if (isBooleanField) {
+            valueListFilterBuilder.insertBooleanVal(readBoolean(keyReader.getKeyHolder()));
+          } else {
+            valueListFilterBuilder.insert(key);
+          }
         }
+        closeOnError.commit();
+      } catch (Exception e) {
+        logger.warn("Unable to prepare value list filter for {} because {}", valueListFilterBuilder.getFieldName(), e.getMessage());
+        /* Since an error encountered preparing valList this col, remove it from processing */
+        keyReaderListIterator.remove();
+        valueListFilterBuilderListIterator.remove();
       }
-      return Optional.of(filterBuilder.build());
-    } catch (Exception e) {
-      logger.info("Unable to prepare value list filter for {} because {}", fieldName, e.getMessage());
-      return Optional.empty();
     }
   }
 }

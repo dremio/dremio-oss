@@ -49,7 +49,7 @@ public class TestPage {
 
   @Test
   public void deallocNeg() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     // can't release when open.
     assertThatThrownBy(p::deallocate)
@@ -58,7 +58,7 @@ public class TestPage {
 
   @Test
   public void deallocPos() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     p.close();
     p.deallocate();
@@ -66,7 +66,7 @@ public class TestPage {
 
   @Test
   public void newPageNeg() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     assertThatThrownBy(p::toNewPage)
       .isInstanceOf(IllegalStateException.class);
@@ -74,7 +74,7 @@ public class TestPage {
 
   @Test
   public void newPagePos() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     p.close();
     p.toNewPage();
@@ -82,7 +82,7 @@ public class TestPage {
 
   @Test
   public void deadSliceNeg() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     p.close();
 
@@ -92,7 +92,7 @@ public class TestPage {
 
   @Test
   public void sliceNeg() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     p.close();
 
@@ -102,7 +102,7 @@ public class TestPage {
 
   @Test
   public void addrNeg() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     p.close();
 
@@ -112,7 +112,7 @@ public class TestPage {
 
   @Test
   public void remainNeg() {
-    Page p = new Page(1, allocator.buffer(0), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(0), buf -> {});
     p.initialRetain();
     p.close();
 
@@ -122,7 +122,7 @@ public class TestPage {
 
   @Test
   public void slice() {
-    Page p = new Page(1, allocator.buffer(1), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(1), buf -> {});
     p.initialRetain();
     ArrowBuf b = p.slice(1);
     b.close();
@@ -131,8 +131,22 @@ public class TestPage {
   }
 
   @Test
+  public void sliceAligned() {
+    PageImpl p = new PageImpl(16, allocator.buffer(16), buf -> {});
+    p.initialRetain();
+    ArrowBuf b = p.slice(1);
+    assertEquals(15, p.getRemainingBytes());
+    ArrowBuf bAligned = p.sliceAligned(1);
+    assertEquals(7, p.getRemainingBytes());
+    bAligned.close();
+    b.close();
+    p.close();
+    p.deallocate();
+  }
+
+  @Test
   public void deadSlice() {
-    Page p = new Page(1, allocator.buffer(1), buf -> {});
+    PageImpl p = new PageImpl(1, allocator.buffer(1), buf -> {});
     p.initialRetain();
     p.deadSlice(1);
     p.close();
@@ -142,7 +156,7 @@ public class TestPage {
   @Test
   public void props() {
     ArrowBuf buf = allocator.buffer(2);
-    Page p = new Page(2, buf, b -> {});
+    PageImpl p = new PageImpl(2, buf, b -> {});
     p.initialRetain();
     try {
       assertEquals(buf.memoryAddress(), p.getAddress());

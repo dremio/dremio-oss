@@ -36,6 +36,7 @@ mockCssModules.register([".less"]); // needed for css module
 require.extensions[".css"] = () => {};
 require.extensions[".svg"] = () => {};
 require.extensions[".gif"] = () => {};
+require.extensions[".png"] = () => {};
 
 // Define user agent for Radium
 global.navigator = {
@@ -48,7 +49,7 @@ const Module = require("module");
 // import of react and enzyme must be after jsdom initialization. See https://github.com/airbnb/enzyme/issues/395
 const { Component } = require("react");
 const Enzyme = require("enzyme");
-const Adapter = require("enzyme-adapter-react-16");
+const Adapter = require("@wojtekmaj/enzyme-adapter-react-17");
 Enzyme.configure({
   adapter: new Adapter(),
   disableLifecycleMethods: true, // this is default behaviour that has place for enzyme v.2

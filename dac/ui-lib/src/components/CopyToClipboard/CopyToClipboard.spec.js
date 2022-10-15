@@ -18,8 +18,8 @@ import React from "react";
 import { shallow } from "enzyme";
 
 import { CopyToClipboard as ReactCopyToClipboard } from "react-copy-to-clipboard";
-import Tooltip from "@material-ui/core/Tooltip";
-import SvgIcon from "@material-ui/core/SvgIcon";
+import Tooltip from "@mui/material/Tooltip";
+import SvgIcon from "@mui/material/SvgIcon";
 
 import CopyToClipboard from "./CopyToClipboard";
 

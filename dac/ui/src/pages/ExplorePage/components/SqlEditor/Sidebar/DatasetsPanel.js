@@ -16,17 +16,14 @@
 import { Component } from "react";
 import { connect } from "react-redux";
 import Immutable from "immutable";
-import classNames from "classnames";
 import { injectIntl } from "react-intl";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
 import { loadParents } from "actions/resources/spaceDetails";
 import { getParentList, getViewState } from "selectors/resources";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
-import { datasetTitle } from "uiTheme/radium/typography";
-import { PALE_GREY, SECONDARY_BORDER } from "uiTheme/radium/colors";
+import { PALE_GREY } from "uiTheme/radium/colors";
 import DatasetList from "components/DatasetList/DatasetList";
 import SearchDatasetsPopover from "@app/components/DatasetList/SearchDatasetsPopover";
 import exploreUtils from "@app/utils/explore/exploreUtils";
@@ -235,35 +232,6 @@ export class DatasetsPanel extends Component {
     );
   }
 
-  /**
-   * [displayHeaderTabsItems]
-   * @return {header tabs}
-   */
-  renderHeaderTabsItems = () => {
-    return this.tabs.map((tab) => {
-      const isActive = tab.id === this.getActiveTabId();
-      const headerTabsClasses = classNames("header-tabs-item", {
-        activeTab: isActive,
-      });
-      if (tab.id === PARENTS_TAB) {
-        if (!this.shouldShowParentTab()) {
-          return null;
-        }
-      }
-      return (
-        <div
-          key={tab.id}
-          className={headerTabsClasses}
-          style={[styles.headerTab, isActive && styles.headerTab.activeTab]}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={this.updateActiveTab.bind(this, tab.id)}
-        >
-          {tab.name}
-        </div>
-      );
-    });
-  };
-
   render() {
     return <>{this.chooseItemTab()}</>;
   }
@@ -276,7 +244,7 @@ const mapStateToProps = (state) => ({
   parentListViewState: getViewState(state, PARENT_LIST_VIEW_ID),
 });
 
-export default connect(mapStateToProps, { loadParents })(Radium(DatasetsPanel));
+export default connect(mapStateToProps, { loadParents })(DatasetsPanel);
 
 const styles = {
   datasetList: {
@@ -285,24 +253,5 @@ const styles = {
   headerTabs: {
     width: "100%",
     backgroundColor: PALE_GREY,
-  },
-  headerTab: {
-    float: "left",
-    cursor: "pointer",
-    width: 55,
-    height: 24,
-    ...datasetTitle,
-    fontWeight: 400,
-    fontSize: 12,
-    alignItems: "center",
-    display: "inline-flex",
-    padding: 10,
-    justifyContent: "center",
-    ":hover": {
-      backgroundColor: SECONDARY_BORDER,
-    },
-    activeTab: {
-      backgroundColor: SECONDARY_BORDER,
-    },
   },
 };

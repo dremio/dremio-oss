@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.ByteFunctionHelpers;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
@@ -39,7 +40,7 @@ public class MaxAccumulators {
   private MaxAccumulators(){};
 
   public static class IntMaxAccumulator extends BaseSingleAccumulator {
-    private static final long INIT = 0x8000000080000000l;
+    private static final long INIT = 0x8000000080000000L;
     private static final int WIDTH_INPUT = 4;         // int inputs
     private static final int WIDTH_ACCUMULATOR = 4;
 
@@ -471,7 +472,7 @@ public class MaxAccumulators {
   }
 
   public static class IntervalDayMaxAccumulator extends BaseSingleAccumulator {
-    private static final long INIT = 0x8000000080000000l;
+    private static final long INIT = 0x8000000080000000L;
     private static final int WIDTH_INPUT = 8;       // pair-of-ints inputs
     private static final int WIDTH_ACCUMULATOR = 8; // pair-of-ints pair accumulators
 
@@ -536,7 +537,7 @@ public class MaxAccumulators {
     public VarLenMaxAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
                                 BufferAllocator computationVectorAllocator, int estimatedVariableWidthKeySize,
                                 int maxVariableWidthKeySize, int maxVarWidthVecUsagePercent,
-                                int accumIndex, BaseVariableWidthVector tempAccumulatorHolder,
+                                int accumIndex, BaseValueVector tempAccumulatorHolder,
                                 VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
       super(input, transferVector, AccumulatorBuilder.AccumulatorType.MAX, maxValuesPerBatch,
         computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize,

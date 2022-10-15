@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.exec.fragment;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +44,7 @@ public class OutOfBandMessage {
   private final int sendingOperatorId;
   private final Payload payload;
   private final boolean isOptional;
+  private final boolean isShrinkMemoryRequest;
   private volatile ArrowBuf[] buffers;
 
   public QueryId getQueryId() {
@@ -97,8 +99,8 @@ public class OutOfBandMessage {
     }
   }
 
-  public Payload getPayload() {
-    return payload;
+  public boolean isShrinkMemoryRequest() {
+    return isShrinkMemoryRequest;
   }
 
   public boolean getIsOptional() { return isOptional; }
@@ -115,6 +117,7 @@ public class OutOfBandMessage {
     sendingMinorFragmentId = message.getSendingMinorFragmentId();
     sendingOperatorId = message.getSendingOperatorId();
     targetMinorFragmentIds = message.getReceivingMinorFragmentIdList();
+    isShrinkMemoryRequest = message.getShrinkMemoryRequest();
 
     payload = new Payload(message.getType(), message.getData().toByteArray());
     isOptional = message.hasIsOptional() ? message.getIsOptional() : true;
@@ -139,17 +142,44 @@ public class OutOfBandMessage {
     builder.setData(ByteString.copyFrom(payload.bytes));
     builder.setType(payload.type);
     builder.setIsOptional(isOptional);
+    builder.setShrinkMemoryRequest(isShrinkMemoryRequest);
     return builder.build();
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
                           int sendingMinorFragmentId, Payload payload, boolean isOptional) {
     this(queryId, majorFragmentId, targetMinorFragmentIds, operatorId,
-      -1, sendingMinorFragmentId, -1, payload, null, isOptional);
+      -1, sendingMinorFragmentId, -1, payload, null, isOptional, false);
+  }
+
+  static List<Integer> createMinorFragmentList(int sendingMinorFragmentId) {
+    List<Integer> targetMinorFragmentIds = new ArrayList<>();
+    targetMinorFragmentIds.add(sendingMinorFragmentId);
+    return targetMinorFragmentIds;
+  }
+
+  /**
+   * This is used to send an OOB message to shrinkMemory
+   */
+  public OutOfBandMessage(QueryId queryId, int sendingMajorFragmentId, int sendingMinorFragmentId, int operatorId, Payload payload) {
+    this(queryId, sendingMajorFragmentId, createMinorFragmentList(sendingMinorFragmentId), operatorId,
+      sendingMajorFragmentId, sendingMinorFragmentId, -1,
+      payload, null,
+      false, true);
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
-      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf[] buffers, boolean isOptional) {
+      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf[] buffers,
+      boolean isOptional) {
+    this(queryId, majorFragmentId, targetMinorFragmentIds, operatorId,
+      sendingMajorFragmentId, sendingMinorFragmentId, sendingOperatorId,
+      payload, buffers,
+      isOptional, false);
+  }
+
+  public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
+                          int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf[] buffers,
+                          boolean isOptional, boolean isShrinkMemoryRequest) {
     super();
     this.queryId = queryId;
     this.majorFragmentId = majorFragmentId;
@@ -160,6 +190,7 @@ public class OutOfBandMessage {
     this.sendingOperatorId = sendingOperatorId;
     this.payload = payload;
     this.isOptional = isOptional;
+    this.isShrinkMemoryRequest = isShrinkMemoryRequest;
     this.buffers = buffers;
 
     // Caller is expected to release its own copy

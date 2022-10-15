@@ -90,7 +90,7 @@ public class PartitionParser {
 
     BatchSchema tableSchema = BatchSchema.of(fields);
 
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     return schemaConverter.toIcebergSchema(tableSchema);
   }
 }

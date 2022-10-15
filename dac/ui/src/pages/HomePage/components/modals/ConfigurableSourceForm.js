@@ -26,6 +26,7 @@ import NavPanel from "components/Nav/NavPanel";
 import { getFormTabs } from "@inject/pages/HomePage/components/modals/utils";
 import { sourceFormWrapper } from "uiTheme/less/forms.less";
 import { scrollRightContainerWithHeader } from "uiTheme/less/layout.less";
+import { FormContext } from "./formContext";
 
 const SOURCE_FIELDS = [
   "id",
@@ -51,10 +52,6 @@ class ConfigurableSourceForm extends Component {
     permissions: PropTypes.object,
   };
 
-  getChildContext() {
-    return { editing: this.props.editing };
-  }
-
   render() {
     const {
       fields,
@@ -66,6 +63,7 @@ class ConfigurableSourceForm extends Component {
       selectedTabName,
       footerChildren,
       permissions,
+      editing,
     } = this.props;
 
     const { tabs: customTabs, tabSelected } = getFormTabs(
@@ -106,27 +104,27 @@ class ConfigurableSourceForm extends Component {
             />
           )}
           <div className={scrollRightContainerWithHeader}>
-            <FormBody>
-              {tabConfig && (
-                <FormTab
-                  fields={fields}
-                  tabConfig={tabConfig}
-                  formConfig={sourceFormConfig}
-                  EntityType={this.props.EntityType}
-                  accessControlId={this.props.fields.id.initialValue}
-                />
-              )}
-            </FormBody>
+            <FormContext.Provider
+              value={{ editing, sourceType: sourceFormConfig.sourceType }}
+            >
+              <FormBody>
+                {tabConfig && (
+                  <FormTab
+                    fields={fields}
+                    tabConfig={tabConfig}
+                    formConfig={sourceFormConfig}
+                    EntityType={this.props.EntityType}
+                    accessControlId={this.props.fields.id.initialValue}
+                  />
+                )}
+              </FormBody>
+            </FormContext.Provider>
           </div>
         </div>
       </ModalForm>
     );
   }
 }
-
-ConfigurableSourceForm.childContextTypes = {
-  editing: PropTypes.bool,
-};
 
 export default class ConfigurableSourceFormWrapper extends Component {
   static propTypes = {

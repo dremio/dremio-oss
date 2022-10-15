@@ -18,11 +18,10 @@ import React, { useState, useRef, useMemo } from "react";
 import PropTypes from "prop-types";
 import clsx from "clsx";
 import { get, debounce } from "lodash";
-import Checkbox from "@material-ui/core/Checkbox";
-import Chip from "@material-ui/core/Chip";
-import Menu from "@material-ui/core/Menu";
-import MenuItem from "@material-ui/core/MenuItem";
-import { makeStyles } from "@material-ui/core/styles";
+import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 
 import { ReactComponent as XIcon } from "../../art/XLarge.svg";
 
@@ -44,16 +43,6 @@ const SearchableMultiSelect = (props) => {
     onSearchChange,
     disabled,
   } = props;
-
-  const getMenuClass = (anchor) =>
-    makeStyles(() => {
-      const { clientWidth: width } = anchor || {};
-      return {
-        list: {
-          width,
-        },
-      };
-    })();
 
   const [showMenu, setShowMenu] = useState(false);
   const [filterText, setFilterText] = useState("");
@@ -273,19 +262,18 @@ const SearchableMultiSelect = (props) => {
         anchorEl={valueContainerRef.current}
         open={showMenu}
         onClose={handleClose}
-        classes={getMenuClass(valueContainerRef.current)}
         autoFocus={false}
         disableAutoFocus
         disableEnforceFocus
-        getContentAnchorEl={null}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        transformOrigin={{ vertical: "top", horizontal: "center" }}
         transitionDuration={{
           exit: 0,
         }}
         MenuListProps={{
           disablePadding: true,
           className: "SearchableMultiSelect__menuList",
+          sx: {
+            width: valueContainerRef.current?.clientWidth,
+          },
         }}
       >
         {renderMenuItems()}

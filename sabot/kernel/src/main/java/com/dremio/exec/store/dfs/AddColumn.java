@@ -50,7 +50,7 @@ public class AddColumn extends ColumnOperations {
     boolean isIcebergTable = DatasetHelper.isIcebergDataset(datasetConfig);
 
     if (isIcebergTable) {
-      SchemaConverter schemaConverter = new SchemaConverter();
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
       List<Types.NestedField> icebergFields = schemaConverter.toIcebergFields(fieldsToAdd);
       model.addColumns(model.getTableIdentifier(path.toString()), icebergFields);
       return;

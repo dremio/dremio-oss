@@ -24,21 +24,23 @@ function CommitHash({
   branch,
   hash,
   disabled,
+  enableCopy = true,
 }: {
   disabled?: boolean;
   branch: string;
   hash: string;
+  enableCopy?: boolean;
 }) {
   return (
     <div className="commitEntryHash">
       <NessieLink
         disabled={disabled}
-        to={`/commit/${branch}/${hash}`}
+        to={`/commit/${encodeURIComponent(branch)}/${hash}`}
         title={hash}
       >
         {getShortHash(hash)}
       </NessieLink>
-      <CopyToClipboard tooltipText="Copied" value={hash} />
+      {enableCopy && <CopyToClipboard tooltipText="Copied" value={hash} />}
     </div>
   );
 }

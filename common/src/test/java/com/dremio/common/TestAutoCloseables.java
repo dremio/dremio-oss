@@ -16,8 +16,8 @@
 
 package com.dremio.common;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -58,7 +58,6 @@ public class TestAutoCloseables {
       () -> r1.closeWithException(new IOException("R1 exception")),
       () -> r2.closeWithException(new RuntimeException("R3 exception"))
     );
-    fail("Expected exception");
   }
 
   @Test(expected = RuntimeException.class)
@@ -69,7 +68,6 @@ public class TestAutoCloseables {
       () -> r1.closeWithException(new RuntimeException("R1 exception")),
       () -> r2.closeWithException(new IOException("R3 exception"))
     );
-    fail("Expected exception");
   }
 
   @Test(expected = IOException.class)
@@ -80,7 +78,6 @@ public class TestAutoCloseables {
       () -> r1.closeWithException(new Exception("R1 exception")),
       () -> r2.closeWithException(new Exception("R3 exception"))
     );
-    fail("Expected exception");
   }
 
   private class Resource {

@@ -21,7 +21,6 @@ import java.nio.ByteOrder;
 
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.util.MemoryUtil;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VariableWidthVector;
@@ -32,6 +31,7 @@ import org.apache.datasketches.memory.WritableMemory;
 import com.dremio.exec.expr.fn.hll.StatisticsAggrFunctions;
 import com.dremio.sabot.exec.context.SlicedBufferManager;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
+import com.google.common.base.Preconditions;
 
 /**
  * A base accumulator for HLL/NDV operator

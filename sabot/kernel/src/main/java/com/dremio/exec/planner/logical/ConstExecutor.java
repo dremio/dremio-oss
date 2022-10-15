@@ -99,7 +99,7 @@ public class ConstExecutor implements RexExecutor {
     // outputs of functions that take literals as inputs (such as a convert_fromJSON with a literal string
     // as input), so we need to identify functions with these return types as non-foldable until we have a
     // literal representation for them
-    MinorType.STRUCT, MinorType.LIST,
+    MinorType.STRUCT, MinorType.LIST, MinorType.MAP,
 
     // TODO - DRILL-2551 - Varbinary is used in execution, but it is missing a literal definition
     // in the logical expression representation and subsequently is not supported in

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>
@@ -37,6 +37,72 @@
     <datanucleus-jdo.version>${plugin.hive2.datanucleus-jdo.version}</datanucleus-jdo.version>
     <jdo-api.version>${plugin.hive2.jdo-api.version}</jdo-api.version>
   </properties>
+
+  <profiles>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <properties>
+        <hadoop.version>${plugin.hive2.mapr.hadoop.version}</hadoop.version>
+        <hive.version>${plugin.hive2.mapr.hive.version}</hive.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.jolbox</groupId>
+          <artifactId>bonecp</artifactId>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-exec</artifactId>
+          <version>${hive.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>log4j-1.2-api</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>log4j-slf4j-impl</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>mapr-log4j-slf4j-impl</artifactId>
+            </exclusion>
+            <exclusion>
+              <artifactId>log4j</artifactId>
+              <groupId>log4j</groupId>
+            </exclusion>
+            <exclusion>
+              <artifactId>servlet-api</artifactId>
+              <groupId>javax.servlet</groupId>
+            </exclusion>
+            <exclusion>
+              <artifactId>netty-all</artifactId>
+              <groupId>io.netty</groupId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-llap-tez</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.calcite</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.calcite.avatica</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 
   <dependencies>
     <dependency>
@@ -308,6 +374,17 @@
         </executions>
       </plugin>
       <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <execution>
@@ -326,26 +403,4 @@
       </plugin>
     </plugins>
   </build>
-
-  <profiles>
-    <profile>
-      <id>jdk9-or-higher</id>
-      <activation>
-        <jdk>[9,)</jdk>
-      </activation>
-
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <configuration>
-              <jdkToolchain>
-                <version>1.8</version>
-              </jdkToolchain>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>

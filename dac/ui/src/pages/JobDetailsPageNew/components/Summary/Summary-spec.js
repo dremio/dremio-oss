@@ -31,8 +31,8 @@ describe("Summary", () => {
       { label: "Job.Duration", content: "14.0s" },
       { label: "Common.User", content: "satheesh@dremio" },
       { label: "Common.Queue", content: "High Cost User Queries" },
-      { label: "Job.Summary.Input", content: "1.2GB/1.5m Records" },
-      { label: "Job.Summary.Output", content: "1.7MB/13k Records" },
+      { label: "Job.Summary.Input", content: "1.2GB/1.5m Rows" },
+      { label: "Job.Summary.Output", content: "1.7MB/13k Rows" },
       { label: "Job.Summary.WaitOnClient", content: "<1s" },
     ];
     const wrapper = shallow(<Summary jobSummary={jobSummary} />);

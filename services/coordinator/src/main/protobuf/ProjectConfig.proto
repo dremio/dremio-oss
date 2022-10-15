@@ -32,10 +32,26 @@ message AwsRole {
   string external_id = 2;
 }
 
+message AzureClientAccess {
+  string token_endpoint = 1;
+  string client_id = 2;
+  string client_secret = 3;
+  string account_name = 4;
+  string account_kind = 5;
+}
+
+message AzureSharedAccessKey {
+  string access_key = 1;
+  string account_name = 2;
+  string account_kind = 3;
+}
+
 message DataCredentials {
   oneof credentials {
     AwsKeys keys = 1;
     AwsRole data_role = 2;
+    AzureClientAccess client_access = 3;
+    AzureSharedAccessKey shared_access_key = 4;
   }
 }
 

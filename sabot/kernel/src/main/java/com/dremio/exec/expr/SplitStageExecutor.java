@@ -108,7 +108,8 @@ class SplitStageExecutor implements AutoCloseable {
     this.preferredEngine = preferredExecType;
     this.hasOriginalExpression = false;
     this.nativeFilter = null;
-    this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU));
+    this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
+      context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE), context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
     this.cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
     this.splitsForPreferredCodeGen = this.preferredEngine ==
       SupportedEngines.Engine.GANDIVA? gandivaSplits : javaSplits;
@@ -247,7 +248,9 @@ class SplitStageExecutor implements AutoCloseable {
       logger.trace("Setting up filter for split in Gandiva {}", finalSplit);
       gandivaCodeGenWatch.start();
       nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2(),
-        context.getFunctionContext(), finalSplit.getOptimize(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU));
+        context.getFunctionContext(), finalSplit.getOptimize(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
+        context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE),
+        context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
       gandivaCodeGenWatch.stop();
       this.filterFunction = new NativeTimedFilter(nativeFilter);
       return;

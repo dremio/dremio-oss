@@ -38,10 +38,15 @@ public abstract class AbstractRowBasedRecordWriter extends RowBasedRecordWriter 
   @Override
   public void setup() throws IOException {
   }
-  
+
   @Override
   public FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader) {
     throw new UnsupportedOperationException("Doesn't support writing Map'");
+  }
+
+  @Override
+  public FieldConverter getNewStructConverter(int fieldId, String fieldName, FieldReader reader) {
+    throw new UnsupportedOperationException("Doesn't support writing Struct'");
   }
 
   @Override

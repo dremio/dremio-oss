@@ -15,7 +15,7 @@
  */
 
 import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
 import DialogContent from "../Dialog/DialogContent";
 import ModalForm from "../ModalForm";
 import ModalFormAction from "../ModalForm/ModalFormAction";
@@ -23,10 +23,10 @@ import ModalFormActionContainer from "../ModalForm/ModalFormActionContainer";
 
 import "./confirmationModal.scss";
 
-const unMountComponent = () => {
+const unMountComponent = (root: Root) => {
   const container = document.querySelector(".conifrmation-container");
   if (container != null) {
-    ReactDOM.unmountComponentAtNode(container);
+    root.unmount();
   }
 };
 
@@ -39,6 +39,8 @@ type ConfirmationModalProps = {
   hideCancelButton?: boolean;
   primaryButtonText?: string;
   cancelButtonText?: string;
+  centered?: boolean;
+  root: Root;
 };
 
 export const ConfirmationModal = (props: ConfirmationModalProps) => {
@@ -51,17 +53,19 @@ export const ConfirmationModal = (props: ConfirmationModalProps) => {
     hideCancelButton,
     cancelButtonText,
     primaryButtonText,
+    centered,
+    root,
   } = props;
 
   const dialogContentClass = { root: "confirmationModal__content" };
 
   const handleClose = () => {
     onClose && onClose();
-    unMountComponent();
+    unMountComponent(root);
   };
 
   const handleSubmit = () => {
-    unMountComponent();
+    unMountComponent(root);
     submitFn();
   };
 
@@ -77,7 +81,9 @@ export const ConfirmationModal = (props: ConfirmationModalProps) => {
       classes={{
         paper: "confirmationModal",
         root: "confirmationModal__root",
-        container: "confirmationModal__container",
+        container: centered
+          ? "confirmationModal__centered-container"
+          : "confirmationModal__container",
       }}
     >
       {() => {
@@ -116,9 +122,7 @@ ConfirmationModal.defaultProps = {
 export default function openConfirmationModal(
   renderProps: ConfirmationModalProps
 ): void {
-  const confirmationModal = <ConfirmationModal {...renderProps} />;
-  ReactDOM.render(
-    confirmationModal,
-    document.querySelector(".conifrmation-container")
-  );
+  const root = createRoot(document.querySelector(".conifrmation-container"));
+  const confirmationModal = <ConfirmationModal {...renderProps} root={root} />;
+  root.render(confirmationModal);
 }

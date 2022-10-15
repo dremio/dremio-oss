@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_USE_BATCH_SCHEMA_FOR_RESOLVING_COLUMN;
 
 import java.util.List;
 
@@ -23,6 +24,7 @@ import org.apache.iceberg.parquet.ParquetMessageTypeIDExtractor;
 import org.apache.parquet.schema.MessageType;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergSchemaField;
@@ -38,15 +40,19 @@ public class ParquetScanProjectedColumns {
   private final List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs;
   private final boolean isConvertedIcebergDataset;
   private final boolean fallBackOnNameBasedRead;
+  private final BatchSchema batchSchema;
+  private final boolean shouldUseBatchSchemaForResolvingProjectedColumn;
 
   private ParquetScanProjectedColumns(List<SchemaPath> projectedColumns,
                                       List<IcebergSchemaField> icebergColumnIDs,
                                       boolean isConvertedIcebergDataset,
-                                      boolean fallBackOnNameBasedRead) {
+                                      boolean fallBackOnNameBasedRead, boolean shouldUseBatchSchemaForResolvingProjectedColumn, BatchSchema batchSchema) {
     this.projectedColumns = projectedColumns;
     this.icebergColumnIDs = icebergColumnIDs;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
     this.fallBackOnNameBasedRead = fallBackOnNameBasedRead;
+    this.batchSchema = batchSchema;
+    this.shouldUseBatchSchemaForResolvingProjectedColumn = shouldUseBatchSchemaForResolvingProjectedColumn;
   }
 
   public int size() {
@@ -66,7 +72,7 @@ public class ParquetScanProjectedColumns {
     // if native iceberg table, and parquet file has no IDs,
     //   but user doesn't want to use name based reader, then use id based reader
     if (!this.isConvertedIcebergDataset && (parquetHasIds || !fallBackOnNameBasedRead)) {
-      columnResolver = new ParquetColumnIcebergResolver(this.projectedColumns, this.icebergColumnIDs, idExtractor.getAliases());
+      columnResolver = new ParquetColumnIcebergResolver(this.projectedColumns, this.icebergColumnIDs, idExtractor.getAliases(), shouldUseBatchSchemaForResolvingProjectedColumn, batchSchema);
     } else {
       columnResolver = new ParquetColumnDefaultResolver(this.projectedColumns);
     }
@@ -74,7 +80,7 @@ public class ParquetScanProjectedColumns {
   }
 
   private ParquetScanProjectedColumns(List<SchemaPath> projectedColumns) {
-    this(projectedColumns, null, true, true);
+    this(projectedColumns, null, true, true, false, null);
   }
 
   public List<SchemaPath> getBatchSchemaProjectedColumns() {
@@ -87,14 +93,15 @@ public class ParquetScanProjectedColumns {
 
   public static ParquetScanProjectedColumns fromSchemaPathAndIcebergSchema(
     List<SchemaPath> projectedColumns, List<IcebergSchemaField> icebergColumnIDs,
-    boolean isConvertedIcebergDataset, OperatorContext context) {
+    boolean isConvertedIcebergDataset, OperatorContext context, BatchSchema batchSchema) {
     Preconditions.checkArgument(context != null, "Unexpected state");
     boolean fallBackOnNameBasedRead = context.getOptions().getOption(ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ);
+    boolean shouldUseBatchSchemaForResolvingProjectedColumn = context.getOptions().getOption(ENABLE_ICEBERG_USE_BATCH_SCHEMA_FOR_RESOLVING_COLUMN);
     return new ParquetScanProjectedColumns(projectedColumns, icebergColumnIDs,
-            isConvertedIcebergDataset, fallBackOnNameBasedRead);
+            isConvertedIcebergDataset, fallBackOnNameBasedRead, shouldUseBatchSchemaForResolvingProjectedColumn, batchSchema);
   }
 
   ParquetScanProjectedColumns cloneForSchemaPaths(List<SchemaPath> projectedColumns, boolean isConvertedIcebergDataset) {
-    return new ParquetScanProjectedColumns(projectedColumns, this.icebergColumnIDs, isConvertedIcebergDataset, this.fallBackOnNameBasedRead);
+    return new ParquetScanProjectedColumns(projectedColumns, this.icebergColumnIDs, isConvertedIcebergDataset, this.fallBackOnNameBasedRead, false, null);
   }
 }

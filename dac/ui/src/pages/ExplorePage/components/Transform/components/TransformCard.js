@@ -16,8 +16,10 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
+import clsx from "clsx";
 import FontIcon from "components/Icon/FontIcon";
 import CardFooter from "./CardFooter";
+import * as classes from "./TransformCard.module.less";
 
 export default class TransformCard extends Component {
   static propTypes = {
@@ -54,57 +56,30 @@ export default class TransformCard extends Component {
   render() {
     const { front, back, card, active, onClick } = this.props;
     const { editing } = this.state;
-    const footerStyle = {
-      width: styles.base.width,
-      backgroundColor: styles.base.backgroundColor,
-    };
-    const backgroundColor = active ? "#FFF5DC" : "#FFFFFF";
     return (
       <div
-        className="transform-card"
+        className={clsx("transform-card", classes["base"], {
+          [classes["active"]]: active,
+          [classes["inactive"]]: !active,
+        })}
         onClick={onClick}
-        style={{ ...styles.base, ...(active ? styles.active : {}) }}
       >
         {editing || !front ? back : front}
         {front && (
           <FontIcon
             type={editing ? "Return" : "EditSmall"}
-            theme={{ Icon: styles.toggler }}
+            className={classes["toggler"]}
             onClick={this.onToggleEdit}
           />
         )}
-        <CardFooter card={card} style={{ ...footerStyle, backgroundColor }} />
+        <CardFooter
+          card={card}
+          className={clsx(classes["base"], {
+            [classes["active"]]: active,
+            [classes["inactive"]]: !active,
+          })}
+        />
       </div>
     );
   }
 }
-
-const styles = {
-  base: {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    height: 150,
-    width: 455,
-    minWidth: 455,
-    position: "relative",
-    backgroundColor: "#FFFFFF",
-    cursor: "pointer",
-    ":hover": {
-      backgroundColor: "#FFF5DC",
-    },
-  },
-  active: {
-    backgroundColor: "#FFF5DC",
-  },
-  toggler: {
-    position: "absolute",
-    top: 4,
-    right: 10,
-    cursor: "pointer",
-    fontSize: 17,
-    ":hover": {
-      color: "gray",
-    },
-  },
-};

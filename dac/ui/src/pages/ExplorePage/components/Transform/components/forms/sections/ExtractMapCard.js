@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { applyValidators, isRequired } from "utils/validation";
@@ -62,4 +61,4 @@ class ExtractMapCard extends Component {
     );
   }
 }
-export default Radium(ExtractMapCard);
+export default ExtractMapCard;

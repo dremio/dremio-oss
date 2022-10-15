@@ -75,31 +75,31 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("col1", "col2")
-      .baselineValues(0l, 1l)
-      .baselineValues(1l, 1l)
-      .baselineValues(2l, 1l)
-      .baselineValues(3l, 1l)
-      .baselineValues(4l, 1l)
-      .baselineValues(5l, 1l)
-      .baselineValues(6l, 1l)
-      .baselineValues(7l, 1l)
-      .baselineValues(8l, 1l)
-      .baselineValues(9l, 1l)
-      .baselineValues(10l, 1l)
-      .baselineValues(11l, 1l)
-      .baselineValues(12l, 1l)
-      .baselineValues(13l, 1l)
-      .baselineValues(14l, 1l)
-      .baselineValues(15l, 1l)
-      .baselineValues(16l, 1l)
-      .baselineValues(17l, 1l)
-      .baselineValues(18l, 1l)
-      .baselineValues(19l, 1l)
-      .baselineValues(20l, 1l)
-      .baselineValues(21l, 1l)
-      .baselineValues(22l, 1l)
-      .baselineValues(23l, 1l)
-      .baselineValues(24l, 1l)
+      .baselineValues(0L, 1L)
+      .baselineValues(1L, 1L)
+      .baselineValues(2L, 1L)
+      .baselineValues(3L, 1L)
+      .baselineValues(4L, 1L)
+      .baselineValues(5L, 1L)
+      .baselineValues(6L, 1L)
+      .baselineValues(7L, 1L)
+      .baselineValues(8L, 1L)
+      .baselineValues(9L, 1L)
+      .baselineValues(10L, 1L)
+      .baselineValues(11L, 1L)
+      .baselineValues(12L, 1L)
+      .baselineValues(13L, 1L)
+      .baselineValues(14L, 1L)
+      .baselineValues(15L, 1L)
+      .baselineValues(16L, 1L)
+      .baselineValues(17L, 1L)
+      .baselineValues(18L, 1L)
+      .baselineValues(19L, 1L)
+      .baselineValues(20L, 1L)
+      .baselineValues(21L, 1L)
+      .baselineValues(22L, 1L)
+      .baselineValues(23L, 1L)
+      .baselineValues(24L, 1L)
       .build()
       .run();
   }
@@ -120,31 +120,31 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("col")
-      .baselineValues(0l)
-      .baselineValues(1l)
-      .baselineValues(2l)
-      .baselineValues(3l)
-      .baselineValues(4l)
-      .baselineValues(5l)
-      .baselineValues(6l)
-      .baselineValues(7l)
-      .baselineValues(8l)
-      .baselineValues(9l)
-      .baselineValues(10l)
-      .baselineValues(11l)
-      .baselineValues(12l)
-      .baselineValues(13l)
-      .baselineValues(14l)
-      .baselineValues(15l)
-      .baselineValues(16l)
-      .baselineValues(17l)
-      .baselineValues(18l)
-      .baselineValues(19l)
-      .baselineValues(20l)
-      .baselineValues(21l)
-      .baselineValues(22l)
-      .baselineValues(23l)
-      .baselineValues(24l)
+      .baselineValues(0L)
+      .baselineValues(1L)
+      .baselineValues(2L)
+      .baselineValues(3L)
+      .baselineValues(4L)
+      .baselineValues(5L)
+      .baselineValues(6L)
+      .baselineValues(7L)
+      .baselineValues(8L)
+      .baselineValues(9L)
+      .baselineValues(10L)
+      .baselineValues(11L)
+      .baselineValues(12L)
+      .baselineValues(13L)
+      .baselineValues(14L)
+      .baselineValues(15L)
+      .baselineValues(16L)
+      .baselineValues(17L)
+      .baselineValues(18L)
+      .baselineValues(19L)
+      .baselineValues(20L)
+      .baselineValues(21L)
+      .baselineValues(22L)
+      .baselineValues(23L)
+      .baselineValues(24L)
       .build()
       .run();
   }
@@ -290,31 +290,31 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query1)
       .unOrdered()
       .baselineColumns("col")
-      .baselineValues(0l)
-      .baselineValues(1l)
-      .baselineValues(2l)
-      .baselineValues(3l)
-      .baselineValues(4l)
-      .baselineValues(5l)
-      .baselineValues(6l)
-      .baselineValues(7l)
-      .baselineValues(8l)
-      .baselineValues(9l)
-      .baselineValues(10l)
-      .baselineValues(11l)
-      .baselineValues(12l)
-      .baselineValues(13l)
-      .baselineValues(14l)
-      .baselineValues(15l)
-      .baselineValues(16l)
-      .baselineValues(17l)
-      .baselineValues(18l)
-      .baselineValues(19l)
-      .baselineValues(20l)
-      .baselineValues(21l)
-      .baselineValues(22l)
-      .baselineValues(23l)
-      .baselineValues(24l)
+      .baselineValues(0L)
+      .baselineValues(1L)
+      .baselineValues(2L)
+      .baselineValues(3L)
+      .baselineValues(4L)
+      .baselineValues(5L)
+      .baselineValues(6L)
+      .baselineValues(7L)
+      .baselineValues(8L)
+      .baselineValues(9L)
+      .baselineValues(10L)
+      .baselineValues(11L)
+      .baselineValues(12L)
+      .baselineValues(13L)
+      .baselineValues(14L)
+      .baselineValues(15L)
+      .baselineValues(16L)
+      .baselineValues(17L)
+      .baselineValues(18L)
+      .baselineValues(19L)
+      .baselineValues(20L)
+      .baselineValues(21L)
+      .baselineValues(22L)
+      .baselineValues(23L)
+      .baselineValues(24L)
       .build()
       .run();
 
@@ -327,31 +327,31 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query2)
       .unOrdered()
       .baselineColumns("col")
-      .baselineValues(0l)
-      .baselineValues(1l)
-      .baselineValues(2l)
-      .baselineValues(3l)
-      .baselineValues(4l)
-      .baselineValues(5l)
-      .baselineValues(6l)
-      .baselineValues(7l)
-      .baselineValues(8l)
-      .baselineValues(9l)
-      .baselineValues(10l)
-      .baselineValues(11l)
-      .baselineValues(12l)
-      .baselineValues(13l)
-      .baselineValues(14l)
-      .baselineValues(15l)
-      .baselineValues(16l)
-      .baselineValues(17l)
-      .baselineValues(18l)
-      .baselineValues(19l)
-      .baselineValues(20l)
-      .baselineValues(21l)
-      .baselineValues(22l)
-      .baselineValues(23l)
-      .baselineValues(24l)
+      .baselineValues(0L)
+      .baselineValues(1L)
+      .baselineValues(2L)
+      .baselineValues(3L)
+      .baselineValues(4L)
+      .baselineValues(5L)
+      .baselineValues(6L)
+      .baselineValues(7L)
+      .baselineValues(8L)
+      .baselineValues(9L)
+      .baselineValues(10L)
+      .baselineValues(11L)
+      .baselineValues(12L)
+      .baselineValues(13L)
+      .baselineValues(14L)
+      .baselineValues(15L)
+      .baselineValues(16L)
+      .baselineValues(17L)
+      .baselineValues(18L)
+      .baselineValues(19L)
+      .baselineValues(20L)
+      .baselineValues(21L)
+      .baselineValues(22L)
+      .baselineValues(23L)
+      .baselineValues(24L)
       .build()
       .run();
 
@@ -364,31 +364,31 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query3)
       .unOrdered()
       .baselineColumns("col")
-      .baselineValues(0l)
-      .baselineValues(1l)
-      .baselineValues(2l)
-      .baselineValues(3l)
-      .baselineValues(4l)
-      .baselineValues(5l)
-      .baselineValues(6l)
-      .baselineValues(7l)
-      .baselineValues(8l)
-      .baselineValues(9l)
-      .baselineValues(10l)
-      .baselineValues(11l)
-      .baselineValues(12l)
-      .baselineValues(13l)
-      .baselineValues(14l)
-      .baselineValues(15l)
-      .baselineValues(16l)
-      .baselineValues(17l)
-      .baselineValues(18l)
-      .baselineValues(19l)
-      .baselineValues(20l)
-      .baselineValues(21l)
-      .baselineValues(22l)
-      .baselineValues(23l)
-      .baselineValues(24l)
+      .baselineValues(0L)
+      .baselineValues(1L)
+      .baselineValues(2L)
+      .baselineValues(3L)
+      .baselineValues(4L)
+      .baselineValues(5L)
+      .baselineValues(6L)
+      .baselineValues(7L)
+      .baselineValues(8L)
+      .baselineValues(9L)
+      .baselineValues(10L)
+      .baselineValues(11L)
+      .baselineValues(12L)
+      .baselineValues(13L)
+      .baselineValues(14L)
+      .baselineValues(15L)
+      .baselineValues(16L)
+      .baselineValues(17L)
+      .baselineValues(18L)
+      .baselineValues(19L)
+      .baselineValues(20L)
+      .baselineValues(21L)
+      .baselineValues(22L)
+      .baselineValues(23L)
+      .baselineValues(24L)
       .build()
       .run();
   }
@@ -411,11 +411,11 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("col")
-      .baselineValues(0l)
-      .baselineValues(1l)
-      .baselineValues(2l)
-      .baselineValues(3l)
-      .baselineValues(4l)
+      .baselineValues(0L)
+      .baselineValues(1L)
+      .baselineValues(2L)
+      .baselineValues(3L)
+      .baselineValues(4L)
       .build()
       .run();
   }
@@ -435,10 +435,10 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
         .ordered()
         .baselineColumns("cnt")
         .optionSettingQueriesForTestQuery("alter session set \"planner.slice_target\" = 1")
-        .baselineValues(1l)
-        .baselineValues(4l)
-        .baselineValues(4l)
-        .baselineValues(4l)
+        .baselineValues(1L)
+        .baselineValues(4L)
+        .baselineValues(4L)
+        .baselineValues(4L)
         .build()
         .run();
     } finally {
@@ -502,7 +502,7 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("col1")
-      .baselineValues(2147483649l)
+      .baselineValues(2147483649L)
       .go();
 
     final String avgQuery = "select avg(cast(col_int as double)) over (partition by col_varchar) as col1 " +
@@ -569,7 +569,7 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("rank1")
-      .baselineValues(100l)
+      .baselineValues(100L)
       .go();
   }
 
@@ -588,7 +588,7 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .ordered()
       .baselineColumns("cnt")
-      .baselineValues(26l)
+      .baselineValues(26L)
       .build().run();
   }
 
@@ -609,12 +609,12 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .ordered()
       .baselineColumns("fn", "sumINTEGER", "sumEmpId", "sumDecimal")
-      .baselineValues(1l, 2l, 2l, BigDecimal.valueOf(0.5))
-      .baselineValues(2l, 4l, 6l, BigDecimal.valueOf(1.0))
-      .baselineValues(3l, 6l, 11l, BigDecimal.valueOf(1.5))
-      .baselineValues(4l, 8l, 31l, BigDecimal.valueOf(2.0))
-      .baselineValues(5l, 10l, 52l, BigDecimal.valueOf(2.5))
-      .baselineValues(6l, 12l, 74l, BigDecimal.valueOf(3.0))
+      .baselineValues(1L, 2L, 2L, BigDecimal.valueOf(0.5))
+      .baselineValues(2L, 4L, 6L, BigDecimal.valueOf(1.0))
+      .baselineValues(3L, 6L, 11L, BigDecimal.valueOf(1.5))
+      .baselineValues(4L, 8L, 31L, BigDecimal.valueOf(2.0))
+      .baselineValues(5L, 10L, 52L, BigDecimal.valueOf(2.5))
+      .baselineValues(6L, 12L, 74L, BigDecimal.valueOf(3.0))
       .build()
       .run();
   }
@@ -638,16 +638,16 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("count1", "sum1", "count2")
-      .baselineValues(1l, 0l, 2l)
-      .baselineValues(1l, 0l, 2l)
-      .baselineValues(2l, 0l, 5l)
-      .baselineValues(3l, 0l, 5l)
-      .baselineValues(3l, 0l, 5l)
-      .baselineValues(1l, 10l, 2l)
-      .baselineValues(1l, 10l, 2l)
-      .baselineValues(2l, 20l, 5l)
-      .baselineValues(3l, 30l, 5l)
-      .baselineValues(3l, 30l, 5l)
+      .baselineValues(1L, 0L, 2L)
+      .baselineValues(1L, 0L, 2L)
+      .baselineValues(2L, 0L, 5L)
+      .baselineValues(3L, 0L, 5L)
+      .baselineValues(3L, 0L, 5L)
+      .baselineValues(1L, 10L, 2L)
+      .baselineValues(1L, 10L, 2L)
+      .baselineValues(2L, 20L, 5L)
+      .baselineValues(3L, 30L, 5L)
+      .baselineValues(3L, 30L, 5L)
       .build()
       .run();
   }
@@ -671,16 +671,16 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("count1", "count2", "sum1")
-      .baselineValues(1l, 2l, 0l)
-      .baselineValues(1l, 2l, 0l)
-      .baselineValues(2l, 5l, 0l)
-      .baselineValues(3l, 5l, 0l)
-      .baselineValues(3l, 5l, 0l)
-      .baselineValues(1l, 2l, 10l)
-      .baselineValues(1l, 2l, 10l)
-      .baselineValues(2l, 5l, 20l)
-      .baselineValues(3l, 5l, 30l)
-      .baselineValues(3l, 5l, 30l)
+      .baselineValues(1L, 2L, 0L)
+      .baselineValues(1L, 2L, 0L)
+      .baselineValues(2L, 5L, 0L)
+      .baselineValues(3L, 5L, 0L)
+      .baselineValues(3L, 5L, 0L)
+      .baselineValues(1L, 2L, 10L)
+      .baselineValues(1L, 2L, 10L)
+      .baselineValues(2L, 5L, 20L)
+      .baselineValues(3L, 5L, 30L)
+      .baselineValues(3L, 5L, 30L)
       .build()
       .run();
   }
@@ -704,16 +704,16 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("s1", "s2")
-        .baselineValues(0l, 50l)
-        .baselineValues(0l, 50l)
-        .baselineValues(0l, 50l)
-        .baselineValues(0l, 50l)
-        .baselineValues(0l, 50l)
-        .baselineValues(10l, 50l)
-        .baselineValues(10l, 50l)
-        .baselineValues(10l, 50l)
-        .baselineValues(20l, 50l)
-        .baselineValues(20l, 50l)
+        .baselineValues(0L, 50L)
+        .baselineValues(0L, 50L)
+        .baselineValues(0L, 50L)
+        .baselineValues(0L, 50L)
+        .baselineValues(0L, 50L)
+        .baselineValues(10L, 50L)
+        .baselineValues(10L, 50L)
+        .baselineValues(10L, 50L)
+        .baselineValues(20L, 50L)
+        .baselineValues(20L, 50L)
         .build()
         .run();
     } finally {
@@ -740,16 +740,16 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("sum1", "sum2", "rank1")
-      .baselineValues(2l, 5l, 1l)
-      .baselineValues(2l, 5l, 1l)
-      .baselineValues(2l, 5l, 6l)
-      .baselineValues(2l, 5l, 6l)
-      .baselineValues(3l, 5l, 3l)
-      .baselineValues(3l, 5l, 3l)
-      .baselineValues(3l, 5l, 3l)
-      .baselineValues(3l, 5l, 8l)
-      .baselineValues(3l, 5l, 8l)
-      .baselineValues(3l, 5l, 8l)
+      .baselineValues(2L, 5L, 1L)
+      .baselineValues(2L, 5L, 1L)
+      .baselineValues(2L, 5L, 6L)
+      .baselineValues(2L, 5L, 6L)
+      .baselineValues(3L, 5L, 3L)
+      .baselineValues(3L, 5L, 3L)
+      .baselineValues(3L, 5L, 3L)
+      .baselineValues(3L, 5L, 8L)
+      .baselineValues(3L, 5L, 8L)
+      .baselineValues(3L, 5L, 8L)
       .build()
       .run();
   }
@@ -768,16 +768,16 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("a1", "b1", "c1", "c2")
-      .baselineValues(0l, 1l, 8l, 8l)
-      .baselineValues(0l, 1l, 8l, 8l)
-      .baselineValues(0l, 2l, 8l, 8l)
-      .baselineValues(0l, 2l, 8l, 8l)
-      .baselineValues(0l, 2l, 8l, 8l)
-      .baselineValues(10l, 3l, 21l, 71l)
-      .baselineValues(10l, 3l, 21l, 71l)
-      .baselineValues(10l, 5l, 21l, 71l)
-      .baselineValues(10l, 5l, 21l, 71l)
-      .baselineValues(10l, 5l, 21l, 71l)
+      .baselineValues(0L, 1L, 8L, 8L)
+      .baselineValues(0L, 1L, 8L, 8L)
+      .baselineValues(0L, 2L, 8L, 8L)
+      .baselineValues(0L, 2L, 8L, 8L)
+      .baselineValues(0L, 2L, 8L, 8L)
+      .baselineValues(10L, 3L, 21L, 71L)
+      .baselineValues(10L, 3L, 21L, 71L)
+      .baselineValues(10L, 5L, 21L, 71L)
+      .baselineValues(10L, 5L, 21L, 71L)
+      .baselineValues(10L, 5L, 21L, 71L)
       .build()
       .run();
   }
@@ -797,11 +797,11 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("col1", "col2")
-      .baselineValues(300l, 25l)
-      .baselineValues(300l, 25l)
-      .baselineValues(300l, 25l)
-      .baselineValues(300l, 25l)
-      .baselineValues(300l, 25l)
+      .baselineValues(300L, 25L)
+      .baselineValues(300L, 25L)
+      .baselineValues(300L, 25L)
+      .baselineValues(300L, 25L)
+      .baselineValues(300L, 25L)
       .build()
       .run();
   }
@@ -955,55 +955,43 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
 
   @Test
   public void testNestedAggregates1() throws Exception {
-    try {
+    UserExceptionAssert.assertThatThrownBy(() -> {
       String query = "select sum(min(l_extendedprice)) over (partition by l_suppkey)\n"
         + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10";
       test(query);
-    } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'l_suppkey' is not being grouped"));
-    }
+    }).hasMessageContaining("Expression 'l_suppkey' is not being grouped");
 
-    try {
+    UserExceptionAssert.assertThatThrownBy(() -> {
       String query = "select sum(min(l_extendedprice)) over (partition by l_suppkey) as totprice\n"
         + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10";
       test(query);
-    } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'l_suppkey' is not being grouped"));
-    }
+    }).hasMessageContaining("Expression 'l_suppkey' is not being grouped");
 
-    try {
+    UserExceptionAssert.assertThatThrownBy(() -> {
       String query = "select sum(min(l_extendedprice)) over w1 as totprice\n"
         + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10\n"
         + " window w1 as (partition by l_suppkey)";
       test(query);
-    } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'l_suppkey' is not being grouped"));
-    }
+    }).hasMessageContaining("Expression 'l_suppkey' is not being grouped");
 
-    try {
+    UserExceptionAssert.assertThatThrownBy(() -> {
       String query = "select sum(min(l_extendedprice)) over (partition by l_partkey)\n"
         + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10 group by l_suppkey";
       test(query);
-    } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'l_partkey' is not being grouped"));
-    }
+    }).hasMessageContaining("Expression 'l_partkey' is not being grouped");
 
-    try {
+    UserExceptionAssert.assertThatThrownBy(() -> {
       String query = "select sum(min(l_extendedprice)) over (partition by l_partkey) as totprice\n"
         + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10 group by l_suppkey";
       test(query);
-    } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'l_partkey' is not being grouped"));
-    }
+    }).hasMessageContaining("Expression 'l_partkey' is not being grouped");
 
-    try {
+    UserExceptionAssert.assertThatThrownBy(() -> {
       String query = "select sum(min(l_extendedprice)) over w2 as totprice\n"
         + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10 group by l_suppkey\n"
         + " window w2 as (partition by l_partkey)";
       test(query);
-    } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'l_partkey' is not being grouped"));
-    }
+    }).hasMessageContaining("Expression 'l_partkey' is not being grouped");
   }
 
   @Test

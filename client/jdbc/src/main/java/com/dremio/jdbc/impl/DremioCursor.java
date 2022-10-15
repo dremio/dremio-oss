@@ -26,6 +26,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.calcite.avatica.AvaticaStatement;
 import org.apache.calcite.avatica.ColumnMetaData;
@@ -72,7 +73,7 @@ class DremioCursor implements Cursor {
     private static final org.slf4j.Logger logger =
         org.slf4j.LoggerFactory.getLogger(ResultsListener.class);
 
-    private static volatile int nextInstanceId = 1;
+    private static final AtomicInteger INSTANCE_ID_COUNTER = new AtomicInteger(1);
 
     /** (Just for logging.) */
     private final int instanceId;
@@ -118,7 +119,7 @@ class DremioCursor implements Cursor {
      */
     @VisibleForTesting
     ResultsListener( int batchQueueThrottlingThreshold, long batchQueuePollTimeoutMs ) {
-      instanceId = nextInstanceId++;
+      instanceId = INSTANCE_ID_COUNTER.getAndIncrement();
       this.batchQueueThrottlingThreshold = batchQueueThrottlingThreshold;
       this.batchQueuePollTimeoutMs = batchQueuePollTimeoutMs;
       logger.debug( "[#{}] Query listener created.", instanceId );

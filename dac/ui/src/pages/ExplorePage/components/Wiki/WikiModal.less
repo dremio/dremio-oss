@@ -17,12 +17,13 @@
 .modal-body {
   display: flex;
   flex-direction: column;
-  flex: 1; // to take all available space for a modal
+  height: 100%;
 }
 
 .content {
   padding: 15px;
   flex: 1 1 auto; // fit to modal-body
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;

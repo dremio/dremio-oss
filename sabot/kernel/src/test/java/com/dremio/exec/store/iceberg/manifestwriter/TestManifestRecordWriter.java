@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -302,7 +303,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       //Create IcebergTable
       PartitionSpec spec = getTestPartitionSpec();
 
-      HashMap<String, String> map = new HashMap();
+      Map<String, String> map = new HashMap();
       map.put("compatibility.snapshot-id-inheritance.enabled", "true");
       Table table = new HadoopTables(new Configuration()).create(spec.schema(), spec, SortOrder.unsorted(), map, tempFolderLoc);
       table.newAppend().appendManifest(manifestFile).commit();
@@ -396,12 +397,12 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     return manifestFileRecordWriter;
   }
 
-  private PartitionSpec getTestPartitionSpec() {
-    Schema SCHEMA = new Schema(
+  private static PartitionSpec getTestPartitionSpec() {
+    Schema schema = new Schema(
       required(1, "id", Types.IntegerType.get()),
       required(2, "data", Types.StringType.get())
     );
-    PartitionSpec spec = PartitionSpec.builderFor(SCHEMA)
+    PartitionSpec spec = PartitionSpec.builderFor(schema)
       .bucket("id", 16)
       .build();
     return spec;

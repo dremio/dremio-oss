@@ -74,7 +74,6 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   private ArrowBuf projectBuildOffsetBuf;
   private long projectBuildOffsetAddr;
   private ArrowBuf projectBuildKeyOffsetBuf;
-  private long projectBuildKeyOffsetAddr;
   private long probeSv2Addr;
 
   private VectorizedHashJoinOperator.Mode mode = VectorizedHashJoinOperator.Mode.UNKNOWN;
@@ -194,7 +193,6 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     this.projectBuildOffsetBuf = allocator.buffer((long) targetRecordsPerBatch * BUILD_RECORD_LINK_SIZE);
     this.projectBuildOffsetAddr = projectBuildOffsetBuf.memoryAddress();
     this.projectBuildKeyOffsetBuf = allocator.buffer((long) targetRecordsPerBatch * ORDINAL_SIZE);
-    this.projectBuildKeyOffsetAddr = projectBuildKeyOffsetBuf.memoryAddress();
 
     this.mode = mode;
 
@@ -244,9 +242,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
 
       probed = allocator.buffer((long) records * ORDINAL_SIZE);
     }
-    long offsetAddr = probed.memoryAddress();
-
-    this.table.find(offsetAddr, records);
+    this.table.find(probed, records);
   }
 
   /**
@@ -422,7 +418,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
 
     final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
 
-    final long projectBuildKeyOffsetAddr = this.projectBuildKeyOffsetAddr;
+    final long projectBuildKeyOffsetAddr = projectBuildKeyOffsetBuf.memoryAddress();
     BlockJoinTable table = (BlockJoinTable) this.table;
 
     // determine the next set of unmatched bits.
@@ -505,13 +501,11 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
       try (FixedBlockVector fbv = new FixedBlockVector(allocator, buildUnpivot.getBlockWidth());
            VariableBlockVector var = new VariableBlockVector(allocator, buildUnpivot.getVariableCount())) {
         // The total size of the variable keys that are non matched in build side
-        int totalVarSize = table.getCumulativeVarKeyLength(projectBuildKeyOffsetAddr, outputRecords);
+        int totalVarSize = table.getCumulativeVarKeyLength(projectBuildKeyOffsetBuf, outputRecords);
         fbv.ensureAvailableBlocks(outputRecords);
         var.ensureAvailableDataSpace(totalVarSize);
-        final long keyFixedVectorAddr = fbv.getMemoryAddress();
-        final long keyVarVectorAddr = var.getMemoryAddress();
         // Collect all the pivoted keys for non matched records
-        table.copyKeysToBuffer(projectBuildKeyOffsetAddr, outputRecords, keyFixedVectorAddr, keyVarVectorAddr);
+        table.copyKeysToBuffer(projectBuildKeyOffsetBuf, outputRecords, fbv.getBuf(), var.getBuf());
         // Unpivot the keys for build side into output
         Unpivots.unpivot(buildUnpivot, fbv, var, 0, outputRecords);
       }

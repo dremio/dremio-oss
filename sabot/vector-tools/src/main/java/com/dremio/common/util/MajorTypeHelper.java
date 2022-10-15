@@ -36,7 +36,7 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
 
-public class MajorTypeHelper {
+public final class MajorTypeHelper {
 
   public static MinorType getArrowMinorType(TypeProtos.MinorType minorType) {
     switch (minorType) {
@@ -172,4 +172,7 @@ public class MajorTypeHelper {
     }
   }
 
+  private MajorTypeHelper() {
+    // Utility class
+  }
 }

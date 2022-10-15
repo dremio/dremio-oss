@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 
 import jobsUtils from "utils/jobsUtils";
 import FileUtils from "utils/FileUtils";
-import HoverHelp from "components/HoverHelp";
+import { HoverHelp } from "dremio-ui-lib";
 
 export class Quote extends PureComponent {
   static propTypes = {
@@ -83,7 +83,6 @@ export class Quote extends PureComponent {
                     <div style={styles.truncatedText}>
                       &nbsp; Automatic Truncation{" "}
                       <HoverHelp
-                        style={styles.truncatedHover}
                         content={la("UI Jobs are automatically truncated.")}
                       />
                     </div>

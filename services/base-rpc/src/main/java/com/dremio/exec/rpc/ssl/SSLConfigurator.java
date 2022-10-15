@@ -42,6 +42,8 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
+import javax.inject.Provider;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
@@ -58,6 +60,8 @@ import org.joda.time.DateTime;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.security.SecurityFolder;
+import com.dremio.services.credentials.CredentialsException;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -82,6 +86,7 @@ public class SSLConfigurator {
       EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, OTHERS_READ);
 
   private final DremioConfig config;
+  private final Provider<CredentialsService> credentialsServiceProvider;
   private final String prefix;
   private final String communicationPath;
 
@@ -92,8 +97,14 @@ public class SSLConfigurator {
    * @param prefix prefix used in config block
    * @param communicationPath communication path name, used for logging
    */
-  public SSLConfigurator(DremioConfig config, String prefix, String communicationPath) {
+  public SSLConfigurator(
+    DremioConfig config,
+    Provider<CredentialsService> credentialsServiceProvider,
+    String prefix,
+    String communicationPath
+  ) {
     this.config = config;
+    this.credentialsServiceProvider = credentialsServiceProvider;
     this.prefix = prefix;
     this.communicationPath = communicationPath;
   }
@@ -332,6 +343,28 @@ public class SSLConfigurator {
 
     return new GeneralName(nameType, name);
   }
+
+  /**
+   * Look up a password by {@param passwordPattern} using {@param credentialsServiceProvider}.
+   * @return a password looked up by {@link CredentialsService} or {@param passwordPattern}
+   * itself if {@param passwordPattern} is not a URI.
+   * @throws RuntimeException if {@param passwordPattern} has a valid format but
+   * {@link CredentialsService} cannot resolve the password.
+   */
+  private String lookupPassword(
+    String passwordPattern,
+    Provider<CredentialsService> credentialsServiceProvider
+  ) {
+    try {
+      return credentialsServiceProvider.get().lookup(passwordPattern);
+    } catch (IllegalArgumentException e) {
+      logger.warn("The string used to locate secret is not a valid URI.");
+      return passwordPattern;
+    } catch (CredentialsException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private void configureUsingConfFile(SSLConfig.Builder builder) {
     final Optional<String> keyStorePath = getStringConfig(DremioConfig.SSL_KEY_STORE_PATH);
     if (!keyStorePath.isPresent()) {
@@ -343,9 +376,9 @@ public class SSLConfigurator {
     logger.info("Using configured keystore for '{}' component at '{}'", communicationPath, keyStorePath);
     keyStorePath.ifPresent(builder::setKeyStorePath);
     getStringConfig(DremioConfig.SSL_KEY_STORE_PASSWORD)
-        .ifPresent(builder::setKeyStorePassword);
+        .ifPresent(jksPwdUri -> builder.setKeyStorePassword(lookupPassword(jksPwdUri, credentialsServiceProvider)));
     getStringConfig(DremioConfig.SSL_KEY_PASSWORD)
-        .ifPresent(builder::setKeyPassword);
+        .ifPresent(keyPwdUri -> builder.setKeyPassword(lookupPassword(keyPwdUri, credentialsServiceProvider)));
     getStringConfig(DremioConfig.SSL_KEY_STORE_TYPE)
         .ifPresent(builder::setKeyStoreType);
 
@@ -354,7 +387,7 @@ public class SSLConfigurator {
     getStringConfig(DremioConfig.SSL_TRUST_STORE_PATH)
         .ifPresent(builder::setTrustStorePath);
     getStringConfig(DremioConfig.SSL_TRUST_STORE_PASSWORD)
-        .ifPresent(builder::setTrustStorePassword);
+        .ifPresent(tsPwdUri -> builder.setTrustStorePassword(lookupPassword(tsPwdUri, credentialsServiceProvider)));
   }
 
   /**
@@ -373,7 +406,7 @@ public class SSLConfigurator {
       trustStorePath = configuredPath.get();
 
       trustStorePassword = getStringConfig(DremioConfig.SSL_TRUST_STORE_PASSWORD)
-          .map(String::toCharArray)
+          .map(pwdUri -> lookupPassword(pwdUri, credentialsServiceProvider).toCharArray())
           .orElse(new char[]{});
     } else {
       // Check if auto-generated certificates are used

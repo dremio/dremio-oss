@@ -14,26 +14,45 @@
  * limitations under the License.
  */
 
-import { useContext, useMemo, useState } from "react";
-import { useIntl } from "react-intl";
-
-import { SearchField } from "@app/components/Fields";
+import { useContext, useMemo, useState, useEffect } from "react";
+import { intl } from "@app/utils/intl";
+import ArcticTableHeader from "@app/exports/components/ArcticTableHeader/ArcticTableHeader";
 import RepoViewBranchList from "./components/RepoViewBranchList/RepoViewBranchList";
+import NewTagDialog from "../../../NewTagDialog/NewTagDialog";
 import NewBranchDialog from "../../../NewBranchDialog/NewBranchDialog";
 import DeleteBranchDialog from "../../../DeleteBranchDialog/DeleteBranchDialog";
-
-import { Reference } from "@app/services/nessie/client";
+import MergeBranchDialog from "../../../MergeBranchDialog/MergeBranchDialog";
+import { Reference } from "@app/types/nessie";
 import { RepoViewContext } from "../../RepoView";
 
 import "./RepoViewBody.less";
 
-function RepoViewBody(): JSX.Element {
-  const { defaultRef, allRefs, setAllRefs } = useContext(RepoViewContext);
+function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
+  const { allRefs, setAllRefs, defaultRef } = useContext(RepoViewContext);
   const [search, setSearch] = useState("");
-  const intl = useIntl();
+  const [defaultReference, setDefaultReference] = useState<any>({});
+
+  useEffect(() => {
+    if (allRefs.length > 0 && defaultRef.name) {
+      setDefaultReference(
+        allRefs[
+          allRefs.findIndex((ref: Reference) => ref.name === defaultRef.name)
+        ]
+      );
+    }
+  }, [allRefs, defaultRef]);
+
+  const [createTagState, setCreateTagState] = useState({
+    open: false,
+    isDefault: false,
+    branch: {
+      type: "TAG",
+    } as Reference,
+  });
 
   const [createBranchState, setCreateBranchState] = useState({
     open: false,
+    isDefault: false,
     branch: {
       type: "BRANCH",
     } as Reference,
@@ -46,9 +65,25 @@ function RepoViewBody(): JSX.Element {
     } as Reference,
   });
 
-  const openCreateDialog = (branch: Reference) => {
+  const [mergeBranchState, setMergeBranchState] = useState({
+    open: false,
+    branch: {
+      type: "BRANCH",
+    } as Reference,
+  });
+
+  const openTagDialog = (branch: Reference, isDefault?: boolean) => {
+    setCreateTagState({
+      open: true,
+      isDefault: isDefault || false,
+      branch: branch,
+    });
+  };
+
+  const openCreateDialog = (branch: Reference, isDefault?: boolean) => {
     setCreateBranchState({
       open: true,
+      isDefault: isDefault || false,
       branch: branch,
     });
   };
@@ -60,15 +95,38 @@ function RepoViewBody(): JSX.Element {
     });
   };
 
+  const openMergeDialog = (branch: Reference) => {
+    setMergeBranchState({
+      open: true,
+      branch: branch,
+    });
+  };
+
+  const closeTagDialog = () => {
+    setCreateTagState({
+      open: false,
+      isDefault: false,
+      branch: { type: "BRANCH" } as Reference,
+    });
+  };
+
   const closeCreateDialog = () => {
     setCreateBranchState({
       open: false,
+      isDefault: false,
       branch: { type: "BRANCH" } as Reference,
     });
   };
 
   const closeDeleteDialog = () => {
     setDeleteBranchState({
+      open: false,
+      branch: { type: "BRANCH" } as Reference,
+    });
+  };
+
+  const closeMergeDialog = () => {
+    setMergeBranchState({
       open: false,
       branch: { type: "BRANCH" } as Reference,
     });
@@ -82,7 +140,7 @@ function RepoViewBody(): JSX.Element {
           })
         : allRefs.filter((ref) => {
             return (
-              ref.name.toLowerCase().includes(search.trim()) &&
+              ref.name.toLowerCase().includes(search.trim().toLowerCase()) &&
               ref.type !== "TAG" &&
               ref.name !== defaultRef.name
             );
@@ -94,28 +152,45 @@ function RepoViewBody(): JSX.Element {
 
   return (
     <div className="branch-body">
-      <div className="branch-body-search">
-        <SearchField
-          onChange={setSearch}
-          placeholder={intl.formatMessage({
-            id: "BranchPicker.BranchSearchPlaceholder",
-          })}
-        />
-      </div>
+      <ArcticTableHeader
+        placeholder="BranchPicker.BranchSearchPlaceholder"
+        onSearchChange={setSearch}
+        name={
+          hideTitle ? " " : intl.formatMessage({ id: "RepoView.AllBranches" })
+        }
+      />
+
       <div className="branch-body-default-branch">
         <RepoViewBranchList
-          rows={[defaultRef]}
+          rows={[defaultReference]}
           openCreateDialog={openCreateDialog}
+          openTagDialog={openTagDialog}
           isDefault
+          isArcticSource={hideTitle}
         />
       </div>
-      <div className="branch-body-all-branch-list">
+      <div
+        className="branch-body-all-branch-list"
+        style={{
+          height:
+            filteredRows.length > 0
+              ? // rows vs item height + header diff
+                `${filteredRows.length * 82 + 36}px`
+              : // Empty state height
+                "207px",
+        }}
+      >
         <RepoViewBranchList
           rows={filteredRows}
+          openTagDialog={openTagDialog}
           openCreateDialog={openCreateDialog}
           openDeleteDialog={openDeleteDialog}
+          openMergeDialog={openMergeDialog}
+          defaultReference={defaultReference}
+          isArcticSource={hideTitle}
         />
       </div>
+
       <NewBranchDialog
         open={createBranchState.open}
         forkFrom={createBranchState.branch}
@@ -129,6 +204,17 @@ function RepoViewBody(): JSX.Element {
         closeDialog={closeDeleteDialog}
         allRefs={allRefs}
         setAllRefs={setAllRefs}
+      />
+      <MergeBranchDialog
+        open={mergeBranchState.open}
+        mergeFrom={mergeBranchState.branch}
+        mergeTo={defaultReference}
+        closeDialog={closeMergeDialog}
+      />
+      <NewTagDialog
+        open={createTagState.open}
+        forkFrom={createTagState.branch}
+        closeDialog={closeTagDialog}
       />
     </div>
   );

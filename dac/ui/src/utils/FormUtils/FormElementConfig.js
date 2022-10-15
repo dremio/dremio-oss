@@ -22,6 +22,8 @@ import RadioWrapper from "components/Forms/Wrappers/RadioWrapper";
 import DurationWrapper from "components/Forms/Wrappers/DurationWrapper";
 import ByteWrapper from "components/Forms/Wrappers/ByteWrapper";
 import SqlWrapper from "components/Forms/Wrappers/SqlWrapper";
+import NullWrapper from "@app/components/Forms/Wrappers/NullWrapper";
+import ArcticCatalogSelectWrapper from "@app/components/Forms/Wrappers/SourceWrappers/ARCTIC/ArcticCatalogSelect/ArcticCatalogSelect";
 
 /**
  * Base class for configuration of complex form elements and used as is for simple elements
@@ -37,7 +39,6 @@ export default class FormElementConfig {
     // Because this config class is used for several simple element types,
     // the renderer component is selected based on the element type
     switch (type) {
-      /* eslint-disable indent */
       case "text":
       case "number":
         return TextWrapper;
@@ -57,7 +58,21 @@ export default class FormElementConfig {
         return SqlWrapper;
       default:
         return TextWrapper;
-      /* eslint-enable indent */
+    }
+  }
+
+  // This is used to override specific fields for a given source type and field ID
+  // First usage would be the Arctic Catalog dropdown for the `ARCTIC` source type
+  static getRendererOverride(sourceType, propName) {
+    if (sourceType === "ARCTIC") {
+      switch (propName) {
+        case "name":
+          return NullWrapper; // Hide name field
+        case "config.arcticCatalogId":
+          return ArcticCatalogSelectWrapper;
+        default:
+          return;
+      }
     }
   }
 
@@ -73,8 +88,11 @@ export default class FormElementConfig {
     return this._config.propName;
   }
 
-  getRenderer() {
-    return this._renderer;
+  getRenderer(opts = {}) {
+    return (
+      FormElementConfig.getRendererOverride(opts.sourceType, opts.propName) ||
+      this._renderer
+    );
   }
 
   foundInFunctionalConfig() {

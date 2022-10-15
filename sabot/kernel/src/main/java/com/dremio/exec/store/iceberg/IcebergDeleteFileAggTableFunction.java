@@ -23,8 +23,10 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.ComplexCopier;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.VectorAccessible;
@@ -104,20 +106,19 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
   private BigIntVector inputFileSize;
   private VarBinaryVector inputPartitionInfo;
   private VarBinaryVector inputColIds;
-  private VarCharVector inputDeleteFilePath;
+  private StructVector inputDeleteFile;
   private VarCharVector outputDataFilePath;
   private BigIntVector outputFileSize;
   private VarBinaryVector outputPartitionInfo;
   private VarBinaryVector outputColIds;
-  private ListVector outputDeleteFilePaths;
+  private ListVector outputDeleteFiles;
   private int inputIndex;
   private byte[] currentDataFilePath;
   private Long currentFileSize;
   private byte[] currentPartitionInfo;
   private byte[] currentColIds;
-  private ListVector currentDeleteFilePaths;
-  private UnionListWriter currentDeleteFilePathsWriter;
-  private NullableVarCharHolder pathHolder;
+  private ListVector currentDeleteFiles;
+  private UnionListWriter currentDeleteFilesWriter;
   private State state;
 
   public IcebergDeleteFileAggTableFunction(OperatorContext context, TableFunctionConfig functionConfig) {
@@ -132,16 +133,15 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
     inputFileSize = (BigIntVector) getVectorFromSchemaPath(incoming, SystemSchemas.FILE_SIZE);
     inputPartitionInfo = (VarBinaryVector) getVectorFromSchemaPath(incoming, SystemSchemas.PARTITION_INFO);
     inputColIds = (VarBinaryVector) getVectorFromSchemaPath(incoming, SystemSchemas.COL_IDS);
-    inputDeleteFilePath = (VarCharVector) getVectorFromSchemaPath(incoming, SystemSchemas.DELETEFILE_PATH);
+    inputDeleteFile = (StructVector) getVectorFromSchemaPath(incoming, SystemSchemas.DELETE_FILE);
     outputDataFilePath = (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DATAFILE_PATH);
     outputFileSize = (BigIntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.FILE_SIZE);
     outputPartitionInfo = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.PARTITION_INFO);
     outputColIds = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.COL_IDS);
-    outputDeleteFilePaths = (ListVector) getVectorFromSchemaPath(outgoing, SystemSchemas.AGG_DELETEFILE_PATHS);
+    outputDeleteFiles = (ListVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DELETE_FILES);
 
-    currentDeleteFilePaths = ListVector.empty(SystemSchemas.AGG_DELETEFILE_PATHS, context.getAllocator());
-    currentDeleteFilePathsWriter = currentDeleteFilePaths.getWriter();
-    pathHolder = new NullableVarCharHolder();
+    currentDeleteFiles = ListVector.empty(SystemSchemas.DELETE_FILES, context.getAllocator());
+    currentDeleteFilesWriter = currentDeleteFiles.getWriter();
 
     state = State.START_NEW_AGG;
     return outgoing;
@@ -226,7 +226,7 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
 
   @Override
   public void close() throws Exception {
-    currentDeleteFilePaths.close();
+    currentDeleteFiles.close();
     super.close();
   }
 
@@ -235,15 +235,17 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
     currentFileSize = inputFileSize.get(inputIndex);
     currentPartitionInfo = inputPartitionInfo.get(inputIndex);
     currentColIds = inputColIds.get(inputIndex);
-    currentDeleteFilePathsWriter.setPosition(0);
-    currentDeleteFilePathsWriter.startList();
+    currentDeleteFilesWriter.setPosition(0);
+    currentDeleteFilesWriter.startList();
     appendInputDeleteFileToCurrent(inputIndex);
   }
 
   private void appendInputDeleteFileToCurrent(int inputIndex) {
-    inputDeleteFilePath.get(inputIndex, pathHolder);
-    if (pathHolder.isSet == 1) {
-      currentDeleteFilePathsWriter.varChar().writeVarChar(pathHolder.start, pathHolder.end, pathHolder.buffer);
+    if (inputDeleteFile.isSet(inputIndex) == 1) {
+      currentDeleteFilesWriter.struct();
+      FieldReader reader = inputDeleteFile.getReader();
+      reader.setPosition(inputIndex);
+      ComplexCopier.copy(reader, currentDeleteFilesWriter);
     }
   }
 
@@ -253,8 +255,8 @@ public class IcebergDeleteFileAggTableFunction extends AbstractTableFunction {
     outputPartitionInfo.setSafe(outputIndex, currentPartitionInfo);
     outputColIds.setSafe(outputIndex, currentColIds);
 
-    currentDeleteFilePathsWriter.endList();
-    outputDeleteFilePaths.copyFromSafe(0, outputIndex, currentDeleteFilePaths);
+    currentDeleteFilesWriter.endList();
+    outputDeleteFiles.copyFromSafe(0, outputIndex, currentDeleteFiles);
 
     outgoing.setAllCount(outputIndex + 1);
   }

@@ -156,7 +156,9 @@ public final class ClassPathScanner {
    * converts the annotation attribute value into a list of string to simplify
    */
   @SuppressForbidden
+  @SuppressWarnings("checkstyle:FinalClass")
   private static class ListingMemberValueVisitor implements MemberValueVisitor {
+    @SuppressWarnings("checkstyle:VisibilityModifier")
     protected final List<String> values;
 
     private ListingMemberValueVisitor(List<String> values) {

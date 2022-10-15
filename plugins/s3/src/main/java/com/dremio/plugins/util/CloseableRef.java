@@ -17,9 +17,10 @@ package com.dremio.plugins.util;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.arrow.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 /**
  * This class helps in maintaining multiple references for a closeable object. The actual close happens only when all

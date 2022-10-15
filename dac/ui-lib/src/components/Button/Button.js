@@ -39,6 +39,7 @@ const Button = (props) => {
     disabled,
     disableMargin,
     onClick,
+    loading = false,
     onMouseDown,
     style,
     text,
@@ -62,7 +63,7 @@ const Button = (props) => {
     { "--contained": variant === ButtonTypes.CONTAINED },
     { "--outlined": variant === ButtonTypes.OUTLINED },
     { "--text": variant === ButtonTypes.TEXT },
-    { "--disabled": disabled },
+    { "--disabled": disabled || loading },
     { "margin-top--double margin-bottom--double": !disableMargin },
     className,
     { [classes.root]: classes.root },
@@ -82,9 +83,15 @@ const Button = (props) => {
       style={style}
       title={title}
       type={type}
-      disabled={disabled}
+      disabled={disabled || loading}
     >
-      <span className={contentClassName}>{children ? children : text}</span>
+      {loading ? (
+        <span className="spinner">
+          <dremio-icon name="interface/loader" class="icon" />
+        </span>
+      ) : (
+        <span className={contentClassName}>{children ? children : text}</span>
+      )}
     </button>
   );
 };
@@ -104,6 +111,7 @@ Button.propTypes = {
   style: PropTypes.object,
   title: PropTypes.string,
   dataQa: PropTypes.string,
+  loading: PropTypes.bool,
 };
 
 Button.defaultProps = {

@@ -201,8 +201,8 @@ public class Pivots {
              remainingValidity != 0;
              remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength) {
           // Valid and value bits are next to each other. Setting them together
-          int valid = (int)(remainingValidity & 0x01l);
-          int isSet = (int)(remainingValue & 0x01l);
+          int valid = (int)(remainingValidity & 0x01L);
+          int isSet = (int)(remainingValue & 0x01L);
           int bitPair = (((isSet * valid) << 1) | valid) << validityBitOffset;
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }
@@ -224,8 +224,8 @@ public class Pivots {
              i < remainCount;
              remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength, i++) {
           // Valid and value bits are next to each other. Setting them together
-          int valid = (int)(remainingValidity & 0x01l);
-          int isSet = (int)(remainingValue & 0x01l);
+          int valid = (int)(remainingValidity & 0x01L);
+          int isSet = (int)(remainingValue & 0x01L);
           int bitPair = (((isSet * valid) << 1) | valid) << validityBitOffset;
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }

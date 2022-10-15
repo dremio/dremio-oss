@@ -46,3 +46,13 @@ message ScriptRequest {
   repeated string context = 3;
   string content = 4;
 }
+
+message ScriptWithPrivileges {
+  Script script = 1;
+  repeated string privileges = 2;
+}
+
+message ScriptListWithPrivileges {
+  repeated ScriptWithPrivileges scripts = 1;
+  uint64 total_scripts = 2;
+}

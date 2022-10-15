@@ -15,7 +15,7 @@
  */
 import { withRouter, WithRouterProps } from "react-router";
 import { useIntl } from "react-intl";
-import { Divider } from "@material-ui/core";
+import { Divider } from "@mui/material";
 import PropTypes from "prop-types";
 //@ts-ignore
 import config from "dyn-load/utils/config";
@@ -45,8 +45,6 @@ const HeaderButtonAddActions = (
 
   const intl = useIntl();
 
-  // TODO: not necessary for software since canUploadFile includes ui.upload.allow
-  // leaving here for now to not affect DCS
   let displayUploadFile = SHOW_ADD_FILE && config.allowFileUploads;
   if (HANDLE_THROUGH_API) {
     const storageData = localStorage && localStorage.getItem("supportFlags");
@@ -80,7 +78,7 @@ const HeaderButtonAddActions = (
       icon: "interface/add-view",
       to: {
         pathname: newQueryUrl,
-        search: newQueryUrlParams,
+        search: newQueryUrlParams + "&create=view",
         state: {
           createView: true,
         },

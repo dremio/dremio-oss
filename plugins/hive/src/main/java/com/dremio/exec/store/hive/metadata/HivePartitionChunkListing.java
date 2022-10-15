@@ -63,7 +63,7 @@ import com.google.common.collect.AbstractIterator;
  * - {@link InputSplitBatchIterator} is used to manage a list of
  * {@link org.apache.hadoop.mapred.InputSplit} objects as batches.
  */
-public class HivePartitionChunkListing implements PartitionChunkListing {
+public final class HivePartitionChunkListing implements PartitionChunkListing {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HivePartitionChunkListing.class);
 
   private final boolean storageImpersonationEnabled;

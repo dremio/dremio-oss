@@ -15,43 +15,33 @@
  */
 package com.dremio.service.autocomplete;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.SqlOperatorTable;
 
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.service.autocomplete.catalog.AutocompleteSchemaProvider;
 import com.dremio.service.autocomplete.nessie.NessieElementReader;
-import com.dremio.service.autocomplete.statements.grammar.Statement;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
 
 public final class AutocompleteEngineContext {
   private final AutocompleteSchemaProvider autocompleteSchemaProvider;
   private final Supplier<NessieElementReader> nessieElementReaderSupplier;
   private final SqlOperatorTable operatorTable;
   private final SimpleCatalog<?> catalog;
-  private final ImmutableList<Statement> currentStatementPath;
 
   public AutocompleteEngineContext(
     AutocompleteSchemaProvider autocompleteSchemaProvider,
     Supplier<NessieElementReader> nessieElementReaderSupplier,
     SqlOperatorTable operatorTable,
-    SimpleCatalog<?> catalog,
-    ImmutableList<Statement> currentStatementPath) {
+    SimpleCatalog<?> catalog) {
     Preconditions.checkNotNull(autocompleteSchemaProvider);
     Preconditions.checkNotNull(nessieElementReaderSupplier);
     Preconditions.checkNotNull(operatorTable);
     Preconditions.checkNotNull(catalog);
-    Preconditions.checkNotNull(currentStatementPath);
     this.autocompleteSchemaProvider = autocompleteSchemaProvider;
     this.nessieElementReaderSupplier = nessieElementReaderSupplier;
     this.operatorTable = operatorTable;
     this.catalog = catalog;
-    this.currentStatementPath = currentStatementPath;
-  }
-
-  public ImmutableList<Statement> getCurrentStatementPath() {
-    return currentStatementPath;
   }
 
   public AutocompleteSchemaProvider getAutocompleteSchemaProvider() {

@@ -34,12 +34,12 @@ public final class StatementParserTests {
       .add("Only semicolons and cursor after one of them", MultiLineString.create(";^;;;"))
       .add("Ends with semicolon and cursor after", MultiLineString.create(";;;;^"))
       .add("Starts with semicolon and cursor before", MultiLineString.create("^;;;;"))
-      .add("Statement with semicolon", MultiLineString.create("Select ^ FROM; SELECT"))
-      .add("Statement with semicolon and cursor in the end", MultiLineString.create("Select FROM; SELECT FROM^"))
-      .add("Statement with semicolon and cursor in the second query", MultiLineString.create("Select WHERE; SELECT ^ FROM"))
-      .add("Statement with semicolon and cursor before second query", MultiLineString.create("Select FROM;^SELECT WHERE"))
-      .add("Statement with semicolons and cursor in the end", MultiLineString.create("Select WHERE;SELECT FROM;^"))
-      .add("Statement without semicolon", MultiLineString.create("Select * FROM^"))
+      .add("StatementList with semicolon", MultiLineString.create("Select ^ FROM; SELECT"))
+      .add("StatementList with semicolon and cursor in the end", MultiLineString.create("Select FROM; SELECT FROM^"))
+      .add("StatementList with semicolon and cursor in the second query", MultiLineString.create("Select WHERE; SELECT ^ FROM"))
+      .add("StatementList with semicolon and cursor before second query", MultiLineString.create("Select FROM;^SELECT WHERE"))
+      .add("StatementList with semicolons and cursor in the end", MultiLineString.create("Select WHERE;SELECT FROM;^"))
+      .add("StatementList without semicolon", MultiLineString.create("Select * FROM^"))
       .runTests();
   }
 
@@ -131,11 +131,11 @@ public final class StatementParserTests {
           "SELECT GRADE FROM SALGRADE"))
       .add("Cursor after subselect",
         MultiLineString.create("SELECT * FROM (SELECT * FROM ORGS), (SELECT * FROM SALES), ^"))
-      .add("Statement with nested selects in FROM",
+      .add("IntelliSenseElement with nested selects in FROM",
         MultiLineString.create("SELECT * FROM (SELECT (SELECT (SELECT 1, 2, 3)^, 4)) FROM EMP)"))
-      .add("Statement with nested selects in projection",
+      .add("IntelliSenseElement with nested selects in projection",
         MultiLineString.create("SELECT (SELECT (SELECT 1, 2, 3^), 4)) FROM TEST"))
-      .add("Statement with open parenthesis recognized as part of the same scope",
+      .add("IntelliSenseElement with open parenthesis recognized as part of the same scope",
         MultiLineString.create("SELECT COUNT(^ FROM EMP"))
       .add("Cursor belongs to the succeeding scope if it points immediately before the scope keyword",
         MultiLineString.create("SELECT * FROM SALES ^SELECT name FROM EMP"))
@@ -191,6 +191,30 @@ public final class StatementParserTests {
       .add(
         "Cursor after subselect",
         GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM (SELECT * FROM ORGS), (SELECT * FROM SALES), ^"))
+      .runTests();
+  }
+
+  @Test
+  public void tableReferenceExtraction() {
+    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+      .add(
+        "Basic",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP^"))
+      .add(
+        "With Alias",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP as emp^"))
+      .add(
+        "With Alias no as",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP emp^"))
+      .add(
+        "With Nessie",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP AT BRANCH ^"))
+      .add(
+        "With Nessie incomplete type",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP AT B^"))
+      .add(
+        "With alias and nessie",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP as emp AT BRANCH ^"))
       .runTests();
   }
 
@@ -269,22 +293,22 @@ public final class StatementParserTests {
         "DISPLAY FIELD",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n"+
-          "DISPLAY(FIELD"))
+          "DISPLAY(FIELD1"))
       .add(
         "DISPLAY FIELD FINISHED",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n"+
-          "DISPLAY(FIELD,"))
+          "DISPLAY(FIELD1,"))
       .add(
         "DISPLAY FIELDS",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n"+
-          "DISPLAY(FIELD, FIELD2"))
+          "DISPLAY(FIELD1, FIELD2"))
       .add(
         "DISPLAY FIELDS FINISHED",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n"+
-          "DISPLAY (FIELD, FIELD2)"));
+          "DISPLAY (FIELD1, FIELD2)"));
     List<ImmutableList<String>> fieldTokensList = new ImmutableList.Builder<ImmutableList<String>>()
       .add(ImmutableList.of("DISTRIBUTE", "BY"))
       .add(ImmutableList.of("STRIPED", "PARTITION", "BY"))
@@ -299,7 +323,7 @@ public final class StatementParserTests {
           String.join("+", prefix),
           MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
             "USING \n" +
-            "DISPLAY(FIELD, FIELD2)\n"+
+            "DISPLAY(FIELD1, FIELD2)\n"+
             String.join(" ", prefix)));
       }
 
@@ -309,32 +333,32 @@ public final class StatementParserTests {
         listName + " OPEN PARENS",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n" +
-          "DISPLAY(FIELD, FIELD2)\n"+
+          "DISPLAY(FIELD1, FIELD2)\n"+
           listName + "("))
         .add(
           listName + " FIELD",
           MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
             "USING \n" +
-            "DISPLAY(FIELD, FIELD2)\n" +
-            listName + "(FIELD"))
+            "DISPLAY(FIELD1, FIELD2)\n" +
+            listName + "(FIELD1"))
         .add(
           listName + " FIELD FINISHED",
           MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
             "USING \n" +
-            "DISPLAY(FIELD, FIELD2)\n" +
-            listName + "(FIELD, "))
+            "DISPLAY(FIELD1, FIELD2)\n" +
+            listName + "(FIELD1, "))
         .add(
           listName + " FIELDS",
           MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
             "USING \n" +
             "DISPLAY(FIELD, FIELD2)\n" +
-            listName + "(FIELD, FIELD2"))
+            listName + "(FIELD1, FIELD2"))
         .add(
           listName + " FIELDS FINISHED",
           MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
             "USING \n" +
             "DISPLAY(FIELD, FIELD2)\n" +
-            listName + "(FIELD, FIELD2)"));
+            listName + "(FIELD1, FIELD2)"));
     }
 
     builder
@@ -342,26 +366,26 @@ public final class StatementParserTests {
         "EVERYTHING",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n" +
-          "DISPLAY(FIELD, FIELD2)\n" +
-          "DISTRIBUTE BY(FIELD, FIELD2)\n" +
-          "PARTITION BY(FIELD, FIELD2)\n" +
-          "LOCALSORT BY(FIELD, FIELD2)\n" +
+          "DISPLAY(FIELD1, FIELD2)\n" +
+          "DISTRIBUTE BY(FIELD1, FIELD2)\n" +
+          "PARTITION BY(FIELD1, FIELD2)\n" +
+          "LOCALSORT BY(FIELD1, FIELD2)\n" +
           "ARROW CACHE true"))
       .add(
         "SUFFIX",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n" +
-          "DISPLAY(FIELD, FIELD2)\n" +
-          "PARTITION BY(FIELD, FIELD2)\n" +
-          "LOCALSORT BY(FIELD, FIELD2)\n" +
+          "DISPLAY(FIELD1, FIELD2)\n" +
+          "PARTITION BY(FIELD1, FIELD2)\n" +
+          "LOCALSORT BY(FIELD1, FIELD2)\n" +
           "ARROW CACHE true"))
       .add(
         "INVALID ORDER",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
           "USING \n" +
-          "DISPLAY(FIELD, FIELD2)\n" +
-          "LOCALSORT BY(FIELD, FIELD2)\n" +
-          "PARTITION BY(FIELD, FIELD2)\n" +
+          "DISPLAY(FIELD1, FIELD2)\n" +
+          "LOCALSORT BY(FIELD1, FIELD2)\n" +
+          "PARTITION BY(FIELD1, FIELD2)\n" +
           "ARROW CACHE true"))
       .runTests();
   }
@@ -377,48 +401,48 @@ public final class StatementParserTests {
         "DIMENSIONS FIELD",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
-          "DIMENSIONS(FIELD)\n" +
-          "MEASURES(FIELD)"))
+          "DIMENSIONS(FIELD1)\n" +
+          "MEASURES(FIELD1)"))
       .add(
         "DIMENSIONS FIELD BY DAY",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
-          "DIMENSIONS(FIELD BY DAY)\n" +
-          "MEASURES(FIELD)"))
+          "DIMENSIONS(FIELD1 BY DAY)\n" +
+          "MEASURES(FIELD1)"))
       .add(
         "DIMENSIONS MIXED",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
-          "DIMENSIONS(FIELD BY DAY, FIELD2)\n" +
-          "MEASURES(FIELD)"))
+          "DIMENSIONS(FIELD1 BY DAY, FIELD2)\n" +
+          "MEASURES(FIELD1)"))
       .add(
         "MEASURES FIELD",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
-          "DIMENSIONS(FIELD)\n" +
-          "MEASURES(FIELD)"))
+          "DIMENSIONS(FIELD1)\n" +
+          "MEASURES(FIELD1)"))
       .add(
         "MEASURES WITH ANNOTATIONS",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
-          "DIMENSIONS(FIELD)\n" +
-          "MEASURES(FIELD (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT))"))
+          "DIMENSIONS(FIELD1)\n" +
+          "MEASURES(FIELD1 (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT))"))
       .add(
         "MEASURES MIXED",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
-          "DIMENSIONS(FIELD)\n" +
-          "MEASURES(FIELD (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT), FIELD2)"))
+          "DIMENSIONS(FIELD1)\n" +
+          "MEASURES(FIELD1 (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT), FIELD2)"))
       .add(
 
         "EVERYTHING",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
-          "DIMENSIONS(FIELD BY DAY, FIELD2)\n" +
-          "MEASURES(FIELD (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT), FIELD2)\n" +
-          "DISTRIBUTE BY(FIELD, FIELD2)\n" +
-          "PARTITION BY(FIELD, FIELD2)\n" +
-          "LOCALSORT BY(FIELD, FIELD2)\n" +
+          "DIMENSIONS(FIELD1 BY DAY, FIELD2)\n" +
+          "MEASURES(FIELD1 (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT), FIELD2)\n" +
+          "DISTRIBUTE BY(FIELD1, FIELD2)\n" +
+          "PARTITION BY(FIELD1, FIELD2)\n" +
+          "LOCALSORT BY(FIELD1, FIELD2)\n" +
           "ARROW CACHE true"))
       .runTests();
   }
@@ -445,10 +469,10 @@ public final class StatementParserTests {
     }
 
     StringAndPos stringAndPos = SqlParserUtil.findPos(queryText);
-    Statement statement = Statement.extractCurrentStatementPath(stringAndPos.sql, stringAndPos.cursor).get(0);
+    Statement statement = Statement.parse(stringAndPos.sql, stringAndPos.cursor);
     StringBuilder stringBuilder = new StringBuilder();
     StatementSerializer statementSerializer = new StatementSerializer(stringBuilder);
-    statement.accept(statementSerializer);
+    statementSerializer.visit(statement);
 
     return MultiLineString.create(stringBuilder.toString());
   }

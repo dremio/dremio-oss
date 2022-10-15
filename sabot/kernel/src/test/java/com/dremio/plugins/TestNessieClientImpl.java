@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -37,13 +38,17 @@ import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 import org.projectnessie.client.api.GetContentBuilder;
 import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.rest.NessieNotAuthorizedException;
+import org.projectnessie.error.ErrorCode;
+import org.projectnessie.error.ImmutableNessieError;
+import org.projectnessie.error.NessieError;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
 
-import com.dremio.context.RequestContext;
 import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
 
 public class TestNessieClientImpl {
 
@@ -71,12 +76,11 @@ public class TestNessieClientImpl {
   @Before
   public void setUp() {
     builder = mock(GetContentBuilder.class, RETURNS_SELF);
-    when(nessieApiV1.getContent()).thenReturn(builder);
-    nessieClient.setRequestContext(RequestContext.current());
   }
 
   @Test
   public void testMetadataLocationCache() throws NessieNotFoundException {
+    when(nessieApiV1.getContent()).thenReturn(builder);
     when(builder.get()).thenReturn(CONTENT_MAP);
     nessieClient.getMetadataLocation(CATALOG_KEY, VERSION);
     verify(builder, times(1)).get();
@@ -86,6 +90,7 @@ public class TestNessieClientImpl {
 
   @Test
   public void testMetadataLocationCacheWithDifferentVersion() throws NessieNotFoundException {
+    when(nessieApiV1.getContent()).thenReturn(builder);
     when(builder.get()).thenReturn(generateRandomMap());
 
     nessieClient.getMetadataLocation(CATALOG_KEY, VERSION);
@@ -97,6 +102,7 @@ public class TestNessieClientImpl {
 
   @Test
   public void testMetadataLocationCacheWithDifferentCatalogKey() throws NessieNotFoundException {
+    when(nessieApiV1.getContent()).thenReturn(builder);
     when(builder.get()).thenReturn(CONTENT_MAP);
 
     nessieClient.getMetadataLocation(CATALOG_KEY, VERSION);
@@ -104,6 +110,22 @@ public class TestNessieClientImpl {
 
     nessieClient.getMetadataLocation(CATALOG_KEY_2, VERSION);
     verify(builder, times(2)).get();
+  }
+
+  @Test
+  public void testResolveVersionContextThrowsNotAuthorized() throws NessieNotFoundException {
+
+    NessieError nessieError = ImmutableNessieError.builder()
+      .message("Not Authorized error")
+      .errorCode(ErrorCode.FORBIDDEN)
+      .status(401)
+      .reason("Unauthorized HTTP 401 Error")
+      .build();
+    when(nessieApiV1.getDefaultBranch()).thenThrow(new NessieNotAuthorizedException(nessieError));
+    assertThatThrownBy(() -> nessieClient.resolveVersionContext(VersionContext.ofRef(null)))
+      .hasMessageContaining("Unable to authenticate to the Nessie server");
+    assertThatThrownBy(() -> nessieClient.resolveVersionContext(VersionContext.ofRef(null)))
+      .hasMessageNotContaining("NessieNotAuthorizedException");
   }
 
   private Map<ContentKey, Content> generateRandomMap(){

@@ -44,6 +44,7 @@ import org.projectnessie.model.DiffResponse;
 import org.projectnessie.model.DiffResponse.DiffEntry;
 import org.projectnessie.model.EntriesResponse;
 import org.projectnessie.model.EntriesResponse.Entry;
+import org.projectnessie.model.GenericMetadata;
 import org.projectnessie.model.GetMultipleContentsRequest;
 import org.projectnessie.model.GetMultipleContentsResponse;
 import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
@@ -103,6 +104,7 @@ import com.dremio.services.nessie.grpc.api.EntriesRequest;
 import com.dremio.services.nessie.grpc.api.FetchOption;
 import com.dremio.services.nessie.grpc.api.GetAllReferencesRequest;
 import com.dremio.services.nessie.grpc.api.GetReferenceByNameRequest;
+import com.dremio.services.nessie.grpc.api.IcebergMetadata;
 import com.dremio.services.nessie.grpc.api.MergeRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
@@ -111,6 +113,9 @@ import com.dremio.services.nessie.grpc.api.MultipleNamespacesResponse;
 import com.dremio.services.nessie.grpc.api.NamespaceRequest;
 import com.dremio.services.nessie.grpc.api.NessieConfiguration;
 import com.dremio.services.nessie.grpc.api.TransplantRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Timestamp;
 
@@ -118,6 +123,7 @@ import com.google.protobuf.Timestamp;
  * A simple utility class that translates between Protobuf classes and Nessie model classes.
  */
 public final class ProtoUtil {
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private ProtoUtil() {
   }
@@ -359,16 +365,39 @@ public final class ProtoUtil {
     return builder.build();
   }
 
+  private static GenericMetadata fromProto(IcebergMetadata metadata) {
+    Preconditions.checkArgument(null != metadata, "Metadata must be non-null");
+    try {
+      JsonNode jsonNode = MAPPER.readValue(metadata.getMetadataJson(), JsonNode.class);
+      return GenericMetadata.of(metadata.getVariant(), jsonNode);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static IcebergMetadata toProto(GenericMetadata metadata) {
+    Preconditions.checkArgument(null != metadata, "Metadata must be non-null");
+    return IcebergMetadata.newBuilder()
+      .setVariant(metadata.getVariant())
+      .setMetadataJson(metadata.getMetadata().toString())
+      .build();
+  }
+
   public static IcebergTable fromProto(com.dremio.services.nessie.grpc.api.IcebergTable icebergTable) {
     Preconditions.checkArgument(null != icebergTable, "IcebergTable must be non-null");
-    return ImmutableIcebergTable.builder()
+    ImmutableIcebergTable.Builder builder = ImmutableIcebergTable.builder()
       .id(asId(icebergTable.getId()))
       .metadataLocation(icebergTable.getMetadataLocation())
       .snapshotId(icebergTable.getSnapshotId())
       .schemaId(icebergTable.getSchemaId())
       .specId(icebergTable.getSpecId())
-      .sortOrderId(icebergTable.getSortOrderId())
-      .build();
+      .sortOrderId(icebergTable.getSortOrderId());
+
+    if (icebergTable.hasMetadata()) {
+      builder.metadata(fromProto(icebergTable.getMetadata()));
+    }
+
+    return builder.build();
   }
 
   public static com.dremio.services.nessie.grpc.api.IcebergTable toProto(IcebergTable icebergTable) {
@@ -385,19 +414,29 @@ public final class ProtoUtil {
       builder.setId(icebergTable.getId());
     }
 
+    GenericMetadata metadata = icebergTable.getMetadata();
+    if (null != metadata) {
+      builder.setMetadata(toProto(metadata));
+    }
+
     return builder.build();
   }
 
   public static IcebergView fromProto(com.dremio.services.nessie.grpc.api.IcebergView view) {
     Preconditions.checkArgument(null != view, "IcebergView must be non-null");
-    return ImmutableIcebergView.builder()
+    ImmutableIcebergView.Builder builder = ImmutableIcebergView.builder()
       .id(asId(view.getId()))
       .metadataLocation(view.getMetadataLocation())
       .versionId(view.getVersionId())
       .schemaId(view.getSchemaId())
       .dialect(view.getDialect())
-      .sqlText(view.getSqlText())
-      .build();
+      .sqlText(view.getSqlText());
+
+    if (view.hasMetadata()) {
+      builder.metadata(fromProto(view.getMetadata()));
+    }
+
+    return builder.build();
   }
 
   public static com.dremio.services.nessie.grpc.api.IcebergView toProto(IcebergView view) {
@@ -412,6 +451,11 @@ public final class ProtoUtil {
     // the ID is optional when a new table is created - will be assigned on the server side
     if (null != view.getId()) {
       builder.setId(view.getId());
+    }
+
+    GenericMetadata metadata = view.getMetadata();
+    if (null != metadata) {
+      builder.setMetadata(toProto(metadata));
     }
 
     return builder.build();

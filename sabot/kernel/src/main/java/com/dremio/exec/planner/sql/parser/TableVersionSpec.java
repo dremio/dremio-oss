@@ -27,10 +27,12 @@ import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.CalciteContextException;
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlTimestampLiteral;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -128,5 +130,40 @@ public class TableVersionSpec {
         : RESOURCE.validatorContext(line, col, endLine, endCol)).ex(validatorEx);
     contextEx.setPosition(line, col, endLine, endCol);
     return contextEx;
+  }
+
+  public TableVersionType getTableVersionType(){
+    return tableVersionType;
+  }
+
+  public SqlNode getVersionSpecifier() {
+    return versionSpecifier;
+  }
+
+  public void unparseVersionSpec(SqlWriter writer, int leftPrec, int rightPrec) {
+    switch (tableVersionType) {
+      case BRANCH:
+      case TAG:
+      case COMMIT_HASH_ONLY:
+      case REFERENCE:
+      case SNAPSHOT_ID:
+        Preconditions.checkState(getVersionSpecifier() instanceof SqlCharStringLiteral);
+        writer.keyword(getTableVersionType().toString());
+        SqlCharStringLiteral versionCharSpecLiteral = (SqlCharStringLiteral) getVersionSpecifier();
+        writer.print(versionCharSpecLiteral.getNlsString().getValue());
+        break;
+      case TIMESTAMP:
+        SqlNode versionSpecifier = getVersionSpecifier();
+        Preconditions.checkState(versionSpecifier instanceof SqlTimestampLiteral || versionSpecifier instanceof SqlBasicCall);
+        if (versionSpecifier instanceof  SqlTimestampLiteral) {
+          writer.keyword(getTableVersionType().toString());
+          SqlTimestampLiteral versionTimeSpecLiteral = (SqlTimestampLiteral) getVersionSpecifier();
+          writer.print(String.valueOf(versionTimeSpecLiteral.getValue()));
+        } else if (versionSpecifier instanceof SqlBasicCall) {
+          SqlBasicCall call = (SqlBasicCall)versionSpecifier;
+          call.getOperator().unparse(writer, call, leftPrec, rightPrec);
+        }
+        break;
+    }
   }
 }

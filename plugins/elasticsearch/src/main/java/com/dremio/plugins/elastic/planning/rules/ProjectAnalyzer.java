@@ -19,6 +19,7 @@ import java.util.Calendar;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexDigestIncludeType;
 import org.apache.calcite.rex.RexDynamicParam;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
@@ -46,7 +47,7 @@ import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
+public final class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
   private static final Logger logger = LoggerFactory.getLogger(ProjectAnalyzer.class);
 
@@ -101,6 +102,7 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
   @Override
   public FunctionRender visitLiteral(RexLiteral literal) {
+    String litVal = literal.computeDigest(RexDigestIncludeType.NO_TYPE);
     if (!renderer.isScriptsEnabled()) {
       throw UserException.permissionError().message("Scripts must be enabled to allow for complex expression pushdowns.").build(logger);
     }
@@ -122,17 +124,17 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
         throw UserException.unsupportedError().message("Intervals are not allowed for complex expression pushdowns.").build(logger);
 
       case BIGINT:
-        return new FunctionRender(literal.toString() + "L", ImmutableList.<NullReference>of());
+        return new FunctionRender(litVal + "L", ImmutableList.<NullReference>of());
 
       case DOUBLE:
-        return new FunctionRender(literal.toString() + "D", ImmutableList.<NullReference>of());
+        return new FunctionRender(litVal + "D", ImmutableList.<NullReference>of());
 
       case DATE:
       case TIME:
       case TIMESTAMP:
         return new FunctionRender("Instant.ofEpochMilli(" + Long.toString(((Calendar) literal.getValue()).getTimeInMillis()) + "L)", ImmutableList.of());
       default:
-        return new FunctionRender(literal.toString(), ImmutableList.<NullReference>of());
+        return new FunctionRender(litVal, ImmutableList.<NullReference>of());
     }
   }
 

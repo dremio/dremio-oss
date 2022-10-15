@@ -14,19 +14,13 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import Art from "@app/components/Art";
 import "./DatasetGraph.less";
 
 const Dataset = ({ description }) => {
   return (
     <div className="datasetGraph__errorDisplay">
       <span>{description}</span>
-      <Art
-        src="Gnarly.svg"
-        alt="icon"
-        title="icon"
-        className="datasetGraph__gnarlyIcon"
-      />
+      <dremio-icon name="narwhal/query" class="datasetGraph__gnarlyIcon" />
     </div>
   );
 };

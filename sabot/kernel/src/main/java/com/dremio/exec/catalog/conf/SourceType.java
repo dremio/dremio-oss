@@ -32,4 +32,5 @@ public @interface SourceType {
   boolean configurable() default true;
   boolean listable() default true;
   boolean externalQuerySupported() default false;
+  boolean previewEngineRequired() default false;
 }

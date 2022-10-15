@@ -136,7 +136,7 @@ public class MaterializedDatasetTable implements DremioTranslatableTable {
                                      String user,
                                      List<PartitionChunk> splits,
                                      boolean timeTravel) {
-      super(plugin, config, user, MaterializedSplitsPointer.oldObsoleteOf(getSplitVersion(config), splits, splits.size()));
+      super(plugin, config, user, MaterializedSplitsPointer.oldObsoleteOf(getSplitVersion(config), splits, splits.size()), null);
     }
 
     private static long getSplitVersion(DatasetConfig datasetConfig) {

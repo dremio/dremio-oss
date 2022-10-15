@@ -52,7 +52,6 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector;
 
 public class ExpressionTest extends ExecTest {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionTest.class);
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
   private VectorAccessible getBatch(MinorType type){

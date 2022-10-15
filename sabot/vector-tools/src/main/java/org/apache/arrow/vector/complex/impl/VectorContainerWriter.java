@@ -37,7 +37,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 public class VectorContainerWriter extends AbstractFieldWriter implements ComplexWriter {
-  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorContainerWriter.class);
 
   private final SingleStructWriter structRoot;
   private final SpecialStructVector structVector;

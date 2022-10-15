@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "classnames";
@@ -91,4 +90,4 @@ const styles = {
   },
 };
 
-export default Radium(DragSortColumn);
+export default DragSortColumn;

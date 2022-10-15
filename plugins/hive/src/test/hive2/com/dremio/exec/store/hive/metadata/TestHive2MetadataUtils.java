@@ -31,7 +31,7 @@ import static org.junit.Assert.assertTrue;
 
 public class TestHive2MetadataUtils {
   @Test
-  public void TestGetInputSplitSizesTimeoutCalculation() {
+  public void testGetInputSplitSizesTimeoutCalculation() {
     List<InputSplit> inputSplitList = getInputSplitList(6, 10);
     Pair p1 = getTimeOutAndMaxDeltas(inputSplitList);
     inputSplitList = getInputSplitList(6, 61);
@@ -60,7 +60,7 @@ public class TestHive2MetadataUtils {
   }
 
   private List<InputSplit> getInputSplitList(int totalSplits, int totalDeltas) {
-    int deltaSplitSize[] = new int[totalSplits];
+    int[] deltaSplitSize = new int[totalSplits];
     Random rand = new Random();
     for (int i = 0; i < totalDeltas; i++) {
       int splitNum = rand.nextInt(totalSplits);

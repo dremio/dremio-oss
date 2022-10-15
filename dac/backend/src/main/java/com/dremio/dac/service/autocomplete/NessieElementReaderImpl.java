@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.arrow.util.Preconditions;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.error.NessieNotFoundException;
 
@@ -29,6 +28,7 @@ import com.dremio.service.autocomplete.nessie.Hash;
 import com.dremio.service.autocomplete.nessie.NessieElement;
 import com.dremio.service.autocomplete.nessie.NessieElementReader;
 import com.dremio.service.autocomplete.nessie.Tag;
+import com.google.common.base.Preconditions;
 
 /**
  * Implementation of NessieElementReader

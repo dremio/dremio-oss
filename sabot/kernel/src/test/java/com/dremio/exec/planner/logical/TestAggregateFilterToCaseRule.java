@@ -37,7 +37,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -67,7 +67,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -97,7 +97,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), false, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), false, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -127,7 +127,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -157,7 +157,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -187,7 +187,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -217,7 +217,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -249,8 +249,8 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
       withFilter,
       new String[]
         {
-          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)",
-          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.71\\)\\), \\$1, null\\)"
+          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)",
+          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.71.*\\)\\), \\$1, null.*\\)"
         });
 
     final List<String> queries = new ArrayList<>();
@@ -283,8 +283,8 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
       withFilter,
       new String[]
         {
-          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)",
-          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.71\\)\\), \\$1, null\\)"
+          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)",
+          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.71.*\\)\\), \\$1, null.*\\)"
         });
 
     final List<String> queries = new ArrayList<>();
@@ -323,8 +323,8 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
       withFilter,
       new String[]
         {
-          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7\\)\\), \\$1, null\\)",
-          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.71\\)\\), \\$1, null\\)"
+          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.7.*\\)\\), \\$1, null.*\\)",
+          "CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\.71.*\\)\\), \\$1, null.*\\)"
         });
 
     final List<String> queries = new ArrayList<>();
@@ -359,7 +359,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$1, 0\\.7\\)\\), \\$2, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$1, 0\\.7.*\\)\\), \\$2, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);
@@ -394,7 +394,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
 
     testPlanMatchingPatterns(
       withFilter,
-      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\)\\), \\$1, null\\)"});
+      new String[]{"CASE\\(IS TRUE\\(\\<\\(\\$0, 0\\)\\), \\$1, null.*\\)"});
 
     final List<String> queries = new ArrayList<>();
     queries.add(withFilter);

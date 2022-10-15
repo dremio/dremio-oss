@@ -18,7 +18,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import clsx from "clsx";
 
-import MuiDialog from "@material-ui/core/Dialog";
+import MuiDialog from "@mui/material/Dialog";
 
 import DialogContext from "./DialogContext";
 import DialogTitle from "./DialogTitle";

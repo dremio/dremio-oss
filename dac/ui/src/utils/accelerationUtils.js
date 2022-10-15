@@ -217,6 +217,7 @@ export function getReflectionUiStatus(reflection) {
 
   let icon = "WarningSolid";
   let text = "";
+  let iconId = "job-state/warning";
   let className = "";
 
   const statusMessage =
@@ -226,33 +227,40 @@ export function getReflectionUiStatus(reflection) {
 
   if (!reflection.get("enabled")) {
     icon = "Disabled";
+    iconId = "job-state/cancel";
     text = formatMessage("Reflection.StatusDisabled");
   } else if (status.get("config") === "INVALID") {
     icon = "ErrorSolid";
+    iconId = "job-state/failed";
     text = formatMessage("Reflection.StatusInvalidConfiguration", {
       status: statusMessage,
     });
   } else if (status.get("refresh") === "GIVEN_UP") {
     icon = "ErrorSolid";
+    iconId = "job-state/failed";
     text = formatMessage("Reflection.StatusFailedFinal", {
       status: statusMessage,
     });
   } else if (status.get("availability") === "INCOMPLETE") {
     icon = "ErrorSolid";
+    iconId = "job-state/failed";
     text = formatMessage("Reflection.StatusIncomplete", {
       status: statusMessage,
     });
   } else if (status.get("availability") === "EXPIRED") {
     icon = "ErrorSolid";
+    iconId = "job-state/failed";
     text = formatMessage("Reflection.StatusExpired", { status: statusMessage });
   } else if (status.get("refresh") === "RUNNING") {
     if (status.get("availability") === "AVAILABLE") {
       icon = "OKSolid";
+      iconId = "job-state/completed";
       text = formatMessage("Reflection.StatusRefreshing", {
         status: statusMessage,
       });
     } else {
       icon = "Loader";
+      iconId = "job-state/loading";
       text = formatMessage("Reflection.StatusBuilding", {
         status: statusMessage,
       });
@@ -261,32 +269,39 @@ export function getReflectionUiStatus(reflection) {
   } else if (status.get("availability") === "AVAILABLE") {
     if (status.get("failureCount") > 0) {
       icon = "WarningSolid";
+      iconId = "job-state/warning";
       text = getTextWithFailureCount(status, statusMessage);
     } else if (status.get("refresh") === "MANUAL") {
       icon = "OKSolid";
+      iconId = "job-state/completed";
       text = formatMessage("Reflection.StatusManual", {
         status: statusMessage,
       });
     } else {
       icon = "OKSolid";
+      iconId = "job-state/completed";
       text = formatMessage("Reflection.StatusCanAccelerate");
     }
   } else if (status.get("failureCount") > 0) {
     icon = "WarningSolid";
+    iconId = "job-state/warning";
     text = getTextWithFailureCount(status, statusMessage);
   } else if (status.get("refresh") === "SCHEDULED") {
     icon = "Ellipsis";
-    text = formatMessage("Reflection.StatusBuilding", {
+    iconId = "job-state/queued";
+    text = formatMessage("Reflection.Scheduled", {
       status: statusMessage,
     });
   } else if (status.get("refresh") === "MANUAL") {
     icon = "WarningSolid";
+    iconId = "job-state/warning";
     text = formatMessage("Reflection.StatusManual", { status: statusMessage });
   }
 
   return Immutable.fromJS({
     icon,
     text,
+    iconId,
     className,
   });
 }

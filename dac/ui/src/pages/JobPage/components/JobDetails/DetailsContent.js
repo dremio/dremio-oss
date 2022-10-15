@@ -15,7 +15,6 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 import Immutable from "immutable";
 import jobsUtils from "utils/jobsUtils";
 import FileUtils from "utils/FileUtils";
@@ -25,7 +24,6 @@ import FontIcon from "components/Icon/FontIcon";
 import CodeMirror from "components/CodeMirror";
 
 import { BORDER_TABLE } from "uiTheme/radium/colors";
-
 import VisibilityToggler from "./VisibilityToggler";
 import ListItem from "./ListItem";
 
@@ -117,7 +115,7 @@ class DetailsContent extends PureComponent {
       tableDatasetList.map((item, index) => {
         const datasetProfile = item.get("datasetProfile") || Immutable.Map();
         const title = (
-          <span style={[styles.flexAlign, { paddingRight: 7, flexGrow: 1 }]}>
+          <span style={{ ...styles.flexAlign, paddingRight: 7, flexGrow: 1 }}>
             {`(${datasetProfile.get("datasetPathsList").size}) `}
             {this.getDatasetPathList(datasetProfile.get("datasetPathsList"))}
             {/* Note: item.get('accelerated') not received pending DX-5519 */}
@@ -155,7 +153,7 @@ class DetailsContent extends PureComponent {
                     )}
                   </span>
                 </ListItem>
-                <ListItem label={la("Records Read")}>
+                <ListItem label={la("Rows Read")}>
                   <span>{datasetProfile.get("recordsRead")}</span>
                 </ListItem>
                 {datasetProfile.get("pushdownQuery")
@@ -190,10 +188,10 @@ class DetailsContent extends PureComponent {
                 </div>
                 <div style={styles.dataLine}>
                   <span
-                    style={[
-                      styles.lineGraph,
-                      { width: item.get("timeConsumed") },
-                    ]}
+                    style={{
+                      ...styles.lineGraph,
+                      width: item.get("timeConsumed"),
+                    }}
                   />
                 </div>
                 <div style={styles.cpu}>{cpuUsage}% CPU</div>
@@ -379,4 +377,4 @@ const styles = {
   },
 };
 
-export default Radium(DetailsContent);
+export default DetailsContent;

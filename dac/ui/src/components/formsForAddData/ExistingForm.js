@@ -96,6 +96,7 @@ export class ExistingForm extends Component {
           changeSelectedNode={this.props.changeSelectedNode}
           isInProgress={this.props.isInProgressSearch.get("isInProgress")}
           handleSearch={this.search}
+          isExpandable={false}
           style={{ flex: 1 }}
         />
       ),

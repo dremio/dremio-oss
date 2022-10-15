@@ -17,7 +17,7 @@ import { useMemo, useRef } from "react";
 import { FormattedMessage } from "react-intl";
 import { connect } from "react-redux";
 
-import { Menu, MenuItem } from "@material-ui/core";
+import { Menu, MenuItem } from "@mui/material";
 import {
   usePopupState,
   bindToggle,
@@ -25,10 +25,9 @@ import {
 } from "material-ui-popup-state/hooks";
 
 import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
-import { NESSIE } from "@app/constants/sourceTypes";
+import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { getSortedSources } from "@app/selectors/home";
 import FontIcon from "@app/components/Icon/FontIcon";
-import Art from "@app/components/Art";
 import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
 import SourceBranchPicker from "@app/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker";
 import {
@@ -36,6 +35,7 @@ import {
   useContextValue,
 } from "@app/pages/HomePage/components/BranchPicker/utils";
 import CurrentRefInfo from "./CurrentRefInfo/CurrentRefInfo";
+import { getIconStatusDatabase } from "@app/utils/iconUtils";
 
 import "./RefPicker.less";
 
@@ -57,21 +57,30 @@ const branchPickerPosition = {
   transformOrigin: { horizontal: "right", vertical: "top" },
 };
 
-function RefPickerItem({ source, anchorEl }: { anchorEl: any; source: any }) {
+function RefPickerItem({
+  source,
+  getAnchorEl,
+}: {
+  getAnchorEl: () => HTMLElement;
+  source: any;
+}) {
   const context = useContextValue();
   const ref = context.ref;
   return (
     <BranchPickerContext.Provider value={context}>
       <div
         className="refPicker-root"
-        onClick={(_ignored: any) => {
+        onClick={() => {
           if (!ref.current) return;
           ref.current.open();
         }}
       >
         <span className="refPicker">
           <span className="refPicker-namewrap">
-            <FontIcon type="DatalakeIcon" theme={{ Icon: iconStyle }} />
+            <FontIcon
+              type={getIconStatusDatabase(source.state.status, source.type)}
+              theme={{ Icon: iconStyle }}
+            />
             <span className="refPicker-name text-ellipsis" title={source.name}>
               {source.name}
             </span>
@@ -84,7 +93,7 @@ function RefPickerItem({ source, anchorEl }: { anchorEl: any; source: any }) {
           >
             <SourceBranchPicker
               source={source}
-              anchorEl={anchorEl}
+              getAnchorEl={getAnchorEl}
               position={branchPickerPosition}
               prefix={NESSIE_REF_PREFIX}
               redirect={false}
@@ -92,7 +101,10 @@ function RefPickerItem({ source, anchorEl }: { anchorEl: any; source: any }) {
           </span>
         </span>
         <span className="refPicker-arrow">
-          <Art src="Caret-Right.svg" alt="" style={{ width: 24, height: 24 }} />
+          <dremio-icon
+            name="interface/right-chevron"
+            class="refPicker-arrow--icon"
+          />
         </span>
       </div>
     </BranchPickerContext.Provider>
@@ -112,7 +124,7 @@ function RefPicker({
   const handleClose = toggleProps.onClick;
 
   const dataPlaneSources = useMemo(
-    () => sources.filter((cur) => cur.type === NESSIE),
+    () => sources.filter((cur) => [NESSIE, ARCTIC].includes(cur.type)),
     [sources]
   );
   const ref = useRef(null);
@@ -139,7 +151,6 @@ function RefPicker({
         anchorEl={anchorEl}
         {...(position as any)}
         onClose={handleClose}
-        getContentAnchorEl={null}
       >
         <div className="refPicker-popup" ref={menuRef}>
           <span className="refPicker-popup-title">
@@ -149,7 +160,7 @@ function RefPicker({
             <MenuItem key={i}>
               <RefPickerItem
                 source={source}
-                anchorEl={
+                getAnchorEl={() =>
                   menuRef.current
                     ? menuRef.current?.parentElement?.parentElement ||
                       menuRef.current

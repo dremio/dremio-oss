@@ -99,7 +99,7 @@ public class KVStoreProviderHelper {
        // fall through to TEST_CLUSTER_DB
       case TEST_CLUSTER_DB:
         boolean isMasterless = dremioConfig.isMasterlessEnabled();
-        boolean isMaster = (!isMasterless && isCoordinator && dremioConfig.getBoolean(DremioConfig.ENABLE_MASTER_BOOL));
+        boolean isMaster = (!isMasterless && dremioConfig.getBoolean(DremioConfig.ENABLE_MASTER_BOOL));
         boolean needsLocalKVStore = (isMasterless && thisNode.equals(config.get(LocalKVStoreProvider.CONFIG_HOSTNAME)));
         cls = (isMaster || needsLocalKVStore)? LocalKVStoreProvider.class : RemoteKVStoreProvider.class;
         break;

@@ -29,7 +29,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.SerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
@@ -65,7 +65,7 @@ public class HiveTextReader extends HiveAbstractReader {
 
   public HiveTextReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
-      final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
+      final AbstractSerDe tableSerDe, final StructObjectInspector tableOI, final AbstractSerDe partitionSerDe,
       final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables,
       final UserGroupInformation readerUgi) {
     super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter,
@@ -105,7 +105,7 @@ public class HiveTextReader extends HiveAbstractReader {
     final int numRowsPerBatch = (int) this.numRowsPerBatch;
 
     final StructField[] selectedStructFieldRefs = this.selectedStructFieldRefs;
-    final SerDe partitionSerDe = this.partitionSerDe;
+    final AbstractSerDe partitionSerDe = this.partitionSerDe;
     final StructObjectInspector finalOI = this.finalOI;
     final ObjectInspector[] selectedColumnObjInspectors = this.selectedColumnObjInspectors;
     final HiveFieldConverter[] selectedColumnFieldConverters = this.selectedColumnFieldConverters;
@@ -118,7 +118,8 @@ public class HiveTextReader extends HiveAbstractReader {
 
     while (recordCount < numRowsPerBatch) {
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
-        boolean hasNext = reader.next(key, value = skipRecordsInspector.getNextValue());
+        value = skipRecordsInspector.getNextValue();
+        boolean hasNext = reader.next(key, value);
         if (!hasNext) {
           break;
         }

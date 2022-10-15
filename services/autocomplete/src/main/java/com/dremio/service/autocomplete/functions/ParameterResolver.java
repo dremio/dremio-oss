@@ -16,25 +16,12 @@
 package com.dremio.service.autocomplete.functions;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-import org.apache.arrow.util.Preconditions;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.calcite.sql.SqlSelect;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
-import org.apache.calcite.sql.validate.SqlValidator;
-import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.catalog.DremioCatalogReader;
@@ -45,9 +32,10 @@ import com.dremio.service.autocomplete.AutocompleteEngineContext;
 import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
 import com.dremio.service.autocomplete.parsing.SqlNodeParser;
 import com.dremio.service.autocomplete.parsing.ValidatingParser;
-import com.dremio.service.autocomplete.statements.grammar.FromClause;
+import com.dremio.service.autocomplete.statements.grammar.TableReference;
+import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
-import com.dremio.service.autocomplete.tokens.QueryBuilder;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -55,55 +43,43 @@ import com.google.common.collect.ImmutableSet;
  * Resolves all the possible columns and functions that could be used as parameters to a function being built.
  */
 public final class ParameterResolver {
-  private static final DremioToken COMMA_TOKEN = DremioToken.createFromParserKind(ParserImplConstants.COMMA);
-
   private final FunctionDictionary functionDictionary;
-  private final SqlValidator sqlValidator;
-  private final SqlValidatorScope sqlValidatorScope;
-  private final SqlNodeParser queryParser;
+  private final ParameterTypeExtractor parameterTypeExtractor;
 
   public ParameterResolver(
     FunctionDictionary functionDictionary,
-    SqlValidator sqlValidator,
-    SqlValidatorScope sqlValidatorScope,
-    SqlNodeParser queryParser) {
+    ParameterTypeExtractor parameterTypeExtractor) {
     Preconditions.checkNotNull(functionDictionary);
-    Preconditions.checkNotNull(sqlValidator);
-    Preconditions.checkNotNull(sqlValidatorScope);
-    Preconditions.checkNotNull(queryParser);
+    Preconditions.checkNotNull(parameterTypeExtractor);
 
     this.functionDictionary = functionDictionary;
-    this.sqlValidator = sqlValidator;
-    this.sqlValidatorScope = sqlValidatorScope;
-    this.queryParser = queryParser;
+    this.parameterTypeExtractor = parameterTypeExtractor;
   }
 
   public Optional<Result> resolve(
     ImmutableList<DremioToken> tokens,
     ImmutableSet<ColumnAndTableAlias> columns,
-    FromClause fromClause) {
+    ImmutableList<TableReference> tableReferences) {
     Preconditions.checkNotNull(tokens);
     Preconditions.checkNotNull(columns);
-    Preconditions.checkNotNull(fromClause);
+    Preconditions.checkNotNull(tableReferences);
 
-    Optional<Pair<Function, Integer>> functionSpecAndIndex = getFunctionAndIndex(tokens);
-    if (!functionSpecAndIndex.isPresent()) {
+    Optional<FunctionInformation> optionalFunctionInformation = getFunctionInformation(tokens);
+    if (!optionalFunctionInformation.isPresent()) {
       return Optional.empty();
     }
 
-    Function function = functionSpecAndIndex.get().left;
-    int index = functionSpecAndIndex.get().right;
+    Function specification = optionalFunctionInformation.get().getSpecification();
+    ParsedFunction parsedFunction = optionalFunctionInformation.get().getParseTree();
 
-    ImmutableList<DremioToken> functionTokens = tokens.subList(index, tokens.size());
-
-    List<SqlTypeName> parameterTypesUsedSoFar = getParameterTypesUsedSoFar(
-      functionTokens,
+    ParameterTypeExtractor.Result suppliedParameterTypes = parameterTypeExtractor.extract(
+      parsedFunction,
       columns,
-      fromClause);
+      tableReferences);
 
-    Result result = resolveImplementation(
-      function,
-      ImmutableList.copyOf(parameterTypesUsedSoFar),
+    Result result = resolveResult(
+      specification,
+      suppliedParameterTypes,
       columns);
 
     return Optional.of(result);
@@ -121,24 +97,22 @@ public final class ParameterResolver {
     SqlValidatorAndScopeFactory.Result validatorAndScope = SqlValidatorAndScopeFactory.create(
       operatorTable,
       catalog);
-    List<SqlFunction> sqlFunctions = chainedOperatorTable
-      .getOperatorList()
-      .stream()
-      .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
-      .map(function -> (SqlFunction) function).collect(Collectors.toList());
-    FunctionDictionary functionDictionary = FunctionDictionary.create(
-      sqlFunctions,
-      validatorAndScope.getSqlValidator(),
-      validatorAndScope.getScope(),
-      false);
     SqlNodeParser parser = ValidatingParser.create(
       chainedOperatorTable,
       catalog);
-    return new ParameterResolver(
-      functionDictionary,
+
+    FunctionDictionary functionDictionary = FunctionDictionary.create(
+      operatorTable,
+      catalog);
+
+    ParameterTypeExtractor parameterTypeExtractor = new ParameterTypeExtractor(
       validatorAndScope.getSqlValidator(),
       validatorAndScope.getScope(),
       parser);
+
+    return new ParameterResolver(
+      functionDictionary,
+      parameterTypeExtractor);
   }
 
   public static ParameterResolver create(
@@ -148,21 +122,23 @@ public final class ParameterResolver {
       context.getCatalog());
   }
 
-  private Optional<Pair<Function, Integer>> getFunctionAndIndex(ImmutableList<DremioToken> tokens) {
-    // Look for a function with an open parens without a matching close parens
-    int i = tokens.size() - 1;
+  private Optional<FunctionInformation> getFunctionInformation(ImmutableList<DremioToken> tokens) {
+    // Find the function with a cursor inside of it
+    int cursorIndex = Cursor.indexOfTokenWithCursor(tokens);
     int parensCounter = 1;
-    for (; (i > 0) && (parensCounter > 0); i--) {
-      DremioToken token = tokens.get(i);
+    int functionStartIndex;
+    for (functionStartIndex = cursorIndex; (functionStartIndex >= 0) && (parensCounter > 0); functionStartIndex--) {
+      // Scan backwards for the matching open parens
+      DremioToken token = tokens.get(functionStartIndex);
       switch (token.getKind()) {
-        case ParserImplConstants.LPAREN:
-          parensCounter--;
-          break;
-        case ParserImplConstants.RPAREN:
-          parensCounter++;
-          break;
-        default:
-          // Do Nothing
+      case ParserImplConstants.LPAREN:
+        parensCounter--;
+        break;
+      case ParserImplConstants.RPAREN:
+        parensCounter++;
+        break;
+      default:
+        // Do Nothing
       }
     }
 
@@ -170,217 +146,186 @@ public final class ParameterResolver {
       return Optional.empty();
     }
 
-    DremioToken functionToken = tokens.get(i);
-    final int finalI = i;
-    return functionDictionary
-      .tryGetValue(functionToken.getImage())
-      .map(function -> new Pair<>(function, finalI));
-  }
-
-  private List<SqlTypeName> getParameterTypesUsedSoFar(
-    ImmutableList<DremioToken> tokens,
-    Set<ColumnAndTableAlias> columns,
-    FromClause fromClause) {
-    if (tokens.size() == 2) {
-      return Collections.emptyList();
+    if (functionStartIndex < 0) {
+      return Optional.empty();
     }
 
-    // We are going to get something of the form:
-    // FUNCTION(A, ^, C)
-    // We need to parse out the tokens for A and C and get their types
-    // Start at 2, since we want to skip the function name and '('
-    if (tokens.get(tokens.size() - 1).getKind() != ParserImplConstants.COMMA) {
-      tokens = new ImmutableList.Builder<DremioToken>().addAll(tokens).add(COMMA_TOKEN).build();
+    DremioToken functionToken = tokens.get(functionStartIndex);
+    Optional<Function> function = functionDictionary.tryGetValue(functionToken.getImage());
+    if (!function.isPresent()) {
+      return Optional.empty();
     }
 
-    List<SqlTypeName> types = new ArrayList<>();
-    int tokenIndex = 2;
-    int lastCommaIndex = tokenIndex;
-    int parensCount = 0;
-    while (tokenIndex != tokens.size()) {
-      DremioToken token = tokens.get(tokenIndex);
-      switch (token.getKind()) {
-        case ParserImplConstants.LPAREN:
-          parensCount++;
-          break;
-
-        case ParserImplConstants.RPAREN:
-          parensCount--;
-          break;
-
-        case ParserImplConstants.COMMA:
-          if (parensCount == 0) {
-            ImmutableList<DremioToken> parameterTokens = tokens.subList(lastCommaIndex, tokenIndex);
-            lastCommaIndex = tokenIndex + 1;
-
-            SqlNode parameterNode = getSqlNode(parameterTokens, fromClause);
-
-            SqlTypeName type = deriveSqlNodeType(parameterNode, columns);
-            types.add(type);
-          }
-          break;
-
-        default:
-          // DO NOTHING
-          break;
-      }
-
-      tokenIndex++;
+    Optional<ParsedFunction> parsedFunction = ParsedFunction.tryParse(tokens.subList(functionStartIndex, tokens.size()));
+    if (!parsedFunction.isPresent()) {
+      return Optional.empty();
     }
 
-    return types;
+    FunctionInformation functionInformation = new FunctionInformation(function.get(), parsedFunction.get());
+    return Optional.of(functionInformation);
   }
 
-  private SqlNode getSqlNode(ImmutableList<DremioToken> tokens, FromClause fromClause) {
-    String queryText = QueryBuilder.build(tokens, fromClause);
-    SqlNode sqlNode = queryParser.toSqlNode(queryText);
-    return ((SqlSelect) sqlNode).getSelectList().get(0);
-  }
-
-  private SqlTypeName deriveSqlNodeType(SqlNode sqlNode, Set<ColumnAndTableAlias> columns) {
-    SqlTypeName type;
-    if (sqlNode instanceof SqlLiteral) {
-      SqlLiteral sqlLiteral = (SqlLiteral) sqlNode;
-      type = sqlLiteral.getTypeName();
-    } else if (sqlNode instanceof SqlCall) {
-      SqlCall sqlCall = (SqlCall) sqlNode;
-      type = sqlCall
-        .getOperator()
-        .deriveType(
-          sqlValidator,
-          sqlValidatorScope,
-          sqlCall)
-        .getSqlTypeName();
-    } else if (sqlNode instanceof SqlIdentifier) {
-      SqlIdentifier sqlIdentifier = (SqlIdentifier) sqlNode;
-      String name = sqlIdentifier.names.get(sqlIdentifier.names.size() - 1);
-      Optional<ColumnAndTableAlias> optionalColumn = columns
-        .stream()
-        .filter(column -> column.getColumn().getName().equalsIgnoreCase(name))
-        .findAny();
-      if (!optionalColumn.isPresent()) {
-        throw new RuntimeException("FAILED TO FIND COLUMN WITH NAME: " + name);
-      }
-
-      type = optionalColumn.get().getColumn().getType();
-    } else {
-      throw new RuntimeException("Cannot derive SqlNode with kind: " + sqlNode.getKind());
-    }
-
-    return type;
-  }
-
-  private Result resolveImplementation(
+  private Result resolveResult(
     Function function,
-    ImmutableList<SqlTypeName> typePrefix,
-    ImmutableSet<ColumnAndTableAlias> columns) {
-    Set<ColumnAndTableAlias> resolvedColumns = columns
-      .stream()
-      .filter(column -> {
-        if (function.getSignatures().isEmpty()) {
-          return true;
-        }
-
-        return hasMatchingSignatures(
-          function,
-          typePrefix,
-          column.getColumn().getType());
-      })
-      .collect(Collectors.toSet());
-
-    Set<Function> resolvedFunctions = functionDictionary
-      .getValues()
-      .stream()
-      .filter(subFunction -> {
-        if (function.getSignatures().isEmpty()) {
-          return true;
-        }
-
-        return getPossibleReturnTypes(
-          subFunction,
-          ImmutableSet.<SqlTypeName>builder()
-            .addAll(columns
-              .stream()
-              .map(column -> column.getColumn().getType())
-              .collect(Collectors.toSet()))
-            .build())
-          .stream()
-          .anyMatch(possibleReturnType -> hasMatchingSignatures(
-            function,
-            typePrefix,
-            possibleReturnType));
-      })
-      .collect(Collectors.toSet());
-
+    ParameterTypeExtractor.Result suppliedParameterTypes,
+    ImmutableSet<ColumnAndTableAlias> columnAndTableAliases) {
+    FunctionContext functionContext = getFunctionContext(function, suppliedParameterTypes);
+    ImmutableSet<ColumnAndTableAlias> resolvedColumns = resolveColumns(functionContext.getMissingTypes(), columnAndTableAliases);
+    ImmutableSet<Function> resolvedFunctions = resolveFunctions(functionContext.getMissingTypes(), columnAndTableAliases);
     Result.Resolutions resolutions = new Result.Resolutions(resolvedColumns, resolvedFunctions);
-
-    ImmutableList<FunctionSignature> signaturesMatched = getSignaturesMatched(function, typePrefix);
-    FunctionContext functionContext = new FunctionContext(
-      function,
-      typePrefix,
-      signaturesMatched);
-
     return new Result(resolutions, functionContext);
   }
 
-  private static ImmutableList<FunctionSignature> getSignaturesMatched(
+  private static FunctionContext getFunctionContext(
     Function function,
-    ImmutableList<SqlTypeName> typesPrefix) {
-    ImmutableList.Builder<FunctionSignature> functionSignatureBuilder = new ImmutableList.Builder<>();
-    for (FunctionSignature functionSignature : function.getSignatures()) {
-      // This could be better with a trie
-      ImmutableList<SqlTypeName> operandTypes = functionSignature.getOperandTypes();
-      boolean functionSignatureIsLonger = operandTypes.size() > typesPrefix.size();
-      if (functionSignatureIsLonger) {
-        boolean prefixesMatch = operandTypes
-          .subList(0, typesPrefix.size())
-          .equals(typesPrefix);
-        if (prefixesMatch) {
-          functionSignatureBuilder.add(functionSignature);
+    ParameterTypeExtractor.Result suppliedParameterTypes) {
+    List<Pair<FunctionSignature, ParameterType>> matchingSignatureAndMissingType = new ArrayList<>();
+    ImmutableList<FunctionSignature> functionSignatures = function.getSignatures() != null ? function.getSignatures() : ImmutableList.of();
+    for (FunctionSignature functionSignature : functionSignatures) {
+      ImmutableList<Parameter> parameters = functionSignature.getParameters();
+      PrefixMatchResult prefixMatchResult = getPrefixMatchResult(
+        ImmutableList.of(),
+        suppliedParameterTypes.getBeforeCursor(),
+        parameters);
+      if (!prefixMatchResult.matched) {
+        continue;
+      }
+
+      if (!prefixMatchResult.missingType.isPresent()) {
+        continue;
+      }
+
+      if (!suppliedParameterTypes.getAfterCursor().isEmpty()) {
+        ImmutableList<Parameter> parametersAfterPrefixMatch = parameters.subList(
+          prefixMatchResult.parametersMatched.size() + 1,
+          parameters.size());
+        PrefixMatchResult suffixMatchResult = getPrefixMatchResult(
+          ImmutableList.of(),
+          suppliedParameterTypes.getAfterCursor(),
+          parametersAfterPrefixMatch);
+
+        if (!suffixMatchResult.matched) {
+          continue;
+        }
+
+        if (suffixMatchResult.missingType.isPresent()) {
+          continue;
         }
       }
+
+      Pair<FunctionSignature, ParameterType> fullMatchResult = Pair.of(
+        functionSignature,
+        prefixMatchResult.missingType.get());
+
+      matchingSignatureAndMissingType.add(fullMatchResult);
     }
 
-    return functionSignatureBuilder.build();
+    return new FunctionContext(
+      function,
+      suppliedParameterTypes,
+      matchingSignatureAndMissingType.stream().map(pair -> pair.left).collect(ImmutableList.toImmutableList()),
+      matchingSignatureAndMissingType.stream().map(pair -> pair.right).collect(ImmutableSet.toImmutableSet()));
   }
 
-  private static boolean hasMatchingSignatures(
-    Function function,
-    ImmutableList<SqlTypeName> typesPrefix,
-    SqlTypeName candidateType) {
-    for (FunctionSignature functionSignature : function.getSignatures()) {
-      // This could be better with a trie
-      ImmutableList<SqlTypeName> operandTypes = functionSignature.getOperandTypes();
-      boolean functionSignatureIsLonger = operandTypes.size() > typesPrefix.size();
-      if (functionSignatureIsLonger) {
-        boolean prefixesMatch = operandTypes
-          .subList(0, typesPrefix.size())
-          .equals(typesPrefix);
-        if (prefixesMatch) {
-          boolean nextOperandMatchesColumn = candidateType == SqlTypeName.ANY || operandTypes.get(typesPrefix.size()) == candidateType;
-          if (nextOperandMatchesColumn) {
-            return true;
-          }
-        }
-      }
+  private static PrefixMatchResult getPrefixMatchResult(
+    ImmutableList<Parameter> parametersMatchedSoFar,
+    ImmutableList<ParameterType> types,
+    ImmutableList<Parameter> parameters) {
+    // This is a standard regex match algorithm
+    if (types.isEmpty() && parameters.isEmpty()) {
+      return PrefixMatchResult.createMatch(parametersMatchedSoFar);
     }
 
-    return false;
+    if (types.isEmpty()) {
+      return PrefixMatchResult.createMatch(parametersMatchedSoFar,parameters.get(0).getType());
+    }
+
+    if (parameters.isEmpty()) {
+      return PrefixMatchResult.createNoMatch();
+    }
+
+    ParameterType firstType = types.get(0);
+    Parameter firstParameter = parameters.get(0);
+    if (!doTypesMatch(firstParameter.getType(), firstType)) {
+      return PrefixMatchResult.createNoMatch();
+    }
+
+    ImmutableList<ParameterType> subTypes = types.subList(1, types.size());
+
+    ImmutableList<Parameter> subParameters;
+    ImmutableList<Parameter> subParametersMatchedSoFar;
+    switch (firstParameter.getKind()) {
+    case REGULAR:
+    case OPTIONAL:
+      subParameters = parameters.subList(1, parameters.size());
+      subParametersMatchedSoFar = ImmutableList.<Parameter>builder().addAll(parametersMatchedSoFar).add(firstParameter).build();
+      break;
+
+    case VARARG:
+      subParameters = parameters;
+      subParametersMatchedSoFar = parametersMatchedSoFar;
+      break;
+
+    default:
+      throw new UnsupportedOperationException("UNKNOWN KIND: " + firstParameter.getKind());
+    }
+
+    return getPrefixMatchResult(subParametersMatchedSoFar, subTypes, subParameters);
   }
 
-  private static Set<SqlTypeName> getPossibleReturnTypes(
+  private static ImmutableSet<ColumnAndTableAlias> resolveColumns(
+    ImmutableSet<ParameterType> allowedTypes,
+    ImmutableSet<ColumnAndTableAlias> columnAndTableAliases) {
+    // Get the columns whose types are possible
+    return columnAndTableAliases
+      .stream()
+      .filter(columnAndTableAlias -> {
+        ParameterType columnType = SqlTypeNameToParameterType.convert(columnAndTableAlias.getColumn().getType());
+        return allowedTypes.stream().anyMatch(allowedType -> doTypesMatch(allowedType, columnType));
+      })
+      .collect(ImmutableSet.toImmutableSet());
+  }
+
+  private ImmutableSet<Function> resolveFunctions(
+    ImmutableSet<ParameterType> allowedTypes,
+    ImmutableSet<ColumnAndTableAlias> columnAndTableAliases) {
+    ImmutableSet<ParameterType> possibleColumnTypes = columnAndTableAliases
+      .stream()
+      .map(columnAndTableAlias -> SqlTypeNameToParameterType.convert(columnAndTableAlias.getColumn().getType()))
+      .collect(ImmutableSet.toImmutableSet());
+    return functionDictionary
+      .getValues()
+      .stream()
+      .filter(subFunction -> getPossibleReturnTypes(subFunction, possibleColumnTypes)
+        .stream()
+        .anyMatch(returnType -> allowedTypes
+          .stream()
+          .anyMatch(allowedType -> doTypesMatch(allowedType, returnType))))
+      .collect(ImmutableSet.toImmutableSet());
+  }
+
+  private static boolean doTypesMatch(ParameterType a, ParameterType b) {
+    return (b == ParameterType.ANY) || ParameterTypeHierarchy.isDescendantOf(a, b);
+  }
+
+  private static ImmutableSet<ParameterType> getPossibleReturnTypes(
     Function function,
-    ImmutableSet<SqlTypeName> possibleColumnTypes) {
-    Set<SqlTypeName> possibleReturnTypes = new HashSet<>();
-    for (FunctionSignature functionSignature : function.getSignatures()) {
-      ImmutableList<SqlTypeName> operandTypes = functionSignature.getOperandTypes();
-      boolean allOperandsArePossible = possibleColumnTypes.containsAll(operandTypes);
-      if (allOperandsArePossible) {
-        possibleReturnTypes.add(functionSignature.getReturnType());
-      }
+    ImmutableSet<ParameterType> possibleColumnTypes) {
+    if (function.getSignatures() == null) {
+      return ImmutableSet.of();
     }
 
-    return possibleReturnTypes;
+    return function
+      .getSignatures()
+      .stream()
+      .filter(functionSignature -> functionSignature
+        .getParameters()
+        .stream()
+        .allMatch(parameter -> possibleColumnTypes
+          .stream()
+          .anyMatch(possibleColumnType -> doTypesMatch(parameter.getType(), possibleColumnType))))
+      .map(functionSignature -> functionSignature.getReturnType())
+      .collect(ImmutableSet.toImmutableSet());
   }
 
   /**
@@ -430,6 +375,51 @@ public final class ParameterResolver {
       public Set<Function> getFunctions() {
         return functions;
       }
+    }
+  }
+
+  private static final class PrefixMatchResult {
+    private final boolean matched;
+    private final ImmutableList<Parameter> parametersMatched;
+    private final Optional<ParameterType> missingType;
+
+    private PrefixMatchResult(
+      boolean matched,
+      ImmutableList<Parameter> parametersMatched,
+      Optional<ParameterType> missingType) {
+      this.matched = matched;
+      this.parametersMatched = parametersMatched;
+      this.missingType = missingType;
+    }
+
+    public static PrefixMatchResult createMatch(ImmutableList<Parameter> parametersMatched, ParameterType parameterType) {
+      return new PrefixMatchResult(true, parametersMatched, Optional.of(parameterType));
+    }
+
+    public static PrefixMatchResult createMatch(ImmutableList<Parameter> parametersMatched) {
+      return new PrefixMatchResult(true, parametersMatched, Optional.empty());
+    }
+
+    public static PrefixMatchResult createNoMatch() {
+      return new PrefixMatchResult(false, null, Optional.empty());
+    }
+  }
+
+  private static final class FunctionInformation {
+    private final Function specification;
+    private final ParsedFunction parseTree;
+
+    public FunctionInformation(Function specification, ParsedFunction parseTree) {
+      this.specification = specification;
+      this.parseTree = parseTree;
+    }
+
+    public Function getSpecification() {
+      return specification;
+    }
+
+    public ParsedFunction getParseTree() {
+      return parseTree;
     }
   }
 }

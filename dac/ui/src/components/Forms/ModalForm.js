@@ -57,6 +57,8 @@ class ModalForm extends Component {
     // styling
     isModal: PropTypes.bool,
     hideError: PropTypes.bool,
+    leftAlignFooter: PropTypes.bool,
+    hideCancel: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -115,6 +117,8 @@ class ModalForm extends Component {
       footerChildren,
       isNestedForm,
       isModal,
+      leftAlignFooter,
+      hideCancel,
     } = this.props;
 
     const formBodyStyle = this.props.formBodyStyle || {};
@@ -152,6 +156,8 @@ class ModalForm extends Component {
         canSubmit={canSubmit}
         canCancel={canCancel}
         confirm={this.handleSubmissionEvent}
+        leftAlign={leftAlignFooter}
+        hideCancel={hideCancel}
       />,
     ];
 

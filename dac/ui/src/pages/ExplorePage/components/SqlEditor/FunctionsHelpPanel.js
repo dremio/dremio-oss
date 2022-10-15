@@ -15,7 +15,6 @@
  */
 import { createRef, PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 import HelpFunctions from "./HelpFunctions";
 
 import "./FunctionsHelpPanel.less";
@@ -63,7 +62,7 @@ class FunctionsHelpPanel extends PureComponent {
       <div
         className="sql-help-panel"
         onClick={(e) => e.preventDefault()}
-        style={[{ height }]}
+        style={{ height }}
         ref={this.sqlHelpPanelRef}
       >
         {isVisible && (
@@ -77,4 +76,4 @@ class FunctionsHelpPanel extends PureComponent {
     );
   }
 }
-export default Radium(FunctionsHelpPanel);
+export default FunctionsHelpPanel;

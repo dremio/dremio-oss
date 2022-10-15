@@ -16,6 +16,7 @@
 package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -29,6 +30,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -82,4 +84,13 @@ public interface FormatPlugin {
   default FileSelectionProcessor getFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
     return new DefaultFileSelectionProcessor(fs, fileSelection);
   }
+
+  /**
+   * Get the files under a path for sample data purpose
+   */
+  DirectoryStream<FileAttributes> getFilesForSamples(
+    FileSystem fs,
+    FileSystemPlugin<?> fsPlugin,
+    Path path
+  ) throws IOException, FileCountTooLargeException;
 }

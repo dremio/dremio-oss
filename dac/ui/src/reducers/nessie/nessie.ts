@@ -21,25 +21,11 @@ import {
   SET_REF,
   SET_REFS,
 } from "@app/actions/nessie/nessie";
-import { Reference } from "@app/services/nessie/client";
+import { NessieRootState, NessieState } from "@app/types/nessie";
 import nessieErrorReducer from "./nessieErrorReducer";
 import nessieLoadingReducer from "./nessieLoadingReducer";
 import { initializeDatasetRefs, initializeRefState } from "./utils";
 //@ts-ignore
-
-// Map - sourceId: NessieState
-export type NessieRootState = {
-  [key: string]: NessieState;
-};
-
-export type NessieState = {
-  defaultReference: Reference | null;
-  reference: Reference | null;
-  hash: string | null;
-  date: Date | null; // When user selects a commit before certain time in branch picker
-  loading: { [key: string]: boolean };
-  errors: { [key: string]: any };
-};
 
 export const initialState: NessieState = {
   defaultReference: null,
@@ -51,31 +37,41 @@ export const initialState: NessieState = {
 };
 
 function nessieReducer(
-  state = initialState,
+  oldState = initialState,
   action: NessieActionTypes
 ): NessieState {
-  state.loading = nessieLoadingReducer(state.loading, action); //Automatically handles loading flags for req,success,failure
-  state.errors = nessieErrorReducer(state.errors, action); //Automatically handles storing error payload
+  let state = oldState;
+  const loadingState = nessieLoadingReducer(state.loading, action); //Automatically handles loading flags for req,success,failure
+  const errorState = nessieErrorReducer(state.errors, action); //Automatically handles storing error payload
   switch (action.type) {
     case SET_REF: {
-      return {
+      state = {
         ...state,
         ...action.payload,
         hash: action.payload.hash || null,
         date: action.payload.date || null,
       };
+      break;
     }
     case DEFAULT_REF_REQUEST_SUCCESS:
-      return {
+      state = {
         ...state,
         defaultReference: action.payload,
         ...(state.reference == null && {
           reference: action.payload,
         }),
       };
+      break;
     default:
-      return state;
+      break;
   }
+  if (loadingState !== state.loading) {
+    state = { ...state, loading: loadingState };
+  }
+  if (errorState !== state.errors) {
+    state = { ...state, errors: errorState };
+  }
+  return state;
 }
 
 //Map: sourceId -> NessieState

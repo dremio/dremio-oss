@@ -27,7 +27,6 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +84,7 @@ import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 import com.dremio.telemetry.api.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
@@ -150,7 +150,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private UserWorker userWorker;
   private LocalQueryExecutor localQueryExecutor;
   private final CloseableSchedulerThreadPool profileSender;
-  private Cache<Long, CachedPlan> cachedPlans;
+  private Cache<String, CachedPlan> cachedPlans;
   private PlanCache planCache;
 
   public ForemenWorkManager(
@@ -225,14 +225,14 @@ public class ForemenWorkManager implements Service, SafeExit {
     // cache for physical plans.
     cachedPlans = CacheBuilder.newBuilder()
       .maximumWeight(dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_MAX_ENTRIES))
-      .weigher((Weigher<Long, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEstimatedSize())
+      .weigher((Weigher<String, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEstimatedSize())
       // plan caches are memory intensive. If there is memory pressure,
       // let GC release them as last resort before running OOM.
       .softValues()
       .removalListener(
-        new RemovalListener<Long, CachedPlan>() {
+        new RemovalListener<String, CachedPlan>() {
           @Override
-          public void onRemoval(RemovalNotification<Long, CachedPlan> notification) {
+          public void onRemoval(RemovalNotification<String, CachedPlan> notification) {
             PlanCache.clearDatasetMapOnCacheGC(notification.getKey());
           }
         }
@@ -373,7 +373,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   public void cancel(CancelQueryContext cancelQueryContext) {
     externalIdToForeman.values()
                        .stream()
-                       .filter(mf->cancelQueryContext.getCancelQueryStates().contains(mf.foreman.getState()))
+                       .filter(mf->mf.foreman.canCancelByHeapMonitor())
                        .forEach(mf->mf.foreman.cancel(cancelQueryContext.getCancelReason(),
                                                      false,
                                                       cancelQueryContext.getCancelContext(),
@@ -456,7 +456,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     @Override
-    public void dataArrived(JobResultsRequestWrapper request, ResponseSender sender) throws RpcException {
+    public boolean dataArrived(JobResultsRequestWrapper request, ResponseSender sender) throws RpcException {
       Preconditions.checkNotNull(request, "jobResultsRequestWrapper parameter cannot be null");
 
       QueryData header = request.getHeader();
@@ -470,9 +470,11 @@ public class ForemenWorkManager implements Service, SafeExit {
       if (managed != null) {
         logger.debug("RequestWrapper - User Data arrived for QueryId: {}.", queryId);
         managed.foreman.dataFromScreenArrived(header, sender, request.getByteBuffers());
+        return false;
       } else {
         logger.debug("RequestWrapper - forward user data for QueryId: {}.", queryId);
         forwarder.get().dataArrived(request, sender);
+        return true;
       }
     }
   }

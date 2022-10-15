@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import Tabs from "components/Tabs";
@@ -123,7 +122,6 @@ class ExtractTextCard extends Component {
 
   render() {
     const { card, active, onClick } = this.props;
-
     return (
       <TransformCard
         front={this.renderFront()}
@@ -135,4 +133,4 @@ class ExtractTextCard extends Component {
     );
   }
 }
-export default Radium(ExtractTextCard);
+export default ExtractTextCard;

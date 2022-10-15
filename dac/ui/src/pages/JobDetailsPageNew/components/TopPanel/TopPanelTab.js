@@ -16,19 +16,22 @@
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
 import classNames from "classnames";
-import Art from "@app/components/Art";
-import "./TopPanel.less";
 import { getTagClassName } from "dyn-load/utils/jobsUtils";
 
-const renderIcon = (iconName, className, selected) => {
+import "./TopPanel.less";
+
+const renderIcon = (iconName, tabName, className, selected) => {
   return (
-    <Art
-      src={iconName}
-      alt="icon"
-      title="icon"
-      className={classNames("topPanel__icon", className, {
+    <dremio-icon
+      name={iconName}
+      alt={tabName}
+      class={classNames("topPanel__icon", className, {
         "--selected": selected,
       })}
+      style={{
+        width: tabName === "Overview" ? 24 : tabName === "SQL" ? 22 : 20,
+      }}
+      data-qa={iconName}
     />
   );
 };
@@ -51,7 +54,12 @@ export const TopPanelTab = (props) => {
           : "topPanel__tab --unselected"
       }
     >
-      {renderIcon(iconName, getTagClassName(tabName), selectedTab === tabName)}
+      {renderIcon(
+        iconName,
+        tabName,
+        getTagClassName(tabName),
+        selectedTab === tabName
+      )}
       {formatMessage({ id: `TopPanel.${tabName}` })}
     </div>
   );

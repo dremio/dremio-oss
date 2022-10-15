@@ -80,7 +80,7 @@ describe("RestrictedArea", () => {
       sinon.stub(authUtils, "isAuthorized").returns(false);
       renderComponent();
       expect(authUtils.isAuthorized.called).to.be.true;
-      expect(wrapper.html()).to.equal(null); // nothing is rendered
+      expect(wrapper.html()).to.equal(""); // nothing is rendered
     } finally {
       authUtils.isAuthorized.restore();
     }

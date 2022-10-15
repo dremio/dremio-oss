@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.catalog.CatalogUtil.getTimeTravelRequest;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.extensions.SupportsIcebergMetadata;
@@ -33,8 +35,8 @@ public class MFunctionVersionedSourceMetadata extends MFunctionMetadataImpl {
   private final VersionedDatasetAccessOptions versionedDatasetAccessOptions;
 
   public MFunctionVersionedSourceMetadata(NamespaceKey canonicalKey, ManagedStoragePlugin plugin,
-                                          SchemaConfig schemaConfig, VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
-    super(canonicalKey, null, plugin, schemaConfig);
+                                          SchemaConfig schemaConfig, VersionedDatasetAccessOptions versionedDatasetAccessOptions,TableVersionContext context) {
+    super(canonicalKey, null, plugin, schemaConfig, context);
     this.versionedDatasetAccessOptions = versionedDatasetAccessOptions;
   }
 
@@ -42,6 +44,7 @@ public class MFunctionVersionedSourceMetadata extends MFunctionMetadataImpl {
   public DatasetRetrievalOptions getOptions() {
     return plugin.getDefaultRetrievalOptions()
       .toBuilder()
+      .setTimeTravelRequest(getTimeTravelRequest(canonicalKey, context))
       .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions)
       .build();
   }

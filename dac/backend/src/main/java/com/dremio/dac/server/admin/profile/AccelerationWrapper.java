@@ -38,7 +38,7 @@ public class AccelerationWrapper {
   private final AccelerationDetails accelerationDetails;
   private final Map<String, ReflectionRelationship> relationshipMap;
 
-  AccelerationWrapper(AccelerationDetails details) {
+  public AccelerationWrapper(AccelerationDetails details) {
     this.accelerationDetails = details;
     relationshipMap = computeRelationships(details);
   }

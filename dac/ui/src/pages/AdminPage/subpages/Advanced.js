@@ -112,7 +112,7 @@ export class Advanced extends PureComponent {
     const viewStateWithoutError = this.props.viewState.set("isFailed", false);
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <SettingHeader icon="QueueControl.svg">
+        <SettingHeader icon="settings/queue-control">
           {la("Queue Control")}
         </SettingHeader>
         <ViewStateWrapper

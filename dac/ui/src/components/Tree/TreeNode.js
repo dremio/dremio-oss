@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "classnames";
 import { intl } from "@app/utils/intl";
 import { DATASET_TYPES_TO_ICON_TYPES } from "@app/constants/datasetTypes";
+import { clearResourceTreeByName as clearResourceTreeByNameAction } from "@app/actions/resources/tree";
 
 import {
   CONTAINER_ENTITY_TYPES,
@@ -27,7 +28,6 @@ import {
 } from "@app/constants/Constants";
 import { getIsStarred } from "@app/components/Tree/resourceTreeUtils.ts";
 
-import Art from "components/Art";
 import DragSource from "components/DragComponents/DragSource";
 import EllipsedText from "components/EllipsedText";
 import { typeToIconType } from "@app/constants/DataTypes";
@@ -77,22 +77,29 @@ export const TreeNode = (props) => {
     hideSpaces,
     hideSources,
     hideHomes,
+    clearResourceTreeByName,
   } = props;
 
   const [showOverlay, setShowOverlay] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [nodeIsInProgress, setNodeIsInProgress] = useState(false);
   const [nodeError, setNodeError] = useState(false);
   const [errorMessage, setErrorMessage] = useState(
-    "Could not connect to the Dremio server."
+    intl.formatMessage({ id: "Message.Code.WS_CLOSED.Message" })
   );
   const [loadingTimer, setLoadingtimer] = useState(null);
 
   useEffect(() => {
     handleLoadingState();
-  }, [loadingItems, selectedStarredTab]);
+  }, [loadingItems, selectedStarredTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clearSelection = () => {
-    handleSelectedNodeChange(null, null);
+  const clearSelection = (node) => {
+    const nodeName = node.get("name");
+    clearResourceTreeByName(nodeName);
+    // DX-53668 - Tree not refreshing when switching branches
+    if (isNodeExpanded(node)) {
+      handleSelectedNodeChange(node, isNodeExpanded(node));
+    }
+    handleSelectedNodeChange(null, null); // Reset selection when inside of modal
   };
 
   const nessieDisabled = fromModal && nessieSource && !branchName;
@@ -197,7 +204,7 @@ export const TreeNode = (props) => {
     }
   };
 
-  const renderNode = (nodeToRender, containerEl) => {
+  const renderNode = (nodeToRender, containerRef) => {
     if (
       (hideDatasets && DATASET_ENTITY_TYPES.has(nodeToRender.get("type"))) ||
       (hideSpaces && nodeToRender.get("type") === "SPACE") ||
@@ -213,8 +220,8 @@ export const TreeNode = (props) => {
       !CONTAINER_ENTITY_TYPES.has(nodeToRender.get("type"));
     const arrowIconType =
       !isDisabledNode && isNodeExpanded(nodeToRender)
-        ? "ArrowDown"
-        : "ArrowRight";
+        ? "interface/down-chevron"
+        : "interface/right-chevron";
     const arrowAlt = isNodeExpanded(nodeToRender) ? "Undisclosed" : "Disclosed";
     const isStarred = getIsStarred(starredItems, nodeToRender.get("id"));
     const unstarredWording = intl.formatMessage(
@@ -231,22 +238,24 @@ export const TreeNode = (props) => {
     const iconBlock = shouldAllowAdd ? (
       <>
         {node.get("isColumnItem") && node.get("isSorted") && (
-          <Art
-            dataQa="is-partitioned"
-            src="sorted.svg"
-            alt="sorted"
-            title="sorted"
-            className={iconCls}
-          />
+          <Tooltip title="Tooltip.Icon.Sorted">
+            <dremio-icon
+              name="interface/sort"
+              dataQa="is-partitioned"
+              alt="sorted"
+              class={iconCls}
+            />
+          </Tooltip>
         )}
         {node.get("isColumnItem") && node.get("isPartitioned") && (
-          <Art
-            dataQa="is-partitioned"
-            src="Partition.svg"
-            alt="partitioned"
-            title="partitioned"
-            className={iconCls}
-          />
+          <Tooltip title="Tooltip.Icon.Partitioned">
+            <dremio-icon
+              name="sql-editor/partition"
+              dataQa="is-partitioned"
+              alt="partitioned"
+              class={iconCls}
+            />
+          </Tooltip>
         )}
         {
           // need to add a empty placeholder for partition icon to keep alignment
@@ -256,7 +265,7 @@ export const TreeNode = (props) => {
         }
 
         <IconButton
-          tooltip="Add to SQL editor"
+          tooltip="Tooltip.SQL.Editor.Add"
           onClick={() => {
             const elementToAdd = node.get("isColumnItem")
               ? node.get("name")
@@ -265,17 +274,28 @@ export const TreeNode = (props) => {
           }}
           className="resourceTreeNode__add"
         >
-          <dremio-icon
-            name="interface/add-small"
-            class="resourceTreeNode__add__icon"
-          />
+          <dremio-icon name="interface/add-small" />
         </IconButton>
         {isNodeExpandable(nodeToRender) && nodeToRender.get("id") && (
-          <Tooltip
-            title={
+          <IconButton
+            tooltip={
               isStarred
                 ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
                 : unstarredWording
+            }
+            onClick={() => {
+              if (!isStarred && !isStarredLimitReached) {
+                starNode(nodeToRender.get("id"));
+              } else if (isStarred) {
+                unstarNode(nodeToRender.get("id"));
+              }
+            }}
+            className={
+              isStarred
+                ? "resourceTreeNode__starIcon"
+                : `resourceTreeNode__starIcon resourceTreeNode${
+                    isStarredLimitReached ? "--limitReached" : "--unstarred"
+                  }`
             }
           >
             <dremio-icon
@@ -289,22 +309,8 @@ export const TreeNode = (props) => {
                   ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
                   : unstarredAltText
               }
-              class={
-                isStarred
-                  ? "resourceTreeNode__starIcon"
-                  : `resourceTreeNode__starIcon resourceTreeNode${
-                      isStarredLimitReached ? "--limitReached" : "--unstarred"
-                    }`
-              }
-              onClick={() => {
-                if (!isStarred && !isStarredLimitReached) {
-                  starNode(nodeToRender.get("id"));
-                } else if (isStarred) {
-                  unstarNode(nodeToRender.get("id"));
-                }
-              }}
             />
-          </Tooltip>
+          </IconButton>
         )}
       </>
     ) : null;
@@ -351,18 +357,22 @@ export const TreeNode = (props) => {
                 style={style.icon}
               />
             )}
-            <EllipsedText
-              className="node-text"
-              style={style.text}
-              text={node.get("name")}
-            />
+            <Tooltip placement="top" title={node.get("name")}>
+              <EllipsedText
+                className="node-text"
+                style={style.text}
+                text={node.get("name")}
+              />
+            </Tooltip>
           </div>
         </Tooltip>
         {!!nessieSource && (
           <TreeNodeBranchPicker
             source={nessieSource}
-            containerEl={containerEl}
-            onClose={clearSelection}
+            anchorRef={containerRef}
+            onApply={() => {
+              clearSelection(node);
+            }}
           />
         )}
       </div>
@@ -383,19 +393,24 @@ export const TreeNode = (props) => {
           (nodeIsInProgress ? (
             <Spinner iconStyle={style.iconSpinner} style={style.spinnerBase} />
           ) : (
-            <Art
-              src={`${arrowIconType}.svg`}
-              className={classNames("TreeNode", "TreeNode__arrowIcon", {
-                "TreeNode--disabled": isDisabledNode,
-              })}
-              alt={intl.formatMessage({ id: `Common.${arrowAlt}` })}
-              onClick={() => {
+            <IconButton
+              aria-label="Expand Node"
+              onClick={(e) => {
+                e.preventDefault();
                 handleSelectedNodeChange(
                   nodeToRender,
                   isNodeExpanded(nodeToRender, nodeError)
                 );
               }}
-            />
+              className={classNames("TreeNode", "TreeNode__arrowIcon", {
+                "TreeNode--disabled": isDisabledNode,
+              })}
+            >
+              <dremio-icon
+                name={arrowIconType}
+                alt={intl.formatMessage({ id: `Common.${arrowAlt}` })}
+              />
+            </IconButton>
           ))}
         {nodeElement}
         <div className="resourceTreeNode__iconBlock">{iconBlock}</div>
@@ -404,9 +419,7 @@ export const TreeNode = (props) => {
 
     const nodeWrapWithOverlay = (
       <>
-        <Tooltip placement="right" title={node.get("name")}>
-          {nodeWrap}
-        </Tooltip>
+        {nodeWrap}
         {showOverlay ? (
           <HoverDatasetInfoBox
             classname={
@@ -421,12 +434,7 @@ export const TreeNode = (props) => {
     );
 
     return dragType ? (
-      <div
-      // onContextMenu={() => setShowOverlay(true)}  // PHASE 2 STARRING
-      // onDragStart={() => setShowOverlay(false)}
-      // onMouseEnter={() => setShowOverlay(true)}
-      // onMouseLeave={() => setShowOverlay(false)}
-      >
+      <div>
         <DragSource
           dragType={dragType}
           id={isColumnItem ? node.get("name") : nodeToRender.get("fullPath")}
@@ -437,14 +445,7 @@ export const TreeNode = (props) => {
         </DragSource>
       </div>
     ) : (
-      <div
-      // onContextMenu={() => setShowOverlay(true)}  // PHASE 2 STARRING
-      // onDragStart={() => setShowOverlay(false)}
-      // onMouseEnter={() => setShowOverlay(true)}
-      // onMouseLeave={() => setShowOverlay(false)}
-      >
-        {nodeWrapWithOverlay}
-      </div>
+      <div>{nodeWrapWithOverlay}</div>
     );
   };
 
@@ -462,9 +463,8 @@ export const TreeNode = (props) => {
         "treeNode--isColumnItem": !!node.get("isColumnItem"),
         "treeNode--isDisabledNode": isDisabledNode,
       })}
-      ref={nodeRef}
     >
-      {renderNode(node, nodeRef.current)}
+      <span ref={nodeRef}>{renderNode(node, nodeRef)}</span>
       {isNodeExpanded(node) && renderResources()}
     </div>
   );
@@ -501,6 +501,7 @@ TreeNode.propTypes = {
   hideSpaces: PropTypes.bool,
   hideSources: PropTypes.bool,
   hideHomes: PropTypes.bool,
+  clearResourceTreeByName: PropTypes.func,
 };
 
 function mapStateToProps(state, { node, sources }) {
@@ -513,7 +514,11 @@ function mapStateToProps(state, { node, sources }) {
   };
 }
 
-export default connect(mapStateToProps)(TreeNode);
+const mapDispatchToProps = {
+  clearResourceTreeByName: clearResourceTreeByNameAction,
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(TreeNode);
 
 const style = {
   arrow: {

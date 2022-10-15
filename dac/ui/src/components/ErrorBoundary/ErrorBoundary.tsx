@@ -16,10 +16,14 @@
 
 import { Component, ReactNode, ErrorInfo } from "react";
 //@ts-ignore
-import { ErrorDisplay } from "dremio-ui-lib";
+import { ErrorDisplay } from "./ErrorDisplay";
 import sentryUtil from "@app/utils/sentryUtil";
 
-type ErrorBoundaryProps = { children: ReactNode; title: string };
+type ErrorBoundaryProps = {
+  className?: string;
+  children: ReactNode;
+  title: string;
+};
 type ErrorBoundaryState =
   | {
       hasError: false;
@@ -42,13 +46,6 @@ export class ErrorBoundary extends Component<
 > {
   constructor(props: any) {
     super(props);
-
-    // Just in case it's used from a non-TS file
-    if (process.env.NODE_ENV === "development" && !props.title) {
-      throw new Error(
-        "ErrorBoundary: a title prop customized and translated for the specific context it's wrapping should be provided."
-      );
-    }
 
     this.state = {
       hasError: false,
@@ -77,9 +74,6 @@ export class ErrorBoundary extends Component<
         <ErrorDisplay
           error={this.state.error}
           errorInfo={this.state.errorInfo}
-          production={process.env.NODE_ENV !== "development"}
-          supportInfo={`Session ID: ${sentryUtil.sessionUUID}`}
-          supportMessage="If the problem persists, please contact support and provide the following information"
           title={this.props.title}
         />
       );

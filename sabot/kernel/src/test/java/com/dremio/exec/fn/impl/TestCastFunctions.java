@@ -66,7 +66,7 @@ public class TestCastFunctions extends BaseTestQuery {
         .sqlQuery(query)
         .ordered()
         .baselineColumns("col1", "col2")
-        .baselineValues(1155l, 1155l)
+        .baselineValues(1155L, 1155L)
         .build()
         .run();
   }

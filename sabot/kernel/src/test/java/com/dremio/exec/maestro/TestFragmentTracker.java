@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.maestro;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -29,10 +27,11 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.config.SabotConfig;
@@ -70,6 +69,7 @@ import com.google.protobuf.Empty;
 
 import io.grpc.stub.StreamObserver;
 
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class TestFragmentTracker {
   private final QueryId queryId = QueryId
     .newBuilder()
@@ -102,8 +102,6 @@ public class TestFragmentTracker {
 
   @Before
   public void setUp() {
-    MockitoAnnotations.initMocks(this);
-
     this.closeableSchedulerThreadPool = new CloseableSchedulerThreadPool("cancel-fragment-retry-",1);
 
     // Boilerplate

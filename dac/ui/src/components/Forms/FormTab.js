@@ -16,8 +16,8 @@
 import { Component } from "react";
 
 import PropTypes from "prop-types";
-import HoverHelp from "components/HoverHelp";
 import FormSection from "components/Forms/FormSection";
+import { HoverHelp } from "dremio-ui-lib";
 import {
   tabTitle,
   tabSections,
@@ -74,6 +74,7 @@ export default class FormTab extends Component {
               sectionConfig={section}
               tabTitleText={showTabTitle ? null : tabTitleText}
               disabled={isSectionDisabled(section, fields, disabled)}
+              isFirstSection={index === 0}
             />
           ))}
         </div>

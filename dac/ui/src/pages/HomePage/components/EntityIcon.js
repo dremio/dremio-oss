@@ -95,9 +95,9 @@ export class PureEntityIcon extends PureComponent {
 
     return (
       <Tooltip title={iconAltText}>
-        <>
+        <span>
           <FontIcon type={iconType} theme={{ ...iconStyle, ...style }} />
-        </>
+        </span>
       </Tooltip>
     );
   }

@@ -58,6 +58,11 @@ public class CaseExpressionSplitterTest extends BaseExpressionSplitterTest {
       "when c0 <= (c1 - c2) then 'Done' " +
       "else 'Not Done' end";
 
+  private static final String multiCaseMixedThenAsArgToFunctionQuery =
+    "(case when c0 = 10 then add(subtract(c1, 10), 20) " +
+      "when c0 = 20 then add(subtract(c2, 30), 50) " +
+      "else add(subtract(c3, 50), 80) end) - 7";
+
   final Fixtures.Table mixedCaseInput = Fixtures.split(
     th("c0", "c1", "c2"),
     3,
@@ -125,6 +130,25 @@ public class CaseExpressionSplitterTest extends BaseExpressionSplitterTest {
     tr(3),
     tr(80),
     tr(281)
+  );
+
+  private static final Fixtures.Table multiCaseMixedThenAsArgToFunctionQueryInput = Fixtures.split(
+    th("c0", "c1", "c2", "c3"),
+    5,
+    tr(20, -400, 350, 110),
+    tr(40, 250, 300, -100),
+    tr(10, -80, 140, 130),
+    tr(30, 190, -160, 90),
+    tr(-10, 200, 150, -120)
+  );
+
+  private static final Fixtures.Table multiCaseMixedThenAsArgToFunctionQueryOutput = t(
+    th("out"),
+    tr(363),
+    tr(-77),
+    tr(-77),
+    tr(113),
+    tr(-97)
   );
 
   @Test
@@ -412,5 +436,28 @@ public class CaseExpressionSplitterTest extends BaseExpressionSplitterTest {
       new Split(true, "out", xxx7, 7, 0, "_xxx4", "_xxx5", "_xxx6")
     };
     splitAndVerifyCase(altCaseQuery, altInputMulti, altOutputMulti, expSplits, annotator);
+  }
+
+  @Test
+  public void testMultiCaseMixedThenAsArgToFunction() throws Exception {
+    final String xxx0 = "(case when (equal(c0, 10i)) then (0i) when (equal(c0, 20i)) then (1i) else (2i) end)";
+    final String xxx1 = "(if (equal(_xxx0, 0i)) then (subtract(c1, 10i)) else (cast((__$INTERNAL_NULL$__) as INT)) end)";
+    final String xxx2 = "(if (equal(_xxx0, 1i)) then (subtract(c2, 30i)) else (cast((__$INTERNAL_NULL$__) as INT)) end)";
+    final String xxx3 = "(if (equal(_xxx0, 2i)) then (subtract(c3, 50i)) else (cast((__$INTERNAL_NULL$__) as INT)) end)";
+    final String xxx4 = "(case when (equal(_xxx0, 0i)) then (add(_xxx1, 20i)) when (equal(_xxx0, 1i)) then (add(_xxx2, 50i)) " +
+      "when (equal(_xxx0, 2i)) then (add(_xxx3, 80i)) else (cast((__$INTERNAL_NULL$__) as INT)) end)";
+    final String xxx5 = "subtract(_xxx4, 7i)";
+
+    GandivaAnnotator annotator = new GandivaAnnotatorCase("subtract");
+    Split[] expSplits = new Split[]{
+      new Split(true, "_xxx0", xxx0, 1, 4),
+      new Split(true, "_xxx1", xxx1, 2, 1, "_xxx0"),
+      new Split(true, "_xxx2", xxx2, 2, 1, "_xxx0"),
+      new Split(true, "_xxx3", xxx3, 2, 1, "_xxx0"),
+      new Split(false, "_xxx4", xxx4, 3, 1, "_xxx0", "_xxx3", "_xxx2", "_xxx1"),
+      new Split(true, "out", xxx5, 4, 0, "_xxx4")
+    };
+    splitAndVerifyCase(multiCaseMixedThenAsArgToFunctionQuery, multiCaseMixedThenAsArgToFunctionQueryInput,
+      multiCaseMixedThenAsArgToFunctionQueryOutput, expSplits, annotator);
   }
 }

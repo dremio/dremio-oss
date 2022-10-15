@@ -40,7 +40,6 @@ import java.util.Set;
 import com.dremio.config.DremioConfig;
 import com.google.common.collect.ImmutableSet;
 import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
 
 /**
  * Helper class to manage a security folder to store confidential information
@@ -196,11 +195,9 @@ public final class SecurityFolder {
   }
 
   @FormatMethod
-  private static void checkSecurity(boolean check, @FormatString String message, Object... args) throws GeneralSecurityException {
+  private static void checkSecurity(boolean check, String message, Object... args) throws GeneralSecurityException {
     if (!check) {
       throw new GeneralSecurityException(String.format(message, args));
     }
-
   }
-
 }

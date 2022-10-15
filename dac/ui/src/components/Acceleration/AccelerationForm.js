@@ -341,14 +341,18 @@ export class AccelerationForm extends Component {
     for (const name of measureSet) firstAgg.measureFields.addField({ name });
   }
 
-  toggleMode = () => {
+  toggleMode = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     const { mode } = this.state;
     this.setState({
       mode: mode === "BASIC" ? "ADVANCED" : "BASIC",
     });
   };
 
-  clearReflections = () => {
+  clearReflections = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     this.props.fields.rawReflections
       .concat(this.props.fields.aggregationReflections)
       .forEach((reflection) => reflection.shouldDelete.onChange(true));

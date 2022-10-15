@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -55,7 +54,7 @@ class SplitContent extends PureComponent {
     );
     const defaultSelect = foundItem && foundItem.label;
     return (
-      <div style={[LINE_START_START, styles.base]}>
+      <div style={{ ...LINE_START_START, ...styles.base }}>
         <Select
           dataQa="SplitSelect"
           items={this.options}
@@ -103,4 +102,4 @@ const styles = {
     marginLeft: 10,
   },
 };
-export default Radium(SplitContent);
+export default SplitContent;

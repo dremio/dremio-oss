@@ -555,20 +555,16 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(input.end- input.start);
+      out.buffer = buffer = buffer.reallocIfNeeded(input.end - input.start);
       out.start = 0;
       out.end = input.end - input.start;
 
-      for (int id = input.start; id < input.end; id++) {
-        byte  currentByte = input.buffer.getByte(id);
-
-        // 'A - Z' : 0x41 - 0x5A
-        // 'a - z' : 0x61 - 0x7A
-        if (currentByte >= 0x41 && currentByte <= 0x5A) {
-          currentByte += 0x20;
-        }
-        out.buffer.setByte(id - input.start, currentByte) ;
-      }
+      final String toLower = (com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(input.start, input.end, input.buffer)).toLowerCase();
+      final byte[] outBytea = toLower.getBytes(com.google.common.base.Charsets.UTF_8);
+      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer.setBytes(0, outBytea);
+      out.start = 0;
+      out.end = outBytea.length;
     }
   }
 
@@ -592,16 +588,12 @@ public class StringFunctions{
       out.start = 0;
       out.end = input.end - input.start;
 
-      for (int id = input.start; id < input.end; id++) {
-        byte currentByte = input.buffer.getByte(id);
-
-        // 'A - Z' : 0x41 - 0x5A
-        // 'a - z' : 0x61 - 0x7A
-        if (currentByte >= 0x61 && currentByte <= 0x7A) {
-          currentByte -= 0x20;
-        }
-        out.buffer.setByte(id - input.start, currentByte) ;
-      }
+      final String toUpper = (com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(input.start, input.end, input.buffer)).toUpperCase();
+      final byte[] outBytea = toUpper.getBytes(com.google.common.base.Charsets.UTF_8);
+      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer.setBytes(0, outBytea);
+      out.start = 0;
+      out.end = outBytea.length;
     }
   }
 
@@ -1951,6 +1943,181 @@ public class StringFunctions{
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word4, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word5, separator);
         out.isSet = 1;
+      }
+    }
+  }
+
+  // Return string at index number and Returns NULL if N is less than 1 or greater than the number of arguments
+  @FunctionTemplate(name = "elt", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class Elt1 implements SimpleFunction {
+    @Param
+    IntHolder index;
+    @Param
+    NullableVarCharHolder word1;
+    @Output
+    NullableVarCharHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      if (index.value == 1) {
+        out = word1;
+      } else {
+        out.isSet = 0;
+      }
+    }
+  }
+
+  // Return string at index number and Returns NULL if N is less than 1 or greater than the number of arguments
+  @FunctionTemplate(name = "elt", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class Elt2 implements SimpleFunction {
+    @Param
+    IntHolder index;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Output
+    NullableVarCharHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      switch (index.value){
+        case 1:
+          out = word1;
+          break;
+        case 2:
+          out = word2;
+          break;
+        default:
+          out.isSet = 0;
+      }
+    }
+  }
+
+  // Return string at index number and Returns NULL if N is less than 1 or greater than the number of arguments
+  @FunctionTemplate(name = "elt", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class Elt3 implements SimpleFunction {
+    @Param
+    IntHolder index;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Param
+    NullableVarCharHolder word3;
+    @Output
+    NullableVarCharHolder out;
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      switch (index.value){
+        case 1:
+          out = word1;
+          break;
+        case 2:
+          out = word2;
+          break;
+        case 3:
+          out = word3;
+          break;
+        default:
+          out.isSet = 0;
+      }
+    }
+  }
+
+  // Return string at index number and Returns NULL if N is less than 1 or greater than the number of arguments
+  @FunctionTemplate(name = "elt", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class Elt4 implements SimpleFunction {
+    @Param
+    IntHolder index;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Param
+    NullableVarCharHolder word3;
+    @Param
+    NullableVarCharHolder word4;
+    @Output
+    NullableVarCharHolder out;
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      switch (index.value){
+        case 1:
+          out = word1;
+          break;
+        case 2:
+          out = word2;
+          break;
+        case 3:
+          out = word3;
+          break;
+        case 4:
+          out = word4;
+          break;
+        default:
+          out.isSet = 0;
+      }
+    }
+  }
+
+  // Return string at index number and Returns NULL if N is less than 1 or greater than the number of arguments
+  @FunctionTemplate(name = "elt", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class Elt5 implements SimpleFunction {
+    @Param
+    IntHolder index;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Param
+    NullableVarCharHolder word3;
+    @Param
+    NullableVarCharHolder word4;
+    @Param
+    NullableVarCharHolder word5;
+    @Output
+    NullableVarCharHolder out;
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      switch (index.value){
+        case 1:
+          out = word1;
+          break;
+        case 2:
+          out = word2;
+          break;
+        case 3:
+          out = word3;
+          break;
+        case 4:
+          out = word4;
+          break;
+        case 5:
+          out = word5;
+          break;
+        default:
+          out.isSet = 0;
       }
     }
   }

@@ -48,7 +48,9 @@ final class ApacheHttpConnectionUtil {
             Duration.ofSeconds(intOption(conf, Constants.ESTABLISH_TIMEOUT, Constants.DEFAULT_ESTABLISH_TIMEOUT, 0)));
     httpBuilder.socketTimeout(
             Duration.ofSeconds(intOption(conf, Constants.SOCKET_TIMEOUT, Constants.DEFAULT_SOCKET_TIMEOUT, 0)));
-    httpBuilder.proxyConfiguration(initProxySupport(conf));
+    if (isProxyEnabled(conf)) {
+      httpBuilder.proxyConfiguration(initProxySupport(conf));
+    }
 
     return httpBuilder;
   }
@@ -58,38 +60,41 @@ final class ApacheHttpConnectionUtil {
 
     final String proxyHost = conf.getTrimmed(Constants.PROXY_HOST, "");
     int proxyPort = conf.getInt(Constants.PROXY_PORT, -1);
-    if (!proxyHost.isEmpty()) {
-      if (proxyPort < 0) {
-        if (conf.getBoolean(Constants.SECURE_CONNECTIONS, Constants.DEFAULT_SECURE_CONNECTIONS)) {
-          proxyPort = 443;
-        } else {
-          proxyPort = 80;
-        }
+    if (proxyPort < 0) {
+      if (conf.getBoolean(Constants.SECURE_CONNECTIONS, Constants.DEFAULT_SECURE_CONNECTIONS)) {
+        proxyPort = 443;
+      } else {
+        proxyPort = 80;
       }
-
-      builder.endpoint(URI.create(proxyHost + ":" + proxyPort));
-
-      try {
-        final String proxyUsername = lookupPassword(conf, Constants.PROXY_USERNAME);
-        final String proxyPassword = lookupPassword(conf, Constants.PROXY_PASSWORD);
-        if ((proxyUsername == null) != (proxyPassword == null)) {
-          throw new IllegalArgumentException(String.format("Proxy error: %s or %s set without the other.",
-                  Constants.PROXY_USERNAME, Constants.PROXY_PASSWORD));
-        }
-
-        builder.username(proxyUsername);
-        builder.password(proxyPassword);
-        builder.ntlmDomain(conf.getTrimmed(Constants.PROXY_DOMAIN));
-        builder.ntlmWorkstation(conf.getTrimmed(Constants.PROXY_WORKSTATION));
-      } catch (IOException e) {
-        throw UserException.sourceInBadState(e).buildSilently();
-      }
-    } else if (proxyPort >= 0) {
-      throw new IllegalArgumentException(String.format("Proxy error: %s set without %s",
-              Constants.PROXY_HOST, Constants.PROXY_PORT));
     }
 
+    builder.endpoint(URI.create(proxyHost + ":" + proxyPort));
+
+    try {
+      final String proxyUsername = lookupPassword(conf, Constants.PROXY_USERNAME);
+      final String proxyPassword = lookupPassword(conf, Constants.PROXY_PASSWORD);
+      if ((proxyUsername == null) != (proxyPassword == null)) {
+        throw new IllegalArgumentException(String.format("Proxy error: %s or %s set without the other.",
+          Constants.PROXY_USERNAME, Constants.PROXY_PASSWORD));
+      }
+
+      builder.username(proxyUsername);
+      builder.password(proxyPassword);
+      builder.ntlmDomain(conf.getTrimmed(Constants.PROXY_DOMAIN));
+      builder.ntlmWorkstation(conf.getTrimmed(Constants.PROXY_WORKSTATION));
+    } catch (IOException e) {
+      throw UserException.sourceInBadState(e).buildSilently();
+    }
     return builder.build();
+  }
+
+  public static boolean isProxyEnabled(Configuration conf) {
+    final String proxyHost = conf.getTrimmed(Constants.PROXY_HOST, "");
+    if (proxyHost.isEmpty() && conf.getInt(Constants.PROXY_PORT, -1) >= 0) {
+      throw new IllegalArgumentException(String.format("Proxy error: %s set without %s",
+        Constants.PROXY_HOST, Constants.PROXY_PORT));
+    }
+    return !proxyHost.isEmpty();
   }
 
   private static int intOption(Configuration conf, String key, int defVal, int min) {

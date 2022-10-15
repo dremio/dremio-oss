@@ -359,7 +359,9 @@ public class OperatorStats {
       .setSetupNanos(getSetupNanos()) //
       .setProcessNanos(getProcessingNanos())
       .setWaitNanos(getWaitNanos())
-      .setOperatorSubtype(operatorSubType);
+      .setOperatorSubtype(operatorSubType)
+      .setOutputRecords(outputRecords)
+      .setOutputBytes(outputSizeInBytes);
 
     if (allocator != null) {
       b.setPeakLocalMemoryAllocated(Long.max(allocator.getPeakMemoryAllocation(), allocator.getInitReservation()));

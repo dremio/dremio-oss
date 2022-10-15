@@ -75,6 +75,7 @@ public class CodeModelArrowHelper {
       return model._ref(UnionHolder.class);
     case STRUCT:
     case LIST:
+    case MAP:
       return model._ref(ComplexHolder.class);
 
     case TINYINT:

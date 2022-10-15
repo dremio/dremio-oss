@@ -20,9 +20,9 @@
 
   .historyLine {
     align-items: center;
-    border-left: 1px solid @DARK_200;
+    border-left: 1px solid var(--dremio--color--neutral--150);
     display: flex;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 100px);
     min-height: 63rem;
     flex-direction: column;
     width: 3.4rem;
@@ -53,24 +53,6 @@
         height: 24px;
         width: 24px;
       }
-    }
-  }
-
-  .tooltip-history {
-    background-color: @FIGMA_NEUTRAL_700;
-    font-size: 14px;
-
-    &-title {
-      font-weight: 600;
-    }
-
-    &-info,
-    &-warning {
-      font-weight: 400;
-    }
-
-    &-warning {
-      color: @FIGMA_NEUTRAL_300;
     }
   }
 }

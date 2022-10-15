@@ -30,7 +30,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 public class OptionIterator implements Iterator<Object> {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OptionIterator.class);
 
   enum Mode {
     BOOT, SYS_SESS, BOTH

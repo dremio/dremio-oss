@@ -17,7 +17,6 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import { typeToIconType } from "@app/constants/DataTypes";
-import Art from "components/Art";
 import Select from "./Select";
 
 @injectIntl
@@ -32,8 +31,8 @@ export default class FieldSelect extends Component {
     return items.map((item) => ({
       label: (
         <div style={styles.wrap}>
-          <Art
-            src={`types/${typeToIconType[item.type]}.svg`}
+          <dremio-icon
+            name={`data-types/${typeToIconType[item.type]}`}
             alt={this.props.intl.formatMessage({ id: "Common.FieldType" })}
             style={styles.icon}
           />
@@ -60,6 +59,7 @@ const styles = {
     display: "flex",
     justifyContent: "flex-start",
     alignItems: "center",
+    width: "fit-content",
   },
   icon: {
     width: 24,

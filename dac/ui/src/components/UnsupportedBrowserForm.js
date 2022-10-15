@@ -16,9 +16,10 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import * as ButtonTypes from "components/Buttons/ButtonTypes";
-import Button from "components/Buttons/Button";
+import { Button } from "dremio-ui-lib";
 import FontIcon from "components/Icon/FontIcon";
 import LoginTitle from "pages/AuthenticationPage/components/LoginTitle";
+import { intl } from "@app/utils/intl";
 
 class UnsupportedBrowserForm extends Component {
   static propTypes = {
@@ -43,10 +44,11 @@ class UnsupportedBrowserForm extends Component {
           <LoginTitle subTitle={this.renderWarning()} />
           <Button
             onClick={this.props.approveBrowser}
+            disableMargin
             style={styles.button}
-            type={ButtonTypes.NEXT}
+            color={ButtonTypes.UI_LIB_PRIMARY}
             key="details-wizard-next"
-            text={la("OK")}
+            text={intl.formatMessage({ id: "Common.OK" })}
           />
         </div>
       </div>

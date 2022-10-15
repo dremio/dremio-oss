@@ -50,13 +50,13 @@ export function getTabs() {
 export function getIconName(tab) {
   switch (tab) {
     case "Overview":
-      return "Shape_lite.svg";
+      return "interface/job-overview";
     case "SQL":
-      return "Union.svg";
+      return "interface/job-sql";
     case "Profile":
-      return "RawProfile.svg";
+      return "interface/job-raw-profile";
     default:
-      return "Shape_lite.svg";
+      return "interface/job-overview";
   }
 }
 
@@ -432,7 +432,7 @@ export class JobsUtils {
         return "Bytes";
       case "Parquet":
         return "Parquet";
-      case "Records":
+      case "Records Processed":
         return "Records";
       case "Thread Skew":
         return "Thread Skew";
@@ -451,7 +451,7 @@ export class JobsUtils {
         return "bytesProcessed";
       case "Parquet":
         return "Parquet";
-      case "Records":
+      case "Records Processed":
         return "recordsProcessed";
       case "Thread Skew":
         return "numThreads";
@@ -500,11 +500,23 @@ export class JobsUtils {
         return timeUtils.nanoSecondsUpToHours(node[sortValue]);
       case "totalMemory":
         return this.bytesToSize(node[sortValue]);
+      case "totalBufferForIncomingMemory":
+        return this.bytesToSize(node[sortValue]);
       case "recordsProcessed":
         return this.getFormattedNumber(node[sortValue]);
       default:
         return timeUtils.nanoSecondsUpToHours(node[sortValue]);
     }
+  };
+
+  getTotalOperatorMemoryValue = (node) => {
+    let opMemory = 0;
+    if (node.operatorDataList?.length > 0) {
+      node.operatorDataList.forEach((operator) => {
+        opMemory += operator.baseMetrics?.totalMemory;
+      });
+    }
+    return this.bytesToSize(opMemory);
   };
 }
 

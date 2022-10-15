@@ -29,8 +29,6 @@ public class ExceptionFunction {
 
   public static final String EXCEPTION_FUNCTION_NAME = "__throwException";
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExceptionFunction.class);
-
   @FunctionTemplate(name = EXCEPTION_FUNCTION_NAME, isDeterministic = false)
   public static class ThrowException implements SimpleFunction {
 

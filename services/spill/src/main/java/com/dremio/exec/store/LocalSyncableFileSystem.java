@@ -52,6 +52,7 @@ import io.netty.util.internal.PlatformDependent;
 public class LocalSyncableFileSystem extends FileSystem {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalSyncableFileSystem.class);
+  private static final int BUFFER_SIZE = 8*1024;
 
   @Override
   public URI getUri() {
@@ -182,7 +183,7 @@ public class LocalSyncableFileSystem extends FileSystem {
         }
       }
       fos = new FileOutputStream(path.toString());
-      output = new BufferedOutputStream(fos, 64*1024);
+      output = new BufferedOutputStream(fos, BUFFER_SIZE);
     }
 
     @Override
@@ -236,7 +237,6 @@ public class LocalSyncableFileSystem extends FileSystem {
 
   private static final class LocalInputStream extends InputStream implements Seekable, PositionedReadable, ByteBufferReadable, ReadsArrowBuf {
 
-    private static final int BUFFER_SIZE = 64*1024;
     private final RandomAccessFile file;
     private final String path;
     private long position = 0;
@@ -267,7 +267,7 @@ public class LocalSyncableFileSystem extends FileSystem {
     @Override
     public void seek(long l) throws IOException {
       file.seek(l);
-      input = new BufferedInputStream(new FileInputStream(file.getFD()), 1024*1024);
+      input = new BufferedInputStream(new FileInputStream(file.getFD()), BUFFER_SIZE);
       position = l;
     }
 

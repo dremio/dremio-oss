@@ -37,7 +37,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
- * FilteringFileCoercionReader for Parquet files
+ * ParquetCoercionReader for Parquet files
  * TODO(DX-26038): Remove duplicate code with FilteringCoercionReader
  */
 public class ParquetCoercionReader extends FilteringFileCoercionReader {

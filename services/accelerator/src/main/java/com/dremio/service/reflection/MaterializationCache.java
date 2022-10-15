@@ -57,6 +57,11 @@ class MaterializationCache {
 
   private final AtomicReference<Map<String, CachedMaterializationDescriptor>> cached = new AtomicReference<>(EMPTY_MAP);
 
+  /**
+   * CacheHelper helps with keeping MaterializationCache up to date and also handles materialization expansion.
+   * This interface is a bit confusing in that when materialization cache is disabled, this interface still
+   * provides the materialization expansion implementation.
+   */
   interface CacheHelper {
     Iterable<Materialization> getValidMaterializations();
     Iterable<ExternalReflection> getExternalReflections();
@@ -262,13 +267,18 @@ class MaterializationCache {
   }
 
   void update(Materialization m) throws CacheException {
-    boolean exchanged;
-    do {
-      Map<String, CachedMaterializationDescriptor> old = cached.get();
-      Map<String, CachedMaterializationDescriptor> updated =  Maps.newHashMap(old); //copy over everything
-      updateEntry(updated, m);
-      exchanged = cached.compareAndSet(old, updated); //update the cache.
-    } while(!exchanged);
+    // Do expansion (including deserialization) out of the do-while loop, so that in case it takes long time
+    // the update loop does not race with MaterializationCache.refresh() and falls into infinite loop.
+    final CachedMaterializationDescriptor descriptor = provider.expand(m);
+    if (descriptor != null) {
+      boolean exchanged;
+      do {
+        Map<String, CachedMaterializationDescriptor> old = cached.get();
+        Map<String, CachedMaterializationDescriptor> updated = Maps.newHashMap(old); //copy over everything
+        updated.put(m.getId().getId(), descriptor);
+        exchanged = cached.compareAndSet(old, updated); //update the cache.
+      } while (!exchanged);
+    }
   }
 
   Iterable<MaterializationDescriptor> getAll() {

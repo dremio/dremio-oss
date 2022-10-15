@@ -111,6 +111,8 @@ enum RecordBatchFormat {
   DREMIO_0_9 = 2;
   // Format introduced by DREMIO in verion 1.4 and later
   DREMIO_1_4 = 3;
+  // Format introduced by DREMIO in version 23 and later.
+  DREMIO_23_0 = 4;
 }
 
 message RequestResults {

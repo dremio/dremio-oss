@@ -19,22 +19,25 @@ package com.dremio.service.autocomplete.completions;
 import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.service.autocomplete.catalog.Node;
+import com.dremio.service.autocomplete.columns.Column;
 import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
 import com.dremio.service.autocomplete.columns.ColumnAndTableAliasComparator;
 import com.dremio.service.autocomplete.functions.Function;
 import com.dremio.service.autocomplete.functions.FunctionContext;
 import com.dremio.service.autocomplete.functions.TokenTypeDetector;
 import com.dremio.service.autocomplete.nessie.NessieElement;
+import com.dremio.service.autocomplete.statements.grammar.TableReference;
 import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 /**
  * Completions for Autocomplete.
@@ -90,16 +93,33 @@ public final class Completions {
             return this;
         }
 
-        public Builder addColumnAndTableAliases(ImmutableList<ColumnAndTableAlias> columnAndTableAliases, String scope) {
+      public Builder addColumns(ImmutableList<Column> columns, TableReference tableReference) {
+          Preconditions.checkNotNull(columns);
+
+          String alias = tableReference.getAlias() != null ? tableReference.getAlias().getAlias() : Iterables.getLast(tableReference.getCatalogPath().getPathTokens());
+
+          return addColumnsAndTableAliasesImpl(columns
+            .stream()
+            .map(column -> ColumnAndTableAlias.createWithTable(column,  alias))
+            .collect(ImmutableList.toImmutableList()),
+            true);
+      }
+
+        public Builder addColumnAndTableAliases(ImmutableList<ColumnAndTableAlias> columnAndTableAliases) {
             Preconditions.checkNotNull(columnAndTableAliases);
 
-            return this.addItems(
-                    columnAndTableAliases
-                            .stream()
-                            .filter(entry -> scope == null || scope.equalsIgnoreCase(entry.getTableAlias()))
-                            .sorted(ColumnAndTableAliasComparator.INSTANCE)
-                            .map(c -> CompletionItemFactory.createFromColumnAndPath(c, scope != null))
-                            .collect(ImmutableList.toImmutableList()));
+            return addColumnsAndTableAliasesImpl(columnAndTableAliases, false);
+        }
+
+        private Builder addColumnsAndTableAliasesImpl(ImmutableList<ColumnAndTableAlias> columnAndTableAliases, boolean ignoreTableAliases) {
+          Preconditions.checkNotNull(columnAndTableAliases);
+
+          return this.addItems(
+            columnAndTableAliases
+              .stream()
+              .sorted(ColumnAndTableAliasComparator.INSTANCE)
+              .map(c -> CompletionItemFactory.createFromColumnAndPath(c, ignoreTableAliases))
+              .collect(ImmutableList.toImmutableList()));
         }
 
         public Builder addFunctions(ImmutableList<Function> functions, ImmutableList<DremioToken> contextTokens) {
@@ -107,11 +127,12 @@ public final class Completions {
             Preconditions.checkNotNull(contextTokens);
 
             return this.addItems(
-                    functions.stream()
-                            .filter(function -> !TokenTypeDetector.isKeyword(function.getName(), contextTokens).orElse(false))
-                            .sorted(Comparator.comparing(Function::getName))
-                            .map(CompletionItemFactory::createFromFunction)
-                            .collect(ImmutableList.toImmutableList()));
+              functions.stream()
+                .filter(function -> !TokenTypeDetector.isKeyword(function.getName(), contextTokens).orElse(false))
+                .sorted(Comparator.comparing(Function::getName))
+                .map(CompletionItemFactory::createFromFunction)
+                .flatMap(Collection::stream)
+                .collect(ImmutableList.toImmutableList()));
         }
 
         public Builder addNessieElements(ImmutableList<NessieElement> nessieElements) {
@@ -124,13 +145,13 @@ public final class Completions {
                             .collect(ImmutableList.toImmutableList()));
         }
 
-        public Builder addKeywords(ImmutableList<DremioToken> keywords) {
+        public Builder addKeywords(ImmutableList<Integer> keywords) {
             Preconditions.checkNotNull(keywords);
 
             return this.addItems(
                     keywords
                             .stream()
-                            .map(CompletionItemFactory::createFromDremioToken)
+                            .map(CompletionItemFactory::createFromKeyword)
                             .collect(ImmutableList.toImmutableList()));
         }
 

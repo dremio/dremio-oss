@@ -17,7 +17,7 @@ package org.apache.hadoop.hive.metastore;
 
 import org.apache.hadoop.hive.metastore.api.ThriftHiveMetastore;
 
-public class HiveClientExposer {
+public final class HiveClientExposer {
 
   private HiveClientExposer(){}
 

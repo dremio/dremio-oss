@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -42,6 +43,7 @@ import org.apache.iceberg.Table;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -339,7 +341,10 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       logger.debug("Inserting into table with schema : '{}' ", tableSchemaFromKVStore.toString());
     }
 
-    convertedRelNode = addCastProject(convertedRelNode, queryRowType);
+    // DX-54255: Don't add cast projection, if inserting values from another table
+    if (RelOptUtil.findTables(convertedRelNode).isEmpty()) {
+      convertedRelNode = addCastProject(convertedRelNode, queryRowType);
+    }
     convertedRelNode = new WriterRel(convertedRelNode.getCluster(),
       convertedRelNode.getCluster().traitSet().plus(Rel.LOGICAL),
       convertedRelNode, tableEntry, queryRowType);
@@ -395,7 +400,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       typeName != SqlTypeName.MAP;
   }
 
-  public void validateIcebergSchemaForInsertCommand(List<String> fieldNames) {
+  public void validateIcebergSchemaForInsertCommand(List<String> fieldNames, SqlHandlerConfig config) {
     IcebergTableProps icebergTableProps = tableEntry.getIcebergTableProps();
     Preconditions.checkState(icebergTableProps.getIcebergOpType() == IcebergCommandType.INSERT,
       "unexpected state found");
@@ -405,7 +410,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     IcebergModel icebergModel = ((SupportsIcebergMutablePlugin) tableEntry.getPlugin())
       .getIcebergModel(icebergTableProps, tableEntry.getUserName(), null, null);
     Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
-    SchemaConverter schemaConverter = new SchemaConverter(table.name());
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).setMapTypeEnabled(config.getContext().getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
     BatchSchema icebergSchema = schemaConverter.fromIceberg(table.schema());
 
     // this check can be removed once we support schema evolution in dremio.
@@ -415,7 +420,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     }
 
     BatchSchema partSchemaWithSelectedFields = tableSchemaFromKVStore.subset(fieldNames).orElse(tableSchemaFromKVStore);
-    if (!querySchema.equalsIgnoreCase(partSchemaWithSelectedFields)) {
+    if (!querySchema.equalsTypesWithoutPositions(partSchemaWithSelectedFields)) {
       throw UserException.validationError().message("Table %s doesn't match with query %s.",
           partSchemaWithSelectedFields, querySchema).buildSilently();
     }
@@ -551,7 +556,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
   }
 
   public void validateVersionedTableFormatOptions(Catalog catalog, NamespaceKey path) {
-    isIcebergTable = isVersionedTable = CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog);
+    isVersionedTable = CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog);
+    isIcebergTable = isVersionedTable;
   }
 
   @Override

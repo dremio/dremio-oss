@@ -20,8 +20,27 @@
 
   .menu-item-inner {
     background: #fff;
-    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     width: 100%;
+    height: 100%;
+
+    &__icon {
+      width: 24px;
+
+      &--right {
+        justify-self: flex-end;
+      }
+    }
+
+    &__innerText {
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     &.disabled {
       background: #fff !important;

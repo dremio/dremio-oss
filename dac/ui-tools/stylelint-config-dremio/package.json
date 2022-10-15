@@ -1,0 +1,19 @@
+{
+  "name": "stylelint-config-dremio",
+  "private": true,
+  "description": "A shareable Stylelint configuration for Dremio UI projects",
+  "main": "./index.js",
+  "dependencies": {
+    "postcss": "^8",
+    "stylelint-config-prettier": "^9",
+    "stylelint-config-standard": "^26",
+    "stylelint-config-standard-scss": "^4",
+    "stylelint-use-logical-spec": "^4"
+  },
+  "devDependencies": {
+    "stylelint": "^14"
+  },
+  "peerDependencies": {
+    "stylelint": "^14"
+  }
+}

@@ -42,6 +42,7 @@
         }
         &__dataHeader {
           display: inline-block;
+          margin-left: 8px;
         }
         &__dataLabel {
           font-size: 14px;
@@ -63,7 +64,7 @@
         }
       }
       &__label {
-        width: 32px !important;
+        width: fit-content !important;
       }
     }
     &-buttonStyle {
@@ -77,13 +78,14 @@
         font-weight: normal;
         font-size: 12px;
         line-height: 18px;
-        color: @grey;
-        margin: 0px 10px;
-        padding-left: 4px;
+        color: var(--dremio--color--text--faded);
+        margin: 0px var(--dremio--spacing--1);
+        padding-left: var(--dremio--spacing--05);
       }
       &__showmoreIcon {
-        width: 24px;
-        height: 24px;
+        width: 20px;
+        height: 20px;
+        color: var(--dremio--color--icon--main);
       }
     }
   }

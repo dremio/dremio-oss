@@ -102,21 +102,20 @@ const ShowHideColumn = ({
       onItemSelect={filterColumnSelect}
       onItemUnselect={filterColumnUnSelect}
       items={getColumnFilterData()}
-      label={formatMessage({ id: "Common.Columns" })}
+      label={formatMessage({ id: "Common.Manage.Columns" })}
       name="col"
       showSelectedLabel={false}
-      icon="ManageColumn.svg"
-      isArtIcon
-      iconStyle={styles.gear}
+      iconId="interface/manage-column"
+      hasSpecialIcon
       iconClass="showHideColumn__settingIcon"
       checkBoxClass="showHideColumn__checkBox"
-      selectClass='showHideColumn'
+      selectClass="showHideColumn"
       popoverFilters="margin-top--half"
       onDragMove={handleColumnPositionChange}
       onDragEnd={handleDragEnd}
       isDraggable
       hasIconFirst
-      selectType='button'
+      selectType="button"
     />
   );
 };
@@ -126,12 +125,5 @@ ShowHideColumn.propTypes = {
   defaultValue: PropTypes.instanceOf(Immutable.List),
   updateColumnsState: PropTypes.func,
 };
-const styles = {
-  gear: {
-    color: "#393D41",
-    fontSize: "14px",
-    paddingLeft: "7px",
-    paddingTop: "1px",
-  },
-};
+
 export default injectIntl(ShowHideColumn);

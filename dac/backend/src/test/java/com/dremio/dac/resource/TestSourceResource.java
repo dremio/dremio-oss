@@ -15,11 +15,15 @@
  */
 package com.dremio.dac.resource;
 
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
@@ -28,11 +32,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.exec.store.dfs.PDFSConf;
+import com.dremio.io.file.Path;
+import com.dremio.service.namespace.NamespaceException;
 
 /**
  * Tests {@link SourceResource} API
@@ -143,9 +154,7 @@ public class TestSourceResource extends BaseTestServer {
     );
     assertTrue(result.getAllowCrossSourceSelection());
     result.setAllowCrossSourceSelection(false);
-    expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/source/%s", "__home")))
-        .buildPut(Entity.entity(result, JSON)));
+    updateSource(result);
     final SourceUI updateResult = expectSuccess(
       getBuilder(getAPIv2().path(String.format("/source/%s", "__home"))).buildGet(),
       SourceUI.class
@@ -163,9 +172,7 @@ public class TestSourceResource extends BaseTestServer {
     );
     assertTrue(resultAccel.getAllowCrossSourceSelection());
     resultAccel.setAllowCrossSourceSelection(false);
-    expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator")))
-        .buildPut(Entity.entity(resultAccel, JSON)));
+    updateSource(resultAccel);
     final SourceUI updateResultAccel = expectSuccess(
       getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator"))).buildGet(),
       SourceUI.class
@@ -179,9 +186,7 @@ public class TestSourceResource extends BaseTestServer {
     );
     assertTrue(resultJob.getAllowCrossSourceSelection());
     resultJob.setAllowCrossSourceSelection(false);
-    expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/source/%s", "__jobResultsStore")))
-        .buildPut(Entity.entity(resultJob, JSON)));
+    updateSource(resultJob);
     final SourceUI updateResultJob = expectSuccess(
       getBuilder(getAPIv2().path(String.format("/source/%s", "__jobResultsStore"))).buildGet(),
       SourceUI.class
@@ -195,9 +200,7 @@ public class TestSourceResource extends BaseTestServer {
     );
     assertTrue(resultScratch.getAllowCrossSourceSelection());
     resultScratch.setAllowCrossSourceSelection(false);
-    expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/source/%s", "$scratch")))
-        .buildPut(Entity.entity(resultScratch, JSON)));
+    updateSource(resultScratch);
     final SourceUI updateResultScratch = expectSuccess(
       getBuilder(getAPIv2().path(String.format("/source/%s", "$scratch"))).buildGet(),
       SourceUI.class
@@ -211,9 +214,7 @@ public class TestSourceResource extends BaseTestServer {
     );
     assertTrue(resultDownload.getAllowCrossSourceSelection());
     resultDownload.setAllowCrossSourceSelection(false);
-    expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/source/%s", "__datasetDownload")))
-        .buildPut(Entity.entity(resultDownload, JSON)));
+    updateSource(resultDownload);
     final SourceUI updateResultDownload = expectSuccess(
       getBuilder(getAPIv2().path(String.format("/source/%s", "__datasetDownload"))).buildGet(),
       SourceUI.class
@@ -227,9 +228,7 @@ public class TestSourceResource extends BaseTestServer {
     );
     assertTrue(resultSupport.getAllowCrossSourceSelection());
     resultSupport.setAllowCrossSourceSelection(false);
-    expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/source/%s", "__support")))
-        .buildPut(Entity.entity(resultSupport, JSON)));
+    updateSource(resultSupport);
     final SourceUI updateResultSupport = expectSuccess(
       getBuilder(getAPIv2().path(String.format("/source/%s", "__support"))).buildGet(),
       SourceUI.class
@@ -243,16 +242,47 @@ public class TestSourceResource extends BaseTestServer {
     );
     assertTrue(resultLogs.getAllowCrossSourceSelection());
     resultLogs.setAllowCrossSourceSelection(false);
-    expectSuccess(
-      getBuilder(getAPIv2().path(String.format("/source/%s", "__logs")))
-        .buildPut(Entity.entity(resultLogs, JSON)));
+    updateSource(resultLogs);
     final SourceUI updateResultLogs = expectSuccess(
       getBuilder(getAPIv2().path(String.format("/source/%s", "__logs")).queryParam("includeContents", false)).buildGet(),
       SourceUI.class
     );
     assertFalse(resultLogs.getAllowCrossSourceSelection());
     assertTrue(updateResultLogs.getAllowCrossSourceSelection());
-
   }
 
+  @Test
+  public void testCanNotCreateSourcesWithInternalConnectionConfTypes() {
+    String location = Path.of("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testCanNotCreateSourcesWithInternalConnectionConfTypes/").toString();
+    Set<ConnectionConf<?, ?>> internalConnectionConfs = new HashSet<ConnectionConf<?, ?>>() {{
+      add(new PDFSConf(location));
+      add(new HomeFileConf(location, "localhost"));
+    }};
+
+    for (ConnectionConf<?, ?> conf : internalConnectionConfs) {
+      final String sourceName = UUID.randomUUID().toString();
+      final SourceUI source = new SourceUI();
+      source.setName(sourceName);
+      source.setCtime(System.currentTimeMillis());
+      source.setConfig(conf);
+
+      expectStatus(BAD_REQUEST,
+        getBuilder(getAPIv2().path(String.format("/source/%s", sourceName))).buildPut(Entity.entity(source, JSON)));
+    }
+  }
+
+  @Test
+  public void testCanNotDeleteSourcesWithInternalConnectionConfType() {
+    final SourceUI accelerator = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator"))).buildGet(),
+      SourceUI.class
+    );
+
+    expectStatus(BAD_REQUEST,
+      getBuilder(getAPIv2().path(String.format("/source/%s", PathUtils.encodeURIComponent(accelerator.getId())))).buildDelete());
+  }
+
+  private void updateSource(SourceUI source) throws ExecutionSetupException, NamespaceException {
+    newSourceService().updateSourceInternal(source.getId(), source.asSourceConfig(), source.getNamespaceAttributes());
+  }
 }

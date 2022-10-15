@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import rand from "csprng";
 import { sortedIndex } from "lodash/array";
+import { customAlphabet } from "nanoid/non-secure";
 import transformModelMapper from "utils/mappers/ExplorePage/Transform/transformModelMapper";
 import simpleTransformMappers from "utils/mappers/ExplorePage/simpleTransformMappers";
 import mapConvertDataType from "utils/mappers/ExplorePage/convertDataType";
@@ -29,6 +29,7 @@ import {
   INTEGER,
   LIST,
   MAP,
+  STRUCT,
   TEXT,
   TIME,
 } from "@app/constants/DataTypes";
@@ -37,6 +38,7 @@ import { UNSAVED_DATASET_PATH } from "@app/constants/explorePage/paths";
 import { JOB_STATUS } from "@app/pages/ExplorePage/components/ExploreTable/constants";
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
 import { getRefQueryParamsFromDataset } from "../nessieUtils";
+import { newQuery } from "@app/exports/paths";
 
 const DROP_WIDTH = 150;
 const ARROW_WIDTH = 20;
@@ -55,6 +57,8 @@ const TRANSFORM_TYPE_WITHOUT_DATA = [
   "EXCLUDE",
   "REPLACE",
 ];
+
+const rand = customAlphabet("1234567890", 13);
 
 const detailTypeToTransformType = {
   EXTRACT_ELEMENT: "extract",
@@ -478,7 +482,7 @@ class ExploreUtils {
   getHrefForDatasetConfig = (resourcePath) =>
     `${resourcePath}?view=explore&limit=50`;
 
-  getPreviewLink = (dataset, tipVersion, sessionId) => {
+  getPreviewLink = (dataset, tipVersion, sessionId, willLoadTable) => {
     const apiCall = new APIV2Call()
       .paths(`${dataset.getIn(["apiLinks", "self"])}/preview`)
       .params({
@@ -494,6 +498,10 @@ class ExploreUtils {
 
     if (sessionId) {
       apiCall.params({ sessionId });
+    }
+
+    if (!willLoadTable) {
+      apiCall.params({ triggerJob: false });
     }
 
     return apiCall.toPath();
@@ -531,7 +539,7 @@ class ExploreUtils {
     return apiCall.toPath();
   }
 
-  getNewDatasetVersion = () => "000" + rand(40, 10);
+  getNewDatasetVersion = () => "000" + rand();
 
   getFullPath = ({ resourceId, tableId, mode }) =>
     mode === "edit" ? `${resourceId}.${tableId}` : "tmp.UNTITLED";
@@ -633,7 +641,7 @@ class ExploreUtils {
     const columnType = transform.get("columnType");
     return !(
       transform.get("transformType") === "extract" &&
-      (columnType === LIST || columnType === MAP)
+      (columnType === LIST || columnType === MAP || columnType === STRUCT)
     );
   }
 
@@ -698,7 +706,7 @@ class ExploreUtils {
     return (
       curLocation &&
       (curLocation.includes(UNSAVED_DATASET_PATH) ||
-        curLocation.includes("/new_query"))
+        curLocation.includes(newQuery()))
     );
   }
 
@@ -710,6 +718,11 @@ class ExploreUtils {
         curLocation.startsWith("/home") ||
         curLocation.startsWith("/source"))
     );
+  }
+
+  isExploreSourcePage(location) {
+    const curLocation = location && location.pathname;
+    return curLocation.startsWith("/source");
   }
 
   getCancellable = (jobStatus) => {
@@ -765,6 +778,10 @@ class ExploreUtils {
       activeScript.permissions &&
       activeScript.permissions.includes("MODIFY")
     );
+  }
+
+  createNewQueryFromDatasetOverlay(datasetPath) {
+    return datasetPath ? `SELECT * FROM ${datasetPath}` : "";
   }
 }
 

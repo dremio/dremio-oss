@@ -22,26 +22,40 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.hep.HepRelVertex;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.Pair;
 
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.fn.ItemsSketch.ItemsSketchFunctions;
 import com.dremio.exec.expr.fn.tdigest.TDigest;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.common.AggregateRelBase;
+import com.dremio.exec.planner.common.JdbcRelBase;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
+import com.dremio.service.Pointer;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -52,7 +66,7 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
   protected OperatorPhase operPhase;
   protected List<NamedExpression> keys;
   protected List<NamedExpression> aggExprs;
-  protected List<AggregateCall> phase2AggCallList = new ArrayList<>();
+  protected List<Pair<AggregateCall, RexLiteral>> phase2AggCallList = new ArrayList<>();
 
   protected AggregatePrel(RelOptCluster cluster,
                         RelTraitSet traits,
@@ -66,6 +80,8 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
     this.operPhase = phase;
     this.keys = RexToExpr.groupSetToExpr(child, groupSet);
     this.aggExprs = RexToExpr.aggsToExpr(getRowType(), child, groupSet, aggCalls);
+    int delimiterCount = 0;
+    int numInputFields = groupSet.cardinality() + aggCalls.size();
 
     for (Ord<AggregateCall> aggCall : Ord.zip(aggCalls)) {
       int aggExprOrdinal = groupSet.cardinality() + aggCall.i;
@@ -83,7 +99,7 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
               aggCall.e.getType(),
               aggCall.e.getName());
 
-          phase2AggCallList.add(newAggCall);
+          phase2AggCallList.add(Pair.of(newAggCall, null));
         } else if (aggCall.e.getAggregation().getName().equals(DremioSqlOperatorTable.HLL.getName())) {
           SqlAggFunction hllMergeFunction = DremioSqlOperatorTable.HLL_MERGE;
           AggregateCall newAggCall =
@@ -95,7 +111,7 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
               -1,
               aggCall.getValue().getType(),
               aggCall.e.getName());
-          phase2AggCallList.add(newAggCall);
+          phase2AggCallList.add(Pair.of(newAggCall, null));
         } else if (aggCall.e.getAggregation().getName().equals("TDIGEST")) {
           SqlAggFunction tDigestMergeFunction = new TDigest.SqlTDigestMergeAggFunction(aggCall.e.getType());
           AggregateCall newAggCall =
@@ -107,7 +123,7 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
               -1,
               aggCall.e.getType(),
               aggCall.e.getName());
-          phase2AggCallList.add(newAggCall);
+          phase2AggCallList.add(Pair.of(newAggCall, null));
         } else if (aggCall.e.getAggregation().getName().equalsIgnoreCase(ItemsSketchFunctions.FUNCTION_NAME)) {
           int fieldInd = aggCall.e.getArgList().get(0);
           RelDataType type = input.getRowType().getFieldList().get(fieldInd).getType();
@@ -151,8 +167,51 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
               -1,
               aggCall.e.getType(),
               aggCall.e.getName());
-          phase2AggCallList.add(newAggCall);
-        }else {
+          phase2AggCallList.add(Pair.of(newAggCall, null));
+        } else if (aggCall.e.getAggregation().getKind() == SqlKind.LISTAGG) {
+          // create 2 phase list agg. This process requires figuring out extra delimiter argument in the function call
+          // as we need this information to create the second phase argument.
+          // Also, new argument index and collation index should be aware of this field.
+          final List<Integer> phase2Args = new ArrayList<>();
+          RexLiteral delimiter = null;
+          phase2Args.add(aggExprOrdinal);
+          if (aggCall.e.getArgList().size() == 2) {
+            delimiter = findDelimiterInListAgg(aggCall.e, input);
+             if (delimiter == null) {
+               throw new UnsupportedOperationException(
+                 "Cannot create 2 phase aggregate with the delimiter added to ListAgg call in the plan");
+             }
+            phase2Args.add(numInputFields + delimiterCount);
+            delimiterCount++;
+          }
+
+          // update collation fields
+          final RelCollation oldCollation = aggCall.e.collation;
+          RelCollation newColation;
+          if (oldCollation.getFieldCollations().isEmpty()) {
+            newColation = RelCollations.EMPTY;
+          } else {
+            Pair<Integer, Integer> mapping = new Pair<>(aggCall.e.getArgList().get(0), aggExprOrdinal);
+            newColation = RelCollations.of(oldCollation.getFieldCollations().stream().map(collation -> {
+              if (collation.getFieldIndex() != mapping.getKey()) {
+                throw new UnsupportedOperationException("Order by key in list_agg should match with its argument");
+              }
+              return collation.copy(mapping.getValue());
+            }).collect(Collectors.toList()));
+          }
+          SqlAggFunction listAggMerge = DremioSqlOperatorTable.LISTAGG_MERGE;
+          AggregateCall newAggCall =
+            AggregateCall.create(
+              listAggMerge,
+              aggCall.e.isDistinct(),
+              aggCall.e.isApproximate(),
+              phase2Args,
+              -1,
+              newColation,DremioSqlOperatorTable.LISTAGG_MERGE.inferReturnType(getCluster().getTypeFactory(),
+                ImmutableList.of(aggCall.e.getType())),
+              aggCall.e.getName());
+          phase2AggCallList.add(Pair.of(newAggCall, delimiter));
+        } else {
           AggregateCall newAggCall =
             AggregateCall.create(
               aggCall.e.getAggregation(),
@@ -163,10 +222,64 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
               aggCall.e.getType(),
               aggCall.e.getName());
 
-          phase2AggCallList.add(newAggCall);
+          phase2AggCallList.add(Pair.of(newAggCall, null));
         }
       }
     }
+  }
+
+  /**
+   * This call finds delimiter literal used in a ListAgg call.
+   *
+   * For example, in the following plan,
+   * AggregateCall($0,$1)
+   *   Project($0, RexLiteral=',')
+   *
+   * This call should return ',' literal as an output.
+   *
+   * @param call an AggregateCall
+   * @return a delimiter literal
+   */
+  public static RexLiteral findDelimiterInListAgg(AggregateCall call, RelNode input) {
+    if (call.getAggregation().getKind() != SqlKind.LISTAGG || call.getArgList().size() != 2) {
+      return null;
+    }
+
+    final Pointer<Integer> index = new Pointer<>(call.getArgList().get(1));
+    final Pointer<RexLiteral> literal = new Pointer<>(null);
+    input.accept(new StatelessRelShuttleImpl() {
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof RelSubset) {
+          RelNode rel = ((RelSubset) other).getOriginal();
+          return rel == null ? other : rel.accept(this);
+        } else if (other instanceof HepRelVertex) {
+          RelNode rel = ((HepRelVertex) other).getCurrentRel();
+          return rel == null ? other : rel.accept(this);
+        } else if (other instanceof JdbcRelBase) {
+          RelNode subTree = ((JdbcRelBase) other).getSubTree();
+          return subTree == null ? other : subTree.accept(this);
+        } else if (other instanceof Project) {
+          List<RexNode> exprs = ((Project) other).getProjects();
+          if (index.value >= exprs.size()) {
+            // this case cannot happen with valid plan. If happens then stop here.
+            return other;
+          }
+          RexNode expr = exprs.get(index.value);
+          if (expr instanceof RexLiteral) {
+            literal.value = (RexLiteral) expr;
+            return other;
+          } else if (expr instanceof RexInputRef) {
+            // could not find the actual literal. Keep tracing down with updated index.
+            index.value = ((RexInputRef) expr).getIndex();
+          } else {
+            return other;
+          }
+        }
+        return super.visit(other);
+      }
+    });
+    return literal.value;
   }
 
   protected static RelTraitSet adjustTraits(RelTraitSet traits, RelNode child, ImmutableBitSet groupSet) {
@@ -226,7 +339,7 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
     return aggExprs;
   }
 
-  public List<AggregateCall> getPhase2AggCalls() {
+  public List<Pair<AggregateCall, RexLiteral>> getPhase2AggCalls() {
     return phase2AggCallList;
   }
 

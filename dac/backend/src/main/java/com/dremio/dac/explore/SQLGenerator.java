@@ -1075,6 +1075,7 @@ class SQLGenerator {
       case INTEGER:
       case LIST:
       case MAP:
+      case STRUCT:
       case MIXED:
       case OTHER:
         throw new IllegalArgumentException("Can't convert without parameters to type " + toType.getDataType());

@@ -15,27 +15,28 @@
  */
 import SourceBranchPicker from "@app/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker";
 import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
+import { MutableRefObject } from "react";
 
 type TreeNodeBranchPickerProps = {
   source?: any;
-  containerEl: any;
-  onClose?: () => void;
+  anchorRef: MutableRefObject<HTMLElement>;
+  onApply?: () => void;
 };
 
 //Wrapper to show/hide picker based on DCS feature flag (always hidden in OSS and Enterprise)
 function TreeNodeBranchPicker({
   source,
-  containerEl,
-  onClose,
+  anchorRef,
+  onApply,
 }: TreeNodeBranchPickerProps) {
   if (!isDataPlaneEnabled) return null;
 
   return (
     <SourceBranchPicker
       source={source}
-      anchorEl={containerEl}
+      getAnchorEl={() => anchorRef.current}
       redirect={false}
-      onClose={onClose}
+      onApply={onApply}
     />
   );
 }

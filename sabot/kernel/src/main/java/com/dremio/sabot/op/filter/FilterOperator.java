@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.filter;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -130,6 +131,7 @@ public class FilterOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(output, splitter);
+    addDisplayStatsWithZeroValue(context, EnumSet.allOf(Metric.class));
     context.getStats().addLongStat(Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     context.getStats().addLongStat(Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     javaCodeGenWatch.reset();

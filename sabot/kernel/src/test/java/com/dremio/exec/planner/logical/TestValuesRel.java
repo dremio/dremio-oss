@@ -36,8 +36,9 @@ import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
@@ -46,6 +47,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Tests aspects of {@link ValuesRel}
  */
+@RunWith(MockitoJUnitRunner.class)
 public class TestValuesRel {
 
   @Mock
@@ -58,7 +60,6 @@ public class TestValuesRel {
 
   @Before
   public void setup() {
-    MockitoAnnotations.initMocks(this);
     // Mock cluster - Handle getter for type factory.
     typeFactory = JavaTypeFactoryImpl.INSTANCE;
     when(cluster.getTypeFactory()).thenReturn(typeFactory);

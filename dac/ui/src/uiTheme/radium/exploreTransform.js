@@ -34,9 +34,6 @@ export const methodTab = {
   color: "black",
   float: "left",
   cursor: "pointer",
-  ":hover": {
-    backgroundColor: "rgba(0,0,0,0.05)",
-  },
 };
 
 export const formSectionTitle = {

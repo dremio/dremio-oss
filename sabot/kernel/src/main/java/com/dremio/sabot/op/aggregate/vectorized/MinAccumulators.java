@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.ByteFunctionHelpers;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
@@ -39,7 +40,7 @@ public class MinAccumulators {
   private MinAccumulators(){};
 
   public static class IntMinAccumulator extends BaseSingleAccumulator {
-    private static final long INIT = 0x7fffffff7fffffffl;
+    private static final long INIT = 0x7fffffff7fffffffL;
     private static final int WIDTH_INPUT = 4;       // int inputs
     private static final int WIDTH_ACCUMULATOR = 4;
 
@@ -88,7 +89,7 @@ public class MinAccumulators {
   }
 
   public static class FloatMinAccumulator extends BaseSingleAccumulator {
-    private static final long INIT = 0x7f7fffff7f7fffffl;
+    private static final long INIT = 0x7f7fffff7f7fffffL;
     private static final int WIDTH_INPUT = 4;       // float inputs
     private static final int WIDTH_ACCUMULATOR = 4;
 
@@ -402,7 +403,7 @@ public class MinAccumulators {
   }
 
   public static class BitMinAccumulator extends BaseSingleAccumulator {
-    private static final long INIT = -1l;           // == 0xffffffffffffffff
+    private static final long INIT = -1L;           // == 0xffffffffffffffff
     private static final int BITS_PER_BYTE_SHIFT = 3;  // (1<<3) bits per byte
     private static final int BITS_PER_BYTE = (1 << BITS_PER_BYTE_SHIFT);
 
@@ -476,7 +477,7 @@ public class MinAccumulators {
   }
 
   public static class IntervalDayMinAccumulator extends BaseSingleAccumulator {
-    private static final long INIT = 0x7fffffff7fffffffl;
+    private static final long INIT = 0x7fffffff7fffffffL;
     private static final int WIDTH_INPUT = 8;       // pair-of-ints inputs
     private static final int WIDTH_ACCUMULATOR = 8; // pair-of-ints pair accumulators
 
@@ -541,7 +542,7 @@ public class MinAccumulators {
     public VarLenMinAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
                                 BufferAllocator computationVectorAllocator, int estimatedVariableWidthKeySize,
                                 int maxVariableWidthKeySize, int maxVarWidthVecUsagePercent,
-                                int accumIndex, BaseVariableWidthVector tempAccumulator,
+                                int accumIndex, BaseValueVector tempAccumulator,
                                 VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
       super(input, transferVector, AccumulatorBuilder.AccumulatorType.MIN, maxValuesPerBatch,
         computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize,

@@ -51,6 +51,7 @@ function DataPlaneSection({
       style={{
         height: dataPlaneSources.size ? height : "auto",
         overflow: "hidden",
+        marginTop: "-4px",
       }}
     >
       <ViewStateWrapper
@@ -69,7 +70,10 @@ function DataPlaneSection({
           addHref={addHref}
           listHref="/sources/dataplane/list"
           renderExtra={(item: any, targetRef: any) => (
-            <SourceBranchPicker source={item} anchorEl={targetRef.current} />
+            <SourceBranchPicker
+              source={item}
+              getAnchorEl={() => targetRef.current}
+            />
           )}
         />
       </ViewStateWrapper>

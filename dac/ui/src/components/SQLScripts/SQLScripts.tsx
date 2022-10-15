@@ -22,8 +22,6 @@ import moment from "@app/utils/dayjs";
 import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
 
-// @ts-ignore
-import { Tooltip } from "dremio-ui-lib";
 import TextHighlight from "../TextHighlight";
 import SubHeaderTabs from "@app/components/SubHeaderTabs";
 import SortDropDownMenu from "@app/components/SortDropDownMenu";
@@ -242,11 +240,12 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
         scriptAction.onClick(props, menuProps.script, userId, searchTerm);
       menuProps.closeMenu();
     };
+    const CE_PERMISSIONS = ["VIEW", "MODIFY", "DELETE"];
 
     return (
       <Menu>
         {SCRIPT_ACTIONS.reduce((iterator: any[], script: any) => {
-          if (permissions.includes(script.id)) {
+          if ((permissions ?? CE_PERMISSIONS).includes(script.id)) {
             iterator.push(
               <MenuItem
                 key={script.label}

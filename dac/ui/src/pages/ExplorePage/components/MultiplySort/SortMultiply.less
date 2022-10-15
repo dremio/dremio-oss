@@ -13,53 +13,116 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
-@import "~@app/uiTheme/less/variables.less";
 
-.base {
-  composes: section-margin horizontal-content-padding from "~@app/uiTheme/less/layout.less";
-  display: flex;
-  height: 100%;
-  flex-wrap: wrap;
-}
+:global {
+  .inner-join {
+    &__body {
+      .inner-join-left-menu {
+        height: auto;
+        min-width: 239px;
+        width: 239px;
+        border-right: 1px solid var(--dremio--color--neutral--150);
+        padding: 0 var(--dremio--spacing--1);
 
-.header {
-  background-color: #f3f3f3;
-  height: 26px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-}
+        .field {
+          display: flex;
+          align-items: center;
+          padding: var(--dremio--spacing--05) 0;
 
-@_first-column-width: 240px;
+          input {
+            height: 32px;
+            border: 1px solid var(--dremio--color--neutral--200);
 
-.name {
-  display: flex;
-  align-items: center;
-  padding-left: 10px;
-  height: 26px;
-  width: @_first-column-width + 1; // +1 from style.dragNameStyle
-  border-right: 1px solid @TABLE_BORDER;
-}
+            &:hover {
+              border-color: var(--dremio--color--neutral--300);
+            }
 
-.inner {
-  width: 100%;
-  background-color: #fff;
-  justify-content: space-between;
-  border: 1px solid @TABLE_BORDER;
-  display: flex;
-  @height: 180px;
-  max-height: @height;
-  min-height: @height;
-}
+            &:focus {
+              border-color: var(--dremio--color--primary--500);
+              background-color: var(--dremio--color--neutral--000);
+            }
+          }
+        }
 
-.add-join {
-  color: #0096ff;
-  position: relative;
-  margin-left: @_first-column-width;
-  font-size: 13px;
-  cursor: pointer;
-  align-items: center;
-  height: 35px;
-  display: inline-flex;
+        &__column-list .draggable-row {
+          gap: var(--dremio--spacing--05);
+          margin-left: 0;
+          border: none;
+          border-radius: var(--dremio--radius--1);
+
+          .font-icon {
+            height: 16px !important;
+            width: 16px !important;
+
+            .fa.icon-type {
+              height: 16px !important;
+              width: 16px !important;
+            }
+          }
+
+          &:hover {
+            background-color: var(--dremio--color--primary--100);
+            cursor: move;
+          }
+        }
+      }
+
+      .drag-area {
+        padding: var(--dremio--spacing--05) var(--dremio--spacing--1);
+
+        .drag-sort-column {
+          height: 32px;
+          border-radius: var(--dremio--radius--1);
+          padding: var(--dremio--spacing--05);
+
+          .field {
+            height: 100%;
+            background-color: var(--dremio--color--neutral--000);
+          }
+
+          .inner-join-column .dragSource > div > div {
+            height: 100%;
+            margin: 0 !important;
+            color: var(--dremio--color--icon--main);
+
+            .inner-join-column__body {
+              background-color: transparent;
+              border: none;
+              color: var(--dremio--color--text--main);
+
+              .font-icon {
+                height: 16px !important;
+                width: 16px !important;
+
+                .fa.icon-type {
+                  height: 16px !important;
+                  width: 16px !important;
+                }
+              }
+
+              & > div {
+                gap: var(--dremio--spacing--05);
+
+                .EllipsedText {
+                  margin: 0;
+                }
+              }
+
+              &.--disabled {
+                background-color: var(--dremio--color--neutral--150);
+
+                & > div {
+                  cursor: not-allowed;
+                }
+              }
+            }
+          }
+
+          &:hover {
+            background-color: var(--dremio--color--primary--100);
+          }
+        }
+      }
+    }
+  }
 }

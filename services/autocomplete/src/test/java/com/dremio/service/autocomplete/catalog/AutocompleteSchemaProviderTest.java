@@ -16,9 +16,7 @@
 
 package com.dremio.service.autocomplete.catalog;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -89,12 +87,12 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableList<Node> nodes = provider.getChildrenInScope(ImmutableList.of());
 
-    assertThat(nodes, containsInAnyOrder(
+    assertThat(nodes).containsExactlyInAnyOrder(
       new Node(USER_HOME, Node.Type.HOME),
       new Node("space one", Node.Type.SPACE),
       new Node("space two", Node.Type.SPACE),
       new Node("source two", Node.Type.SOURCE)
-    ));
+    );
   }
 
   @Test
@@ -115,12 +113,12 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableList<Node> nodes = provider.getChildrenInScope(ImmutableList.of(Cursor.CURSOR_CHARACTER));
 
-    assertThat(nodes, containsInAnyOrder(
+    assertThat(nodes).containsExactlyInAnyOrder(
       new Node(USER_HOME, Node.Type.HOME),
       new Node("space one", Node.Type.SPACE),
       new Node("space two", Node.Type.SPACE),
       new Node("source two", Node.Type.SOURCE)
-    ));
+    );
   }
 
   @Test
@@ -148,13 +146,13 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableList<Node> nodes = provider.getChildrenInScope(ImmutableList.of("path"));
 
-    assertThat(nodes, containsInAnyOrder(
+    assertThat(nodes).containsExactlyInAnyOrder(
       new Node("space inner", Node.Type.SPACE),
       new Node("source inner", Node.Type.SOURCE),
       new Node("folder inner", Node.Type.FOLDER),
       new Node("pds inner", Node.Type.PHYSICAL_SOURCE),
       new Node("vds inner", Node.Type.VIRTUAL_SOURCE)
-    ));
+    );
   }
 
   @Test
@@ -175,13 +173,13 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableList<Node> nodes = provider.getChildrenInScope(ImmutableList.of("path"));
 
-    assertThat(nodes, containsInAnyOrder(
+    assertThat(nodes).containsExactlyInAnyOrder(
       new Node("space outer", Node.Type.SPACE),
       new Node("source outer", Node.Type.SOURCE),
       new Node("folder outer", Node.Type.FOLDER),
       new Node("pds outer", Node.Type.PHYSICAL_SOURCE),
       new Node("vds outer", Node.Type.VIRTUAL_SOURCE)
-    ));
+    );
   }
 
   @Test
@@ -203,10 +201,10 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableList<Node> nodes = provider.getChildrenInScope(ImmutableList.of("path"));
 
-    assertThat(nodes, containsInAnyOrder(
+    assertThat(nodes).containsExactlyInAnyOrder(
       new Node("source one", Node.Type.SOURCE),
       new Node("source two", Node.Type.SOURCE)
-    ));
+    );
   }
 
   @Test
@@ -224,13 +222,13 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableList<Node> nodes = provider.getChildrenInScope(ImmutableList.of("path", Cursor.CURSOR_CHARACTER));
 
-    assertThat(nodes, containsInAnyOrder(
+    assertThat(nodes).containsExactlyInAnyOrder(
       new Node("space inner", Node.Type.SPACE),
       new Node("source inner", Node.Type.SOURCE),
       new Node("folder inner", Node.Type.FOLDER),
       new Node("pds inner", Node.Type.PHYSICAL_SOURCE),
       new Node("vds inner", Node.Type.VIRTUAL_SOURCE)
-    ));
+    );
   }
 
   @Test
@@ -245,7 +243,7 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableList<Node> nodes = provider.getChildrenInScope(ImmutableList.of("path"));
 
-    assertThat(nodes, empty());
+    assertThat(nodes).isEmpty();
   }
 
   @Test
@@ -271,11 +269,11 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableSet<Column> columns = provider.getColumnsByFullPath(ImmutableList.of("path"));
 
-    assertThat(columns, containsInAnyOrder(
+    assertThat(columns).containsExactlyInAnyOrder(
       Column.typedColumn("TIME", SqlTypeName.DOUBLE),
       Column.typedColumn("HAS", SqlTypeName.VARCHAR),
       Column.typedColumn("COME", SqlTypeName.INTEGER)
-    ));
+    );
   }
 
   @Test
@@ -297,7 +295,7 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableSet<Column> columns = provider.getColumnsByFullPath(ImmutableList.of("path"));
 
-    assertThat(columns, empty());
+    assertThat(columns).isEmpty();
   }
 
   @Test
@@ -313,7 +311,7 @@ public class AutocompleteSchemaProviderTest {
 
     ImmutableSet<Column> columns = provider.getColumnsByFullPath(ImmutableList.of("path"));
 
-    assertThat(columns, empty());
+    assertThat(columns).isEmpty();
   }
 
   private AutocompleteSchemaProvider createProvider(ImmutableList<String> context) {

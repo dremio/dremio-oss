@@ -134,6 +134,7 @@ public class PlannerSettings implements Context{
   public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
   public static final BooleanValidator RELATIONAL_PLANNING = new BooleanValidator("planner.enable_relational_planning", true);
   public static final BooleanValidator NESTED_SCHEMA_PROJECT_PUSHDOWN = new BooleanValidator("planner.enable_nested_schema_project_pushdown", true);
+  public static final BooleanValidator SPLIT_COMPLEX_FILTER_EXPRESSION = new BooleanValidator("planner.split_complex_filter_conditions", true);
   public static final BooleanValidator SORT_IN_JOIN_REMOVER = new BooleanValidator("planner.enable_sort_in_join_remover", true);
   public static final BooleanValidator FULL_NESTED_SCHEMA_SUPPORT = new BooleanValidator("planner.enable_full_nested_schema", true);
   public static final BooleanValidator COMPLEX_TYPE_FILTER_PUSHDOWN = new BooleanValidator("planner.complex_type_filter_pushdown", true);
@@ -165,8 +166,14 @@ public class PlannerSettings implements Context{
   // if num of records for the fragment is greater than this.
   public static final Long MIN_RECORDS_PER_FRAGMENT  = 500L;
 
-  // -1 is unlimited
+  // Thresholds for Calcite's RexUtil.toCnf/toDnf conversion function.
+  //   In the number of nodes that can be created out of the conversion.
+  //   If the number of resulting nodes exceeds that threshold, stops conversion and returns the original expression.
+  //   Leaf nodes in the expression do not count towards the threshold.
+  //   -1 is unlimited
   public static final LongValidator MAX_CNF_NODE_COUNT = new PositiveLongValidator("planner.max_cnf_node_count", Integer.MAX_VALUE, 25);
+
+  public static final LongValidator MAX_DNF_NODE_COUNT = new PositiveLongValidator("planner.max_dnf_node_count", Integer.MAX_VALUE, 128);
 
   public static final BooleanValidator VDS_AUTO_FIX = new BooleanValidator("validator.enable_vds_autofix", true);
 
@@ -197,6 +204,9 @@ public class PlannerSettings implements Context{
           new BooleanValidator("planner.parquet.in_expression_push_down", true);
   public static final BooleanValidator ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN =
           new BooleanValidator("planner.parquet.multi_column_filter_push_down", true);
+
+  public static final BooleanValidator IGNORE_SCANNED_COLUMNS_LIMIT =
+      new BooleanValidator("planner.ignore_max_leaf_columns_scanned", false);
 
   public static final LongValidator MAX_NODES_PER_PLAN = new LongValidator("planner.max_nodes_per_plan", 25_000);
 
@@ -473,6 +483,10 @@ public class PlannerSettings implements Context{
     return options.getOption(LEAF_LIMIT_SIZE);
   }
 
+  public boolean ignoreScannedColumnsLimit() {
+    return options.getOption(IGNORE_SCANNED_COLUMNS_LIMIT);
+  }
+
   public long getNoOfSplitsPerFile() {
     return options.getOption(NO_OF_SPLITS_PER_FILE);
   }
@@ -587,6 +601,10 @@ public class PlannerSettings implements Context{
 
   public boolean isNestedSchemaProjectPushdownEnabled() {
     return options.getOption(NESTED_SCHEMA_PROJECT_PUSHDOWN);
+  }
+
+  public boolean isSplitComplexFilterExpressionEnabled() {
+    return options.getOption(SPLIT_COMPLEX_FILTER_EXPRESSION);
   }
 
   public boolean isSortInJoinRemoverEnabled() {
@@ -719,6 +737,10 @@ public class PlannerSettings implements Context{
 
   public long getMaxCnfNodeCount() {
     return options.getOption(MAX_CNF_NODE_COUNT);
+  }
+
+  public long getMaxDnfNodeCount() {
+    return options.getOption(MAX_DNF_NODE_COUNT);
   }
 
   public boolean isNewSelfJoinCostEnabled(){ return options.getOption(NEW_SELF_JOIN_COST); }

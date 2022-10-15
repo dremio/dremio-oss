@@ -38,6 +38,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.BaseSender;
+import com.dremio.sabot.op.sender.SenderLatencyTracker;
 import com.dremio.sabot.op.sender.partition.vectorized.VectorizedPartitionSenderOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.annotations.VisibleForTesting;
@@ -72,6 +73,7 @@ public class PartitionSenderOperator extends BaseSender {
   protected final int numberPartitions;
   protected final int actualPartitions;
   private long recordsConsumed = 0;
+  private final SenderLatencyTracker latencyTracker = new SenderLatencyTracker();
 
   private IntArrayList terminations = new IntArrayList();
 
@@ -92,7 +94,9 @@ public class PartitionSenderOperator extends BaseSender {
     PRECOPY_NS,
     FLUSH_NS,
     NUM_FLUSHES,
-    BUCKET_SIZE;
+    BUCKET_SIZE,
+    SUM_ACK_MILLIS,
+    MAX_ACK_MILLIS;
 
     @Override
     public int metricId() {
@@ -183,7 +187,7 @@ public class PartitionSenderOperator extends BaseSender {
         }
         final OperatorStats partitionStats = new OperatorStats(stats, true);
         subPartitioners.get(i).setup(incoming, config, partitionStats, context, tunnelProvider,
-            actualPartitions, startIndex, endIndex);
+            latencyTracker, actualPartitions, startIndex, endIndex);
       }
 
       synchronized (this) {
@@ -266,6 +270,9 @@ public class PartitionSenderOperator extends BaseSender {
 
   @Override
   public void close() throws Exception {
+    stats.setLongStat(Metric.SUM_ACK_MILLIS, latencyTracker.getSumAckMillis());
+    stats.setLongStat(Metric.MAX_ACK_MILLIS, latencyTracker.getMaxAckMillis());
+
     if (partitioner != null) {
       updateAggregateStats();
       partitioner.close();

@@ -40,8 +40,6 @@ import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
 import org.apache.iceberg.types.Types;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -77,11 +75,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
     Assert.assertEquals("tblName", sqlInsertTable.getTblName().toString());
   }
 
-  @Before
-  public void before() throws Exception {
-    test(String.format("USE %s", TEMP_SCHEMA_HADOOP));
-  }
-
   @Test
   public void testSimpleInsertCommand() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
@@ -90,10 +83,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testSimpleCaseInsenstiveInsertCommand() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testInsertCaseInsensesitive("invalid_Path_test", TEMP_SCHEMA_HADOOP);
+      testInsertCaseInsensesitive("invalid_Insensitive_Path_test", TEMP_SCHEMA_HADOOP);
     }
   }
 
@@ -187,7 +179,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         tblName);
       Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
         UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
-          .hasMessageContaining(String.format("Table [%s] not found", tblName));
+          .hasMessageContaining(String.format("Table [%s] does not exist.", tblName));
       });
     }
     finally {
@@ -196,7 +188,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testInsertCommandInvalidPath() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertCommandInvalidPath("invalid_path_test", TEMP_SCHEMA_HADOOP);
@@ -387,7 +378,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
               schema, tableName);
       test(table1Create);
 
-      String insertIntoTable1 = String.format("INSERT INTO %s.%s VALUES (4, cast('2022-03-23 09:04:56' as timestamp)), (5, cast('2022-03-23 07:04:56' as timestamp))",
+      // first insert
+      String insertIntoTable1 = String.format("INSERT INTO %s.%s VALUES (1, cast('2022-03-23 09:04:56' as timestamp)), (2, cast('2022-03-23 07:04:56' as timestamp))",
               schema, tableName);
       test(insertIntoTable1);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
@@ -397,12 +389,35 @@ public class TestInsertIntoTable extends BaseTestQuery {
       DataFile dataFile = dataFiles.iterator().next();
       Assert.assertEquals(19074, dataFile.partition().get(0, Integer.class).intValue());
 
-      insertIntoTable1 = String.format("INSERT INTO %s.%s VALUES (4, cast('2022-03-23 09:04:56' as timestamp)), (5, cast('2022-03-24 09:04:56' as timestamp))",
-              schema, tableName);
+      // second insert
+      insertIntoTable1 = String.format("INSERT INTO %s.%s VALUES (3, cast('2022-03-23 09:04:56' as timestamp)), (4, cast('2022-03-24 09:04:56' as timestamp))",
+        schema, tableName);
       test(insertIntoTable1);
       icebergTable.refresh();
       dataFiles = icebergTable.currentSnapshot().addedFiles();
       Assert.assertEquals(2, Iterables.size(dataFiles));
+
+      // third insert with different column order
+      insertIntoTable1 = String.format("INSERT INTO %s.%s (ts, id) VALUES (cast('2022-03-23 09:04:56' as timestamp), 5), (cast('2022-03-23 07:04:56' as timestamp), 6)",
+        schema, tableName);
+      test(insertIntoTable1);
+      icebergTable.refresh();
+
+      Thread.sleep(1001);
+
+      // verify values
+      testBuilder()
+        .sqlQuery(String.format("select id from %s.%s", schema, tableName))
+        .unOrdered()
+        .baselineColumns("id")
+        .baselineValues(1L)
+        .baselineValues(2L)
+        .baselineValues(3L)
+        .baselineValues(4L)
+        .baselineValues(5L)
+        .baselineValues(6L)
+        .build()
+        .run();
     }
   }
 
@@ -530,7 +545,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       test(table1);
       String insert = "insert into " + schema + "." + newTable + " select * from (values('abcd'))";
       UserExceptionAssert.assertThatThrownBy(() -> test(insert))
-        .hasMessageContaining("Table schema(col1::int32) doesn't match with query schema(EXPR$0::varchar");
+        .hasMessageContaining("Failed to cast the string abcd to int32_t");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
@@ -538,7 +553,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testIncomptibleStringToInt() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testIncomptibleStringToInt("insert_incompatible_test", TEMP_SCHEMA_HADOOP);
@@ -662,7 +676,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testListComplexInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testListComplexInsertFailure("insert_list_failure_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
@@ -746,7 +759,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testStructComplexInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testStructComplexInsertFailure("insert_struct_failure_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
@@ -786,7 +798,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testComplexInsertIncompatibleFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testComplexInsertIncompatibleFailure("insert_struct_incompatible_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
@@ -852,7 +863,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       test(table1);
       Thread.sleep(1001);
       String insertTable = "insert into " + schema + "." + newTable + "_1" +  " select * from (" +
-        "values(true, cast(12345.34 as decimal(10,2)), cast(0.3 as float)))";
+        "values(1, cast(12345.34 as decimal(10,2)), cast(0.3 as float)))";
       test(insertTable);
       Thread.sleep(1001);
       String table2 = "create table " + schema + "." + newTable + "_2" +
@@ -880,7 +891,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testUpPromotablePartitionWithStarInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testUpPromotablePartitionWithStarInsert("insert_uppromotable_partition_withstar_test_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
@@ -951,7 +961,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testDecimalInsertMorePrecisionUnequalScale() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDecimalInsertMorePrecisionUnequalScale("insert_decimal_more_precision_unequal_scale_test", TEMP_SCHEMA_HADOOP);
@@ -984,7 +993,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testDecimalInsertLessPrecision() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDecimalInsertLessPrecision("insert_decimal_less_precision_test", TEMP_SCHEMA_HADOOP);
@@ -1029,7 +1037,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testDoubleToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDoubleToDecimalInsertFailure("insert_double_decimal_failure_test", TEMP_SCHEMA_HADOOP);
@@ -1072,7 +1079,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testFloatToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testFloatToDecimalInsertFailure("insert_float_decimal_failure_test", TEMP_SCHEMA_HADOOP);
@@ -1120,7 +1126,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testBigIntToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testBigIntToDecimalInsertFailure("insert_bigint_decimal_failure_test", TEMP_SCHEMA_HADOOP);
@@ -1168,7 +1173,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testIntToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testIntToDecimalInsertFailure("insert_int_decimal_failure_test", TEMP_SCHEMA_HADOOP);
@@ -1313,7 +1317,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testBigIntToIntInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testBigIntToIntInsertFailure("insert_bigint_int_failure_test", TEMP_SCHEMA_HADOOP);
@@ -1346,7 +1349,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testDoubleToFloatInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDoubleToFloatInsertFailure("insert_double_float_failure_test", TEMP_SCHEMA_HADOOP);
@@ -1632,7 +1634,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void insertIntoFewColsSchemaMismatch() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       insertIntoFewColsSchemaMismatch("insert_select_cols4", TEMP_SCHEMA_HADOOP);

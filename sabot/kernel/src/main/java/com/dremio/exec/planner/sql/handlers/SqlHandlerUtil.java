@@ -164,7 +164,7 @@ public class SqlHandlerUtil {
   }
 
   private static void ensureNoDuplicateColumnNames(List<String> fieldNames) throws ValidationException {
-    final HashSet<String> fieldHashSet = Sets.newHashSetWithExpectedSize(fieldNames.size());
+    final Set<String> fieldHashSet = Sets.newHashSetWithExpectedSize(fieldNames.size());
     for(String field : fieldNames) {
       if (fieldHashSet.contains(field.toLowerCase())) {
         throw new ValidationException(String.format("Duplicate column name [%s]", field));
@@ -334,25 +334,26 @@ public class SqlHandlerUtil {
     Set<String> existingColumns = existingSchema.getFields().stream().map(Field::getName).map(String::toUpperCase)
       .collect(Collectors.toSet());
     Set<String> newColumns = new HashSet<>();
-    String column;
+    String column, columnUpper;
     for (SqlColumnDeclaration columnDecl : newColumsDeclaration) {
-      column = columnDecl.getName().getSimple().toUpperCase();
+      column = columnDecl.getName().getSimple();
+      columnUpper = column.toUpperCase();
       SqlIdentifier type = columnDecl.getDataType().getTypeName();
-      if (existingColumns.contains(column)) {
+      if (existingColumns.contains(columnUpper)) {
         throw SqlExceptionHelper.parseError(String.format("Column [%s] already in the table.", column), sql,
           columnDecl.getParserPosition()).buildSilently();
       }
-      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, type, columnDecl.getParserPosition());
+      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, columnUpper, type, columnDecl.getParserPosition());
     }
   }
 
-  private static void checkIfSpecifiedMultipleTimesAndAddColumn(String sql, Set<String> newColumns, String column, SqlIdentifier type, SqlParserPos parserPosition) {
-    if (newColumns.contains(column)) {
+  private static void checkIfSpecifiedMultipleTimesAndAddColumn(String sql, Set<String> newColumns, String column, String columnUpper, SqlIdentifier type, SqlParserPos parserPosition) {
+    if (newColumns.contains(columnUpper)) {
       throw SqlExceptionHelper.parseError(String.format("Column [%s] specified multiple times.", column), sql,
         parserPosition).buildSilently();
     }
     checkNestedFieldsForDuplicateNameDeclarations(sql, type);
-    newColumns.add(column);
+    newColumns.add(columnUpper);
   }
 
   public static void checkNestedFieldsForDuplicateNameDeclarations(String sql, SqlIdentifier type) {
@@ -368,9 +369,10 @@ public class SqlHandlerUtil {
     List<SqlIdentifier> fieldNames = rowTypeSpec.getFieldNames();
     Set<String> newColumns = new HashSet<>();
     for (int i = 0; i < fieldNames.size(); i++) {
-      String column = fieldNames.get(i).getSimple().toUpperCase();
+      String column = fieldNames.get(i).getSimple();
+      String columnUpper = column.toUpperCase();
       SqlIdentifier type = fieldTypes.get(i).getTypeName();
-      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, type, rowTypeSpec.getParserPosition());
+      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, columnUpper, type, rowTypeSpec.getParserPosition());
     }
   }
 

@@ -19,7 +19,7 @@ import static org.projectnessie.model.Validation.validateHash;
 
 import java.util.Objects;
 
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  * A hash for the Nessie reference system.

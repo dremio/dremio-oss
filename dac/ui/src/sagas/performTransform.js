@@ -36,7 +36,7 @@ import {
 import { resetViewState } from "actions/resources";
 import { initializeExploreJobProgress } from "@app/actions/explore/dataset/data";
 import { SQLEditor } from "@app/components/SQLEditor";
-import openPopupNotification from "@app/components/PopupNotification/PopupNotification";
+import { addNotification } from "@app/actions/notification";
 import {
   PERFORM_TRANSFORM_AND_RUN,
   runDataset,
@@ -67,7 +67,10 @@ import {
 import apiUtils from "utils/apiUtils/apiUtils";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import { needsTransform } from "sagas/utils";
-import { SqlStringUtils } from "utils/SqlStringUtils/SqlStringUtils";
+import {
+  extractSelections,
+  extractStatements,
+} from "@app/utils/statements/statementParser";
 import { showConfirmationDialog } from "actions/confirmation";
 
 import { getReferenceListForTransform } from "@app/utils/nessieUtils";
@@ -84,6 +87,7 @@ import {
   fetchFilteredJobsList,
   resetFilteredJobsList,
 } from "@app/actions/joblist/jobList";
+import { extractSql, toQueryRange } from "@app/utils/statements/statement";
 
 export default function* watchPerformTransform() {
   yield all([
@@ -113,6 +117,7 @@ export function* handlePerformTransform({ payload }) {
 export function* performTransform(payload) {
   try {
     const {
+      dataset,
       runningSql,
       currentSql,
       callback,
@@ -123,7 +128,16 @@ export function* performTransform(payload) {
     yield put(setIsMultiQueryRunning({ running: true }));
 
     let queryStatuses = [];
-    const [queries, selections] = SqlStringUtils(runningSql || currentSql);
+    const [rawQueries, selections] = yield call(getParsedSql, {
+      dataset,
+      currentSql,
+      runningSql,
+    });
+
+    // we can trim end of queries without any issues because they will never contribute to invalid sql and will not mess with query ranges
+    // we can't, however, trim query beginnings because that will desync server and client line & column info.
+    const queries = rawQueries.map((q) => q.trimEnd());
+
     queries.forEach((query) =>
       queryStatuses.push({ sqlStatement: query, cancelled: false })
     );
@@ -339,7 +353,7 @@ export function* handlePerformTransformSuccess({
         newSql += status.sqlStatement + ";\n";
       }
 
-      const [, newSelections] = SqlStringUtils(newSql);
+      const newSelections = extractSelections(newSql);
 
       yield put(setPreviousAndCurrentSql({ sql: newSql }));
       yield put(setQuerySelections({ selections: newSelections }));
@@ -369,11 +383,9 @@ export function* handlePerformTransformFailure({
     );
   } else if (handlePerformTransformError(response) || isSaveViewAs) {
     willProceed = false;
-    openPopupNotification({
-      message: apiUtils.getThrownErrorException(response),
-      type: "error",
-      autoClose: 10000,
-    });
+    yield put(
+      addNotification(apiUtils.getThrownErrorException(response), "error", 10)
+    );
   }
 
   if (!isSaveViewAs) {
@@ -565,7 +577,8 @@ export function* getFetchDatasetMetaAction(props) {
           dataset,
           viewId,
           forceDataLoad,
-          sessionId
+          sessionId,
+          true
         );
       }
       navigateOptions = { replaceNav: true, preserveTip: true };
@@ -689,13 +702,15 @@ export function* showFailedJobDialog(i, sql) {
           <div className="failedJobDialog__editor">
             <SQLEditor
               readOnly
-              value={sql}
+              value={sql.trim()}
               fitHeightToContent
               maxHeight={190}
               contextMenu={false}
+              customTheme
               theme={isContrast ? "vs-dark" : "vs"}
               background={isContrast ? "#333333" : "#FFFFFF"}
-              customTheme
+              selectionBackground={isContrast ? "#304D6D" : "#B5D5FB"}
+              inactiveSelectionBackground={isContrast ? "#505862" : "#c6e9ef"}
               customOptions={{ ...options }}
             />
           </div>
@@ -721,4 +736,14 @@ export function* showFailedJobDialog(i, sql) {
 
   yield put(action);
   return yield confirmPromise;
+}
+
+export function getParsedSql({ dataset, currentSql, runningSql }) {
+  const datasetSql = dataset.get("sql");
+  const sql = runningSql || currentSql || datasetSql;
+  const statements = extractStatements(sql);
+  return [
+    statements.map((s) => extractSql(sql, s)),
+    statements.map(toQueryRange),
+  ];
 }

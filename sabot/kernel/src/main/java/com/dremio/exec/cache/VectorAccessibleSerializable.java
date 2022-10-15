@@ -57,7 +57,6 @@ import io.netty.util.internal.PlatformDependent;
  * from an InputStream and construct a new VectorContainer.
  */
 public class VectorAccessibleSerializable extends AbstractStreamSerializable {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorAccessibleSerializable.class);
   private static final Timer WRITER_TIMER = Metrics.newTimer(Metrics.join(VectorAccessibleSerializable.class.getName(), "writerTime"), ResetType.NEVER);
 
   static final int COMPRESSED_LENGTH_BYTES = 4;

@@ -27,9 +27,9 @@ import { getIsStarred } from "@app/components/Tree/resourceTreeUtils";
 // need this util as MainInfoItemName.js wraps label into a link. If we do not block event bubbling
 // redirect would occur
 import { stopPropagation } from "@app/utils/reactEventUtils";
-import Art from "../Art";
+import { IconButton, Tooltip } from "dremio-ui-lib";
 import DatasetOverlayContent from "./DatasetOverlayContent";
-
+import DatasetSummaryOverlay from "./DatasetSummaryOverlay";
 import "./DatasetItemLabel.less";
 
 export class DatasetItemLabel extends PureComponent {
@@ -57,6 +57,7 @@ export class DatasetItemLabel extends PureComponent {
     unstarNode: PropTypes.func,
     isStarredLimitReached: PropTypes.bool,
     isSearchItem: PropTypes.bool,
+    showSummaryOverlay: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -98,7 +99,13 @@ export class DatasetItemLabel extends PureComponent {
 
   renderDefaultNode() {
     let { name } = this.props;
-    const { inputValue, fullPath, showFullPath, isSearchItem } = this.props;
+    const {
+      inputValue,
+      fullPath,
+      showFullPath,
+      isSearchItem,
+      showSummaryOverlay = true,
+    } = this.props;
     const joinedPath = fullPath.slice(0, -1).join(".");
 
     if (!name && fullPath) {
@@ -115,14 +122,22 @@ export class DatasetItemLabel extends PureComponent {
           data-qa={name}
           className={isSearchItem ? "heading searchHeading" : "heading"}
         >
-          <TextHighlight text={name} inputValue={inputValue} />
+          <TextHighlight
+            showTooltip={!showSummaryOverlay}
+            text={name}
+            inputValue={inputValue}
+          />
         </EllipsedText>
         {showFullPath && (
           <EllipsedText
             text={joinedPath}
             className={isSearchItem ? "heading2 searchSubHeading" : "heading2"}
           >
-            <TextHighlight text={joinedPath} inputValue={inputValue} />
+            <TextHighlight
+              showTooltip={!showSummaryOverlay}
+              text={joinedPath}
+              inputValue={inputValue}
+            />
           </EllipsedText>
         )}
       </div>
@@ -145,6 +160,7 @@ export class DatasetItemLabel extends PureComponent {
       starNode,
       unstarNode,
       isStarredLimitReached,
+      showSummaryOverlay,
     } = this.props;
 
     const { isOpenOverlay } = this.state;
@@ -152,7 +168,9 @@ export class DatasetItemLabel extends PureComponent {
     const iconStyle = iconSize === "LARGE" ? styles.largeIcon : {};
     const labelTypeIcon = iconSize === "LARGE" ? `${typeIcon}Large` : typeIcon;
     const node = customNode || this.renderDefaultNode();
-    const arrowIconType = isOpenOverlay ? "ArrowDown" : "ArrowRight";
+    const arrowIconType = isOpenOverlay
+      ? "interface/down-chevron"
+      : "interface/right-chevron";
     const showInfoIcon = true;
     const unstarredWording = intl.formatMessage({
       id: `${
@@ -169,53 +187,85 @@ export class DatasetItemLabel extends PureComponent {
       }`,
     });
 
+    const renderDataItemLabel = () => {
+      return (
+        <div
+          data-qa="info-icon"
+          style={{
+            ...styles.iconsBase,
+            ...(showInfoIcon && isExpandable && { cursor: "pointer" }),
+          }}
+          onMouseEnter={this.handleMouseEnterIcon}
+          onMouseLeave={this.handleMouseLeaveIcon}
+          onClick={this.handleClick}
+          className={classNames(
+            "datasetItemLabel-item__content",
+            !isExpandable && "--isNotExpandable"
+          )}
+        >
+          {isExpandable && (
+            <dremio-icon name={arrowIconType} class="expand-icon" />
+          )}
+          <FontIcon
+            type={labelTypeIcon}
+            iconStyle={{
+              ...iconStyle,
+              verticalAlign: "middle",
+              flexShrink: 0,
+            }}
+          />
+          {node}
+        </div>
+      );
+    };
+
     return (
       <div style={{ ...styles.base, ...(style || {}) }} className={className}>
         <div style={styles.list} className="datasetItemLabel">
           <div className="datasetItemLabel-item">
-            <div
-              data-qa="info-icon"
-              style={{
-                ...styles.iconsBase,
-                ...(showInfoIcon && isExpandable && { cursor: "pointer" }),
-              }}
-              onMouseEnter={this.handleMouseEnterIcon}
-              onMouseLeave={this.handleMouseLeaveIcon}
-              onClick={this.handleClick}
-              className={classNames(
-                "datasetItemLabel-item__content",
-                !isExpandable && "--isNotExpandable"
-              )}
-            >
-              {isExpandable && (
-                <Art
-                  src={`${arrowIconType}.svg`}
-                  alt=""
-                  style={{ height: 24, width: 24 }}
-                />
-              )}
-              <FontIcon
-                type={labelTypeIcon}
-                iconStyle={{
-                  ...iconStyle,
-                  verticalAlign: "middle",
-                  flexShrink: 0,
-                }}
-              />
-              {node}
-            </div>
+            {labelTypeIcon !== "Script" && labelTypeIcon !== "FileEmpty" ? (
+              <Tooltip
+                open={showSummaryOverlay}
+                type="richTooltip"
+                enterDelay={1000}
+                title={
+                  <DatasetSummaryOverlay
+                    inheritedTitle={fullPath.last()}
+                    fullPath={fullPath}
+                  />
+                }
+              >
+                {renderDataItemLabel()}
+              </Tooltip>
+            ) : (
+              renderDataItemLabel()
+            )}
             <div className="datasetItemLabel-item__iconBlock">
               {shouldAllowAdd && (
                 <>
-                  <Art
-                    src="CirclePlus.svg"
-                    alt=""
-                    className="datasetItemLabel-item__add"
+                  <IconButton
+                    tooltip="Add to SQL editor"
                     onClick={() => addtoEditor(fullPath)}
-                    title="Add to SQL editor"
-                  />
+                    className="datasetItemLabel-item__add"
+                  >
+                    <dremio-icon name="interface/add-small" />
+                  </IconButton>
                   {nodeId && (
-                    <Art
+                    <IconButton
+                      tooltip={
+                        isStarred
+                          ? intl.formatMessage({
+                              id: "Resource.Tree.Added.Star",
+                            })
+                          : unstarredWording
+                      }
+                      onClick={() => {
+                        if (!isStarred && !isStarredLimitReached) {
+                          starNode(nodeId);
+                        } else if (isStarred) {
+                          unstarNode(nodeId);
+                        }
+                      }}
                       className={
                         isStarred
                           ? "datasetItemLabel-item__starIcon datasetItemLabel-item--starred"
@@ -225,29 +275,22 @@ export class DatasetItemLabel extends PureComponent {
                                 : "--unstarred"
                             }`
                       }
-                      src={isStarred ? "StarFilled.svg" : "StarUnfilled.svg"}
-                      alt={
-                        isStarred
-                          ? intl.formatMessage({
-                              id: "Resource.Tree.Added.Star",
-                            })
-                          : unstarredAltText
-                      }
-                      onClick={() => {
-                        if (!isStarred && !isStarredLimitReached) {
-                          starNode(nodeId);
-                        } else if (isStarred) {
-                          unstarNode(nodeId);
+                    >
+                      <dremio-icon
+                        name={
+                          isStarred
+                            ? "interface/star-starred"
+                            : "interface/star-unstarred"
                         }
-                      }}
-                      title={
-                        isStarred
-                          ? intl.formatMessage({
-                              id: "Resource.Tree.Added.Star",
-                            })
-                          : unstarredWording
-                      }
-                    />
+                        alt={
+                          isStarred
+                            ? intl.formatMessage({
+                                id: "Resource.Tree.Added.Star",
+                              })
+                            : unstarredAltText
+                        }
+                      />
+                    </IconButton>
                   )}
                 </>
               )}

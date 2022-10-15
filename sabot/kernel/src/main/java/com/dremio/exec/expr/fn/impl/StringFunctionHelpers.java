@@ -297,4 +297,39 @@ public class StringFunctionHelpers {
     }
     return dateFields;
   }
+
+  // returns true if strings are equal case-insensitive, false otherwise
+  public static boolean equalsIgnoreCase(org.apache.arrow.memory.ArrowBuf left, long lStart, long lEnd, org.apache.arrow.memory.ArrowBuf right, long rStart, long rEnd) {
+    if (org.apache.arrow.memory.BoundsChecking.BOUNDS_CHECKING_ENABLED) {
+      left.checkBytes(lStart, lEnd);
+      right.checkBytes(rStart, rEnd);
+    }
+    long n = lEnd - lStart;
+    if (n != rEnd - rStart) {
+      return false;
+    } else {
+      long lPos = lStart;
+      long rPos = rStart;
+      while (n-- != 0L) {
+        byte leftByte = left.getByte(lPos);
+        byte rightByte = right.getByte(rPos);
+        if (leftByte != rightByte) {
+          leftByte -= 32;
+          rightByte -= 32;
+          if (leftByte < 65) {
+            leftByte += 32;
+          }
+          if (rightByte < 65) {
+            rightByte += 32;
+          }
+          if (leftByte != rightByte) {
+            return false;
+          }
+        }
+        ++lPos;
+        ++rPos;
+      }
+      return true;
+    }
+  }
 }

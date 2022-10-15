@@ -19,8 +19,15 @@ import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.PIPELINE_RE
 import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_RES_GRP;
 
 import java.security.PrivilegedExceptionAction;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -29,6 +36,7 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import com.dremio.common.DeferredException;
 import com.dremio.common.ProcessExit;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -42,6 +50,7 @@ import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
@@ -63,7 +72,9 @@ import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.memory.MemoryArbiterTask;
+import com.dremio.sabot.memory.MemoryTaskAndShrinkableOperator;
 import com.dremio.sabot.op.receiver.IncomingBuffers;
+import com.dremio.sabot.op.spi.Operator;
 import com.dremio.sabot.task.AsyncTask;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
@@ -82,8 +93,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.SettableFuture;
 
-import io.netty.util.internal.OutOfDirectMemoryError;
-
 /**
  * A reusable Runnable and Task that executes a fragment's pipeline. This
  * runnable is designed to stop regularly such that it can be rescheduled as
@@ -98,7 +107,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutor.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(FragmentExecutor.class);
-  private static final long MB = 1024 * 1024;
+  public static final long MB = 1024 * 1024;
 
   @VisibleForTesting
   public static final String INJECTOR_DO_WORK = "injectOOMOnRun";
@@ -170,6 +179,16 @@ public class FragmentExecutor implements MemoryArbiterTask {
   // This is used to keep track of fragments that use the memory arbiter
   private final MemoryArbiter memoryArbiter;
   private long memoryGrantInBytes = 0;
+  private long maxMemoryUsedPerPump = 16 * MB;
+  private final List<MemoryTaskAndShrinkableOperator> shrinkableOperators = new ArrayList<>();
+  // This is the list of operators that have been asked to spill
+  private final Map<Integer, Long> spillingOperators = new HashMap<>();
+  // This is a queue of in-progress spilling operators
+  private final Queue<Integer> spillingOperatorQueue = new ArrayDeque<>(10);
+
+  // used to block the fragment when the node is short of direct memory and
+  // unblock the fragment when the node has direct memory
+  private final SharedResource memoryResource;
 
   public FragmentExecutor(
       FragmentStatusReporter statusReporter,
@@ -205,6 +224,9 @@ public class FragmentExecutor implements MemoryArbiterTask {
       1 : fragment.getMajor().getFragmentExecWeight();
     this.schedulingWeight = schedulingWeight;
     this.memoryArbiter = memoryArbiter;
+    if (memoryArbiter != null) {
+      memoryArbiter.startTask(this);
+    }
     this.leafFragment = fragment.getMajor().getLeafFragment();
     this.clusterCoordinator = clusterCoordinator;
     this.reader = reader;
@@ -227,16 +249,33 @@ public class FragmentExecutor implements MemoryArbiterTask {
     this.buffers = new IncomingBuffers(
       deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider,
       fileCursorManagerFactory,
-      fragment, allocator, config, executionControls, spillService, reader.getPlanFragmentsIndex());
+      fragment, allocator, config, fragmentOptions, executionControls, spillService, reader.getPlanFragmentsIndex());
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
     this.executionControls = executionControls;
     this.allocatorLock = sharedResources.getGroup(PIPELINE_RES_GRP).createResource("frag-allocator", SharedResourceType.UNKNOWN);
+    this.memoryResource = sharedResources.getGroup(PIPELINE_RES_GRP).createResource("blocked-on-memory", SharedResourceType.WAIT_FOR_MEMORY);
   }
 
   @Override
   public String getTaskId() {
     return name;
+  }
+
+  @Override
+  public void blockOnMemory() {
+    Preconditions.checkArgument(this.taskState != State.BLOCKED_ON_MEMORY, "Unexpected state, the fragment is already blocked on memory");
+    this.taskState = State.BLOCKED_ON_MEMORY;
+    logger.debug("Fragment {}:{} blocked on memory", fragment.getHandle().getMajorFragmentId(), fragment.getHandle().getMinorFragmentId());
+    this.memoryResource.markBlocked();
+  }
+
+  @Override
+  public void unblockOnMemory() {
+    if (this.taskState == State.BLOCKED_ON_MEMORY) {
+      logger.debug("Fragment {}:{} was blocked on memory, unblocked now", fragment.getHandle().getMajorFragmentId(), fragment.getHandle().getMinorFragmentId());
+      this.memoryResource.markAvailable();
+    }
   }
 
   @Override
@@ -254,9 +293,14 @@ public class FragmentExecutor implements MemoryArbiterTask {
     return allocator.getAllocatedMemory();
   }
 
+  @Override
+  public List<MemoryTaskAndShrinkableOperator> getShrinkableOperators() {
+    return shrinkableOperators;
+  }
+
   // TODO: Improve this based on actual usage
   private long getMemoryToAcquire() {
-    return 16 * MB;
+    return maxMemoryUsedPerPump;
   }
 
   private void postRunUpdate() {
@@ -264,6 +308,65 @@ public class FragmentExecutor implements MemoryArbiterTask {
       memoryArbiter.releaseMemoryGrant(this);
     }
     assert memoryGrantInBytes == 0 : "Memory grant should be 0";
+  }
+
+  private int getPhaseAndOperatorId(int localOperatorId) {
+    return (fragment.getMajorFragmentId() << 16) + localOperatorId;
+  }
+
+  @Override
+  public boolean isOperatorShrinkingMemory(Operator.ShrinkableOperator shrinkableOperator) {
+    return spillingOperators.containsKey(getPhaseAndOperatorId(shrinkableOperator.getOperatorId()));
+  }
+
+  @Override
+  public void shrinkMemory(Operator.ShrinkableOperator shrinkableOperator, long currentMemoryUsed) throws Exception {
+    // Need to send an OOB message to self
+    // We could call handleShrinkMemoryRequest() directly. However, sending an OOBMessage ensures that the
+    // task is moved to Runnable state
+    ExecProtos.ShrinkMemoryUsage shrinkMemoryUsage = ExecProtos.ShrinkMemoryUsage.newBuilder().setMemoryInBytes(currentMemoryUsed).build();
+    OutOfBandMessage.Payload payload = new OutOfBandMessage.Payload(shrinkMemoryUsage);
+    OutOfBandMessage outOfBandMessage = new OutOfBandMessage(
+      fragment.getHandle().getQueryId(),
+      fragment.getMajorFragmentId(), fragment.getMinorFragmentId(),
+      getPhaseAndOperatorId(shrinkableOperator.getOperatorId()), payload);
+    logger.debug("Sending shrinkMemory OOB to {} for operator {}:{}:{}", fragment.getAssignment(),
+      fragment.getMajorFragmentId(), fragment.getMinorFragmentId(), shrinkableOperator.getOperatorId());
+    tunnelProvider.getExecTunnel(fragment.getAssignment()).sendOOBMessage(outOfBandMessage);
+  }
+
+  private boolean reduceMemoryUsageForOperator(int operatorId) throws Exception {
+    Long memoryUsageBeforeSpilling = spillingOperators.get(operatorId);
+    if (memoryUsageBeforeSpilling == null) {
+      return true;
+    }
+
+    int localOperatorId = operatorId & 0xFFFF;
+    logger.trace("Asking operator {} to spill", localOperatorId);
+    boolean doneSpilling = pipeline.shrinkMemory(operatorId, memoryUsageBeforeSpilling);
+    if (doneSpilling) {
+      // Spilled the required amount of memory
+      logger.debug("Operator {} done spilling", localOperatorId);
+      logger.debug("Memory arbiter state {}", memoryArbiter);
+      spillingOperators.remove(operatorId);
+    }
+
+    return doneSpilling;
+  }
+
+  private void reduceMemoryUsage() throws Exception {
+    if (spillingOperatorQueue.isEmpty()) {
+      // Make a copy of the spilling operator ids
+      spillingOperatorQueue.addAll(spillingOperators.keySet());
+    }
+
+    if (spillingOperatorQueue.isEmpty()) {
+      return;
+    }
+
+    // pick the first spilling operator and ask it to spill
+    int operatorId = spillingOperatorQueue.remove();
+    reduceMemoryUsageForOperator(operatorId);
   }
 
   /**
@@ -321,8 +424,8 @@ public class FragmentExecutor implements MemoryArbiterTask {
       if(!isSetup){
         stats.setupStarted();
         try {
-          if (memoryArbiter != null) {
-            memoryArbiter.acquireMemoryGrant(this, getMemoryToAcquire());
+          if ((memoryArbiter != null) && !memoryArbiter.acquireMemoryGrant(this, getMemoryToAcquire())) {
+            return;
           }
           setupExecution();
         } finally {
@@ -342,17 +445,33 @@ public class FragmentExecutor implements MemoryArbiterTask {
         return;
       }
 
+      if (!spillingOperators.isEmpty()) {
+        // there are spilling operators
+        reduceMemoryUsage();
+        return;
+      }
+
       // handle any previously sent fragment finished messages.
       FragmentHandle finishedFragment;
       while ((finishedFragment = eventProvider.pollFinishedReceiver()) != null) {
         pipeline.getTerminalOperator().receivingFragmentFinished(finishedFragment);
       }
 
-      if (memoryArbiter != null) {
-        memoryArbiter.acquireMemoryGrant(this, getMemoryToAcquire());
+      long memoryUsedBeforePump = getUsedMemory();
+      if ((memoryArbiter != null) && !memoryArbiter.acquireMemoryGrant(this, getMemoryToAcquire())) {
+        return;
       }
+
       // pump the pipeline
       taskState = pumper.run();
+      long memoryUsedAfterPump = getUsedMemory();
+      if (memoryUsedAfterPump > memoryUsedBeforePump) {
+        long diff = memoryUsedAfterPump - memoryUsedBeforePump;
+        if (diff > maxMemoryUsedPerPump) {
+          logger.debug("Used {} more memory than granted {}", diff, maxMemoryUsedPerPump);
+          maxMemoryUsedPerPump = diff;
+        }
+      }
 
       // if we've finished all work, let's wrap up.
       if(taskState == State.DONE){
@@ -363,7 +482,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
 
     } catch (OutOfMemoryError | OutOfMemoryException e) {
       // handle out of memory errors differently from other error types.
-      if (e instanceof OutOfDirectMemoryError || e instanceof OutOfMemoryException || "Direct buffer memory".equals(e.getMessage()) || INJECTOR_DO_WORK.equals(e.getMessage())) {
+      if (ErrorHelper.isDirectMemoryException(e) || INJECTOR_DO_WORK.equals(e.getMessage())) {
         transitionToFailed(UserException.memoryError(e)
             .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(new OutOfMemoryException(e), allocator))
             .buildSilently());
@@ -391,6 +510,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
   private void refreshState() {
     Preconditions.checkArgument(taskState == State.BLOCKED_ON_DOWNSTREAM ||
       taskState == State.BLOCKED_ON_UPSTREAM ||
+      taskState == State.BLOCKED_ON_MEMORY ||
       taskState == State.BLOCKED_ON_SHARED_RESOURCE, "Should only called when we were previously blocked.");
     Preconditions.checkArgument(sharedResources.isAvailable(), "Should only be called once at least one shared group is available: " + sharedResources.toString());
     taskState = State.RUNNABLE;
@@ -476,7 +596,12 @@ public class FragmentExecutor implements MemoryArbiterTask {
         );
 
     pipeline.setup();
-
+    shrinkableOperators.addAll(
+      pipeline.getShrinkableOperators()
+        .stream()
+        .map(shrinkableOperator -> { return new MemoryTaskAndShrinkableOperator(this, shrinkableOperator); })
+        .collect(Collectors.toList())
+    );
     clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).addNodeStatusListener(crashListener);
 
     transitionToRunning();
@@ -716,6 +841,41 @@ public class FragmentExecutor implements MemoryArbiterTask {
     return taskDescriptor;
   }
 
+  // This fragment got a shrink memory request. Add this to the list of spilling operators
+  private void handleShrinkMemoryRequest(OutOfBandMessage message) {
+    unblockOnMemory();
+    ExecProtos.ShrinkMemoryUsage shrinkMemoryUsage = message.getPayload(ExecProtos.ShrinkMemoryUsage.parser());
+    Long prevValue = spillingOperators.put(message.getOperatorId(), shrinkMemoryUsage.getMemoryInBytes());
+    if (prevValue != null) {
+      logger.debug("Operator {} got duplicate OOM message, previous request {}, current request {}",
+        message.getOperatorId(), prevValue, shrinkMemoryUsage.getMemoryInBytes());
+    }
+  }
+
+  private void handleOOBMessage(OutOfBandMessage outOfBandMessage) throws Exception {
+    if (!isSetup) {
+      if (outOfBandMessage.getIsOptional()) {
+        logger.warn("Fragment {} received optional OOB message in state {} for operatorId {}. Fragment is not yet set up. Ignoring message.",
+          this.getHandle().toString(), state.toString(), outOfBandMessage.getOperatorId());
+      } else {
+        logger.error("Fragment {} received OOB message in state {} for operatorId {}. Fragment is not yet set up.",
+          this.getHandle().toString(), state.toString(), outOfBandMessage.getOperatorId());
+        throw new IllegalStateException("Unable to handle OOB message");
+      }
+    } else {
+      pipeline.workOnOOB(outOfBandMessage);
+    }
+  }
+
+  @Override
+  public String toString() {
+    StringBuffer buffer = new StringBuffer();
+    buffer.append(name)
+      .append(" : ")
+      .append("state=" + taskState);
+    return buffer.toString();
+  }
+
   /**
    * Facade for external events.
    */
@@ -750,35 +910,28 @@ public class FragmentExecutor implements MemoryArbiterTask {
         final AutoCloseable closeable = msgBuffer.map(AutoCloseable.class::cast).orElse(() -> {});
 
         final OutOfBandMessage finalMessage = message;
-        workQueue.put(() -> {
-          try {
-            if (!isSetup) {
-              if (finalMessage.getIsOptional()) {
-                logger.warn("Fragment {} received optional OOB message in state {} for operatorId {}. Fragment is not yet set up. Ignoring message.",
-                        this.getHandle().toString(), state.toString(), finalMessage.getOperatorId());
-              } else {
-                logger.error("Fragment {} received OOB message in state {} for operatorId {}. Fragment is not yet set up.",
-                        this.getHandle().toString(), state.toString(), finalMessage.getOperatorId());
-                throw new IllegalStateException("Unable to handle OOB message");
-              }
-            } else {
-              pipeline.workOnOOB(finalMessage);
-            }
-          } catch (IllegalStateException e) {
-            logger.warn("Failure while handling OOB message. {}", finalMessage, e);
-            throw e;
-          } catch (Exception e) {
-            //propagate the exception
-            logger.warn("Failure while handling OOB message. {}", finalMessage, e);
-            throw new IllegalStateException(e);
-          } finally {
+        if (message.isShrinkMemoryRequest()) {
+          handleShrinkMemoryRequest(message);
+        } else {
+          workQueue.put(() -> {
             try {
-              closeable.close();
+              handleOOBMessage(finalMessage);
+            } catch (IllegalStateException e) {
+              logger.warn("Failure while handling OOB message. {}", finalMessage, e);
+              throw e;
             } catch (Exception e) {
-              logger.error("Error while closing OOBMessage ref", e);
+              //propagate the exception
+              logger.warn("Failure while handling OOB message. {}", finalMessage, e);
+              throw new IllegalStateException(e);
+            } finally {
+              try {
+                closeable.close();
+              } catch (Exception e) {
+                logger.error("Error while closing OOBMessage ref", e);
+              }
             }
-          }
-        }, closeable);
+          }, closeable);
+        }
       }
     }
 
@@ -848,6 +1001,12 @@ public class FragmentExecutor implements MemoryArbiterTask {
     @Override
     public void updateBlockedOnUpstreamDuration(long duration) {
       stats.setBlockedOnUpstreamDuration(duration);
+    }
+
+    @Override
+    public void updateBlockedOnMemoryDuration(long duration) {
+      stats.setBlockedOnMemoryDuration(duration);
+      memoryArbiter.removeFromBlocked(FragmentExecutor.this);
     }
 
     @Override

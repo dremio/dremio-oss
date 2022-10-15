@@ -30,9 +30,9 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.inject.Provider;
 
@@ -71,6 +71,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -88,6 +89,7 @@ import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
@@ -148,13 +150,16 @@ public class TestPluginsManager {
     when(sabotContext.getConfig())
         .thenReturn(DremioTest.DEFAULT_SABOT_CONFIG);
 
-    final HashSet<ClusterCoordinator.Role> roles = Sets.newHashSet(ClusterCoordinator.Role.MASTER);
+    final Set<Role> roles = Sets.newHashSet(ClusterCoordinator.Role.MASTER);
 
     // used in newPlugin
     when(sabotContext.getRoles())
         .thenReturn(roles);
     when(sabotContext.isMaster())
         .thenReturn(true);
+
+    when(sabotContext.getCredentialsServiceProvider())
+      .thenReturn(() -> mock(CredentialsService.class));
 
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
     schedulerService = mock(SchedulerService.class);
@@ -260,6 +265,7 @@ public class TestPluginsManager {
     }
 
     @Override
+    @SuppressWarnings("EqualsHashCode") // .hashCode() is final in ConnectionConf and can't be overridden
     public boolean equals(Object other) {
       // this forces the replace call to always do so
       return false;

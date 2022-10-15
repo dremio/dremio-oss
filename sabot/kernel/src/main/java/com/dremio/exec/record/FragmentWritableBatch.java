@@ -113,7 +113,8 @@ public class FragmentWritableBatch{
         .setQueryId(queryId)
         .setReceivingMajorFragmentId(receiveMajorFragmentId)
         .setSendingMajorFragmentId(sendMajorFragmentId)
-        .setSendingMinorFragmentId(sendMinorFragmentId);
+        .setSendingMinorFragmentId(sendMinorFragmentId)
+        .setSendEpochTimestamp(System.currentTimeMillis());
 
     for(final int i : receiveMinorFragmentId){
       builder.addReceivingMinorFragmentId(i);

@@ -97,13 +97,13 @@ public class TestHashTable2 extends DremioTest {
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
             pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
             final int keyHash = (int)hashValues.get(keyIndex);
-            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertArrayEquals("ordinals mismatch", expectedOrdinals, actualOrdinals);
           assertEquals("Absolute size mismatch", 4, bht.size());
@@ -162,13 +162,13 @@ public class TestHashTable2 extends DremioTest {
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
             pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
             final int keyHash = (int)hashValues.get(keyIndex);
-            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertArrayEquals("ordinals mismatch", expectedOrdinals, actualOrdinals);
           assertEquals("Absolute size mismatch", 4, bht.size());
@@ -226,13 +226,13 @@ public class TestHashTable2 extends DremioTest {
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
             pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
             final int keyHash = (int)hashValues.get(keyIndex);
-            assertEquals(0, bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+            assertEquals(0, bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash));
           }
         }
       }
@@ -368,16 +368,16 @@ public class TestHashTable2 extends DremioTest {
           final boolean fixedOnly = pivot.getVariableCount() == 0;
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), fixedOnly,
               pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
             final int keyHash = (int)hashValues.get(keyIndex);
-            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+            actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertArrayEquals("ordinals mismatch", expectedOrdinals, actualOrdinals);
-          assertEquals("Absolute size mismatch", expectedOrdinals[expectedOrdinals.length -1] + 1, bht.size());
+          assertEquals("Absolute size mismatch", expectedOrdinals[expectedOrdinals.length - 1] + 1, bht.size() + bht.gaps());
           // we can't match the capacity exactly as the initialization of hash table capacity depends on heuristics
           // in LHashCapacities
           assertTrue("Unexpected capacity", numChunks * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH) <= bht.capacity());
@@ -443,13 +443,13 @@ public class TestHashTable2 extends DremioTest {
           final long keyVarVectorAddr = var.getMemoryAddress();
 
           hashValues.allocateNew(records);
-          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, false,
+          final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), false,
               pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
           HashComputation.computeHash(blockChunk);
 
           for (int keyIndex = 0; keyIndex < records; keyIndex++) {
             final int keyHash = (int)hashValues.get(keyIndex);
-            bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+            bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
 
           assertTrue(bht.capacity() > Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
@@ -461,7 +461,7 @@ public class TestHashTable2 extends DremioTest {
           // insert the same records again and check the hashtable is expanded in capacity
           for (int keyIndex = 20; keyIndex < records; keyIndex++) {
             final int keyHash = (int)hashValues.get(keyIndex);
-            bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
+            bht.add(keyFixedVectorAddr, keyVarVectorAddr, var.getCapacity(), keyIndex, keyHash);
           }
           assertTrue(bht.capacity() > Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
         }

@@ -16,7 +16,8 @@
 package com.dremio.sabot.sender.partition;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -82,7 +83,7 @@ public class TestVectorizedPartitionSender extends BaseTestOperator {
           b.release();
         }
         return null;
-      }}).when(tunnel).sendRecordBatch(any(FragmentWritableBatch.class));
+      }}).when(tunnel).sendRecordBatch(any(FragmentWritableBatch.class), any());
 
     final TunnelProvider provider = mock(TunnelProvider.class);
     when(provider.getExecTunnel(any(NodeEndpoint.class))).thenReturn(tunnel);
@@ -96,8 +97,8 @@ public class TestVectorizedPartitionSender extends BaseTestOperator {
     int sum = 0;
     assertEquals(8, VectorizedPartitionSenderOperator.PARTITION_MULTIPLE ); // Min/Max computed for 8 partitions. Higher multiples have tighter bounds, and vice versa
     for (int i = 0; i < NUM_FRAGMENTS; i++) {
-      assert (rowCountPerFragment[i] >= MIN_NUM_PER_FRAGMENT);
-      assert (rowCountPerFragment[i] <= MAX_NUM_PER_FRAGMENT);
+      assertTrue(rowCountPerFragment[i] >= MIN_NUM_PER_FRAGMENT);
+      assertTrue(rowCountPerFragment[i] <= MAX_NUM_PER_FRAGMENT);
       sum += rowCountPerFragment[i];
     }
     assertEquals(NUM_ROWS, sum);

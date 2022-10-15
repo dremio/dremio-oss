@@ -36,7 +36,7 @@ public class TestSingleValueFunctions extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("employee_id")
-      .baselineValues(1113l)
+      .baselineValues(1113L)
       .build().run();
   }
 
@@ -208,7 +208,7 @@ public class TestSingleValueFunctions extends BaseTestQuery {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("employee_id")
-      .baselineValues(1113l)
+      .baselineValues(1113L)
       .build().run();
   }
 

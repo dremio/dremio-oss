@@ -19,6 +19,7 @@ import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.anySet;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -29,32 +30,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttle;
-import org.apache.calcite.rel.RelVisitor;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.CorrelationId;
-import org.apache.calcite.rel.metadata.Metadata;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.SqlString;
-import org.apache.calcite.util.Litmus;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -113,6 +98,14 @@ public class TestCreateViewHandler extends DremioTest {
     null
   );
 
+  private static SqlCreateView invalid_input = new SqlCreateView(
+    SqlParserPos.ZERO,
+    new SqlIdentifier(VIEW_PATH, SqlParserPos.ZERO),
+    SQL_NODE_LIST,
+    sqlNode,
+    true,
+    null
+  );
   @Rule
   public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
@@ -161,6 +154,50 @@ public class TestCreateViewHandler extends DremioTest {
   }
 
   @Test
+  public void testCreateViewInvalidQueryDrop() throws Exception {
+    testCreateViewInvalidQuery(SqlKind.DROP_TABLE);
+  }
+
+  @Test
+  public void testCreateViewInvalidQueryCreate() throws Exception {
+    testCreateViewInvalidQuery(SqlKind.CREATE_TABLE);
+  }
+
+  @Test
+  public void testCreateViewInvalidQueryUpdate() throws Exception {
+    testCreateViewInvalidQuery(SqlKind.UPDATE);
+  }
+
+  @Test
+  public void testCreateViewInvalidQueryInsert() throws Exception {
+    testCreateViewInvalidQuery(SqlKind.INSERT);
+  }
+
+  @Test
+  public void testCreateViewInvalidQueryMerge() throws Exception {
+    testCreateViewInvalidQuery(SqlKind.MERGE);
+  }
+
+  @Test
+  public void testCreateViewInvalidQueryDelete() throws Exception {
+    testCreateViewInvalidQuery(SqlKind.DELETE);
+  }
+
+  private void testCreateViewInvalidQuery(SqlKind kind) throws Exception {
+    when(context.getCatalog()).thenReturn(catalog);
+    when(config.getContext()).thenReturn(context);
+    when(optionManager.getOption(VERSIONED_VIEW_ENABLED)).thenReturn(true);
+    when(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT)).thenReturn(queryString);
+    when(sqlNode.isA(anySet())).thenCallRealMethod();
+    when(sqlNode.getKind()).thenReturn(kind);
+    when(context.getOptions()).thenReturn(optionManager);
+    when(config.getContext()).thenReturn(context);
+    createViewHandler = spy(new CreateViewHandler(config));
+    assertThatThrownBy(() -> createViewHandler.toResult("", invalid_input))
+      .hasMessageContaining("Cannot create view on statement of this type");
+  }
+
+  @Test
   public void replaceVersionedViewSuccessful() throws Exception {
     setupResources();
     doReturn(replaceViewOptions).when(createViewHandler).getViewOptions(DEFAULT_NAMESPACE_KEY, true);
@@ -199,156 +236,10 @@ public class TestCreateViewHandler extends DremioTest {
     when(context.getOptions()).thenReturn(optionManager);
     when(config.getContext()).thenReturn(context);
     when(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT)).thenReturn(queryString);
+    when(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT, true)).thenReturn(queryString);
+    when(sqlNode.getKind()).thenReturn(SqlKind.SELECT);
     createViewHandler = spy(new CreateViewHandler(config));
     // versioned view test only
     doReturn(true).when(createViewHandler).isVersioned(DEFAULT_NAMESPACE_KEY);
-  }
-
-  private class MockRelNode implements RelNode {
-
-    @Override
-    public Convention getConvention() {
-      return null;
-    }
-
-    @Override
-    public String getCorrelVariable() {
-      return null;
-    }
-
-    @Override
-    public RelNode getInput(int i) {
-      return null;
-    }
-
-    @Override
-    public int getId() {
-      return 0;
-    }
-
-    @Override
-    public String getDigest() {
-      return null;
-    }
-
-    @Override
-    public RelTraitSet getTraitSet() {
-      return null;
-    }
-
-    @Override
-    public RelDataType getRowType() {
-      return null;
-    }
-
-    @Override
-    public String getDescription() {
-      return null;
-    }
-
-    @Override
-    public RelDataType getExpectedInputRowType(int ordinalInParent) {
-      return null;
-    }
-
-    @Override
-    public List<RelNode> getInputs() {
-      return null;
-    }
-
-    @Override
-    public RelOptCluster getCluster() {
-      return null;
-    }
-
-    @Override
-    public double estimateRowCount(RelMetadataQuery mq) {
-      return 0;
-    }
-
-    @Override
-    public Set<CorrelationId> getVariablesSet() {
-      return null;
-    }
-
-    @Override
-    public void collectVariablesUsed(Set<CorrelationId> variableSet) {
-
-    }
-
-    @Override
-    public void collectVariablesSet(Set<CorrelationId> variableSet) {
-
-    }
-
-    @Override
-    public void childrenAccept(RelVisitor visitor) {
-
-    }
-
-    @Override
-    public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-      return null;
-    }
-
-    @Override
-    public <M extends Metadata> M metadata(Class<M> metadataClass, RelMetadataQuery mq) {
-      return null;
-    }
-
-    @Override
-    public void explain(RelWriter pw) {
-
-    }
-
-    @Override
-    public RelNode onRegister(RelOptPlanner planner) {
-      return null;
-    }
-
-    @Override
-    public void recomputeDigest() {
-
-    }
-
-    @Override
-    public void replaceInput(int ordinalInParent, RelNode p) {
-
-    }
-
-    @Override
-    public RelOptTable getTable() {
-      return null;
-    }
-
-    @Override
-    public String getRelTypeName() {
-      return null;
-    }
-
-    @Override
-    public boolean isValid(Litmus litmus, Context context) {
-      return false;
-    }
-
-    @Override
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return null;
-    }
-
-    @Override
-    public void register(RelOptPlanner planner) {
-
-    }
-
-    @Override
-    public RelNode accept(RelShuttle shuttle) {
-      return null;
-    }
-
-    @Override
-    public RelNode accept(RexShuttle shuttle) {
-      return null;
-    }
   }
 }

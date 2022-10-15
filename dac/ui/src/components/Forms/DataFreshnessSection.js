@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 import { Component, createRef } from "react";
-import Radium from "radium";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
+import config from "dyn-load/utils/config";
 import { formDefault } from "uiTheme/radium/typography";
-import HoverHelp from "components/HoverHelp";
 import DurationField from "components/Fields/DurationField";
 import FieldWithError from "components/Fields/FieldWithError";
 import Checkbox from "components/Fields/Checkbox";
-import Button from "components/Buttons/Button";
-import config from "dyn-load/utils/config";
+import { Button } from "dremio-ui-lib";
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import NotificationSystem from "react-notification-system";
 import Message from "components/Message";
 import { isCME } from "dyn-load/utils/versionUtils";
+import { intl } from "@app/utils/intl";
+import { HoverHelp } from "dremio-ui-lib";
 
 const DURATION_ONE_HOUR = 3600000;
 const MIN_DURATION = config.subhourAccelerationPoliciesEnabled
@@ -233,16 +234,18 @@ class DataFreshnessSection extends Component {
                     />
                     {this.isRefreshAllowed() && entityType === "dataset" && (
                       <Button
-                        disable={this.state.refreshingReflections}
-                        disableSubmit
+                        disabled={this.state.refreshingReflections}
+                        disableMargin
                         onClick={this.refreshAll}
-                        type="SECONDARY"
+                        color={ButtonTypes.UI_LIB_SECONDARY}
                         style={{
                           marginBottom: 0,
                           marginLeft: 10,
                           marginTop: 2,
                         }}
-                        text={la("Refresh Now")}
+                        text={intl.formatMessage({
+                          id: "Reflection.Refresh.Now",
+                        })}
                       />
                     )}
                   </div>
@@ -344,4 +347,4 @@ const notificationStyles = {
     },
   },
 };
-export default Radium(DataFreshnessSection);
+export default DataFreshnessSection;

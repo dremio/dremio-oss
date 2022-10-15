@@ -23,6 +23,7 @@ import java.util.Objects;
  * @param <F> first element
  * @param <S> second element
  */
+@SuppressWarnings("checkstyle:VisibilityModifier")
 public class Tuple<F, S> {
   public final F first;
   public final S second;

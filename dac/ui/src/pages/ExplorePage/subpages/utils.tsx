@@ -49,16 +49,14 @@ export const assemblePendingOrRunningTabContent = (
         cancelJob(query.jobId);
       };
       obj.buttonText = "Cancel Job";
-      obj.buttonIcon = "CancelJobAndStop.svg";
-      obj.buttonAlt = "Cancel a job from running button";
+      obj.buttonIcon = "sql-editor/stop";
       obj.ranJob = true;
     } else if (!query.cancelled && !query.jobId && !query.error) {
       obj.renderIcon = "RUNNING";
       obj.text = <FormattedMessage id="NewQuery.Waiting" />;
       obj.buttonFunc = () => cancelPendingSql(index);
       obj.buttonText = "Remove Query";
-      obj.buttonIcon = "TrashBold.svg";
-      obj.buttonAlt = "Remove a query before running button";
+      obj.buttonIcon = "interface/delete";
     } else if (query.cancelled && !query.error) {
       obj.text = <FormattedMessage id="NewQuery.Removed" />;
     } else if (query.error) {

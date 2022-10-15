@@ -16,6 +16,7 @@
 package com.dremio.exec.record;
 
 import static com.dremio.common.expression.CompleteType.LIST;
+import static com.dremio.common.expression.CompleteType.MAP;
 import static com.dremio.common.expression.CompleteType.STRUCT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -526,5 +527,28 @@ public class TestBatchSchema {
     //Should not throw exception
     BatchSchema newSchema = tableSchema1.changeTypeRecursive(changeIntInStrcut);
     assertTrue(newSchema.equalsIgnoreCase(tableSchema1));
+  }
+
+  @Test
+  public void testToStringVerbose () {
+    List<Field> childrenField = ImmutableList.of(CompleteType.VARCHAR.toField("key"),
+      CompleteType.VARCHAR.toField("value"));
+
+    Field mapEntry = new Field("entries", FieldType.notNullable(STRUCT.getType()), childrenField);
+    Field mapCol = new Field("mapCol", FieldType.nullable(MAP.getType()), ImmutableList.of(mapEntry));
+
+    BatchSchema batchSchema = BatchSchema.of(
+      CompleteType.VARCHAR.toField("varcharCol"),
+      mapCol
+    );
+
+    String schemaString = batchSchema.toStringVerbose();
+    String schemaString1 = "\nvarcharCol;true;varchar\n" +
+      "mapCol;true;map\n" +
+      " entries;false;struct\n" +
+      "  key;true;varchar\n" +
+      "  value;true;varchar";
+
+    assertEquals(schemaString, schemaString1);
   }
 }

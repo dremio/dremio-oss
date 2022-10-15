@@ -34,9 +34,10 @@ public class TestUserRpcServerRecordBatchFormat {
         .setRecordBatchType(RecordBatchType.DREMIO)
         .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
         .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_1_4)
+        .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_23_0)
         .build();
 
-    assertEquals(RecordBatchFormat.DREMIO_1_4, UserRPCServer.chooseDremioRecordBatchFormat(handshake));
+    assertEquals(RecordBatchFormat.DREMIO_23_0, UserRPCServer.chooseDremioRecordBatchFormat(handshake));
   }
 
   @Test
@@ -47,9 +48,56 @@ public class TestUserRpcServerRecordBatchFormat {
         .addSupportedRecordBatchFormats(RecordBatchFormat.UNKNOWN)
         .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
         .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_1_4)
+        .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_23_0)
         .build();
 
+    assertEquals(RecordBatchFormat.DREMIO_23_0, UserRPCServer.chooseDremioRecordBatchFormat(handshake));
+  }
+
+  @Test
+  public void testChooseDremioRecordBatchFormatForDremio14() {
+    UserToBitHandshake handshake = UserToBitHandshake.newBuilder()
+      .setRecordBatchType(RecordBatchType.DREMIO)
+      .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
+      .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_1_4)
+      .build();
+
     assertEquals(RecordBatchFormat.DREMIO_1_4, UserRPCServer.chooseDremioRecordBatchFormat(handshake));
+  }
+
+  @Test
+  public void testChooseDremioRecordBatchFormatWithUnknownValueForDremio14() {
+    UserToBitHandshake handshake = UserToBitHandshake.newBuilder()
+      .setRecordBatchType(RecordBatchType.DREMIO)
+      // simulating protobuf handling a unknown enum value during decoding
+      .addSupportedRecordBatchFormats(RecordBatchFormat.UNKNOWN)
+      .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
+      .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_1_4)
+      .build();
+
+    assertEquals(RecordBatchFormat.DREMIO_1_4, UserRPCServer.chooseDremioRecordBatchFormat(handshake));
+  }
+
+  @Test
+  public void testChooseDremioRecordBatchFormatForDremio09() {
+    UserToBitHandshake handshake = UserToBitHandshake.newBuilder()
+      .setRecordBatchType(RecordBatchType.DREMIO)
+      .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
+      .build();
+
+    assertEquals(RecordBatchFormat.DREMIO_0_9, UserRPCServer.chooseDremioRecordBatchFormat(handshake));
+  }
+
+  @Test
+  public void testChooseDremioRecordBatchFormatWithUnknownValueForDremio09() {
+    UserToBitHandshake handshake = UserToBitHandshake.newBuilder()
+      .setRecordBatchType(RecordBatchType.DREMIO)
+      // simulating protobuf handling a unknown enum value during decoding
+      .addSupportedRecordBatchFormats(RecordBatchFormat.UNKNOWN)
+      .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
+      .build();
+
+    assertEquals(RecordBatchFormat.DREMIO_0_9, UserRPCServer.chooseDremioRecordBatchFormat(handshake));
   }
 
   @Test

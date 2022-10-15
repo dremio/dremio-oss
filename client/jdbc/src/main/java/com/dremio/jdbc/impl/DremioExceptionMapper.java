@@ -28,7 +28,7 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Utility class for mapping RpcExceptions to SQLExceptions.
  */
-public class DremioExceptionMapper {
+public final class DremioExceptionMapper {
   // For references of Sql State Code, please see http://www.wiscorp.com/sql200n.zip
   // or for a quick reference, please see https://en.wikipedia.org/wiki/SQLSTATE
   private static final String INVALID_AUTHORIZATION_SPECIFICATION = "28000";

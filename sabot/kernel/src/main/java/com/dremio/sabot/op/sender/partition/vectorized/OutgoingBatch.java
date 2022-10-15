@@ -33,6 +33,7 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
+import com.dremio.sabot.op.sender.SenderLatencyTracker;
 import com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metric;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -64,10 +65,12 @@ public class OutgoingBatch extends VectorContainer {
   private int preCopyIdx;
   /** true if receiver finished */
   private volatile boolean dropAll;
+  private final SenderLatencyTracker senderLatencyTracker;
 
   OutgoingBatch(int batchIdx, int nextBatchIdx, int maxRecords, final VectorAccessible incoming,
                 BufferAllocator allocator, AccountingExecTunnel tunnel, HashPartitionSender config,
-                OperatorContext context, int oppositeMinorFragmentId, OperatorStats stats) {
+                OperatorContext context, int oppositeMinorFragmentId, OperatorStats stats,
+                SenderLatencyTracker senderLatencyTracker) {
     Preconditions.checkArgument(maxRecords <= Character.MAX_VALUE, "maxRecords cannot exceed " + Character.MAX_VALUE);
     this.batchIdx = batchIdx;
     this.nextBatchIdx = nextBatchIdx;
@@ -79,6 +82,7 @@ public class OutgoingBatch extends VectorContainer {
     this.oppositeMinorFragmentId = oppositeMinorFragmentId;
 
     this.stats = stats;
+    this.senderLatencyTracker = senderLatencyTracker;
 
     for (VectorWrapper<?> v : incoming) {
       ValueVector outgoingVector = TypeHelper.getNewVector(v.getField(), allocator);
@@ -182,7 +186,7 @@ public class OutgoingBatch extends VectorContainer {
     updateStats(writableBatch);
 
     stats.startWait();
-    tunnel.sendRecordBatch(writableBatch);
+    tunnel.sendRecordBatch(writableBatch, senderLatencyTracker.getLatencyObserver());
     stats.stopWait();
 
     preCopyIdx = 0;

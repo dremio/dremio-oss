@@ -20,7 +20,7 @@ import java.util.Objects;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 
-public class HiveDatasetHandle implements DatasetHandle {
+public final class HiveDatasetHandle implements DatasetHandle {
 
   private final EntityPath datasetpath;
 

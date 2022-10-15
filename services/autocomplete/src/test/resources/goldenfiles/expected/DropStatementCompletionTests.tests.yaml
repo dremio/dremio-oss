@@ -24,7 +24,6 @@
       data:
         name: "@space"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "\"@space\""
       kind: "CatalogEntry"
       label: "@space"
@@ -32,7 +31,6 @@
       data:
         name: "space"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "space"
       kind: "CatalogEntry"
       label: "space"
@@ -40,16 +38,28 @@
       data:
         name: "space with a space in the name"
         type: "Space"
-      detail: "Some CatalogEntry"
       insertText: "\"space with a space in the name\""
       kind: "CatalogEntry"
       label: "space with a space in the name"
      -
-      data: "IF"
-      detail: "Some SQL keyword"
-      insertText: "IF"
       kind: "Keyword"
       label: "IF"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "Works with completed path"
+  input: "DROP TABLE \"space\".\"folder\".EMP ^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "."
+     -
+      kind: "Keyword"
+      label: ";"
+     -
+      kind: "Keyword"
+      label: "["
     functionContext: null
     hasMoreResults: false
  -
@@ -61,14 +71,10 @@
       data:
         name: "folder"
         type: "Folder"
-      detail: "Some CatalogEntry"
       insertText: "folder"
       kind: "CatalogEntry"
       label: "folder"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -82,14 +88,10 @@
       data:
         name: "folder with a space in the name"
         type: "Folder"
-      detail: "Some CatalogEntry"
       insertText: "\"folder with a space in the name\""
       kind: "CatalogEntry"
       label: "folder with a space in the name"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -103,14 +105,10 @@
       data:
         name: "folder"
         type: "Folder"
-      detail: "Some CatalogEntry"
       insertText: "folder"
       kind: "CatalogEntry"
       label: "folder"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -124,14 +122,10 @@
       data:
         name: "folder"
         type: "Folder"
-      detail: "Some CatalogEntry"
       insertText: "folder"
       kind: "CatalogEntry"
       label: "folder"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null
@@ -145,14 +139,10 @@
       data:
         name: "folder"
         type: "Folder"
-      detail: "Some CatalogEntry"
       insertText: "folder"
       kind: "CatalogEntry"
       label: "folder"
      -
-      data: "*"
-      detail: "Some SQL keyword"
-      insertText: "*"
       kind: "Keyword"
       label: "*"
     functionContext: null

@@ -15,12 +15,9 @@
  */
 package com.dremio.service.autocomplete.statements.grammar;
 
-import org.apache.arrow.util.Preconditions;
-
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -29,25 +26,24 @@ import com.google.common.collect.ImmutableList;
  * USING <TARGET_DATASET_PATH>
  */
 public final class ExternalReflectionCreateStatement extends Statement {
-  private final CatalogPath sourcePath;
+  private final TableReference sourcePath;
   private final String name;
-  private final CatalogPath targetPath;
+  private final TableReference targetPath;
 
   private ExternalReflectionCreateStatement(
     ImmutableList<DremioToken> tokens,
-    CatalogPath sourcePath,
+    TableReference sourcePath,
     String name,
-    CatalogPath targetPath) {
-    super(tokens, ImmutableList.of());
+    TableReference targetPath) {
+    super(tokens, asListIgnoringNulls(targetPath));
     Preconditions.checkNotNull(sourcePath);
     Preconditions.checkNotNull(name);
-    Preconditions.checkNotNull(targetPath);
     this.sourcePath = sourcePath;
     this.name = name;
     this.targetPath = targetPath;
   }
 
-  public CatalogPath getSourcePath() {
+  public TableReference getSourcePath() {
     return sourcePath;
   }
 
@@ -55,23 +51,13 @@ public final class ExternalReflectionCreateStatement extends Statement {
     return name;
   }
 
-  public CatalogPath getTargetPath() {
+  public TableReference getTargetPath() {
     return targetPath;
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
   }
 
   static ExternalReflectionCreateStatement parse(
     TokenBuffer tokenBuffer,
-    CatalogPath sourcePath,
+    TableReference sourcePath,
     String reflectionName) {
     Preconditions.checkNotNull(tokenBuffer);
     Preconditions.checkNotNull(sourcePath);
@@ -82,10 +68,10 @@ public final class ExternalReflectionCreateStatement extends Statement {
         tokens,
         sourcePath,
         reflectionName,
-        CatalogPath.EMPTY);
+        null);
     }
 
-    CatalogPath targetPath = CatalogPath.parse(tokens);
+    TableReference targetPath = TableReference.parse(tokenBuffer);
     return new ExternalReflectionCreateStatement(
       tokens,
       sourcePath,

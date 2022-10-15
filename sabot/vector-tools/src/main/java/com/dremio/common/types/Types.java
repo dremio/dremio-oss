@@ -24,9 +24,7 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.google.protobuf.TextFormat;
 
-public class Types {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Types.class);
-
+public final class Types {
   public static final MajorType NULL = required(MinorType.NULL);
   public static final MajorType LATE_BIND_TYPE = optional(MinorType.LATE);
   public static final MajorType REQUIRED_BIT = required(MinorType.BIT);
@@ -41,13 +39,14 @@ public class Types {
   }
 
   public static boolean isComplex(final MajorType type) {
-    switch(type.getMinorType()) {
-    case LIST:
-    case STRUCT:
-      return true;
+    switch (type.getMinorType()) {
+      case LIST:
+      case STRUCT:
+      case MAP:
+        return true;
+      default:
+        return false;
     }
-
-    return false;
   }
 
   public static boolean isRepeated(final MajorType type) {
@@ -143,8 +142,8 @@ public class Types {
 
       // Composite types and other types that are not atomic types (SQL standard
       // or not) except ARRAY types (handled above):
-
-      case STRUCT:             return "MAP";
+      case MAP:             return "MAP";
+      case STRUCT:          return "STRUCT";
       case LATE:            return "ANY";
       case NULL:            return "NULL";
       case UNION:           return "UNION";
@@ -186,7 +185,8 @@ public class Types {
       case "INTERVAL YEAR TO MONTH":        return java.sql.Types.OTHER;
       case "INTERVAL DAY TO SECOND":        return java.sql.Types.OTHER;
       case "ROW":                           // fall through
-      case "MAP":                           return java.sql.Types.OTHER; // Dremio doesn't support java.sql.Struct
+      case "STRUCT":                                                      // Dremio doesn't support java.sql.Struct
+      case "MAP":                           return java.sql.Types.OTHER;  // JDBC does not support MAP
       case "NATIONAL CHARACTER VARYING":    return java.sql.Types.NVARCHAR;
       case "NATIONAL CHARACTER":            return java.sql.Types.NCHAR;
       case "NULL":                          return java.sql.Types.NULL;
@@ -261,6 +261,7 @@ public class Types {
           case LATE:
           case LIST:
           case STRUCT:
+          case MAP:
           case UNION:
           case NULL:
           case TIMETZ:      // SQL TIME WITH TIME ZONE
@@ -349,6 +350,7 @@ public class Types {
 
     case INTERVAL:
     case STRUCT:
+    case MAP:
     case LATE:
     case NULL:
     case UNION:           return 0;
@@ -477,7 +479,7 @@ public class Types {
 
   }
 
-
+  @SuppressWarnings("checkstyle:MissingSwitchDefault")
   public static boolean softEquals(final MajorType a, final MajorType b, final boolean allowNullSwap) {
     if (a.getMinorType() != b.getMinorType()) {
         return false;
@@ -603,6 +605,8 @@ public class Types {
     case "null":
     case "any":
       return MinorType.NULL;
+    case "map":
+      return MinorType.MAP;
     default:
       throw new UnsupportedOperationException("Could not determine type: " + typeName);
     }
@@ -706,8 +710,10 @@ public class Types {
    * @return
    */
   public static boolean isSortable(MinorType type) {
-    // Only map and list columns are not sortable.
-    return type != MinorType.STRUCT && type != MinorType.LIST;
+    return type != MinorType.STRUCT && type != MinorType.LIST && type!=MinorType.MAP;
   }
 
+  private Types() {
+    // Utility class
+  }
 }

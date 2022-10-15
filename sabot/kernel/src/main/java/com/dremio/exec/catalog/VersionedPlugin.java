@@ -22,6 +22,10 @@ import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.plugins.ExternalNamespaceEntry;
+import com.dremio.service.catalog.Schema;
+import com.dremio.service.catalog.Table;
+import com.dremio.service.catalog.TableSchema;
+import com.dremio.service.catalog.View;
 
 /**
  * Versioning-specific methods for the Catalog interface.
@@ -33,7 +37,8 @@ public interface VersionedPlugin {
   public enum EntityType {
     UNKNOWN,
     ICEBERG_TABLE,
-    ICEBERG_VIEW;
+    ICEBERG_VIEW,
+    FOLDER;
   }
 
   /**
@@ -73,4 +78,35 @@ public interface VersionedPlugin {
    * Gets the type of object - eg type of Table, type of View etc
    */
   EntityType getType(List<String> key, ResolvedVersionContext version);
+
+  /**
+   * Gets DataplaneTableInfo object that is being used in sys."tables"
+   */
+  Stream<DataplaneTableInfo> getAllTableInfo();
+
+  /**
+   * Gets DataplaneViewInfo object that is being used in sys.views
+   */
+  Stream<DataplaneViewInfo> getAllViewInfo();
+
+  /**
+   * Gets Table object that is being used in INFORMATION_SCHEMA."TABLES"
+   */
+  Stream<Table> getAllInformationSchemaTableInfo();
+
+  /**
+   * Gets View object that is being used in INFORMATION_SCHEMA.VIEWS
+   */
+  Stream<View> getAllInformationSchemaViewInfo();
+
+  /**
+   * Gets Schema object that is being used in INFORMATION_SCHEMA.SCHEMATA
+   */
+  Stream<Schema> getAllInformationSchemaSchemataInfo();
+
+  /**
+   * Gets TableSchema object that is being used in INFORMATION_SCHEMA.COLUMNS
+   */
+  Stream<TableSchema> getAllInformationSchemaColumnInfo();
+
 }

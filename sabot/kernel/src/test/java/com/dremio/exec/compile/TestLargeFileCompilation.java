@@ -39,7 +39,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
 
   private static final String LARGE_QUERY_FILTER;
 
-  private static final String LARGE_QUERY_WRITER;
+  private static final String LARGE_SELECT_QUERY;
 
   private static final String LARGE_QUERY_SELECT_LIST;
 
@@ -102,11 +102,11 @@ public class TestLargeFileCompilation extends BaseTestQuery {
   }
 
   static {
-    StringBuilder sb = new StringBuilder("create table %s as (select \n");
+    StringBuilder sb = new StringBuilder("(select \n");
     for (int i = 0; i < NUM_PROJECT_COULMNS; i++) {
       sb.append("employee_id+").append(i).append(" as col").append(i).append(", ");
     }
-    LARGE_QUERY_WRITER = sb.append("full_name\nfrom cp.\"employee.json\" limit 1)").toString();
+    LARGE_SELECT_QUERY = sb.append("full_name\nfrom cp.\"employee.json\" limit 1)").toString();
   }
 
   @Test
@@ -114,7 +114,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult("use dfs_test");
     testNoResult("alter session set \"%s\"='csv'", ExecConstants.OUTPUT_FORMAT_OPTION);
-    testNoResult(LARGE_QUERY_WRITER, "wide_table_csv");
+    testNoResult("create table %s as %s", "wide_table_csv", LARGE_SELECT_QUERY);
   }
 
   @Test
@@ -122,7 +122,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult("use dfs_test");
     testNoResult("alter session set \"%s\"='parquet'", ExecConstants.OUTPUT_FORMAT_OPTION);
-    testNoResult(ITERATION_COUNT, LARGE_QUERY_WRITER, "wide_table_parquet");
+    testNoResult(ITERATION_COUNT, "create table %s as %s", "wide_table_parquet", LARGE_SELECT_QUERY);
   }
 
   @Test

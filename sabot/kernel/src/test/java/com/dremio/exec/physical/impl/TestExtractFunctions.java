@@ -34,21 +34,21 @@ public class TestExtractFunctions extends BaseTestFunction {
   @Test
   public void testFromTimeStamp() throws Exception {
     testFunctions(new Object[][]{
-      {"extractMinute(c0)", ts("1970-01-02T10:20:33"), 20l},
-      {"extractMinute(c0)", ts("2008-12-28T11:34:00.129"), 34l},
-      {"extractMinute(c0)", ts("2000-2-27T14:24:00"), 24l},
-      {"extractHour(c0)", ts("1970-01-02T10:20:33"), 10l},
-      {"extractHour(c0)", ts("2008-12-28T11:34:00.129"), 11l},
-      {"extractHour(c0)", ts("2000-2-27T14:24:00"), 14l},
-      {"extractDay(c0)", ts("1970-01-02T10:20:33"), 2l},
-      {"extractDay(c0)", ts("2008-12-28T11:34:00.129"), 28l},
-      {"extractDay(c0)", ts("2000-2-27T14:24:00"), 27l},
-      {"extractMonth(c0)", ts("1970-01-02T10:20:33"), 1l},
-      {"extractMonth(c0)", ts("2008-12-28T11:34:00.129"), 12l},
-      {"extractMonth(c0)", ts("2000-2-27T14:24:00"), 2l},
-      {"extractYear(c0)", ts("1970-01-02T10:20:33"), 1970l},
-      {"extractYear(c0)", ts("2008-12-28T11:34:00.129"), 2008l},
-      {"extractYear(c0)", ts("2000-2-27T14:24:00"), 2000l},
+      {"extractMinute(c0)", ts("1970-01-02T10:20:33"), 20L},
+      {"extractMinute(c0)", ts("2008-12-28T11:34:00.129"), 34L},
+      {"extractMinute(c0)", ts("2000-2-27T14:24:00"), 24L},
+      {"extractHour(c0)", ts("1970-01-02T10:20:33"), 10L},
+      {"extractHour(c0)", ts("2008-12-28T11:34:00.129"), 11L},
+      {"extractHour(c0)", ts("2000-2-27T14:24:00"), 14L},
+      {"extractDay(c0)", ts("1970-01-02T10:20:33"), 2L},
+      {"extractDay(c0)", ts("2008-12-28T11:34:00.129"), 28L},
+      {"extractDay(c0)", ts("2000-2-27T14:24:00"), 27L},
+      {"extractMonth(c0)", ts("1970-01-02T10:20:33"), 1L},
+      {"extractMonth(c0)", ts("2008-12-28T11:34:00.129"), 12L},
+      {"extractMonth(c0)", ts("2000-2-27T14:24:00"), 2L},
+      {"extractYear(c0)", ts("1970-01-02T10:20:33"), 1970L},
+      {"extractYear(c0)", ts("2008-12-28T11:34:00.129"), 2008L},
+      {"extractYear(c0)", ts("2000-2-27T14:24:00"), 2000L},
     });
 
   }
@@ -56,15 +56,15 @@ public class TestExtractFunctions extends BaseTestFunction {
   @Test
   public void testFromDate() throws Exception {
     testFunctions(new Object[][]{
-      {"extractDay(c0)", date("1970-01-02"), 2l},
-      {"extractDay(c0)", date("2008-12-28"), 28l},
-      {"extractDay(c0)", date("2000-2-27"), 27l},
-      {"extractMonth(c0)", date("1970-01-02"), 1l},
-      {"extractMonth(c0)", date("2008-12-28"), 12l},
-      {"extractMonth(c0)", date("2000-2-27"), 2l},
-      {"extractYear(c0)", date("1970-01-02"), 1970l},
-      {"extractYear(c0)", date("2008-12-28"), 2008l},
-      {"extractYear(c0)", date("2000-2-27"), 2000l},
+      {"extractDay(c0)", date("1970-01-02"), 2L},
+      {"extractDay(c0)", date("2008-12-28"), 28L},
+      {"extractDay(c0)", date("2000-2-27"), 27L},
+      {"extractMonth(c0)", date("1970-01-02"), 1L},
+      {"extractMonth(c0)", date("2008-12-28"), 12L},
+      {"extractMonth(c0)", date("2000-2-27"), 2L},
+      {"extractYear(c0)", date("1970-01-02"), 1970L},
+      {"extractYear(c0)", date("2008-12-28"), 2008L},
+      {"extractYear(c0)", date("2000-2-27"), 2000L},
     });
 
   }
@@ -72,12 +72,12 @@ public class TestExtractFunctions extends BaseTestFunction {
   @Test
   public void testFromTime() throws Exception {
     testFunctions(new Object[][]{
-      {"extractMinute(c0)", time("10:20:33"), 20l},
-      {"extractMinute(c0)", time("11:34:00"), 34l},
-      {"extractMinute(c0)", time("14:24:00"), 24l},
-      {"extractHour(c0)", time("10:20:33"), 10l},
-      {"extractHour(c0)", time("11:34:00"), 11l},
-      {"extractHour(c0)", time("14:24:00"), 14l},
+      {"extractMinute(c0)", time("10:20:33"), 20L},
+      {"extractMinute(c0)", time("11:34:00"), 34L},
+      {"extractMinute(c0)", time("14:24:00"), 24L},
+      {"extractHour(c0)", time("10:20:33"), 10L},
+      {"extractHour(c0)", time("11:34:00"), 11L},
+      {"extractHour(c0)", time("14:24:00"), 14L},
     });
 
   }

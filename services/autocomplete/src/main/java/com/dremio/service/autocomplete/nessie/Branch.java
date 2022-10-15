@@ -15,7 +15,7 @@
  */
 package com.dremio.service.autocomplete.nessie;
 
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  * A "branch" is a line of development.

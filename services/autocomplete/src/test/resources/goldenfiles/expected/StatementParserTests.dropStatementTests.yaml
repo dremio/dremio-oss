@@ -72,12 +72,12 @@
   input: "DROP VIEW myspace.myfolder.myview^"
   output:
    - "DROP: DROP VIEW myspace . myfolder . myview^ "
+   - "  CatalogPath: myspace . myfolder . myview^ "
    - "  TYPE: VIEW"
-   - "  CATALOG PATH: myspace.myfolder.myview^."
  -
   description: "WITH CATALOG PATH AND IF EXISTS"
   input: "DROP VIEW IF EXISTS myspace.myfolder.myview^"
   output:
    - "DROP: DROP VIEW IF EXISTS myspace . myfolder . myview^ "
+   - "  CatalogPath: myspace . myfolder . myview^ "
    - "  TYPE: VIEW"
-   - "  CATALOG PATH: myspace.myfolder.myview^."

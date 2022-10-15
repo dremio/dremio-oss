@@ -49,6 +49,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.dremio.sabot.op.receiver.RawFragmentBatchProvider;
+import com.dremio.sabot.op.receiver.ReceiverLatencyTracker;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.sun.codemodel.JConditional;
@@ -66,6 +67,7 @@ public class MergingReceiverOperator implements ProducerOperator {
   private final Node[] nodes;
   private final BatchStreamProvider streamProvider;
   private final OperatorStats stats;
+  private final ReceiverLatencyTracker latencyTracker = new ReceiverLatencyTracker();
 
   private static enum OutputState {INIT_ON_NEXT, ACTIVE_OUTPUT};
 
@@ -78,8 +80,13 @@ public class MergingReceiverOperator implements ProducerOperator {
 
   public static enum Metric implements MetricDef{
     BYTES_RECEIVED,
+    BATCHES_RECEIVED,
     NUM_SENDERS,
-    NEXT_WAIT_NANOS;
+    NEXT_WAIT_NANOS,
+    SUM_TX_MILLIS,
+    MAX_TX_MILLIS,
+    SUM_QUEUE_MILLIS,
+    MAX_QUEUE_MILLIS;
 
     @Override
     public int metricId() {
@@ -320,14 +327,14 @@ public class MergingReceiverOperator implements ProducerOperator {
           }
           return provider.isStreamDone();
         } else {
-
+          latencyTracker.updateLatencyFromBatch(currentBatch.getHeader());
           size = loader.load(currentBatch);
-
+          stats.addLongStat(Metric.BYTES_RECEIVED, size);
+          stats.addLongStat(Metric.BATCHES_RECEIVED, 1);
           valueIndex = 0;
         }
 
         // we received actual data, let's set things up and add to priority queue.
-        stats.addLongStat(Metric.BYTES_RECEIVED, currentBatch.getByteCount());
         stats.batchReceived(0, loader.getRecordCount(), size);
         inputCounts += loader.getRecordCount();
         valueIndex = 0;
@@ -364,6 +371,11 @@ public class MergingReceiverOperator implements ProducerOperator {
 
     @Override
     public void close() throws Exception {
+      stats.setLongStat(Metric.SUM_TX_MILLIS, latencyTracker.getSumTxMillis());
+      stats.setLongStat(Metric.MAX_TX_MILLIS, latencyTracker.getMaxTxMillis());
+      stats.setLongStat(Metric.SUM_QUEUE_MILLIS, latencyTracker.getSumQueueMillis());
+      stats.setLongStat(Metric.MAX_QUEUE_MILLIS, latencyTracker.getMaxQueueMillis());
+
       if(currentBatch != null){
         AutoCloseables.close(currentBatch.getBody(), loader);
       } else {

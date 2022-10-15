@@ -16,7 +16,8 @@
 import * as NessieActions from "@app/actions/nessie/nessie";
 import { COMMIT_TYPE, NESSIE_REF_PREFIX } from "@app/constants/nessie";
 import { cloneDeep } from "lodash";
-import { initialState, NessieRootState } from "./nessie";
+import { initialState } from "./nessie";
+import { NessieRootState } from "@app/types/nessie";
 
 export function getNessieRequestActions() {
   return Object.keys(NessieActions)

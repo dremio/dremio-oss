@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Divider } from "@material-ui/core";
+import { Divider } from "@mui/material";
 
 import Menu from "./Menus/Menu";
 import MenuItem from "./Menus/MenuItem";

@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import { FormattedMessage } from "react-intl";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import { Tooltip } from "@material-ui/core";
+import { Tooltip } from "dremio-ui-lib";
 
 import { PageTypes, pageTypesProp } from "../../pageTypes";
 
@@ -36,66 +35,28 @@ export default class HistoryLine extends PureComponent {
 
   constructor(props) {
     super(props);
-
-    this.state = {
-      open: false,
-    };
   }
-
-  handleMouseEnter = () => {
-    this.setState({ open: true });
-  };
-
-  handleMouseLeave = () => {
-    this.setState({ open: false });
-  };
 
   renderContent() {
     const { activeVersion, historyItems, location, pageType, tipVersion } =
       this.props;
-
-    const commonProps = {
-      onMouseEnter: this.handleMouseEnter,
-      onMouseLeave: this.handleMouseLeave,
-    };
 
     switch (pageType) {
       case PageTypes.graph:
       case PageTypes.details:
       case PageTypes.reflections:
       case PageTypes.wiki:
+      case PageTypes.history:
         return <></>;
       case PageTypes.default:
         return (
-          <div className="historyLine" {...commonProps}>
+          <div className="historyLine">
             <div className="history-clock-wrapper">
-              <Tooltip
-                arrow
-                key="tooltip"
-                type="info"
-                placement="right"
-                open={this.state.open}
-                title={
-                  <div className="tooltip-history-wrapper">
-                    <div className="tooltip-history-title">
-                      <FormattedMessage id="Common.History" />
-                    </div>
-                    <div className="tooltip-history-info">
-                      <FormattedMessage id="Dataset.History.Info" />
-                    </div>
-                    <div className="tooltip-history-warning">
-                      {"("}
-                      <FormattedMessage id="Dataset.History.Disabled" />
-                      {")"}
-                    </div>
-                  </div>
-                }
-                classes={{ tooltip: "tooltip-history" }}
-              >
+              <Tooltip title="Dataset.History.Info" placement="right">
                 <dremio-icon
                   name="sql-editor/date-time"
                   class="history-clock-wrapper-icon"
-                ></dremio-icon>
+                />
               </Tooltip>
             </div>
             <hr />
@@ -109,7 +70,6 @@ export default class HistoryLine extends PureComponent {
                     isLast={index === arr.size - 1}
                     tipVersion={tipVersion}
                     activeVersion={activeVersion}
-                    removeHistoryHover={this.handleMouseLeave}
                   />
                 ))}
             </div>

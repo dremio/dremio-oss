@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FieldVector;
@@ -26,6 +27,7 @@ import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Unpivots;
@@ -57,7 +59,7 @@ public class VectorizedProbe implements AutoCloseable {
   private final List<FieldBufferCopier> keysCopiers;
   private final boolean projectUnmatchedProbe;
   private final boolean projectUnmatchedBuild;
-  private final Stopwatch probeFind2Watch = Stopwatch.createUnstarted();
+  private final Stopwatch probeListWatch = Stopwatch.createUnstarted();
   private final Stopwatch buildCopyWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeCopyWatch = Stopwatch.createUnstarted();
   private final Stopwatch projectBuildNonMatchesWatch = Stopwatch.createUnstarted();
@@ -66,14 +68,19 @@ public class VectorizedProbe implements AutoCloseable {
   private final PivotDef buildKeyUnpivot;
 
   private final ProbeBuffers buffers;
+  private final ArrowBuf sv2;
+  private final ArrowBuf tableHash4B;
+  private final FixedBlockVector pivotedFixedBlock;
+  private final VariableBlockVector pivotedVariableBlock;
+  private int probeInRecords;
   private final ProbeCursor cursor;
   private UnmatchedCursor unmatchedCursor;
 
   public VectorizedProbe(
     JoinSetupParams setupParams,
     CopierFactory copierFactory,
-    long sv2Addr,
-    long tableHashAddr4B,
+    ArrowBuf sv2,
+    ArrowBuf tableHash4B,
     JoinTable table,
     PageListMultimap linkedList,
     ExpandableHyperContainer buildBatch) {
@@ -104,25 +111,36 @@ public class VectorizedProbe implements AutoCloseable {
     }
 
     this.probeCopiers = copierFactory.getTwoByteCopiers(VectorContainer.getFieldVectors(setupParams.getLeft()), setupParams.getProbeOutputs());
+    this.sv2 = sv2;
+    this.tableHash4B = tableHash4B;
+    this.pivotedFixedBlock = setupParams.getPivotedFixedBlock();
+    this.pivotedVariableBlock = setupParams.getPivotedVariableBlock();
 
     linkedList.moveToRead();
     this.cursor = ProbeCursor.startProbe(
       linkedList,
-      sv2Addr,
+      sv2,
       buffers,
       projectUnmatchedBuild,
-      projectUnmatchedProbe,
-      records -> {
-        logger.trace("lookup hash table for {} records", records);
-        buffers.ensureInputCapacity(records);
-        table.findPivoted(sv2Addr, records,
-          tableHashAddr4B,
-          setupParams.getPivotedFixedBlock(), setupParams.getPivotedVariableBlock(),
-          buffers.getInTableMatchOrdinals4B().memoryAddress() /*output*/);
-      });
+      projectUnmatchedProbe);
     if (projectUnmatchedBuild) {
       this.unmatchedCursor = new UnmatchedCursor(linkedList, buffers, table::getCumulativeVarKeyLength);
     }
+  }
+
+  public void batchBegin(int pivotShift, int numRecords) {
+    logger.trace("lookup hash table for {} records", numRecords);
+
+    if (numRecords > 0) {
+      buffers.ensureInputCapacity(numRecords);
+
+      sv2.checkBytes(0, numRecords * SelectionVector2.RECORD_SIZE);
+      table.findPivoted(sv2, pivotShift, numRecords,
+        tableHash4B,
+        pivotedFixedBlock, pivotedVariableBlock,
+        buffers.getInTableMatchOrdinals4B() /*output*/);
+    }
+    probeInRecords = numRecords;
   }
 
   /**
@@ -133,11 +151,11 @@ public class VectorizedProbe implements AutoCloseable {
    * @return Negative if partial batch complete. Otherwise, all of probe batch
    *         is complete.
    */
-  public int probeBatch(final int records, int startOutputIndex, int maxOutputIndex) {
+  public int probeBatch(int startOutputIndex, int maxOutputIndex) {
     Preconditions.checkArgument(startOutputIndex <= maxOutputIndex);
-    probeFind2Watch.start();
-    ProbeCursor.Stats stats = cursor.next(records, startOutputIndex, maxOutputIndex);
-    probeFind2Watch.stop();
+    probeListWatch.start();
+    ProbeCursor.Stats stats = cursor.next(probeInRecords, startOutputIndex, maxOutputIndex);
+    probeListWatch.stop();
 
     int outputRecords = stats.getRecordsFound();
     Preconditions.checkState(outputRecords <= maxOutputIndex - startOutputIndex + 1);
@@ -166,10 +184,8 @@ public class VectorizedProbe implements AutoCloseable {
          VariableBlockVector var = new VariableBlockVector(allocator, buildKeyUnpivot.getVariableCount())) {
       fbv.ensureAvailableBlocks(outputRecords);
       var.ensureAvailableDataSpace(stats.getTotalVarSize());
-      final long keyFixedVectorAddr = fbv.getMemoryAddress();
-      final long keyVarVectorAddr = var.getMemoryAddress();
       // Collect all the pivoted keys for non matched records
-      table.copyKeysToBuffer(buffers.getOutBuildProjectKeyOrdinals4B().memoryAddress(), outputRecords, keyFixedVectorAddr, keyVarVectorAddr);
+      table.copyKeysToBuffer(buffers.getOutBuildProjectKeyOrdinals4B(), outputRecords, fbv.getBuf(), var.getBuf());
       // Unpivot the keys for build side into output
       Unpivots.unpivotToAllocedOutput(buildKeyUnpivot, fbv, var, 0, outputRecords, startOutputIndex);
     }
@@ -256,7 +272,7 @@ public class VectorizedProbe implements AutoCloseable {
   }
 
   public long getProbeListTime(){
-    return probeFind2Watch.elapsed(TimeUnit.NANOSECONDS);
+    return probeListWatch.elapsed(TimeUnit.NANOSECONDS);
   }
 
   public long getProbeCopyTime(){

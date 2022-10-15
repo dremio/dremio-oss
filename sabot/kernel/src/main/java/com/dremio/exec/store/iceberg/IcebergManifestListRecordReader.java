@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getValueFromByteBuffer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isNonAddOnField;
@@ -32,7 +33,6 @@ import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -63,6 +63,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
 
 /**
  * Manifest list record reader
@@ -161,10 +162,10 @@ public class IcebergManifestListRecordReader implements RecordReader {
     }
 
     long numEqualityDeletes = Long.parseLong(snapshot.summary().getOrDefault("total-equality-deletes", "0"));
-    if (numEqualityDeletes > 0) {
+    if (numEqualityDeletes > 0 && !context.getOptions().getOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE)) {
       throw UserException.unsupportedError()
-          .message("Iceberg V2 tables with equality deletes are not supported.")
-          .buildSilently();
+        .message("Iceberg V2 tables with equality deletes are not supported.")
+        .buildSilently();
     }
 
     List<ManifestFile> manifestFileList = manifestContent == ManifestContent.DELETES ?

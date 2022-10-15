@@ -39,6 +39,8 @@ public class ReflectionStatus {
 
   /**
    * Reflection config (definition) validity status
+   *
+   * TODO: Improve OK status to include OK_MANUAL_REFRESH_POLICY or OK_AUTOMATIC_REFRESH_POLICY
    */
   public enum CONFIG_STATUS {
     OK,
@@ -46,7 +48,9 @@ public class ReflectionStatus {
   }
 
   /**
-   * Reflection refresh status
+   * Reflection refresh status.  This status tells the user what the reflection manager is going to do next
+   * with the reflection.  It is not whether the reflection has a "never refresh" policy because even these reflections
+   * will pass through SCHEDULED status when they are newly created.
    */
   public enum REFRESH_STATUS {
     MANUAL,     // reflection is setup to refresh manually

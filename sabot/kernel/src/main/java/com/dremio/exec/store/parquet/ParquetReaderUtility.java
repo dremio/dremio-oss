@@ -54,7 +54,7 @@ import com.google.common.collect.Lists;
 /**
  * Utility class where we can capture common logic between the two parquet readers
  */
-public class ParquetReaderUtility {
+public final class ParquetReaderUtility {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetReaderUtility.class);
 
   /**
@@ -87,6 +87,7 @@ public class ParquetReaderUtility {
     META_UNCLEAR_TEST_VALUES(DateBehavior.DETECT, "Not enough info in metadata, parquet reader will test individual date values")
     ;
 
+    @SuppressWarnings("checkstyle:VisibilityModifier")
     public final DateBehavior behavior;
     public final String info;
 
@@ -111,7 +112,7 @@ public class ParquetReaderUtility {
 
   public static Map<String, SchemaElement> getColNameToSchemaElementMapping(org.apache.parquet.hadoop.metadata.FileMetaData metaData, BlockMetaData blockMetaData) {
     ParquetMetadata footer = new ParquetMetadata(metaData, Lists.newArrayList(blockMetaData));
-    HashMap<String, SchemaElement> schemaElements = new HashMap<>();
+    Map<String, SchemaElement> schemaElements = new HashMap<>();
     FileMetaData fileMetaData = new ParquetMetadataConverter().toParquetMetadata(ParquetFileWriter.CURRENT_VERSION, footer);
     for (SchemaElement se : fileMetaData.getSchema()) {
       schemaElements.put(se.getName(), se);
@@ -166,7 +167,7 @@ public class ParquetReaderUtility {
     } else {
       // Possibly an old, un-migrated Drill file, check the column statistics to see if min/max values look corrupt
       // only applies if there is a date column selected
-      if (createdBy == null || createdBy.equals("parquet-mr")) {
+      if (createdBy == null || "parquet-mr".equals(createdBy)) {
         // loop through parquet column metadata to find date columns, check for corrupt values
         return checkForCorruptDateValuesInStatistics(footer, columns, autoCorrectCorruptDates);
       } else {
@@ -356,5 +357,9 @@ public class ParquetReaderUtility {
     }
 
     return rowGroupNums;
+  }
+
+  private ParquetReaderUtility() {
+    // Utility class
   }
 }

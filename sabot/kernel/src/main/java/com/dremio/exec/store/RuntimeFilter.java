@@ -16,8 +16,8 @@
 package com.dremio.exec.store;
 
 import static com.dremio.sabot.op.scan.ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT;
-import static org.apache.arrow.util.Preconditions.checkArgument;
-import static org.apache.arrow.util.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -143,7 +143,7 @@ public class RuntimeFilter implements AutoCloseable {
 
         boolean rowLevelRuntimeFilteringEnable = optionManager.getOption(ExecConstants.ENABLE_ROW_LEVEL_RUNTIME_FILTERING);
         valueListFilter.buf().getReferenceManager().retain();
-        if(rowLevelRuntimeFilteringEnable) {
+        if (rowLevelRuntimeFilteringEnable) {
           ArrowBuf buf = manager.getManagedBuffer(valueListFilter.buf().capacity() + ValueListFilter.BLOOM_FILTER_SIZE);
           final ValueListWithBloomFilter valueListFilterWithBloomFilter = ValueListFilterBuilder
             .fromBufferWithBloomFilter(buf, valueListFilter);

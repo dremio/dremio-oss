@@ -15,6 +15,7 @@
  */
 import { abilities } from "utils/datasetUtils";
 import datasetSettingsConfig from "@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig";
+
 export default function (input) {
   Object.assign(input.prototype, {
     // eslint-disable-line no-restricted-properties
@@ -28,7 +29,14 @@ export default function (input) {
       return pathname && pathname.endsWith("/reflections");
     },
     getTabs() {
-      const { entity, intl } = this.props;
+      const {
+        entity,
+        intl,
+        arcticProjectId,
+        isIcebergTable,
+        isAdmin,
+        enableCompaction,
+      } = this.props;
 
       if (!entity) {
         return new Immutable.OrderedMap();
@@ -53,18 +61,26 @@ export default function (input) {
       }
 
       const isReflectionsPage = this.isReflectionsFullPage();
-
       map.push(
         ["overview", intl.formatMessage({ id: "Common.Overview" })],
         format,
-        !isReflectionsPage && [
-          "acceleration",
-          intl.formatMessage({ id: "Reflection.Reflections" }),
-        ],
-        canSetAccelerationUpdates && [
-          "accelerationUpdates",
-          intl.formatMessage({ id: "Acceleration.RefreshPolicy" }),
-        ]
+        !arcticProjectId &&
+          !isReflectionsPage && [
+            "acceleration",
+            intl.formatMessage({ id: "Reflection.Reflections" }),
+          ],
+        !arcticProjectId &&
+          canSetAccelerationUpdates && [
+            "accelerationUpdates",
+            intl.formatMessage({ id: "Acceleration.RefreshPolicy" }),
+          ],
+        enableCompaction &&
+          isAdmin &&
+          arcticProjectId &&
+          isIcebergTable && [
+            "dataOptimization",
+            intl.formatMessage({ id: "Data.Optimization" }),
+          ]
       );
 
       return new Immutable.OrderedMap(map);

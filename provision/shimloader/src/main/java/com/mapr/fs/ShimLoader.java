@@ -223,9 +223,7 @@ public class ShimLoader {
       byte[] buffer = new byte[8192];
 
       while(digestInputStream.read(buffer) != -1) {
-        // CHECKSTYLE:OFF EmptyStatement
-        ;
-        // CHECKSTYLE:ON
+        // read until end
       }
 
       ByteArrayOutputStream md5out = new ByteArrayOutputStream();

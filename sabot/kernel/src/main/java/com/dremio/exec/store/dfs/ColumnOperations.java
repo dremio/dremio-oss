@@ -22,6 +22,7 @@ import org.apache.iceberg.Table;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
@@ -90,7 +91,7 @@ public class ColumnOperations extends MetadataOperations {
       getUserDefinedSettings()
         .setDroppedColumns(newDroppedCols.toByteString())
         .setModifiedColumns(newModifiedCols.toByteString()));
-    save();
+    save(table, datasetConfig, schemaConfig.getUserName(), context);
   }
 
   protected void computeDroppedAndUpdatedColumns(BatchSchema newSchema) {
@@ -133,7 +134,7 @@ public class ColumnOperations extends MetadataOperations {
   }
 
   protected void reloadSchemaAndDroppedAndUpdatedColumns(Table icebergTable) {
-    newSchema = new SchemaConverter().fromIceberg(icebergTable.schema());
+    newSchema = SchemaConverter.getBuilder().setMapTypeEnabled(context.getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build().fromIceberg(icebergTable.schema());
     com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
     try {
       newModifiedCols = mapper.readValue(icebergTable.properties().getOrDefault(ColumnOperations.DREMIO_UPDATE_COLUMNS, BatchSchema.EMPTY.toJson()), BatchSchema.class);

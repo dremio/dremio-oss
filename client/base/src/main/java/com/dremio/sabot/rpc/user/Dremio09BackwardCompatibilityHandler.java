@@ -18,7 +18,8 @@ package com.dremio.sabot.rpc.user;
 import static com.dremio.common.types.TypeProtos.DataMode.OPTIONAL;
 import static com.dremio.common.types.TypeProtos.DataMode.REQUIRED;
 import static com.dremio.common.types.TypeProtos.MinorType.DECIMAL;
-import static java.lang.String.format;
+import static com.dremio.common.types.TypeProtos.MinorType.LIST;
+import static com.dremio.common.types.TypeProtos.MinorType.MAP;
 
 import java.util.List;
 
@@ -35,7 +36,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
 
 /**
- * If Dremio Jdbc client on the session is using record batch format older than 1.4,
+ * If Dremio client on the session is using record batch format older than 1.4,
  * we use this encoder to patch the decimal buffers sent by Dremio server to the client.
  * Dremio has moved to LE decimal format from version 1.4 onwards so this encoder
  * ensures backward compatibility with older clients.
@@ -56,8 +57,8 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
     String name = field.getNamePart().getName();
     boolean changed = false;
     if (logger.isDebugEnabled()) {
-      logger.debug(format("%sBEFORE PATCH: buffers %s for field %s.%s: %s %s expecting %s", indent,
-        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength()));
+      logger.debug("{} BEFORE PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
+        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
     }
 
     List<SerializedField.Builder> children = field.getChildBuilderList();
@@ -86,7 +87,14 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
           patchDecimal(decimalBuffer);
           changed = true;
         }
+        if (minor == MAP) {
+          field.getMajorTypeBuilder().setMinorType(LIST);
+          changed = true;
+        }
       }
+    } else if (mode == OPTIONAL && minor == MAP) {
+      field.getMajorTypeBuilder().setMinorType(LIST);
+      changed = true;
     }
 
     int bufferLength = 0;
@@ -101,8 +109,8 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
     }
 
     if (logger.isDebugEnabled() && changed) {
-      logger.debug(format("%sAFTER PATCH: buffers %s for field %s.%s: %s %s expecting %s", indent,
-        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength()));
+      logger.debug("{} AFTER PATCH: buffers {} for field {}.{}: {} {} expecting {}", indent,
+        sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength());
     }
   }
 

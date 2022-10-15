@@ -29,4 +29,16 @@ public abstract class MayBeDistFileSystemConf<C extends FileSystemConf<C, P>, P 
   public abstract String getIamRole();
 
   public abstract String getExternalId();
+
+  public abstract String getTokenEndpoint();
+
+  public abstract String getClientId();
+
+  public abstract String getClientSecret();
+
+  public abstract String getAccountName();
+
+  public abstract String getAccountKind();
+
+  public abstract String getSharedAccessKey();
 }

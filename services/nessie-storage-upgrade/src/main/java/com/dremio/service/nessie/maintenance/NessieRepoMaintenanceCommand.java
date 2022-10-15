@@ -21,6 +21,7 @@ import java.util.Optional;
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.ReferenceInfo;
+import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.GlobalLogCompactionParams;
 import org.projectnessie.versioned.persist.adapter.KeyFilterPredicate;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
@@ -35,7 +36,7 @@ import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.CmdUtils;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.service.nessie.DatastoreDatabaseAdapter;
+import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.EmbeddedRepoMaintenanceParams;
 import com.dremio.service.nessie.EmbeddedRepoPurgeParams;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
@@ -132,7 +133,10 @@ public class NessieRepoMaintenanceCommand {
     store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(() -> kvStore).build());
     store.initialize();
     TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-    DatastoreDatabaseAdapter adapter = new DatastoreDatabaseAdapter(adapterCfg, store, worker);
+    DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+      .withConnector(store)
+      .withConfig(adapterCfg)
+      .build(worker);
 
     if (options.listKeys) {
       listKeys(adapter);
@@ -144,7 +148,7 @@ public class NessieRepoMaintenanceCommand {
     return null;
   }
 
-  private static String executeMaintenance(DatastoreDatabaseAdapter adapter, Options options) throws Exception {
+  private static String executeMaintenance(DatabaseAdapter adapter, Options options) throws Exception {
     ImmutableEmbeddedRepoMaintenanceParams.Builder params = EmbeddedRepoMaintenanceParams.builder();
     params.setGlobalLogCompactionParams(
       GlobalLogCompactionParams.builder().isEnabled(options.compactGlobalLog).build());
@@ -166,7 +170,7 @@ public class NessieRepoMaintenanceCommand {
     return stringResult;
   }
 
-  private static void listKeys(DatastoreDatabaseAdapter adapter) throws Exception {
+  private static void listKeys(DatabaseAdapter adapter) throws Exception {
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
     adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL).forEach(keyWithType -> {
       AdminLogger.log("{}", keyWithType.getKey());

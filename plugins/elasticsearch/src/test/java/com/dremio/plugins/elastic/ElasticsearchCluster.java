@@ -61,17 +61,13 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
-import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.elasticsearch.Version;
@@ -309,12 +305,8 @@ public class ElasticsearchCluster implements Closeable {
 
   private static ContentSigner newSigner(PrivateKey privateKey, String algo) {
     try {
-      AlgorithmIdentifier sigAlgId = new DefaultSignatureAlgorithmIdentifierFinder().find(algo);
-      AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
-
-      return new BcRSAContentSignerBuilder(sigAlgId, digAlgId)
-        .build(PrivateKeyFactory.createKey(privateKey.getEncoded()));
-    } catch (OperatorCreationException | IOException e) {
+      return new JcaContentSignerBuilder(algo).build(privateKey);
+    } catch (OperatorCreationException e) {
       throw new RuntimeException(e);
     }
   }
@@ -739,7 +731,7 @@ public class ElasticsearchCluster implements Closeable {
   }
 
   private static int[] randomIntArray(int size, Random random) {
-    int ia[] = new int[size];
+    int[] ia = new int[size];
     for (int i = 0; i < size; i++) {
       ia[i] = random.nextInt();
     }
@@ -747,7 +739,7 @@ public class ElasticsearchCluster implements Closeable {
   }
 
   private static float[] randomFloatArray(int size, Random random) {
-    float fa[] = new float[size];
+    float[] fa = new float[size];
     for (int i = 0; i < size; i++) {
       fa[i] = random.nextFloat();
     }
@@ -916,7 +908,7 @@ public class ElasticsearchCluster implements Closeable {
               int size = tuple.v2();
               // Send variable data representations to elastic: [ 2, "2", 1.5 ]
               if (variations) {
-                Object oa[] = new Object[size];
+                Object[] oa = new Object[size];
                 for (int ii = 0; ii < size; ii++) {
                   if (random.nextBoolean()) {
                     oa[ii] = Integer.toString(random.nextInt());
@@ -948,7 +940,7 @@ public class ElasticsearchCluster implements Closeable {
 
               // Send variable data representations to elastic: [ 2, "2", 1.5 ]
               if (variations) {
-                Object oa[] = new Object[size];
+                Object[] oa = new Object[size];
                 for (int ii = 0; ii < size; ii++) {
                   if (random.nextBoolean()) {
                     oa[ii] = Float.toString(random.nextFloat());

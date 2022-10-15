@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static com.dremio.exec.ExecConstants.ENABLE_MAP_DATA_TYPE;
 import static com.dremio.exec.ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -38,6 +39,7 @@ import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.schema.Type;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.dremio.common.arrow.DremioArrowSchema;
@@ -87,6 +89,7 @@ import com.dremio.exec.store.parquet.ParquetGroupScanUtils.RowGroupInfo;
 import com.dremio.exec.store.parquet2.ParquetRowiseReader;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
+import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
@@ -181,7 +184,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
       logger.warn("Invalid Arrow Schema", e);
     }
 
-    final List<Field> fields;
+    List<Field> fields;
     if (arrowSchema == null) {
       final SchemaConverter converter = new SchemaConverter(context.getOptionManager().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal());
       try {
@@ -193,10 +196,15 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
           // Let it fail if test is running.
           throw e;
         } else {
-          logger.warn("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter, fall back to generate schema from first parquet file");
-          logger.debug("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter", e);
-          // Fall back to read the records in the first parquet file to generate schema
-          return getBatchSchemaFromReader(selection, fs).removeNullFields();
+          logger.debug("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter.Trying using ParquetTypeHelper", e);
+          try {
+            fields = getFieldsUsingParquetTypeHelper(footer, context.getOptionManager());
+          } catch (Exception ex) {
+            logger.warn("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter, fall back to generate schema from first parquet file");
+            logger.debug("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter", e);
+            // Fall back to read the records in the first parquet file to generate schema
+            return getBatchSchemaFromReader(selection, fs).removeNullFields();
+          }
         }
       }
     } else {
@@ -211,7 +219,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
     final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
     final List<NameValuePair<?>> pairs = finder.getImplicitFieldsForSample(selection);
-    final HashMap<String, Field> fieldHashMap = new HashMap<>();
+    final Map<String, Field> fieldHashMap = new HashMap<>();
     for (Field field : fields) {
       fieldHashMap.put(field.getName().toLowerCase(), field);
     }
@@ -275,6 +283,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
             .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
             .dateCorruptionStatus(dateStatus)
+            .mapDataTypeEnabled(operatorContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
             .build();
 
         boolean isAccelerator = fsPlugin.getId().getName().equals(ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -339,7 +348,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
 
       // Create a list of (partition name, partition value) pairs. Order of these pairs should be same a table
       // partition column list. Also if a partition value doesn't exist for a file, use null as the partition value
-      final LinkedHashMap<String, PartitionValue> partitionValues = new LinkedHashMap<>();
+      final Map<String, PartitionValue> partitionValues = new LinkedHashMap<>();
       final Map<SchemaPath, MajorType> typeMap = checkNotNull(parquetGroupScanUtils.getColumnTypeMap());
       final Map<SchemaPath, Object> pValues = parquetGroupScanUtils.getPartitionValueMap().get(rowGroupInfo.getFileAttributes());
       for (SchemaPath pCol : parquetGroupScanUtils.getPartitionColumns()) {
@@ -431,6 +440,22 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
     partitionChunkListing.computePartitionChunks();
   }
 
+  private List<Field> getFieldsUsingParquetTypeHelper(ParquetMetadata footer, OptionManager options) throws Exception {
+    List<Field> fields = new ArrayList<>();
+    final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION;
+    final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+      .readInt96AsTimeStamp(options.getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
+      .dateCorruptionStatus(dateStatus)
+      .mapDataTypeEnabled(options.getOption(ENABLE_MAP_DATA_TYPE))
+      .build();
+
+    for (Type parquetField : footer.getFileMetaData().getSchema().getFields()) {
+      Optional<Field> dremioField = ParquetTypeHelper.toField(parquetField, schemaHelper);
+      fields.add(dremioField.orElseThrow(() -> new UnsupportedOperationException(
+        String.format("Could not convert the parquetField to dremioField using ParquetTypeHelper - %s", parquetField.toString()))));
+    }
+    return fields;
+  }
 
   @Override
   public DatasetType getDatasetType() {

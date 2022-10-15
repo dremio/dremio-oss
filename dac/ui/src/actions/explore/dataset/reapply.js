@@ -13,49 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from "redux-api-middleware";
 import { push, replace } from "react-router-redux";
-
-import schemaUtils from "utils/apiUtils/schemaUtils";
-import { datasetWithoutData } from "schemas/v2/fullDataset";
 import { performNextAction } from "actions/explore/nextAction";
-import { APIV2Call } from "@app/core/APICall";
-
-export const REAPPLY_DATASET_START = "REAPPLY_DATASET_START";
-export const REAPPLY_DATASET_SUCCESS = "REAPPLY_DATASET_SUCCESS";
-export const REAPPLY_DATASET_FAILURE = "REAPPLY_DATASET_FAILURE";
-
-export function editOriginalSql(previousDatasetId, selfApiUrl) {
-  return (dispatch) => {
-    return dispatch(fetchOriginalSql(previousDatasetId, selfApiUrl));
-  };
-}
-
-function fetchOriginalSql(previousDatasetId, selfApiUrl, viewId) {
-  const meta = { viewId, previousId: previousDatasetId };
-
-  const apiCall = new APIV2Call().paths(`${selfApiUrl}/editOriginalSql`);
-
-  return {
-    [RSAA]: {
-      types: [
-        { type: REAPPLY_DATASET_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(
-          REAPPLY_DATASET_SUCCESS,
-          datasetWithoutData,
-          meta
-        ),
-        {
-          type: REAPPLY_DATASET_FAILURE,
-          meta: { ...meta, notification: true },
-        },
-      ],
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      endpoint: apiCall,
-    },
-  };
-}
 
 export function navigateAfterReapply(response, replaceNav, nextAction) {
   return (dispatch) => {

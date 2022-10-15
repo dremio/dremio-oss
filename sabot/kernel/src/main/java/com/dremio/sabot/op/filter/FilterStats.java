@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.filter;
 
+import com.dremio.exec.proto.UserBitShared.MetricDef.AggregationType;
+import com.dremio.exec.proto.UserBitShared.MetricDef.DisplayType;
 import com.dremio.sabot.exec.context.MetricDef;
 
 public class FilterStats {
@@ -23,13 +25,42 @@ public class FilterStats {
     JAVA_EXECUTE_TIME,
     GANDIVA_BUILD_TIME,
     GANDIVA_EXECUTE_TIME,
-    JAVA_EXPRESSIONS,
-    GANDIVA_EXPRESSIONS,
+    JAVA_EXPRESSIONS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "Maximum number of expressions evaluated completely in Java"),
+    GANDIVA_EXPRESSIONS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "Maximum number of expressions evaluated completely in Gandiva"),
     MIXED_SPLITS;
+
+    private final DisplayType displayType;
+    private final AggregationType aggregationType;
+    private final String displayCode;
+
+    Metric() {
+      this(DisplayType.DISPLAY_NEVER, AggregationType.SUM, "");
+    }
+
+    Metric(DisplayType displayType, AggregationType aggregationType, String displayCode) {
+      this.displayType = displayType;
+      this.aggregationType = aggregationType;
+      this.displayCode = displayCode;
+    }
 
     @Override
     public int metricId() {
       return ordinal();
+    }
+
+    @Override
+    public DisplayType getDisplayType() {
+      return this.displayType;
+    }
+
+    @Override
+    public AggregationType getAggregationType() {
+      return this.aggregationType;
+    }
+
+    @Override
+    public String getDisplayCode() {
+      return this.displayCode;
     }
   }
 }

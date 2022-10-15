@@ -29,6 +29,7 @@ import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.llvm.ExpressionWorkEstimator;
 import com.google.common.collect.Lists;
 
 /**

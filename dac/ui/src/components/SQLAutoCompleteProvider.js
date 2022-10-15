@@ -15,6 +15,13 @@
  */
 import debounce from "lodash/debounce";
 import ApiUtils from "utils/apiUtils/apiUtils";
+import {
+  getAutoCompleteTypeMap,
+  getAutoCompleteSortTextValue,
+  getAutoCompleteKind,
+  constructTransformValues,
+  getAutoCompleteInsertText,
+} from "@app/utils/sql-autocomplete";
 
 const getItems = (monaco, sqlContextGetter) => {
   if (typeof sqlContextGetter !== "function") {
@@ -24,78 +31,9 @@ const getItems = (monaco, sqlContextGetter) => {
   }
 
   const CompletionItemKind = monaco.languages.CompletionItemKind;
-  const typeMap = {
-    Repositary: CompletionItemKind.Class,
-    DATE: CompletionItemKind.Class,
-    DATETIME: CompletionItemKind.Class,
-    DATETIME_INTERVAL: CompletionItemKind.Class,
-    TIME: CompletionItemKind.Class,
-    TIME_WITH_LOCAL_TIME_ZONE: CompletionItemKind.Class,
-    TIMESTAMP: CompletionItemKind.Class,
-    TIMESTAMP_WITH_LOCAL_TIME_ZONE: CompletionItemKind.Class,
-    INTERVAL_YEAR: CompletionItemKind.Class,
-    INTERVAL_YEAR_MONTH: CompletionItemKind.Class,
-    INTERVAL_MONTH: CompletionItemKind.Class,
-    INTERVAL_DAY: CompletionItemKind.Class,
-    INTERVAL_DAY_HOUR: CompletionItemKind.Class,
-    INTERVAL_DAY_MINUTE: CompletionItemKind.Class,
-    INTERVAL_DAY_SECOND: CompletionItemKind.Class,
-    INTERVAL_DAY_TIME: CompletionItemKind.Class,
-    INTERVAL_HOUR: CompletionItemKind.Class,
-    INTERVAL_HOUR_MINUTE: CompletionItemKind.Class,
-    INTERVAL_HOUR_SECOND: CompletionItemKind.Class,
-    INTERVAL_MINUTE: CompletionItemKind.Class,
-    INTERVAL_MINUTE_SECOND: CompletionItemKind.Class,
-    INTERVAL_SECOND: CompletionItemKind.Class,
-    Schema: CompletionItemKind.File,
-    Column: CompletionItemKind.Field,
-    COLUMN_LIST: CompletionItemKind.Field,
-    Catalog: CompletionItemKind.Folder,
-    File: CompletionItemKind.File,
-    Folder: CompletionItemKind.Folder,
-    Function: CompletionItemKind.Function,
-    GEOMETRY: CompletionItemKind.Issue,
-    GEO: CompletionItemKind.Issue,
-    Keyword: CompletionItemKind.Keyword,
-    EXACT_NUMERIC: CompletionItemKind.Keyword,
-    MULTISET: CompletionItemKind.Keyword,
-    MAP: CompletionItemKind.Keyword,
-    CURSOR: CompletionItemKind.Keyword,
-    BINARY: CompletionItemKind.Method,
-    VARBINARY: CompletionItemKind.Method,
-    DISTINCT: CompletionItemKind.Method,
-    BOOLEAN: CompletionItemKind.Operator,
-    NULL: CompletionItemKind.Interface,
-    STRUCTURED: CompletionItemKind.Interface,
-    ROW: CompletionItemKind.Interface,
-    STRING: CompletionItemKind.Text,
-    CHARACTER: CompletionItemKind.Text,
-    CHAR: CompletionItemKind.Text,
-    VARCHAR: CompletionItemKind.Text,
-    SYMBOL: CompletionItemKind.Text,
-    OTHER: CompletionItemKind.Text,
-    INTEGER: CompletionItemKind.Unit,
-    APPROXIMATE_NUMERIC: CompletionItemKind.Unit,
-    NUMERIC: CompletionItemKind.Unit,
-    TINYINT: CompletionItemKind.Unit,
-    SMALLINT: CompletionItemKind.Unit,
-    BIGINT: CompletionItemKind.Unit,
-    DECIMAL: CompletionItemKind.References,
-    FLOAT: CompletionItemKind.References,
-    REAL: CompletionItemKind.Unit,
-    DOUBLE: CompletionItemKind.Unit,
-    DYNAMIC_STAR: CompletionItemKind.References,
-    ARRAY: CompletionItemKind.Variable,
-    Table: CompletionItemKind.Variable,
-    ANY: CompletionItemKind.Variable,
-    CatalogEntry: CompletionItemKind.Interface,
-    Space: CompletionItemKind.Module,
-    Home: CompletionItemKind.Color,
-    "Virtual Dataset": CompletionItemKind.Constructor,
-    "Physical Dataset": CompletionItemKind.Snippet,
-  };
+  const typeMap = getAutoCompleteTypeMap(CompletionItemKind);
 
-  return (document, position) => {
+  return async (document, position) => {
     const delimiter = "\n";
     const content = document.getLinesContent();
 
@@ -104,93 +42,53 @@ const getItems = (monaco, sqlContextGetter) => {
       pos += content[i].length + delimiter.length;
     }
 
-    const request = {
+    const requestBody = {
       query: content.join(delimiter),
       cursor: pos,
       context: sqlContextGetter(),
     };
 
-    return ApiUtils.fetch(
-      "sql/autocomplete",
-      {
-        method: "POST",
-        body: JSON.stringify(request),
-      },
-      2
-    )
-      .then((response) => {
-        const contentType = response.headers.get("content-type");
+    try {
+      let response = await ApiUtils.fetch(
+        "sql/autocomplete",
+        {
+          method: "POST",
+          body: JSON.stringify(requestBody),
+        },
+        2
+      );
+      response = await response.json();
 
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-          return response.json().then(({ completionItems }) => {
-            return completionItems.map(
-              ({ label, detail, kind, data, insertText }, index) => {
-                let sortText;
-                let itemDetails;
-                const ALPHABET_COUNT = 26;
+      const activeWord = document.getWordAtPosition(position)?.word ?? "";
+      const transformValues = constructTransformValues(
+        content,
+        position,
+        activeWord
+      );
 
-                // Set order of items to be displayed in suggestion list
-                if (index < ALPHABET_COUNT) {
-                  sortText = String.fromCharCode("a".charCodeAt() + index);
-                } else if (index < ALPHABET_COUNT * 2) {
-                  sortText =
-                    "z" +
-                    String.fromCharCode(
-                      "a".charCodeAt() + (index - ALPHABET_COUNT)
-                    );
-                } else {
-                  sortText =
-                    "zz" +
-                    String.fromCharCode(
-                      "a".charCodeAt() + (index - ALPHABET_COUNT * 2)
-                    );
-                }
+      return (response?.completionItems ?? []).map(
+        ({ label, detail, kind, data, insertText }, index) => {
+          let insertTextOrSnippet;
+          if (kind == "Function") {
+            // Snippet String
+            // https://github.com/microsoft/monaco-editor/blob/v0.10.1/monaco.d.ts#L4119
+            insertTextOrSnippet = { "value": insertText };
+          } else {
+            insertTextOrSnippet = insertText;
+          }
 
-                // Changing the lable and description for certain types
-                switch (kind) {
-                  case "Function":
-                    label = insertText;
-                    itemDetails = detail;
-                    break;
-                  case "Column":
-                    if (data.tableAlias && data.column && data.column.type) {
-                      itemDetails = `column (${data.column.type}) in ${data.tableAlias}`;
-                    }
-                    break;
-                  default:
-                    break;
-                }
-
-                // Change kind if object has type or column.type
-                if (data && data.type) {
-                  kind = data.type;
-                } else if (data && data.column && data.column.type) {
-                  kind = data.column.type;
-                }
-
-                return {
-                  label,
-                  kind: typeMap[kind],
-                  sortText,
-                  insertText,
-                  detail: itemDetails,
-                };
-              }
-            );
-          });
+          return {
+            label: label,
+            kind: getAutoCompleteKind(typeMap, kind, data),
+            sortText: getAutoCompleteSortTextValue(index),
+            detail: detail,
+            insertText: insertTextOrSnippet,
+          };
         }
-        return [];
-      })
-      .catch((response) => {
-        if (response.status === 500) {
-          return response.json().then((error) => {
-            console.error(error);
-            return null;
-          });
-        } else if (response.messeage) {
-          console.error(response.message);
-        }
-      });
+      );
+    } catch (e) {
+      console.error(e);
+    }
   };
 };
 

@@ -34,13 +34,31 @@
     }
 
     &__icon {
-      height: @icon-size;
-      width: @icon-size;
+      margin-right: 4px;
+      &.remove {
+        min-width: 24px;
+        block-size: 24px;
+        color: #7f8b95;
+      }
+
+      &.grey-icon {
+        color: var(--dremio--color--neutral--600);
+      }
     }
 
     &__tableIcon {
-      height: @table-icon-size;
-      width: @table-icon-size;
+      min-width: 24px;
+      height: 24px;
+      width: 24px;
+      inline-size: 24px;
+      block-size: 24px;
+      color: var(--dremio--color--icon--main);
+    }
+    &__show {
+      display: inline-block;
+    }
+    &__hide {
+      display: none;
     }
   }
 }

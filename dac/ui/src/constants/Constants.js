@@ -40,6 +40,16 @@ export const DATASET_ENTITY_TYPES = new Set([
   "PHYSICAL_DATASET_HOME_FOLDER",
   "OTHERS",
 ]);
+
+export const DATASET_SUMMARY_ENTITY_TYPES = new Set([
+  "PHYSICAL_DATASET",
+  "PHYSICAL_DATASET_HOME_FILE",
+  "PHYSICAL_DATASET_SOURCE_FILE",
+  "VIRTUAL_DATASET",
+  "PHYSICAL_DATASET_SOURCE_FOLDER",
+  "PHYSICAL_DATASET_HOME_FOLDER",
+]);
+
 export const HOME_SPACE_NAME = `@home-${uuid.v4()}`; // better to have Symbol here, but there is several problems with it
 export const MSG_CLEAR_DELAY_SEC = 3;
 
@@ -167,7 +177,7 @@ export const TableColumns = [
     id: "st",
     label: "Start Time",
     disableSort: false,
-    width: 152,
+    width: 160,
     isSelected: true,
     height: 40,
     flexGrow: "0",
@@ -176,13 +186,14 @@ export const TableColumns = [
     isDraggable: true,
     headerClassName: "",
     disabled: true,
+    columnAlignment: "alignRight",
   },
   {
     key: "dur",
     id: "dur",
     label: "Duration",
     disableSort: false,
-    width: 95,
+    width: 100,
     isSelected: true,
     height: 40,
     flexGrow: "0",
@@ -191,6 +202,7 @@ export const TableColumns = [
     isDraggable: true,
     headerClassName: "jobsContent__tableHeaders",
     disabled: false,
+    columnAlignment: "alignRight",
   },
   {
     key: "sql",
@@ -221,6 +233,7 @@ export const TableColumns = [
     isDraggable: true,
     headerClassName: "jobsContent__tableHeaders",
     disabled: false,
+    columnAlignment: "alignRight",
   },
   {
     key: "planningTime",
@@ -251,6 +264,7 @@ export const TableColumns = [
     isDraggable: true,
     headerClassName: "jobsContent__tableHeaders",
     disabled: false,
+    columnAlignment: "alignRight",
   },
   {
     key: "rowsReturned",
@@ -266,6 +280,7 @@ export const TableColumns = [
     isDraggable: true,
     headerClassName: "jobsContent__tableHeaders",
     disabled: false,
+    columnAlignment: "alignRight",
   },
 ];
 
@@ -359,6 +374,7 @@ export const sqlEditorTableColumns = [
     isDraggable: true,
     headerClassName: "jobsContent__tableHeaders",
     disabledClick: false,
+    columnAlignment: "alignRight",
   },
   {
     key: "job",
@@ -478,5 +494,5 @@ export const ReflectionsNotUsed = [
 export const EXECUTION_DROPDOWN_OPTIONS = [
   { option: "Runtime", label: "Runtime" },
   { option: "Total Memory", label: "Total Memory" },
-  { option: "Records", label: "Records" },
+  { option: "Records Processed", label: "Records Processed" },
 ];

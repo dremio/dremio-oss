@@ -68,7 +68,7 @@ public class BlockLogLevelTurboFilter extends TurboFilter {
   public FilterReply decide(Marker marker, Logger logger, Level level, String s, Object[] objects, Throwable throwable) {
 
     int maximumMatchingPackageLength = 0;
-    //we intitalise longestMatchingPackageThreshold to the default threshold. Hence if no match is found we use the default
+    //we initialise longestMatchingPackageThreshold to the default threshold. Hence if no match is found we use the default
     String[] longestMatchingPackageThreshold = new String[]{"defaultLog",defaultLogLevelThreshold.levelStr};
     for (int i = 0; i < packageThresholdLevel.size(); i++) {
       if (matches(this.packageThresholdLevel.get(i)[0], logger.getName())) {

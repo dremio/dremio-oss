@@ -121,7 +121,7 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void setCacheKey(long cacheKey) {
+  public void setCacheKey(String cacheKey) {
     for (final AttemptObserver observer : observers) {
       observer.setCacheKey(cacheKey);
     }

@@ -139,7 +139,8 @@ public class DremioServlet implements Servlet {
       .setDownloadRecordsLimit(options.getOption(DatasetDownloadManager.DOWNLOAD_RECORDS_LIMIT))
       .setShowMetadataValidityCheckbox(options.getOption(CatalogOptions.SHOW_METADATA_VALIDITY_CHECKBOX))
       .setShowNewJobsPage(options.getOption(UIOptions.JOBS_UI_CHECK))
-      .setAllowAutoComplete(options.getOption(UIOptions.ALLOW_AUTOCOMPLETE));
+      .setAllowAutoComplete(options.getOption(UIOptions.ALLOW_AUTOCOMPLETE))
+      .setAllowFormatting(options.getOption(UIOptions.ALLOW_FORMATTING));
   }
 
   protected Provider<SupportService> getSupportService() {

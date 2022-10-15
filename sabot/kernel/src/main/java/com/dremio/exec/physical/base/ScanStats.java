@@ -16,7 +16,6 @@
 package com.dremio.exec.physical.base;
 
 public class ScanStats {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanStats.class);
 
   public static final ScanStats TRIVIAL_TABLE = new ScanStats(GroupScanProperty.NO_EXACT_ROW_COUNT, 20, 1, 1);
 

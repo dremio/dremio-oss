@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -46,9 +45,9 @@ class ConvertCaseOptions extends Component {
       fields: { action },
     } = this.props;
     return (
-      <div style={[styles.base]}>
-        <h3 style={[styles.title, formLabel]}>{la("Options")}</h3>
-        <div style={[styles.items]}>
+      <div style={{ ...styles.base }}>
+        <h3 style={{ ...styles.title, ...formLabel }}>{la("Options")}</h3>
+        <div style={{ ...styles.items }}>
           <Radio
             radioValue="UPPERCASE"
             label="UPPERCASE"
@@ -87,4 +86,4 @@ const styles = {
     marginTop: 10,
   },
 };
-export default Radium(ConvertCaseOptions);
+export default ConvertCaseOptions;

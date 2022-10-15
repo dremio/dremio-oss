@@ -22,7 +22,6 @@ import { connect } from "react-redux";
 import { isWikAvailable } from "@app/selectors/explore";
 import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
 import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
-import Art from "@app/components/Art";
 import { formatMessage } from "@app/utils/locale";
 import PageTypeButtonsMixin from "dyn-load/pages/ExplorePage/components/PageTypeButtonsMixin";
 import exploreUtils from "@app/utils/explore/exploreUtils";
@@ -31,6 +30,7 @@ import {
   button,
   buttonActive,
   icon as iconClass,
+  iconActive,
 } from "./PageTypeButtons.less";
 
 export class SinglePageTypeButton extends Component {
@@ -52,7 +52,13 @@ export class SinglePageTypeButton extends Component {
         onClick={onClick}
         data-qa={dataQa}
       >
-        {icon && <Art src={`${icon}.svg`} className={iconClass} alt={text} />}
+        {icon && (
+          <dremio-icon
+            name={icon}
+            class={classNames(iconClass, isSelected && iconActive)}
+            alt={text}
+          />
+        )}
         {text}
       </span>
     );
@@ -106,23 +112,28 @@ const PageTypeButton = withRouter(ButtonController);
 const buttonsConfigs = {
   [PageTypes.default]: {
     intlId: "Dataset.Data",
-    icon: "HeaderData",
+    icon: "navigation-bar/sql-runner",
     dataQa: "Data",
   },
   [PageTypes.wiki]: {
     intlId: "Dataset.Wiki",
-    icon: "HeaderMetadata",
+    icon: "sql-editor/catalog",
     dataQa: "Wiki",
   },
   [PageTypes.graph]: {
     intlId: "Dataset.Graph",
-    icon: "HeaderGraph",
+    icon: "sql-editor/graph",
     dataQa: "Graph",
   },
   [PageTypes.reflections]: {
     intlId: "Reflection.Reflections",
-    icon: "HeaderReflection",
+    icon: "sql-editor/reflections",
     dataQa: "Reflections",
+  },
+  [PageTypes.history]: {
+    intlId: "Common.History",
+    icon: "interface/history",
+    dataQa: "History",
   },
 };
 
@@ -153,7 +164,8 @@ export class PageTypeButtonsView extends PureComponent {
 
   render() {
     const { selectedPageType, dataQa, location } = this.props;
-    const pageTypes = this.getAvailablePageTypes();
+    const isSourcePage = exploreUtils.isExploreSourcePage(location);
+    const pageTypes = this.getAvailablePageTypes(isSourcePage);
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
 
     // Show tabbed content for dataset

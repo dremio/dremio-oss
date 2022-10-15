@@ -83,7 +83,7 @@ public class ArrowFileReader implements AutoCloseable {
   private void openFile() throws IOException {
     inputStream = dfs.open(path);
 
-    if (false /* disable this until a PDFS getFileStatus() issue is fixed AssertionUtil.ASSERT_ENABLED */) {
+    if (false /* disable this until a PDFS getFileStatus() issue is fixed VM.areAssertsEnabled() */) {
       final FileAttributes fileAttributes = dfs.getFileAttributes(path);
       final long size = fileAttributes.size();
 

@@ -76,8 +76,6 @@ import com.google.common.collect.Sets;
  */
 public class QueryMetadata {
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryMetadata.class);
-
   private static final Set<String> RESERVED_PARENT_NAMES = ImmutableSet.of("dremio_limited_preview");
 
   private final RelDataType rowType;

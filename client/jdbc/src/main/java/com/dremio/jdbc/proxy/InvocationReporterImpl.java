@@ -250,8 +250,7 @@ class InvocationReporterImpl implements InvocationReporter
       }
       else if (
           // Is type seen and whose toString() renders value well.
-          false
-          || rawActualType == java.lang.Boolean.class
+          rawActualType == java.lang.Boolean.class
           || rawActualType == java.lang.Byte.class
           || rawActualType == java.lang.Double.class
           || rawActualType == java.lang.Float.class
@@ -268,16 +267,14 @@ class InvocationReporterImpl implements InvocationReporter
       else if (
           // Is type seen and whose toString() has rendered value well--in cases
           // seen so far.
-          false
-          || rawActualType == java.util.Properties.class
+          rawActualType == java.util.Properties.class
           || rawActualType.isEnum()
           ) {
         result = value.toString();
       }
       else if (
           // Is type to warn about (one case).
-          false
-          || rawActualType == com.dremio.jdbc.DremioResultSet.class
+          rawActualType == com.dremio.jdbc.DremioResultSet.class
           ) {
         printWarningLine(
             "Class " + rawActualType.getName() + " should be an interface."
@@ -287,13 +284,12 @@ class InvocationReporterImpl implements InvocationReporter
       }
       else if (
           // Is type to warn about (second case).
-          false
           // Note:  Using strings rather than compiled-in class references to
           // avoid failing when run using JDBC-all Jar, which excludes
           // org.apache.hadoop.io.Text.
           // Note:  org.apache.hadoop.io.Text should no longer appear (see
           // DRILL-3347, but leaving warning in for now in case Text returns).
-          || rawActualType.getName().equals( "org.apache.hadoop.io.Text" )
+          rawActualType.getName().equals( "org.apache.hadoop.io.Text" )
           || rawActualType.getName().equals( "org.joda.time.Period" )
           || rawActualType ==
              com.dremio.exec.vector.accessor.sql.TimePrintMillis.class

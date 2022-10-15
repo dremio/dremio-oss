@@ -45,6 +45,7 @@ public class ServerData {
   private final boolean showMetadataValidityCheckbox;
   private final boolean showNewJobsPage;
   private final boolean allowAutoComplete;
+  private final boolean allowFormatting;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -70,6 +71,7 @@ public class ServerData {
     this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
     this.showNewJobsPage = builder.showNewJobsPage;
     this.allowAutoComplete = builder.allowAutoComplete;
+    this.allowFormatting = builder.allowFormatting;
   }
 
   public String getServerEnvironment() {
@@ -173,6 +175,8 @@ public class ServerData {
     return allowAutoComplete;
   }
 
+  public boolean isAllowFormatting() { return allowFormatting; }
+
   /**
    * A builder for server data
    */
@@ -200,6 +204,7 @@ public class ServerData {
     private boolean showMetadataValidityCheckbox;
     private boolean showNewJobsPage;
     private boolean allowAutoComplete;
+    private boolean allowFormatting;
 
     protected Builder() {
     }
@@ -228,6 +233,7 @@ public class ServerData {
       this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
       this.showNewJobsPage = builder.showNewJobsPage;
       this.allowAutoComplete = builder.allowAutoComplete;
+      this.allowFormatting = builder.allowFormatting;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -342,6 +348,11 @@ public class ServerData {
 
     public Builder setAllowAutoComplete(boolean allowAutoComplete) {
       this.allowAutoComplete = allowAutoComplete;
+      return this;
+    }
+
+    public Builder setAllowFormatting(boolean allowFormatting) {
+      this.allowFormatting = allowFormatting;
       return this;
     }
 

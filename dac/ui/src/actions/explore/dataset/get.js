@@ -66,8 +66,11 @@ export const loadExploreEntities =
 
 export const PERFORM_LOAD_DATASET = "PERFORM_LOAD_DATASET";
 
-export const performLoadDataset = (dataset, viewId, callback) => {
-  return { type: PERFORM_LOAD_DATASET, meta: { dataset, viewId, callback } };
+export const performLoadDataset = (dataset, viewId, willLoadTable) => {
+  return {
+    type: PERFORM_LOAD_DATASET,
+    meta: { dataset, viewId, willLoadTable },
+  };
 };
 
 export const CLEAN_DATA_VIEW_ID = "CLEAN_DATA_VIEW_ID";

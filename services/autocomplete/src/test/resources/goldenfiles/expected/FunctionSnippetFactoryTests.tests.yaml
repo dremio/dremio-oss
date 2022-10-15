@@ -1,0 +1,3869 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "!="
+  input: "!="
+  output:
+   - "!=(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "!=(${1:STRING}, ${2:STRING})"
+   - "!=(${1:FLOAT}, ${2:FLOAT})"
+   - "!=(${1:DECIMAL}, ${2:DECIMAL})"
+   - "!=(${1:DOUBLE}, ${2:DOUBLE})"
+   - "!=(${1:INT}, ${2:INT})"
+   - "!=(${1:BIGINT}, ${2:BIGINT})"
+   - "!=(${1:DATE}, ${2:DATE})"
+   - "!=(${1:TIME}, ${2:TIME})"
+   - "!=(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "$HISTOGRAM"
+  input: "$HISTOGRAM"
+  output:
+   - "$HISTOGRAM(${1:NUMERIC})"
+   - "$HISTOGRAM(${1:STRING})"
+ -
+  description: "$HISTOGRAM_FIRST_VALUE"
+  input: "$HISTOGRAM_FIRST_VALUE"
+  output:
+   - "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+   - "$HISTOGRAM_FIRST_VALUE(${1:CHARACTERS})"
+   - "$HISTOGRAM_FIRST_VALUE(${1:FLOAT})"
+   - "$HISTOGRAM_FIRST_VALUE(${1:DECIMAL})"
+   - "$HISTOGRAM_FIRST_VALUE(${1:DOUBLE})"
+   - "$HISTOGRAM_FIRST_VALUE(${1:INT})"
+   - "$HISTOGRAM_FIRST_VALUE(${1:BIGINT})"
+ -
+  description: "$HISTOGRAM_LAST_VALUE"
+  input: "$HISTOGRAM_LAST_VALUE"
+  output:
+   - "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+   - "$HISTOGRAM_LAST_VALUE(${1:CHARACTERS})"
+   - "$HISTOGRAM_LAST_VALUE(${1:FLOAT})"
+   - "$HISTOGRAM_LAST_VALUE(${1:DECIMAL})"
+   - "$HISTOGRAM_LAST_VALUE(${1:DOUBLE})"
+   - "$HISTOGRAM_LAST_VALUE(${1:INT})"
+   - "$HISTOGRAM_LAST_VALUE(${1:BIGINT})"
+ -
+  description: "$HISTOGRAM_MAX"
+  input: "$HISTOGRAM_MAX"
+  output:
+   - "$HISTOGRAM_MAX(${1:BYTES})"
+   - "$HISTOGRAM_MAX(${1:CHARACTERS})"
+   - "$HISTOGRAM_MAX(${1:FLOAT})"
+   - "$HISTOGRAM_MAX(${1:DECIMAL})"
+   - "$HISTOGRAM_MAX(${1:DOUBLE})"
+   - "$HISTOGRAM_MAX(${1:INT})"
+   - "$HISTOGRAM_MAX(${1:BIGINT})"
+ -
+  description: "$HISTOGRAM_MIN"
+  input: "$HISTOGRAM_MIN"
+  output:
+   - "$HISTOGRAM_MIN(${1:BYTES})"
+   - "$HISTOGRAM_MIN(${1:CHARACTERS})"
+   - "$HISTOGRAM_MIN(${1:FLOAT})"
+   - "$HISTOGRAM_MIN(${1:DECIMAL})"
+   - "$HISTOGRAM_MIN(${1:DOUBLE})"
+   - "$HISTOGRAM_MIN(${1:INT})"
+   - "$HISTOGRAM_MIN(${1:BIGINT})"
+ -
+  description: "$SUM0"
+  input: "$SUM0"
+  output:
+   - "$SUM0(${1:FLOAT})"
+   - "$SUM0(${1:DECIMAL})"
+   - "$SUM0(${1:DOUBLE})"
+   - "$SUM0(${1:INT})"
+   - "$SUM0(${1:BIGINT})"
+ -
+  description: "$SUM0_V2"
+  input: "$SUM0_V2"
+  output:
+   - "$SUM0_V2(${1:BOOLEAN})"
+   - "$SUM0_V2(${1:STRING})"
+   - "$SUM0_V2(${1:DECIMAL})"
+   - "$SUM0_V2(${1:INT})"
+   - "$SUM0_V2(${1:BIGINT})"
+ -
+  description: "&&"
+  input: "&&"
+  output:
+   - "&&(${1:BOOLEAN}, ${2:BOOLEAN})"
+ -
+  description: "-"
+  input: "-"
+  output:
+   - "-(${1:FLOAT})"
+   - "-(${1:DECIMAL})"
+   - "-(${1:DOUBLE})"
+   - "-(${1:BIGINT})"
+ -
+  description: "<"
+  input: "<"
+  output:
+   - "<(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "<(${1:STRING}, ${2:STRING})"
+   - "<(${1:FLOAT}, ${2:FLOAT})"
+   - "<(${1:DECIMAL}, ${2:DECIMAL})"
+   - "<(${1:DOUBLE}, ${2:DOUBLE})"
+   - "<(${1:INT}, ${2:INT})"
+   - "<(${1:BIGINT}, ${2:BIGINT})"
+   - "<(${1:DATE}, ${2:DATE})"
+   - "<(${1:TIME}, ${2:TIME})"
+   - "<(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "<="
+  input: "<="
+  output:
+   - "<=(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "<=(${1:STRING}, ${2:STRING})"
+   - "<=(${1:FLOAT}, ${2:FLOAT})"
+   - "<=(${1:DECIMAL}, ${2:DECIMAL})"
+   - "<=(${1:DOUBLE}, ${2:DOUBLE})"
+   - "<=(${1:INT}, ${2:INT})"
+   - "<=(${1:BIGINT}, ${2:BIGINT})"
+   - "<=(${1:DATE}, ${2:DATE})"
+   - "<=(${1:TIME}, ${2:TIME})"
+   - "<=(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "<>"
+  input: "<>"
+  output:
+   - "<>(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "<>(${1:STRING}, ${2:STRING})"
+   - "<>(${1:FLOAT}, ${2:FLOAT})"
+   - "<>(${1:DECIMAL}, ${2:DECIMAL})"
+   - "<>(${1:DOUBLE}, ${2:DOUBLE})"
+   - "<>(${1:INT}, ${2:INT})"
+   - "<>(${1:BIGINT}, ${2:BIGINT})"
+   - "<>(${1:DATE}, ${2:DATE})"
+   - "<>(${1:TIME}, ${2:TIME})"
+   - "<>(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "="
+  input: "="
+  output:
+   - "=(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "=(${1:STRING}, ${2:STRING})"
+   - "=(${1:FLOAT}, ${2:FLOAT})"
+   - "=(${1:DECIMAL}, ${2:DECIMAL})"
+   - "=(${1:DOUBLE}, ${2:DOUBLE})"
+   - "=(${1:INT}, ${2:INT})"
+   - "=(${1:BIGINT}, ${2:BIGINT})"
+   - "=(${1:DATE}, ${2:DATE})"
+   - "=(${1:TIME}, ${2:TIME})"
+   - "=(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "=="
+  input: "=="
+  output:
+   - "==(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "==(${1:STRING}, ${2:STRING})"
+   - "==(${1:FLOAT}, ${2:FLOAT})"
+   - "==(${1:DECIMAL}, ${2:DECIMAL})"
+   - "==(${1:DOUBLE}, ${2:DOUBLE})"
+   - "==(${1:INT}, ${2:INT})"
+   - "==(${1:BIGINT}, ${2:BIGINT})"
+   - "==(${1:DATE}, ${2:DATE})"
+   - "==(${1:TIME}, ${2:TIME})"
+   - "==(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: ">"
+  input: ">"
+  output:
+   - ">(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - ">(${1:STRING}, ${2:STRING})"
+   - ">(${1:FLOAT}, ${2:FLOAT})"
+   - ">(${1:DECIMAL}, ${2:DECIMAL})"
+   - ">(${1:DOUBLE}, ${2:DOUBLE})"
+   - ">(${1:INT}, ${2:INT})"
+   - ">(${1:BIGINT}, ${2:BIGINT})"
+   - ">(${1:DATE}, ${2:DATE})"
+   - ">(${1:TIME}, ${2:TIME})"
+   - ">(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: ">="
+  input: ">="
+  output:
+   - ">=(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - ">=(${1:STRING}, ${2:STRING})"
+   - ">=(${1:FLOAT}, ${2:FLOAT})"
+   - ">=(${1:DECIMAL}, ${2:DECIMAL})"
+   - ">=(${1:DOUBLE}, ${2:DOUBLE})"
+   - ">=(${1:INT}, ${2:INT})"
+   - ">=(${1:BIGINT}, ${2:BIGINT})"
+   - ">=(${1:DATE}, ${2:DATE})"
+   - ">=(${1:TIME}, ${2:TIME})"
+   - ">=(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "ABS"
+  input: "ABS"
+  output:
+   - "ABS(${1:FLOAT})"
+   - "ABS(${1:DECIMAL})"
+   - "ABS(${1:DOUBLE})"
+   - "ABS(${1:INT})"
+   - "ABS(${1:BIGINT})"
+ -
+  description: "ACOS"
+  input: "ACOS"
+  output:
+   - "ACOS(${1:NUMERIC})"
+ -
+  description: "ADD"
+  input: "ADD"
+  output:
+   - "ADD(${1:FLOAT}, ${2:FLOAT})"
+   - "ADD(${1:DECIMAL}, ${2:DECIMAL})"
+   - "ADD(${1:DOUBLE}, ${2:DOUBLE})"
+   - "ADD(${1:INT}, ${2:INT})"
+   - "ADD(${1:INT}, ${2:DATE})"
+   - "ADD(${1:INT}, ${2:TIME})"
+   - "ADD(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD(${1:BIGINT}, ${2:BIGINT})"
+   - "ADD(${1:BIGINT}, ${2:DATE})"
+   - "ADD(${1:BIGINT}, ${2:TIME})"
+   - "ADD(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD(${1:DATE}, ${2:INT})"
+   - "ADD(${1:DATE}, ${2:BIGINT})"
+   - "ADD(${1:DATE}, ${2:BIGINT})"
+   - "ADD(${1:DATE}, ${2:TIME})"
+   - "ADD(${1:TIME}, ${2:INT})"
+   - "ADD(${1:TIME}, ${2:BIGINT})"
+   - "ADD(${1:TIME}, ${2:DATE})"
+   - "ADD(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_DAYS"
+  input: "ADD_DAYS"
+  output:
+   - "ADD_DAYS(${1:INT}, ${2:DATE})"
+   - "ADD_DAYS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_DAYS(${1:BIGINT}, ${2:DATE})"
+   - "ADD_DAYS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_DAYS(${1:DATE}, ${2:INT})"
+   - "ADD_DAYS(${1:DATE}, ${2:BIGINT})"
+   - "ADD_DAYS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_DAYS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_HOURS"
+  input: "ADD_HOURS"
+  output:
+   - "ADD_HOURS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_HOURS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_HOURS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_HOURS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_MICROSECONDS"
+  input: "ADD_MICROSECONDS"
+  output:
+   - "ADD_MICROSECONDS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_MICROSECONDS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_MICROSECONDS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_MICROSECONDS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_MINUTES"
+  input: "ADD_MINUTES"
+  output:
+   - "ADD_MINUTES(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_MINUTES(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_MINUTES(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_MINUTES(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_MONTHS"
+  input: "ADD_MONTHS"
+  output:
+   - "ADD_MONTHS(${1:INT}, ${2:DATE})"
+   - "ADD_MONTHS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_MONTHS(${1:BIGINT}, ${2:DATE})"
+   - "ADD_MONTHS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_MONTHS(${1:DATE}, ${2:INT})"
+   - "ADD_MONTHS(${1:DATE}, ${2:BIGINT})"
+   - "ADD_MONTHS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_MONTHS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_QUARTERS"
+  input: "ADD_QUARTERS"
+  output:
+   - "ADD_QUARTERS(${1:INT}, ${2:DATE})"
+   - "ADD_QUARTERS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_QUARTERS(${1:BIGINT}, ${2:DATE})"
+   - "ADD_QUARTERS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_QUARTERS(${1:DATE}, ${2:INT})"
+   - "ADD_QUARTERS(${1:DATE}, ${2:BIGINT})"
+   - "ADD_QUARTERS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_QUARTERS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_SECONDS"
+  input: "ADD_SECONDS"
+  output:
+   - "ADD_SECONDS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_SECONDS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_SECONDS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_SECONDS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_WEEKS"
+  input: "ADD_WEEKS"
+  output:
+   - "ADD_WEEKS(${1:INT}, ${2:DATE})"
+   - "ADD_WEEKS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_WEEKS(${1:BIGINT}, ${2:DATE})"
+   - "ADD_WEEKS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_WEEKS(${1:DATE}, ${2:INT})"
+   - "ADD_WEEKS(${1:DATE}, ${2:BIGINT})"
+   - "ADD_WEEKS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_WEEKS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "ADD_YEARS"
+  input: "ADD_YEARS"
+  output:
+   - "ADD_YEARS(${1:INT}, ${2:DATE})"
+   - "ADD_YEARS(${1:INT}, ${2:TIMESTAMP})"
+   - "ADD_YEARS(${1:BIGINT}, ${2:DATE})"
+   - "ADD_YEARS(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "ADD_YEARS(${1:DATE}, ${2:INT})"
+   - "ADD_YEARS(${1:DATE}, ${2:BIGINT})"
+   - "ADD_YEARS(${1:TIMESTAMP}, ${2:INT})"
+   - "ADD_YEARS(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "AES_DECRYPT"
+  input: "AES_DECRYPT"
+  output:
+   - "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "AES_ENCRYPT"
+  input: "AES_ENCRYPT"
+  output:
+   - "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "ALTERNATE"
+  input: "ALTERNATE"
+  output:
+   - "ALTERNATE()"
+ -
+  description: "ALTERNATE3"
+  input: "ALTERNATE3"
+  output:
+   - "ALTERNATE3()"
+ -
+  description: "AND"
+  input: "AND"
+  output:
+   - "AND(${1:BOOLEAN}, ${2:BOOLEAN})"
+ -
+  description: "APPROX_COUNT_DISTINCT"
+  input: "APPROX_COUNT_DISTINCT"
+  output:
+   - "APPROX_COUNT_DISTINCT(${1:ANY})"
+ -
+  description: "ASCII"
+  input: "ASCII"
+  output:
+   - "ASCII(${1:CHARACTERS})"
+ -
+  description: "ASIN"
+  input: "ASIN"
+  output:
+   - "ASIN(${1:NUMERIC})"
+ -
+  description: "ASSERT_BIGINT"
+  input: "ASSERT_BIGINT"
+  output:
+   - "ASSERT_BIGINT(${1:BYTES})"
+ -
+  description: "ASSERT_BIT"
+  input: "ASSERT_BIT"
+  output:
+   - "ASSERT_BIT(${1:BYTES})"
+ -
+  description: "ASSERT_DATE"
+  input: "ASSERT_DATE"
+  output:
+   - "ASSERT_DATE(${1:BYTES})"
+ -
+  description: "ASSERT_DECIMAL"
+  input: "ASSERT_DECIMAL"
+  output:
+   - "ASSERT_DECIMAL(${1:BYTES})"
+ -
+  description: "ASSERT_FIXEDSIZEBINARY"
+  input: "ASSERT_FIXEDSIZEBINARY"
+  output:
+   - "ASSERT_FIXEDSIZEBINARY(${1:BYTES})"
+ -
+  description: "ASSERT_FLOAT4"
+  input: "ASSERT_FLOAT4"
+  output:
+   - "ASSERT_FLOAT4(${1:BYTES})"
+ -
+  description: "ASSERT_FLOAT8"
+  input: "ASSERT_FLOAT8"
+  output:
+   - "ASSERT_FLOAT8(${1:BYTES})"
+ -
+  description: "ASSERT_INT"
+  input: "ASSERT_INT"
+  output:
+   - "ASSERT_INT(${1:BYTES})"
+ -
+  description: "ASSERT_INTERVALDAY"
+  input: "ASSERT_INTERVALDAY"
+  output:
+   - "ASSERT_INTERVALDAY(${1:BYTES})"
+ -
+  description: "ASSERT_INTERVALYEAR"
+  input: "ASSERT_INTERVALYEAR"
+  output:
+   - "ASSERT_INTERVALYEAR(${1:BYTES})"
+ -
+  description: "ASSERT_LIST"
+  input: "ASSERT_LIST"
+  output:
+   - "ASSERT_LIST(${1:BYTES})"
+ -
+  description: "ASSERT_STRUCT"
+  input: "ASSERT_STRUCT"
+  output:
+   - "ASSERT_STRUCT(${1:BYTES})"
+ -
+  description: "ASSERT_TIME"
+  input: "ASSERT_TIME"
+  output:
+   - "ASSERT_TIME(${1:BYTES})"
+ -
+  description: "ASSERT_TIMESTAMP"
+  input: "ASSERT_TIMESTAMP"
+  output:
+   - "ASSERT_TIMESTAMP(${1:BYTES})"
+ -
+  description: "ASSERT_VARBINARY"
+  input: "ASSERT_VARBINARY"
+  output:
+   - "ASSERT_VARBINARY(${1:BYTES})"
+ -
+  description: "ASSERT_VARCHAR"
+  input: "ASSERT_VARCHAR"
+  output:
+   - "ASSERT_VARCHAR(${1:BYTES})"
+ -
+  description: "ATAN"
+  input: "ATAN"
+  output:
+   - "ATAN(${1:NUMERIC})"
+ -
+  description: "ATAN2"
+  input: "ATAN2"
+  output:
+   - "ATAN2(${1:NUMERIC}, ${2:NUMERIC})"
+ -
+  description: "AVG"
+  input: "AVG"
+  output:
+   - "AVG(${1:NUMERIC})"
+ -
+  description: "BASE64"
+  input: "BASE64"
+  output:
+   - "BASE64(${1:BYTES})"
+ -
+  description: "BIN"
+  input: "BIN"
+  output:
+   - "BIN(${1:INT})"
+   - "BIN(${1:BIGINT})"
+ -
+  description: "BINARY_STRING"
+  input: "BINARY_STRING"
+  output:
+   - "BINARY_STRING(${1:CHARACTERS})"
+ -
+  description: "BITWISE_AND"
+  input: "BITWISE_AND"
+  output:
+   - "BITWISE_AND(${1:NUMERIC}, ${2:INT})"
+   - "BITWISE_AND(${1:NUMERIC}, ${2:BIGINT})"
+ -
+  description: "BITWISE_NOT"
+  input: "BITWISE_NOT"
+  output:
+   - "BITWISE_NOT(${1:INT})"
+   - "BITWISE_NOT(${1:BIGINT})"
+ -
+  description: "BITWISE_OR"
+  input: "BITWISE_OR"
+  output:
+   - "BITWISE_OR(${1:INT}, ${2:INT})"
+   - "BITWISE_OR(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "BITWISE_XOR"
+  input: "BITWISE_XOR"
+  output:
+   - "BITWISE_XOR(${1:INT}, ${2:INT})"
+   - "BITWISE_XOR(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "BIT_AND"
+  input: "BIT_AND"
+  output:
+   - "BIT_AND(${1:BOOLEAN})"
+   - "BIT_AND(${1:STRING})"
+   - "BIT_AND(${1:INT})"
+   - "BIT_AND(${1:BIGINT})"
+ -
+  description: "BIT_LENGTH"
+  input: "BIT_LENGTH"
+  output:
+   - "BIT_LENGTH(${1:STRING})"
+ -
+  description: "BIT_OR"
+  input: "BIT_OR"
+  output:
+   - "BIT_OR(${1:BOOLEAN})"
+   - "BIT_OR(${1:STRING})"
+   - "BIT_OR(${1:INT})"
+   - "BIT_OR(${1:BIGINT})"
+ -
+  description: "BOOLEANAND"
+  input: "BOOLEANAND"
+  output:
+   - "BOOLEANAND(${1:BOOLEAN}, ${2:BOOLEAN})"
+ -
+  description: "BOOLEANOR"
+  input: "BOOLEANOR"
+  output:
+   - "BOOLEANOR(${1:BOOLEAN}, ${2:BOOLEAN})"
+ -
+  description: "BOOL_AND"
+  input: "BOOL_AND"
+  output:
+   - "BOOL_AND(${1:BOOLEAN})"
+   - "BOOL_AND(${1:STRING})"
+ -
+  description: "BOOL_OR"
+  input: "BOOL_OR"
+  output:
+   - "BOOL_OR(${1:BOOLEAN})"
+   - "BOOL_OR(${1:STRING})"
+ -
+  description: "BROUND"
+  input: "BROUND"
+  output:
+   - "BROUND(${1:DOUBLE})"
+ -
+  description: "BTRIM"
+  input: "BTRIM"
+  output:
+   - "BTRIM(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "BYTESUBSTRING"
+  input: "BYTESUBSTRING"
+  output:
+   - "BYTESUBSTRING(${1:BYTES}, ${2:INT}, ${3:INT})"
+   - "BYTESUBSTRING(${1:BYTES}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "BYTE_SUBSTR"
+  input: "BYTE_SUBSTR"
+  output:
+   - "BYTE_SUBSTR(${1:BYTES}, ${2:INT}, ${3:INT})"
+   - "BYTE_SUBSTR(${1:BYTES}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "CARDINALITY"
+  input: "CARDINALITY"
+  output: []
+ -
+  description: "CAST"
+  input: "CAST"
+  output:
+   - "CAST(${1:ANY}, ${2:CHARACTERS})"
+   - "CAST(${1:ANY}, ${2:TIMESTAMP})"
+   - "CAST(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "CAST(${1:BOOLEAN}, ${2:FLOAT})"
+   - "CAST(${1:BOOLEAN}, ${2:DECIMAL})"
+   - "CAST(${1:BOOLEAN}, ${2:DOUBLE})"
+   - "CAST(${1:BOOLEAN}, ${2:INT})"
+   - "CAST(${1:BOOLEAN}, ${2:BIGINT})"
+   - "CAST(${1:NUMERIC}, ${2:BOOLEAN})"
+   - "CAST(${1:NUMERIC}, ${2:FLOAT})"
+   - "CAST(${1:NUMERIC}, ${2:DECIMAL})"
+   - "CAST(${1:NUMERIC}, ${2:DOUBLE})"
+   - "CAST(${1:NUMERIC}, ${2:INT})"
+   - "CAST(${1:NUMERIC}, ${2:BIGINT})"
+   - "CAST(${1:STRING}, ${2:BYTES})"
+   - "CAST(${1:STRING}, ${2:DATE})"
+   - "CAST(${1:STRING}, ${2:TIME})"
+   - "CAST(${1:CHARACTERS}, ${2:BOOLEAN})"
+   - "CAST(${1:CHARACTERS}, ${2:FLOAT})"
+   - "CAST(${1:CHARACTERS}, ${2:DECIMAL})"
+   - "CAST(${1:CHARACTERS}, ${2:DOUBLE})"
+   - "CAST(${1:CHARACTERS}, ${2:INT})"
+   - "CAST(${1:CHARACTERS}, ${2:BIGINT})"
+   - "CAST(${1:DATE}, ${2:DATE})"
+   - "CAST(${1:TIME}, ${2:TIME})"
+   - "CAST(${1:TIMESTAMP}, ${2:BOOLEAN})"
+   - "CAST(${1:TIMESTAMP}, ${2:FLOAT})"
+   - "CAST(${1:TIMESTAMP}, ${2:DECIMAL})"
+   - "CAST(${1:TIMESTAMP}, ${2:DOUBLE})"
+   - "CAST(${1:TIMESTAMP}, ${2:INT})"
+   - "CAST(${1:TIMESTAMP}, ${2:BIGINT})"
+   - "CAST(${1:TIMESTAMP}, ${2:DATE})"
+   - "CAST(${1:TIMESTAMP}, ${2:TIME})"
+ -
+  description: "CASTBIGINT"
+  input: "CASTBIGINT"
+  output:
+   - "CASTBIGINT(${1:STRING})"
+   - "CASTBIGINT(${1:FLOAT})"
+   - "CASTBIGINT(${1:DOUBLE})"
+   - "CASTBIGINT(${1:INT})"
+ -
+  description: "CASTBIT"
+  input: "CASTBIT"
+  output:
+   - "CASTBIT(${1:CHARACTERS})"
+ -
+  description: "CASTBOOLEAN"
+  input: "CASTBOOLEAN"
+  output:
+   - "CASTBOOLEAN(${1:CHARACTERS})"
+ -
+  description: "CASTDATE"
+  input: "CASTDATE"
+  output:
+   - "CASTDATE(${1:STRING})"
+   - "CASTDATE(${1:BIGINT})"
+   - "CASTDATE(${1:TIMESTAMP})"
+ -
+  description: "CASTDECIMAL"
+  input: "CASTDECIMAL"
+  output:
+   - "CASTDECIMAL(${1:NUMERIC}, ${2:BIGINT}, ${3:BIGINT})"
+   - "CASTDECIMAL(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "CASTDECIMALNULLONOVERFLOW"
+  input: "CASTDECIMALNULLONOVERFLOW"
+  output:
+   - "CASTDECIMALNULLONOVERFLOW(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+   - "CASTDECIMALNULLONOVERFLOW(${1:DECIMAL}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "CASTFLOAT4"
+  input: "CASTFLOAT4"
+  output:
+   - "CASTFLOAT4(${1:STRING})"
+   - "CASTFLOAT4(${1:DOUBLE})"
+   - "CASTFLOAT4(${1:INT})"
+   - "CASTFLOAT4(${1:BIGINT})"
+ -
+  description: "CASTFLOAT8"
+  input: "CASTFLOAT8"
+  output:
+   - "CASTFLOAT8(${1:STRING})"
+   - "CASTFLOAT8(${1:FLOAT})"
+   - "CASTFLOAT8(${1:DECIMAL})"
+   - "CASTFLOAT8(${1:INT})"
+   - "CASTFLOAT8(${1:BIGINT})"
+ -
+  description: "CASTINT"
+  input: "CASTINT"
+  output:
+   - "CASTINT(${1:STRING})"
+   - "CASTINT(${1:FLOAT})"
+   - "CASTINT(${1:DOUBLE})"
+   - "CASTINT(${1:BIGINT})"
+ -
+  description: "CASTINTERVALDAY"
+  input: "CASTINTERVALDAY"
+  output:
+   - "CASTINTERVALDAY(${1:BYTES})"
+ -
+  description: "CASTINTERVALYEAR"
+  input: "CASTINTERVALYEAR"
+  output:
+   - "CASTINTERVALYEAR(${1:BYTES})"
+ -
+  description: "CASTNULLABLEBIGINT"
+  input: "CASTNULLABLEBIGINT"
+  output:
+   - "CASTNULLABLEBIGINT(${1:STRING})"
+   - "CASTNULLABLEBIGINT(${1:DATE})"
+   - "CASTNULLABLEBIGINT(${1:TIMESTAMP})"
+ -
+  description: "CASTNULLABLEINT"
+  input: "CASTNULLABLEINT"
+  output:
+   - "CASTNULLABLEINT(${1:STRING})"
+   - "CASTNULLABLEINT(${1:DATE})"
+   - "CASTNULLABLEINT(${1:TIMESTAMP})"
+ -
+  description: "CASTNULLABLEINTERVALDAY"
+  input: "CASTNULLABLEINTERVALDAY"
+  output:
+   - "CASTNULLABLEINTERVALDAY(${1:BYTES})"
+ -
+  description: "CASTNULLABLEINTERVALYEAR"
+  input: "CASTNULLABLEINTERVALYEAR"
+  output:
+   - "CASTNULLABLEINTERVALYEAR(${1:BYTES})"
+ -
+  description: "CASTTIME"
+  input: "CASTTIME"
+  output:
+   - "CASTTIME(${1:STRING})"
+   - "CASTTIME(${1:INT})"
+   - "CASTTIME(${1:TIMESTAMP})"
+ -
+  description: "CASTTIMESTAMP"
+  input: "CASTTIMESTAMP"
+  output:
+   - "CASTTIMESTAMP(${1:STRING})"
+   - "CASTTIMESTAMP(${1:BIGINT})"
+   - "CASTTIMESTAMP(${1:DATE})"
+   - "CASTTIMESTAMP(${1:TIME})"
+ -
+  description: "CASTTOUNION"
+  input: "CASTTOUNION"
+  output:
+   - "CASTTOUNION(${1:ANY})"
+ -
+  description: "CASTUNION"
+  input: "CASTUNION"
+  output:
+   - "CASTUNION(${1:ANY})"
+ -
+  description: "CASTVARBINARY"
+  input: "CASTVARBINARY"
+  output:
+   - "CASTVARBINARY(${1:STRING}, ${2:BIGINT})"
+   - "CASTVARBINARY(${1:FLOAT}, ${2:BIGINT})"
+   - "CASTVARBINARY(${1:DOUBLE}, ${2:BIGINT})"
+   - "CASTVARBINARY(${1:INT}, ${2:BIGINT})"
+   - "CASTVARBINARY(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "CASTVARCHAR"
+  input: "CASTVARCHAR"
+  output:
+   - "CASTVARCHAR(${1:ANY}, ${2:BIGINT})"
+ -
+  description: "CBRT"
+  input: "CBRT"
+  output:
+   - "CBRT(${1:FLOAT})"
+   - "CBRT(${1:DOUBLE})"
+   - "CBRT(${1:INT})"
+   - "CBRT(${1:BIGINT})"
+ -
+  description: "CEIL"
+  input: "CEIL"
+  output:
+   - "CEIL(${1:FLOAT})"
+   - "CEIL(${1:DECIMAL})"
+   - "CEIL(${1:DOUBLE})"
+   - "CEIL(${1:INT})"
+   - "CEIL(${1:BIGINT})"
+   - "CEIL(${1:DATE}, ${2:ANY})"
+   - "CEIL(${1:TIME}, ${2:ANY})"
+   - "CEIL(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "CHARACTER_LENGTH"
+  input: "CHARACTER_LENGTH"
+  output:
+   - "CHARACTER_LENGTH(${1:STRING})"
+ -
+  description: "CHARSUBSTRING"
+  input: "CHARSUBSTRING"
+  output:
+   - "CHARSUBSTRING(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "CHAR_LENGTH"
+  input: "CHAR_LENGTH"
+  output:
+   - "CHAR_LENGTH(${1:CHARACTERS})"
+ -
+  description: "CHR"
+  input: "CHR"
+  output:
+   - "CHR(${1:INT})"
+   - "CHR(${1:BIGINT})"
+ -
+  description: "CLASSIFIER"
+  input: "CLASSIFIER"
+  output:
+   - "CLASSIFIER()"
+ -
+  description: "COALESCE"
+  input: "COALESCE"
+  output:
+   - "COALESCE(${1:BOOLEAN})"
+   - "COALESCE(${1:BYTES})"
+   - "COALESCE(${1:CHARACTERS})"
+   - "COALESCE(${1:FLOAT})"
+   - "COALESCE(${1:DECIMAL})"
+   - "COALESCE(${1:DOUBLE})"
+   - "COALESCE(${1:INT})"
+   - "COALESCE(${1:BIGINT})"
+   - "COALESCE(${1:DATE})"
+   - "COALESCE(${1:TIME})"
+   - "COALESCE(${1:TIMESTAMP})"
+ -
+  description: "COLLECT"
+  input: "COLLECT"
+  output: []
+ -
+  description: "COMPARETYPE"
+  input: "COMPARETYPE"
+  output:
+   - "COMPARETYPE(${1:ANY}, ${2:ANY})"
+ -
+  description: "COMPARE_TO_NULLS_HIGH"
+  input: "COMPARE_TO_NULLS_HIGH"
+  output:
+   - "COMPARE_TO_NULLS_HIGH(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "COMPARE_TO_NULLS_HIGH(${1:STRING}, ${2:STRING})"
+   - "COMPARE_TO_NULLS_HIGH(${1:FLOAT}, ${2:FLOAT})"
+   - "COMPARE_TO_NULLS_HIGH(${1:DECIMAL}, ${2:DECIMAL})"
+   - "COMPARE_TO_NULLS_HIGH(${1:DOUBLE}, ${2:DOUBLE})"
+   - "COMPARE_TO_NULLS_HIGH(${1:INT}, ${2:INT})"
+   - "COMPARE_TO_NULLS_HIGH(${1:BIGINT}, ${2:BIGINT})"
+   - "COMPARE_TO_NULLS_HIGH(${1:DATE}, ${2:DATE})"
+   - "COMPARE_TO_NULLS_HIGH(${1:TIME}, ${2:TIME})"
+   - "COMPARE_TO_NULLS_HIGH(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "COMPARE_TO_NULLS_LOW"
+  input: "COMPARE_TO_NULLS_LOW"
+  output:
+   - "COMPARE_TO_NULLS_LOW(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "COMPARE_TO_NULLS_LOW(${1:STRING}, ${2:STRING})"
+   - "COMPARE_TO_NULLS_LOW(${1:FLOAT}, ${2:FLOAT})"
+   - "COMPARE_TO_NULLS_LOW(${1:DECIMAL}, ${2:DECIMAL})"
+   - "COMPARE_TO_NULLS_LOW(${1:DOUBLE}, ${2:DOUBLE})"
+   - "COMPARE_TO_NULLS_LOW(${1:INT}, ${2:INT})"
+   - "COMPARE_TO_NULLS_LOW(${1:BIGINT}, ${2:BIGINT})"
+   - "COMPARE_TO_NULLS_LOW(${1:DATE}, ${2:DATE})"
+   - "COMPARE_TO_NULLS_LOW(${1:TIME}, ${2:TIME})"
+   - "COMPARE_TO_NULLS_LOW(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "CONCAT"
+  input: "CONCAT"
+  output:
+   - "CONCAT(${1:STRING}, ${2:STRING}, ${3:STRING})"
+ -
+  description: "CONCATOPERATOR"
+  input: "CONCATOPERATOR"
+  output:
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS})"
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS})"
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS})"
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS})"
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS}, ${8:CHARACTERS})"
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS}, ${8:CHARACTERS}, ${9:CHARACTERS})"
+   - "CONCATOPERATOR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS}, ${8:CHARACTERS}, ${9:CHARACTERS}, ${10:CHARACTERS})"
+ -
+  description: "CONCAT_WS"
+  input: "CONCAT_WS"
+  output:
+   - "CONCAT_WS(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS})"
+   - "CONCAT_WS(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS})"
+   - "CONCAT_WS(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS})"
+ -
+  description: "CONTAINS"
+  input: "CONTAINS"
+  output:
+   - "CONTAINS(${1:ANY}, ${2:STRING})"
+   - "CONTAINS(${1:BYTES}, ${2:BOOLEAN})"
+   - "CONTAINS(${1:BYTES}, ${2:NUMERIC})"
+   - "CONTAINS(${1:BYTES}, ${2:DATEANDTIME})"
+ -
+  description: "CONVERT"
+  input: "CONVERT"
+  output: []
+ -
+  description: "CONVERT_FROM"
+  input: "CONVERT_FROM"
+  output:
+   - "CONVERT_FROM()"
+ -
+  description: "CONVERT_FROMBIGINT"
+  input: "CONVERT_FROMBIGINT"
+  output:
+   - "CONVERT_FROMBIGINT(${1:BYTES})"
+ -
+  description: "CONVERT_FROMBIGINT_BE"
+  input: "CONVERT_FROMBIGINT_BE"
+  output:
+   - "CONVERT_FROMBIGINT_BE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMBIGINT_HADOOPV"
+  input: "CONVERT_FROMBIGINT_HADOOPV"
+  output:
+   - "CONVERT_FROMBIGINT_HADOOPV(${1:BYTES})"
+ -
+  description: "CONVERT_FROMBOOLEAN_BYTE"
+  input: "CONVERT_FROMBOOLEAN_BYTE"
+  output:
+   - "CONVERT_FROMBOOLEAN_BYTE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMDATE_EPOCH"
+  input: "CONVERT_FROMDATE_EPOCH"
+  output:
+   - "CONVERT_FROMDATE_EPOCH(${1:BYTES})"
+ -
+  description: "CONVERT_FROMDATE_EPOCH_BE"
+  input: "CONVERT_FROMDATE_EPOCH_BE"
+  output:
+   - "CONVERT_FROMDATE_EPOCH_BE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMDOUBLE"
+  input: "CONVERT_FROMDOUBLE"
+  output:
+   - "CONVERT_FROMDOUBLE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMDOUBLE_BE"
+  input: "CONVERT_FROMDOUBLE_BE"
+  output:
+   - "CONVERT_FROMDOUBLE_BE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMFLOAT"
+  input: "CONVERT_FROMFLOAT"
+  output:
+   - "CONVERT_FROMFLOAT(${1:BYTES})"
+ -
+  description: "CONVERT_FROMFLOAT_BE"
+  input: "CONVERT_FROMFLOAT_BE"
+  output:
+   - "CONVERT_FROMFLOAT_BE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMINT"
+  input: "CONVERT_FROMINT"
+  output:
+   - "CONVERT_FROMINT(${1:BYTES})"
+ -
+  description: "CONVERT_FROMINT_BE"
+  input: "CONVERT_FROMINT_BE"
+  output:
+   - "CONVERT_FROMINT_BE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMINT_HADOOPV"
+  input: "CONVERT_FROMINT_HADOOPV"
+  output:
+   - "CONVERT_FROMINT_HADOOPV(${1:BYTES})"
+ -
+  description: "CONVERT_FROMJSON"
+  input: "CONVERT_FROMJSON"
+  output:
+   - "CONVERT_FROMJSON(${1:ANY})"
+ -
+  description: "CONVERT_FROMTIMESTAMP_EPOCH"
+  input: "CONVERT_FROMTIMESTAMP_EPOCH"
+  output:
+   - "CONVERT_FROMTIMESTAMP_EPOCH(${1:BYTES})"
+ -
+  description: "CONVERT_FROMTIMESTAMP_EPOCH_BE"
+  input: "CONVERT_FROMTIMESTAMP_EPOCH_BE"
+  output:
+   - "CONVERT_FROMTIMESTAMP_EPOCH_BE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMTIMESTAMP_IMPALA"
+  input: "CONVERT_FROMTIMESTAMP_IMPALA"
+  output:
+   - "CONVERT_FROMTIMESTAMP_IMPALA(${1:BYTES})"
+ -
+  description: "CONVERT_FROMTIMESTAMP_IMPALA_LOCALTIMEZONE"
+  input: "CONVERT_FROMTIMESTAMP_IMPALA_LOCALTIMEZONE"
+  output:
+   - "CONVERT_FROMTIMESTAMP_IMPALA_LOCALTIMEZONE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMTIME_EPOCH"
+  input: "CONVERT_FROMTIME_EPOCH"
+  output:
+   - "CONVERT_FROMTIME_EPOCH(${1:BYTES})"
+ -
+  description: "CONVERT_FROMTIME_EPOCH_BE"
+  input: "CONVERT_FROMTIME_EPOCH_BE"
+  output:
+   - "CONVERT_FROMTIME_EPOCH_BE(${1:BYTES})"
+ -
+  description: "CONVERT_FROMUTF8"
+  input: "CONVERT_FROMUTF8"
+  output:
+   - "CONVERT_FROMUTF8(${1:BYTES})"
+ -
+  description: "CONVERT_REPLACEUTF8"
+  input: "CONVERT_REPLACEUTF8"
+  output:
+   - "CONVERT_REPLACEUTF8(${1:BYTES}, ${2:CHARACTERS})"
+ -
+  description: "CONVERT_TIMEZONE"
+  input: "CONVERT_TIMEZONE"
+  output:
+   - "CONVERT_TIMEZONE(${1:CHARACTERS}, ${2:TIMESTAMP})"
+   - "CONVERT_TIMEZONE(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:TIMESTAMP})"
+ -
+  description: "CONVERT_TO"
+  input: "CONVERT_TO"
+  output:
+   - "CONVERT_TO()"
+ -
+  description: "CONVERT_TOBIGINT"
+  input: "CONVERT_TOBIGINT"
+  output:
+   - "CONVERT_TOBIGINT(${1:BIGINT})"
+ -
+  description: "CONVERT_TOBIGINT_BE"
+  input: "CONVERT_TOBIGINT_BE"
+  output:
+   - "CONVERT_TOBIGINT_BE(${1:BIGINT})"
+ -
+  description: "CONVERT_TOBIGINT_HADOOPV"
+  input: "CONVERT_TOBIGINT_HADOOPV"
+  output:
+   - "CONVERT_TOBIGINT_HADOOPV(${1:BIGINT})"
+ -
+  description: "CONVERT_TOBOOLEAN_BYTE"
+  input: "CONVERT_TOBOOLEAN_BYTE"
+  output:
+   - "CONVERT_TOBOOLEAN_BYTE(${1:BOOLEAN})"
+ -
+  description: "CONVERT_TODATE_EPOCH"
+  input: "CONVERT_TODATE_EPOCH"
+  output:
+   - "CONVERT_TODATE_EPOCH(${1:DATE})"
+ -
+  description: "CONVERT_TODATE_EPOCH_BE"
+  input: "CONVERT_TODATE_EPOCH_BE"
+  output:
+   - "CONVERT_TODATE_EPOCH_BE(${1:DATE})"
+ -
+  description: "CONVERT_TODOUBLE"
+  input: "CONVERT_TODOUBLE"
+  output:
+   - "CONVERT_TODOUBLE(${1:DOUBLE})"
+ -
+  description: "CONVERT_TODOUBLE_BE"
+  input: "CONVERT_TODOUBLE_BE"
+  output:
+   - "CONVERT_TODOUBLE_BE(${1:DOUBLE})"
+ -
+  description: "CONVERT_TOEXTENDEDJSON"
+  input: "CONVERT_TOEXTENDEDJSON"
+  output:
+   - "CONVERT_TOEXTENDEDJSON(${1:ANY})"
+ -
+  description: "CONVERT_TOFLOAT"
+  input: "CONVERT_TOFLOAT"
+  output:
+   - "CONVERT_TOFLOAT(${1:FLOAT})"
+ -
+  description: "CONVERT_TOFLOAT_BE"
+  input: "CONVERT_TOFLOAT_BE"
+  output:
+   - "CONVERT_TOFLOAT_BE(${1:FLOAT})"
+ -
+  description: "CONVERT_TOINT"
+  input: "CONVERT_TOINT"
+  output:
+   - "CONVERT_TOINT(${1:INT})"
+ -
+  description: "CONVERT_TOINT_BE"
+  input: "CONVERT_TOINT_BE"
+  output:
+   - "CONVERT_TOINT_BE(${1:INT})"
+ -
+  description: "CONVERT_TOINT_HADOOPV"
+  input: "CONVERT_TOINT_HADOOPV"
+  output:
+   - "CONVERT_TOINT_HADOOPV(${1:INT})"
+ -
+  description: "CONVERT_TOJSON"
+  input: "CONVERT_TOJSON"
+  output:
+   - "CONVERT_TOJSON(${1:ANY})"
+ -
+  description: "CONVERT_TOSIMPLEJSON"
+  input: "CONVERT_TOSIMPLEJSON"
+  output:
+   - "CONVERT_TOSIMPLEJSON(${1:ANY})"
+ -
+  description: "CONVERT_TOTIMESTAMP_EPOCH"
+  input: "CONVERT_TOTIMESTAMP_EPOCH"
+  output:
+   - "CONVERT_TOTIMESTAMP_EPOCH(${1:TIMESTAMP})"
+ -
+  description: "CONVERT_TOTIMESTAMP_EPOCH_BE"
+  input: "CONVERT_TOTIMESTAMP_EPOCH_BE"
+  output:
+   - "CONVERT_TOTIMESTAMP_EPOCH_BE(${1:TIMESTAMP})"
+ -
+  description: "CONVERT_TOTIME_EPOCH"
+  input: "CONVERT_TOTIME_EPOCH"
+  output:
+   - "CONVERT_TOTIME_EPOCH(${1:TIME})"
+ -
+  description: "CONVERT_TOTIME_EPOCH_BE"
+  input: "CONVERT_TOTIME_EPOCH_BE"
+  output:
+   - "CONVERT_TOTIME_EPOCH_BE(${1:TIME})"
+ -
+  description: "CONVERT_TOUTF8"
+  input: "CONVERT_TOUTF8"
+  output:
+   - "CONVERT_TOUTF8(${1:CHARACTERS})"
+ -
+  description: "CORR"
+  input: "CORR"
+  output:
+   - "CORR(${1:ANY}, ${2:BYTES})"
+   - "CORR(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "CORR(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "CORR(${1:BOOLEAN}, ${2:STRING})"
+   - "CORR(${1:NUMERIC}, ${2:BOOLEAN})"
+   - "CORR(${1:NUMERIC}, ${2:NUMERIC})"
+   - "CORR(${1:NUMERIC}, ${2:CHARACTERS})"
+   - "CORR(${1:STRING}, ${2:BOOLEAN})"
+   - "CORR(${1:STRING}, ${2:STRING})"
+   - "CORR(${1:STRING}, ${2:INT})"
+   - "CORR(${1:STRING}, ${2:BIGINT})"
+   - "CORR(${1:BYTES}, ${2:NUMERIC})"
+   - "CORR(${1:BYTES}, ${2:DATEANDTIME})"
+   - "CORR(${1:CHARACTERS}, ${2:FLOAT})"
+   - "CORR(${1:CHARACTERS}, ${2:DECIMAL})"
+   - "CORR(${1:CHARACTERS}, ${2:DOUBLE})"
+   - "CORR(${1:INT}, ${2:BYTES})"
+   - "CORR(${1:BIGINT}, ${2:BYTES})"
+ -
+  description: "CORRELATION"
+  input: "CORRELATION"
+  output:
+   - "CORRELATION(${1:ANY}, ${2:BYTES})"
+   - "CORRELATION(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "CORRELATION(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "CORRELATION(${1:BOOLEAN}, ${2:STRING})"
+   - "CORRELATION(${1:NUMERIC}, ${2:BOOLEAN})"
+   - "CORRELATION(${1:NUMERIC}, ${2:NUMERIC})"
+   - "CORRELATION(${1:NUMERIC}, ${2:CHARACTERS})"
+   - "CORRELATION(${1:STRING}, ${2:BOOLEAN})"
+   - "CORRELATION(${1:STRING}, ${2:STRING})"
+   - "CORRELATION(${1:STRING}, ${2:INT})"
+   - "CORRELATION(${1:STRING}, ${2:BIGINT})"
+   - "CORRELATION(${1:BYTES}, ${2:NUMERIC})"
+   - "CORRELATION(${1:BYTES}, ${2:DATEANDTIME})"
+   - "CORRELATION(${1:CHARACTERS}, ${2:FLOAT})"
+   - "CORRELATION(${1:CHARACTERS}, ${2:DECIMAL})"
+   - "CORRELATION(${1:CHARACTERS}, ${2:DOUBLE})"
+   - "CORRELATION(${1:INT}, ${2:BYTES})"
+   - "CORRELATION(${1:BIGINT}, ${2:BYTES})"
+ -
+  description: "COS"
+  input: "COS"
+  output:
+   - "COS(${1:NUMERIC})"
+ -
+  description: "COSH"
+  input: "COSH"
+  output:
+   - "COSH(${1:FLOAT})"
+   - "COSH(${1:DOUBLE})"
+   - "COSH(${1:INT})"
+   - "COSH(${1:BIGINT})"
+ -
+  description: "COT"
+  input: "COT"
+  output:
+   - "COT(${1:NUMERIC})"
+ -
+  description: "COUNT"
+  input: "COUNT"
+  output:
+   - "COUNT(${1:ANY})"
+ -
+  description: "COVARIANCE"
+  input: "COVARIANCE"
+  output:
+   - "COVARIANCE(${1:ANY}, ${2:BYTES})"
+   - "COVARIANCE(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "COVARIANCE(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "COVARIANCE(${1:BOOLEAN}, ${2:STRING})"
+   - "COVARIANCE(${1:NUMERIC}, ${2:BOOLEAN})"
+   - "COVARIANCE(${1:NUMERIC}, ${2:NUMERIC})"
+   - "COVARIANCE(${1:NUMERIC}, ${2:CHARACTERS})"
+   - "COVARIANCE(${1:STRING}, ${2:BOOLEAN})"
+   - "COVARIANCE(${1:STRING}, ${2:STRING})"
+   - "COVARIANCE(${1:STRING}, ${2:INT})"
+   - "COVARIANCE(${1:STRING}, ${2:BIGINT})"
+   - "COVARIANCE(${1:BYTES}, ${2:NUMERIC})"
+   - "COVARIANCE(${1:BYTES}, ${2:DATEANDTIME})"
+   - "COVARIANCE(${1:CHARACTERS}, ${2:FLOAT})"
+   - "COVARIANCE(${1:CHARACTERS}, ${2:DECIMAL})"
+   - "COVARIANCE(${1:CHARACTERS}, ${2:DOUBLE})"
+   - "COVARIANCE(${1:INT}, ${2:BYTES})"
+   - "COVARIANCE(${1:BIGINT}, ${2:BYTES})"
+ -
+  description: "COVAR_POP"
+  input: "COVAR_POP"
+  output:
+   - "COVAR_POP(${1:NUMERIC}, ${2:NUMERIC})"
+ -
+  description: "COVAR_SAMP"
+  input: "COVAR_SAMP"
+  output:
+   - "COVAR_SAMP(${1:NUMERIC}, ${2:NUMERIC})"
+ -
+  description: "CRC32"
+  input: "CRC32"
+  output:
+   - "CRC32(${1:STRING})"
+ -
+  description: "CUME_DIST"
+  input: "CUME_DIST"
+  output:
+   - "CUME_DIST()"
+ -
+  description: "CURRENT_CATALOG"
+  input: "CURRENT_CATALOG"
+  output:
+   - "CURRENT_CATALOG()"
+ -
+  description: "CURRENT_DATE"
+  input: "CURRENT_DATE"
+  output:
+   - "CURRENT_DATE()"
+ -
+  description: "CURRENT_DATE_UTC"
+  input: "CURRENT_DATE_UTC"
+  output:
+   - "CURRENT_DATE_UTC()"
+ -
+  description: "CURRENT_PATH"
+  input: "CURRENT_PATH"
+  output:
+   - "CURRENT_PATH()"
+ -
+  description: "CURRENT_ROLE"
+  input: "CURRENT_ROLE"
+  output:
+   - "CURRENT_ROLE()"
+ -
+  description: "CURRENT_SCHEMA"
+  input: "CURRENT_SCHEMA"
+  output:
+   - "CURRENT_SCHEMA()"
+ -
+  description: "CURRENT_TIME"
+  input: "CURRENT_TIME"
+  output:
+   - "CURRENT_TIME()"
+ -
+  description: "CURRENT_TIMESTAMP"
+  input: "CURRENT_TIMESTAMP"
+  output:
+   - "CURRENT_TIMESTAMP()"
+ -
+  description: "CURRENT_TIMESTAMP_UTC"
+  input: "CURRENT_TIMESTAMP_UTC"
+  output:
+   - "CURRENT_TIMESTAMP_UTC()"
+ -
+  description: "CURRENT_TIME_UTC"
+  input: "CURRENT_TIME_UTC"
+  output:
+   - "CURRENT_TIME_UTC()"
+ -
+  description: "CURRENT_USER"
+  input: "CURRENT_USER"
+  output:
+   - "CURRENT_USER()"
+ -
+  description: "DATEDIFF"
+  input: "DATEDIFF"
+  output:
+   - "DATEDIFF(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "DATETYPE"
+  input: "DATETYPE"
+  output:
+   - "DATETYPE(${1:STRING})"
+   - "DATETYPE(${1:BIGINT}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "DATE_ADD"
+  input: "DATE_ADD"
+  output:
+   - "DATE_ADD(${1:INT}, ${2:DATE})"
+   - "DATE_ADD(${1:INT}, ${2:TIME})"
+   - "DATE_ADD(${1:INT}, ${2:TIMESTAMP})"
+   - "DATE_ADD(${1:BIGINT}, ${2:DATE})"
+   - "DATE_ADD(${1:BIGINT}, ${2:TIME})"
+   - "DATE_ADD(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "DATE_ADD(${1:DATE}, ${2:INT})"
+   - "DATE_ADD(${1:DATE}, ${2:BIGINT})"
+   - "DATE_ADD(${1:DATE}, ${2:TIME})"
+   - "DATE_ADD(${1:TIME}, ${2:INT})"
+   - "DATE_ADD(${1:TIME}, ${2:BIGINT})"
+   - "DATE_ADD(${1:TIME}, ${2:DATE})"
+   - "DATE_ADD(${1:TIMESTAMP}, ${2:INT})"
+   - "DATE_ADD(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "DATE_DIFF"
+  input: "DATE_DIFF"
+  output:
+   - "DATE_DIFF(${1:DATE}, ${2:INT})"
+   - "DATE_DIFF(${1:DATE}, ${2:BIGINT})"
+   - "DATE_DIFF(${1:TIME}, ${2:INT})"
+   - "DATE_DIFF(${1:TIME}, ${2:BIGINT})"
+   - "DATE_DIFF(${1:TIMESTAMP}, ${2:INT})"
+   - "DATE_DIFF(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "DATE_PART"
+  input: "DATE_PART"
+  output: []
+ -
+  description: "DATE_SUB"
+  input: "DATE_SUB"
+  output:
+   - "DATE_SUB(${1:DATE}, ${2:INT})"
+   - "DATE_SUB(${1:DATE}, ${2:BIGINT})"
+   - "DATE_SUB(${1:TIME}, ${2:INT})"
+   - "DATE_SUB(${1:TIME}, ${2:BIGINT})"
+   - "DATE_SUB(${1:TIMESTAMP}, ${2:INT})"
+   - "DATE_SUB(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "DATE_TRUNC"
+  input: "DATE_TRUNC"
+  output:
+   - "DATE_TRUNC(${1:CHARACTERS}, ${2:DATE})"
+   - "DATE_TRUNC(${1:CHARACTERS}, ${2:TIME})"
+   - "DATE_TRUNC(${1:CHARACTERS}, ${2:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_CENTURY"
+  input: "DATE_TRUNC_CENTURY"
+  output:
+   - "DATE_TRUNC_CENTURY(${1:DATE})"
+   - "DATE_TRUNC_CENTURY(${1:TIME})"
+   - "DATE_TRUNC_CENTURY(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_DAY"
+  input: "DATE_TRUNC_DAY"
+  output:
+   - "DATE_TRUNC_DAY(${1:DATE})"
+   - "DATE_TRUNC_DAY(${1:TIME})"
+   - "DATE_TRUNC_DAY(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_DECADE"
+  input: "DATE_TRUNC_DECADE"
+  output:
+   - "DATE_TRUNC_DECADE(${1:DATE})"
+   - "DATE_TRUNC_DECADE(${1:TIME})"
+   - "DATE_TRUNC_DECADE(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_HOUR"
+  input: "DATE_TRUNC_HOUR"
+  output:
+   - "DATE_TRUNC_HOUR(${1:DATE})"
+   - "DATE_TRUNC_HOUR(${1:TIME})"
+   - "DATE_TRUNC_HOUR(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_MILLENNIUM"
+  input: "DATE_TRUNC_MILLENNIUM"
+  output:
+   - "DATE_TRUNC_MILLENNIUM(${1:DATE})"
+   - "DATE_TRUNC_MILLENNIUM(${1:TIME})"
+   - "DATE_TRUNC_MILLENNIUM(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_MINUTE"
+  input: "DATE_TRUNC_MINUTE"
+  output:
+   - "DATE_TRUNC_MINUTE(${1:DATE})"
+   - "DATE_TRUNC_MINUTE(${1:TIME})"
+   - "DATE_TRUNC_MINUTE(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_MONTH"
+  input: "DATE_TRUNC_MONTH"
+  output:
+   - "DATE_TRUNC_MONTH(${1:DATE})"
+   - "DATE_TRUNC_MONTH(${1:TIME})"
+   - "DATE_TRUNC_MONTH(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_QUARTER"
+  input: "DATE_TRUNC_QUARTER"
+  output:
+   - "DATE_TRUNC_QUARTER(${1:DATE})"
+   - "DATE_TRUNC_QUARTER(${1:TIME})"
+   - "DATE_TRUNC_QUARTER(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_SECOND"
+  input: "DATE_TRUNC_SECOND"
+  output:
+   - "DATE_TRUNC_SECOND(${1:DATE})"
+   - "DATE_TRUNC_SECOND(${1:TIME})"
+   - "DATE_TRUNC_SECOND(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_WEEK"
+  input: "DATE_TRUNC_WEEK"
+  output:
+   - "DATE_TRUNC_WEEK(${1:DATE})"
+   - "DATE_TRUNC_WEEK(${1:TIMESTAMP})"
+ -
+  description: "DATE_TRUNC_YEAR"
+  input: "DATE_TRUNC_YEAR"
+  output:
+   - "DATE_TRUNC_YEAR(${1:DATE})"
+   - "DATE_TRUNC_YEAR(${1:TIME})"
+   - "DATE_TRUNC_YEAR(${1:TIMESTAMP})"
+ -
+  description: "DAY"
+  input: "DAY"
+  output:
+   - "DAY(${1:DATE})"
+   - "DAY(${1:DATE})"
+   - "DAY(${1:TIMESTAMP})"
+   - "DAY(${1:TIMESTAMP})"
+ -
+  description: "DAYOFMONTH"
+  input: "DAYOFMONTH"
+  output:
+   - "DAYOFMONTH(${1:DATEANDTIME})"
+   - "DAYOFMONTH(${1:DATE})"
+   - "DAYOFMONTH(${1:TIMESTAMP})"
+ -
+  description: "DAYOFWEEK"
+  input: "DAYOFWEEK"
+  output:
+   - "DAYOFWEEK(${1:DATEANDTIME})"
+ -
+  description: "DAYOFYEAR"
+  input: "DAYOFYEAR"
+  output:
+   - "DAYOFYEAR(${1:DATEANDTIME})"
+ -
+  description: "DEGREES"
+  input: "DEGREES"
+  output:
+   - "DEGREES(${1:NUMERIC})"
+ -
+  description: "DENSE_RANK"
+  input: "DENSE_RANK"
+  output:
+   - "DENSE_RANK()"
+ -
+  description: "DIV"
+  input: "DIV"
+  output:
+   - "DIV(${1:FLOAT}, ${2:FLOAT})"
+   - "DIV(${1:DOUBLE}, ${2:DOUBLE})"
+   - "DIV(${1:INT}, ${2:INT})"
+   - "DIV(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "DIVIDE"
+  input: "DIVIDE"
+  output:
+   - "DIVIDE(${1:FLOAT}, ${2:FLOAT})"
+   - "DIVIDE(${1:DECIMAL}, ${2:DECIMAL})"
+   - "DIVIDE(${1:DOUBLE}, ${2:DOUBLE})"
+   - "DIVIDE(${1:INT}, ${2:INT})"
+   - "DIVIDE(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "E"
+  input: "E"
+  output:
+   - "E()"
+ -
+  description: "ELEMENT"
+  input: "ELEMENT"
+  output: []
+ -
+  description: "ELT"
+  input: "ELT"
+  output:
+   - "ELT(${1:INT}, ${2:CHARACTERS}, ${3:CHARACTERS})"
+   - "ELT(${1:INT}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS})"
+   - "ELT(${1:INT}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS})"
+   - "ELT(${1:INT}, ${2:CHARACTERS}, ${3:CHARACTERS}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS})"
+ -
+  description: "ENDS_WITH"
+  input: "ENDS_WITH"
+  output:
+   - "ENDS_WITH(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "EQ"
+  input: "EQ"
+  output:
+   - "EQ(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "EQ(${1:FLOAT}, ${2:FLOAT})"
+   - "EQ(${1:DOUBLE}, ${2:DOUBLE})"
+   - "EQ(${1:INT}, ${2:INT})"
+   - "EQ(${1:BIGINT}, ${2:BIGINT})"
+   - "EQ(${1:DATE}, ${2:DATE})"
+   - "EQ(${1:TIME}, ${2:TIME})"
+   - "EQ(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "EQUAL"
+  input: "EQUAL"
+  output:
+   - "EQUAL(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "EQUAL(${1:STRING}, ${2:STRING})"
+   - "EQUAL(${1:FLOAT}, ${2:FLOAT})"
+   - "EQUAL(${1:DECIMAL}, ${2:DECIMAL})"
+   - "EQUAL(${1:DOUBLE}, ${2:DOUBLE})"
+   - "EQUAL(${1:INT}, ${2:INT})"
+   - "EQUAL(${1:BIGINT}, ${2:BIGINT})"
+   - "EQUAL(${1:DATE}, ${2:DATE})"
+   - "EQUAL(${1:TIME}, ${2:TIME})"
+   - "EQUAL(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "EVERY"
+  input: "EVERY"
+  output:
+   - "EVERY(${1:BOOLEAN})"
+   - "EVERY(${1:STRING})"
+   - "EVERY(${1:INT})"
+   - "EVERY(${1:BIGINT})"
+ -
+  description: "EXP"
+  input: "EXP"
+  output:
+   - "EXP(${1:NUMERIC})"
+ -
+  description: "EXTRACT"
+  input: "EXTRACT"
+  output: []
+ -
+  description: "EXTRACTCENTURY"
+  input: "EXTRACTCENTURY"
+  output:
+   - "EXTRACTCENTURY(${1:DATE})"
+   - "EXTRACTCENTURY(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTDAY"
+  input: "EXTRACTDAY"
+  output:
+   - "EXTRACTDAY(${1:DATE})"
+   - "EXTRACTDAY(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTDECADE"
+  input: "EXTRACTDECADE"
+  output:
+   - "EXTRACTDECADE(${1:DATE})"
+   - "EXTRACTDECADE(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTDOW"
+  input: "EXTRACTDOW"
+  output:
+   - "EXTRACTDOW(${1:DATE})"
+   - "EXTRACTDOW(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTDOY"
+  input: "EXTRACTDOY"
+  output:
+   - "EXTRACTDOY(${1:DATE})"
+   - "EXTRACTDOY(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTEPOCH"
+  input: "EXTRACTEPOCH"
+  output:
+   - "EXTRACTEPOCH(${1:DATEANDTIME})"
+ -
+  description: "EXTRACTHOUR"
+  input: "EXTRACTHOUR"
+  output:
+   - "EXTRACTHOUR(${1:DATEANDTIME})"
+ -
+  description: "EXTRACTMILLENNIUM"
+  input: "EXTRACTMILLENNIUM"
+  output:
+   - "EXTRACTMILLENNIUM(${1:DATE})"
+   - "EXTRACTMILLENNIUM(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTMINUTE"
+  input: "EXTRACTMINUTE"
+  output:
+   - "EXTRACTMINUTE(${1:DATEANDTIME})"
+ -
+  description: "EXTRACTMONTH"
+  input: "EXTRACTMONTH"
+  output:
+   - "EXTRACTMONTH(${1:DATE})"
+   - "EXTRACTMONTH(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTQUARTER"
+  input: "EXTRACTQUARTER"
+  output:
+   - "EXTRACTQUARTER(${1:DATE})"
+   - "EXTRACTQUARTER(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTSECOND"
+  input: "EXTRACTSECOND"
+  output:
+   - "EXTRACTSECOND(${1:DATEANDTIME})"
+ -
+  description: "EXTRACTWEEK"
+  input: "EXTRACTWEEK"
+  output:
+   - "EXTRACTWEEK(${1:DATE})"
+   - "EXTRACTWEEK(${1:TIMESTAMP})"
+ -
+  description: "EXTRACTYEAR"
+  input: "EXTRACTYEAR"
+  output:
+   - "EXTRACTYEAR(${1:DATE})"
+   - "EXTRACTYEAR(${1:TIMESTAMP})"
+ -
+  description: "FACTORIAL"
+  input: "FACTORIAL"
+  output:
+   - "FACTORIAL(${1:INT})"
+   - "FACTORIAL(${1:BIGINT})"
+ -
+  description: "FIRST"
+  input: "FIRST"
+  output:
+   - "FIRST(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "FIRST(${1:BYTES}, ${2:NUMERIC})"
+   - "FIRST(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "FIRST(${1:FLOAT}, ${2:NUMERIC})"
+   - "FIRST(${1:DECIMAL}, ${2:NUMERIC})"
+   - "FIRST(${1:DOUBLE}, ${2:NUMERIC})"
+   - "FIRST(${1:INT}, ${2:NUMERIC})"
+   - "FIRST(${1:BIGINT}, ${2:NUMERIC})"
+   - "FIRST(${1:DATE}, ${2:NUMERIC})"
+   - "FIRST(${1:TIME}, ${2:NUMERIC})"
+   - "FIRST(${1:TIMESTAMP}, ${2:NUMERIC})"
+ -
+  description: "FIRST_VALUE"
+  input: "FIRST_VALUE"
+  output:
+   - "FIRST_VALUE(${1:BOOLEAN})"
+   - "FIRST_VALUE(${1:BYTES})"
+   - "FIRST_VALUE(${1:CHARACTERS})"
+   - "FIRST_VALUE(${1:FLOAT})"
+   - "FIRST_VALUE(${1:DECIMAL})"
+   - "FIRST_VALUE(${1:DOUBLE})"
+   - "FIRST_VALUE(${1:INT})"
+   - "FIRST_VALUE(${1:BIGINT})"
+   - "FIRST_VALUE(${1:DATE})"
+   - "FIRST_VALUE(${1:TIME})"
+   - "FIRST_VALUE(${1:TIMESTAMP})"
+ -
+  description: "FLATTEN"
+  input: "FLATTEN"
+  output:
+   - "FLATTEN(${1:ANY})"
+ -
+  description: "FLOOR"
+  input: "FLOOR"
+  output:
+   - "FLOOR(${1:FLOAT})"
+   - "FLOOR(${1:DECIMAL})"
+   - "FLOOR(${1:DOUBLE})"
+   - "FLOOR(${1:INT})"
+   - "FLOOR(${1:BIGINT})"
+   - "FLOOR(${1:DATE}, ${2:ANY})"
+   - "FLOOR(${1:TIME}, ${2:ANY})"
+   - "FLOOR(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "FROM_HEX"
+  input: "FROM_HEX"
+  output:
+   - "FROM_HEX(${1:CHARACTERS})"
+ -
+  description: "FUSION"
+  input: "FUSION"
+  output: []
+ -
+  description: "GEO_BEYOND"
+  input: "GEO_BEYOND"
+  output:
+   - "GEO_BEYOND(${1:FLOAT}, ${2:FLOAT}, ${3:FLOAT}, ${4:FLOAT}, ${5:DOUBLE})"
+ -
+  description: "GEO_DISTANCE"
+  input: "GEO_DISTANCE"
+  output:
+   - "GEO_DISTANCE(${1:FLOAT}, ${2:FLOAT}, ${3:FLOAT}, ${4:FLOAT})"
+ -
+  description: "GEO_NEARBY"
+  input: "GEO_NEARBY"
+  output:
+   - "GEO_NEARBY(${1:FLOAT}, ${2:FLOAT}, ${3:FLOAT}, ${4:FLOAT}, ${5:DOUBLE})"
+ -
+  description: "GREATER_THAN"
+  input: "GREATER_THAN"
+  output:
+   - "GREATER_THAN(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "GREATER_THAN(${1:STRING}, ${2:STRING})"
+   - "GREATER_THAN(${1:FLOAT}, ${2:FLOAT})"
+   - "GREATER_THAN(${1:DECIMAL}, ${2:DECIMAL})"
+   - "GREATER_THAN(${1:DOUBLE}, ${2:DOUBLE})"
+   - "GREATER_THAN(${1:INT}, ${2:INT})"
+   - "GREATER_THAN(${1:BIGINT}, ${2:BIGINT})"
+   - "GREATER_THAN(${1:DATE}, ${2:DATE})"
+   - "GREATER_THAN(${1:TIME}, ${2:TIME})"
+   - "GREATER_THAN(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "GREATER_THAN_OR_EQUAL_TO"
+  input: "GREATER_THAN_OR_EQUAL_TO"
+  output:
+   - "GREATER_THAN_OR_EQUAL_TO(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:STRING}, ${2:STRING})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:FLOAT}, ${2:FLOAT})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:DECIMAL}, ${2:DECIMAL})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:DOUBLE}, ${2:DOUBLE})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:INT}, ${2:INT})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:BIGINT}, ${2:BIGINT})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:DATE}, ${2:DATE})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:TIME}, ${2:TIME})"
+   - "GREATER_THAN_OR_EQUAL_TO(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "GREATEST"
+  input: "GREATEST"
+  output:
+   - "GREATEST(${1:BOOLEAN})"
+   - "GREATEST(${1:BYTES})"
+   - "GREATEST(${1:CHARACTERS})"
+   - "GREATEST(${1:FLOAT})"
+   - "GREATEST(${1:DECIMAL})"
+   - "GREATEST(${1:DOUBLE})"
+   - "GREATEST(${1:INT})"
+   - "GREATEST(${1:BIGINT})"
+   - "GREATEST(${1:DATE})"
+   - "GREATEST(${1:TIME})"
+   - "GREATEST(${1:TIMESTAMP})"
+ -
+  description: "GROUPING"
+  input: "GROUPING"
+  output:
+   - "GROUPING(${1:ANY})"
+ -
+  description: "GROUPING_ID"
+  input: "GROUPING_ID"
+  output:
+   - "GROUPING_ID(${1:ANY})"
+ -
+  description: "GROUP_ID"
+  input: "GROUP_ID"
+  output:
+   - "GROUP_ID()"
+ -
+  description: "HASH"
+  input: "HASH"
+  output:
+   - "HASH(${1:ANY})"
+ -
+  description: "HASH32"
+  input: "HASH32"
+  output:
+   - "HASH32(${1:ANY}, ${2:INT})"
+ -
+  description: "HASH32ASDOUBLE"
+  input: "HASH32ASDOUBLE"
+  output:
+   - "HASH32ASDOUBLE(${1:ANY}, ${2:INT})"
+ -
+  description: "HASH64"
+  input: "HASH64"
+  output:
+   - "HASH64(${1:ANY}, ${2:BIGINT})"
+ -
+  description: "HASH64ASDOUBLE"
+  input: "HASH64ASDOUBLE"
+  output:
+   - "HASH64ASDOUBLE(${1:ANY}, ${2:BIGINT})"
+ -
+  description: "HASHMD5"
+  input: "HASHMD5"
+  output:
+   - "HASHMD5(${1:BOOLEAN})"
+   - "HASHMD5(${1:STRING})"
+   - "HASHMD5(${1:DATEANDTIME})"
+   - "HASHMD5(${1:FLOAT})"
+   - "HASHMD5(${1:DOUBLE})"
+   - "HASHMD5(${1:INT})"
+   - "HASHMD5(${1:BIGINT})"
+ -
+  description: "HASHSHA1"
+  input: "HASHSHA1"
+  output:
+   - "HASHSHA1(${1:BOOLEAN})"
+   - "HASHSHA1(${1:STRING})"
+   - "HASHSHA1(${1:DATEANDTIME})"
+   - "HASHSHA1(${1:FLOAT})"
+   - "HASHSHA1(${1:DOUBLE})"
+   - "HASHSHA1(${1:INT})"
+   - "HASHSHA1(${1:BIGINT})"
+ -
+  description: "HASHSHA256"
+  input: "HASHSHA256"
+  output:
+   - "HASHSHA256(${1:ANY})"
+ -
+  description: "HEX"
+  input: "HEX"
+  output:
+   - "HEX(${1:STRING})"
+   - "HEX(${1:INT})"
+   - "HEX(${1:BIGINT})"
+ -
+  description: "HLL"
+  input: "HLL"
+  output:
+   - "HLL(${1:ANY})"
+ -
+  description: "HLL_DECODE"
+  input: "HLL_DECODE"
+  output:
+   - "HLL_DECODE(${1:BYTES})"
+ -
+  description: "HLL_MERGE"
+  input: "HLL_MERGE"
+  output:
+   - "HLL_MERGE(${1:BYTES})"
+ -
+  description: "HLL_V2"
+  input: "HLL_V2"
+  output:
+   - "HLL_V2(${1:BOOLEAN})"
+   - "HLL_V2(${1:STRING})"
+   - "HLL_V2(${1:DECIMAL})"
+   - "HLL_V2(${1:INT})"
+   - "HLL_V2(${1:BIGINT})"
+ -
+  description: "HOP"
+  input: "HOP"
+  output: []
+ -
+  description: "HOP_END"
+  input: "HOP_END"
+  output: []
+ -
+  description: "HOP_START"
+  input: "HOP_START"
+  output: []
+ -
+  description: "HOUR"
+  input: "HOUR"
+  output:
+   - "HOUR(${1:DATEANDTIME})"
+   - "HOUR(${1:DATE})"
+   - "HOUR(${1:TIMESTAMP})"
+ -
+  description: "ICEBERGDISTRIBUTEBYPARTITION"
+  input: "ICEBERGDISTRIBUTEBYPARTITION"
+  output:
+   - "ICEBERGDISTRIBUTEBYPARTITION(${1:BYTES})"
+ -
+  description: "ILIKE"
+  input: "ILIKE"
+  output:
+   - "ILIKE(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
+ -
+  description: "IMAXDIR"
+  input: "IMAXDIR"
+  output:
+   - "IMAXDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "IMINDIR"
+  input: "IMINDIR"
+  output:
+   - "IMINDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "INITCAP"
+  input: "INITCAP"
+  output:
+   - "INITCAP(${1:CHARACTERS})"
+ -
+  description: "INSTR"
+  input: "INSTR"
+  output:
+   - "INSTR(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "INTERVAL_DAY"
+  input: "INTERVAL_DAY"
+  output: []
+ -
+  description: "INTERVAL_YEAR"
+  input: "INTERVAL_YEAR"
+  output:
+   - "INTERVAL_YEAR(${1:ANY}, ${2:BYTES})"
+   - "INTERVAL_YEAR(${1:BYTES}, ${2:BOOLEAN})"
+   - "INTERVAL_YEAR(${1:BYTES}, ${2:NUMERIC})"
+   - "INTERVAL_YEAR(${1:BYTES}, ${2:DATEANDTIME})"
+   - "INTERVAL_YEAR(${1:BYTES}, ${2:CHARACTERS})"
+ -
+  description: "IN_FENNEL"
+  input: "IN_FENNEL"
+  output:
+   - "IN_FENNEL(${1:BOOLEAN})"
+   - "IN_FENNEL(${1:BYTES})"
+   - "IN_FENNEL(${1:CHARACTERS})"
+   - "IN_FENNEL(${1:FLOAT})"
+   - "IN_FENNEL(${1:DECIMAL})"
+   - "IN_FENNEL(${1:DOUBLE})"
+   - "IN_FENNEL(${1:INT})"
+   - "IN_FENNEL(${1:BIGINT})"
+   - "IN_FENNEL(${1:DATE})"
+   - "IN_FENNEL(${1:TIME})"
+   - "IN_FENNEL(${1:TIMESTAMP})"
+ -
+  description: "IS DISTINCT FROM"
+  input: "IS DISTINCT FROM"
+  output:
+   - "IS DISTINCT FROM(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "IS DISTINCT FROM(${1:STRING}, ${2:STRING})"
+   - "IS DISTINCT FROM(${1:FLOAT}, ${2:FLOAT})"
+   - "IS DISTINCT FROM(${1:DOUBLE}, ${2:DOUBLE})"
+   - "IS DISTINCT FROM(${1:INT}, ${2:INT})"
+   - "IS DISTINCT FROM(${1:BIGINT}, ${2:BIGINT})"
+   - "IS DISTINCT FROM(${1:DATE}, ${2:DATE})"
+   - "IS DISTINCT FROM(${1:TIME}, ${2:TIME})"
+   - "IS DISTINCT FROM(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "IS FALSE"
+  input: "IS FALSE"
+  output:
+   - "IS FALSE(${1:BOOLEAN})"
+   - "IS FALSE(${1:FLOAT})"
+   - "IS FALSE(${1:DOUBLE})"
+   - "IS FALSE(${1:INT})"
+   - "IS FALSE(${1:BIGINT})"
+ -
+  description: "IS NOT DISTINCT FROM"
+  input: "IS NOT DISTINCT FROM"
+  output:
+   - "IS NOT DISTINCT FROM(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "IS NOT DISTINCT FROM(${1:STRING}, ${2:STRING})"
+   - "IS NOT DISTINCT FROM(${1:FLOAT}, ${2:FLOAT})"
+   - "IS NOT DISTINCT FROM(${1:DOUBLE}, ${2:DOUBLE})"
+   - "IS NOT DISTINCT FROM(${1:INT}, ${2:INT})"
+   - "IS NOT DISTINCT FROM(${1:BIGINT}, ${2:BIGINT})"
+   - "IS NOT DISTINCT FROM(${1:DATE}, ${2:DATE})"
+   - "IS NOT DISTINCT FROM(${1:TIME}, ${2:TIME})"
+   - "IS NOT DISTINCT FROM(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "IS NOT FALSE"
+  input: "IS NOT FALSE"
+  output:
+   - "IS NOT FALSE(${1:BOOLEAN})"
+   - "IS NOT FALSE(${1:FLOAT})"
+   - "IS NOT FALSE(${1:DOUBLE})"
+   - "IS NOT FALSE(${1:INT})"
+   - "IS NOT FALSE(${1:BIGINT})"
+ -
+  description: "IS NOT NULL"
+  input: "IS NOT NULL"
+  output:
+   - "IS NOT NULL(${1:ANY})"
+ -
+  description: "IS NOT TRUE"
+  input: "IS NOT TRUE"
+  output:
+   - "IS NOT TRUE(${1:BOOLEAN})"
+   - "IS NOT TRUE(${1:FLOAT})"
+   - "IS NOT TRUE(${1:DOUBLE})"
+   - "IS NOT TRUE(${1:INT})"
+   - "IS NOT TRUE(${1:BIGINT})"
+ -
+  description: "IS NULL"
+  input: "IS NULL"
+  output:
+   - "IS NULL(${1:ANY})"
+ -
+  description: "IS TRUE"
+  input: "IS TRUE"
+  output:
+   - "IS TRUE(${1:BOOLEAN})"
+   - "IS TRUE(${1:FLOAT})"
+   - "IS TRUE(${1:DOUBLE})"
+   - "IS TRUE(${1:INT})"
+   - "IS TRUE(${1:BIGINT})"
+ -
+  description: "ISDATE"
+  input: "ISDATE"
+  output:
+   - "ISDATE(${1:CHARACTERS})"
+ -
+  description: "ISFALSE"
+  input: "ISFALSE"
+  output:
+   - "ISFALSE(${1:BOOLEAN})"
+   - "ISFALSE(${1:FLOAT})"
+   - "ISFALSE(${1:DOUBLE})"
+   - "ISFALSE(${1:INT})"
+   - "ISFALSE(${1:BIGINT})"
+ -
+  description: "ISNOTFALSE"
+  input: "ISNOTFALSE"
+  output:
+   - "ISNOTFALSE(${1:BOOLEAN})"
+   - "ISNOTFALSE(${1:FLOAT})"
+   - "ISNOTFALSE(${1:DOUBLE})"
+   - "ISNOTFALSE(${1:INT})"
+   - "ISNOTFALSE(${1:BIGINT})"
+ -
+  description: "ISNOTNULL"
+  input: "ISNOTNULL"
+  output:
+   - "ISNOTNULL(${1:ANY})"
+ -
+  description: "ISNOTTRUE"
+  input: "ISNOTTRUE"
+  output:
+   - "ISNOTTRUE(${1:BOOLEAN})"
+   - "ISNOTTRUE(${1:FLOAT})"
+   - "ISNOTTRUE(${1:DOUBLE})"
+   - "ISNOTTRUE(${1:INT})"
+   - "ISNOTTRUE(${1:BIGINT})"
+ -
+  description: "ISNULL"
+  input: "ISNULL"
+  output:
+   - "ISNULL(${1:ANY})"
+ -
+  description: "ISNUMERIC"
+  input: "ISNUMERIC"
+  output:
+   - "ISNUMERIC(${1:CHARACTERS})"
+   - "ISNUMERIC(${1:FLOAT})"
+   - "ISNUMERIC(${1:DOUBLE})"
+   - "ISNUMERIC(${1:INT})"
+   - "ISNUMERIC(${1:BIGINT})"
+ -
+  description: "ISTRUE"
+  input: "ISTRUE"
+  output:
+   - "ISTRUE(${1:BOOLEAN})"
+   - "ISTRUE(${1:FLOAT})"
+   - "ISTRUE(${1:DOUBLE})"
+   - "ISTRUE(${1:INT})"
+   - "ISTRUE(${1:BIGINT})"
+ -
+  description: "IS_BIGINT"
+  input: "IS_BIGINT"
+  output:
+   - "IS_BIGINT(${1:BYTES})"
+ -
+  description: "IS_BIT"
+  input: "IS_BIT"
+  output:
+   - "IS_BIT(${1:BYTES})"
+ -
+  description: "IS_DATE"
+  input: "IS_DATE"
+  output:
+   - "IS_DATE(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "IS_DECIMAL"
+  input: "IS_DECIMAL"
+  output:
+   - "IS_DECIMAL(${1:BYTES})"
+ -
+  description: "IS_DISTINCT_FROM"
+  input: "IS_DISTINCT_FROM"
+  output:
+   - "IS_DISTINCT_FROM(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "IS_DISTINCT_FROM(${1:STRING}, ${2:STRING})"
+   - "IS_DISTINCT_FROM(${1:FLOAT}, ${2:FLOAT})"
+   - "IS_DISTINCT_FROM(${1:DOUBLE}, ${2:DOUBLE})"
+   - "IS_DISTINCT_FROM(${1:INT}, ${2:INT})"
+   - "IS_DISTINCT_FROM(${1:BIGINT}, ${2:BIGINT})"
+   - "IS_DISTINCT_FROM(${1:DATE}, ${2:DATE})"
+   - "IS_DISTINCT_FROM(${1:TIME}, ${2:TIME})"
+   - "IS_DISTINCT_FROM(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "IS_FIXEDSIZEBINARY"
+  input: "IS_FIXEDSIZEBINARY"
+  output:
+   - "IS_FIXEDSIZEBINARY(${1:BYTES})"
+ -
+  description: "IS_FLOAT4"
+  input: "IS_FLOAT4"
+  output:
+   - "IS_FLOAT4(${1:BYTES})"
+ -
+  description: "IS_FLOAT8"
+  input: "IS_FLOAT8"
+  output:
+   - "IS_FLOAT8(${1:BYTES})"
+ -
+  description: "IS_INT"
+  input: "IS_INT"
+  output:
+   - "IS_INT(${1:BYTES})"
+ -
+  description: "IS_INTERVALDAY"
+  input: "IS_INTERVALDAY"
+  output:
+   - "IS_INTERVALDAY(${1:BYTES})"
+ -
+  description: "IS_INTERVALYEAR"
+  input: "IS_INTERVALYEAR"
+  output:
+   - "IS_INTERVALYEAR(${1:BYTES})"
+ -
+  description: "IS_LIST"
+  input: "IS_LIST"
+  output:
+   - "IS_LIST(${1:BYTES})"
+ -
+  description: "IS_NOT_DISTINCT_FROM"
+  input: "IS_NOT_DISTINCT_FROM"
+  output:
+   - "IS_NOT_DISTINCT_FROM(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "IS_NOT_DISTINCT_FROM(${1:STRING}, ${2:STRING})"
+   - "IS_NOT_DISTINCT_FROM(${1:FLOAT}, ${2:FLOAT})"
+   - "IS_NOT_DISTINCT_FROM(${1:DOUBLE}, ${2:DOUBLE})"
+   - "IS_NOT_DISTINCT_FROM(${1:INT}, ${2:INT})"
+   - "IS_NOT_DISTINCT_FROM(${1:BIGINT}, ${2:BIGINT})"
+   - "IS_NOT_DISTINCT_FROM(${1:DATE}, ${2:DATE})"
+   - "IS_NOT_DISTINCT_FROM(${1:TIME}, ${2:TIME})"
+   - "IS_NOT_DISTINCT_FROM(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "IS_STRUCT"
+  input: "IS_STRUCT"
+  output:
+   - "IS_STRUCT(${1:BYTES})"
+ -
+  description: "IS_SUBSTR"
+  input: "IS_SUBSTR"
+  output:
+   - "IS_SUBSTR(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "IS_TIME"
+  input: "IS_TIME"
+  output:
+   - "IS_TIME(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "IS_TIMESTAMP"
+  input: "IS_TIMESTAMP"
+  output:
+   - "IS_TIMESTAMP(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "IS_UTF8"
+  input: "IS_UTF8"
+  output:
+   - "IS_UTF8(${1:CHARACTERS})"
+ -
+  description: "IS_VARBINARY"
+  input: "IS_VARBINARY"
+  output:
+   - "IS_VARBINARY(${1:BYTES})"
+ -
+  description: "IS_VARCHAR"
+  input: "IS_VARCHAR"
+  output:
+   - "IS_VARCHAR(${1:BYTES})"
+ -
+  description: "ITEMS_SKETCH"
+  input: "ITEMS_SKETCH"
+  output:
+   - "ITEMS_SKETCH(${1:ANY})"
+ -
+  description: "ITEMS_SKETCH_MERGE_BOOLEAN"
+  input: "ITEMS_SKETCH_MERGE_BOOLEAN"
+  output:
+   - "ITEMS_SKETCH_MERGE_BOOLEAN(${1:STRING})"
+   - "ITEMS_SKETCH_MERGE_BOOLEAN(${1:FLOAT})"
+   - "ITEMS_SKETCH_MERGE_BOOLEAN(${1:DOUBLE})"
+   - "ITEMS_SKETCH_MERGE_BOOLEAN(${1:INT})"
+   - "ITEMS_SKETCH_MERGE_BOOLEAN(${1:BIGINT})"
+ -
+  description: "ITEMS_SKETCH_MERGE_DOUBLE"
+  input: "ITEMS_SKETCH_MERGE_DOUBLE"
+  output:
+   - "ITEMS_SKETCH_MERGE_DOUBLE(${1:STRING})"
+   - "ITEMS_SKETCH_MERGE_DOUBLE(${1:FLOAT})"
+   - "ITEMS_SKETCH_MERGE_DOUBLE(${1:DOUBLE})"
+   - "ITEMS_SKETCH_MERGE_DOUBLE(${1:INT})"
+   - "ITEMS_SKETCH_MERGE_DOUBLE(${1:BIGINT})"
+ -
+  description: "ITEMS_SKETCH_MERGE_LONG"
+  input: "ITEMS_SKETCH_MERGE_LONG"
+  output:
+   - "ITEMS_SKETCH_MERGE_LONG(${1:STRING})"
+   - "ITEMS_SKETCH_MERGE_LONG(${1:FLOAT})"
+   - "ITEMS_SKETCH_MERGE_LONG(${1:DOUBLE})"
+   - "ITEMS_SKETCH_MERGE_LONG(${1:INT})"
+   - "ITEMS_SKETCH_MERGE_LONG(${1:BIGINT})"
+ -
+  description: "ITEMS_SKETCH_MERGE_NUMBER"
+  input: "ITEMS_SKETCH_MERGE_NUMBER"
+  output:
+   - "ITEMS_SKETCH_MERGE_NUMBER(${1:STRING})"
+   - "ITEMS_SKETCH_MERGE_NUMBER(${1:FLOAT})"
+   - "ITEMS_SKETCH_MERGE_NUMBER(${1:DOUBLE})"
+   - "ITEMS_SKETCH_MERGE_NUMBER(${1:INT})"
+   - "ITEMS_SKETCH_MERGE_NUMBER(${1:BIGINT})"
+ -
+  description: "ITEMS_SKETCH_MERGE_VARCHAR"
+  input: "ITEMS_SKETCH_MERGE_VARCHAR"
+  output:
+   - "ITEMS_SKETCH_MERGE_VARCHAR(${1:STRING})"
+   - "ITEMS_SKETCH_MERGE_VARCHAR(${1:FLOAT})"
+   - "ITEMS_SKETCH_MERGE_VARCHAR(${1:DOUBLE})"
+   - "ITEMS_SKETCH_MERGE_VARCHAR(${1:INT})"
+   - "ITEMS_SKETCH_MERGE_VARCHAR(${1:BIGINT})"
+ -
+  description: "KVGEN"
+  input: "KVGEN"
+  output:
+   - "KVGEN(${1:ANY})"
+ -
+  description: "LAG"
+  input: "LAG"
+  output:
+   - "LAG(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "LAG(${1:BYTES}, ${2:NUMERIC})"
+   - "LAG(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "LAG(${1:FLOAT}, ${2:NUMERIC})"
+   - "LAG(${1:DECIMAL}, ${2:NUMERIC})"
+   - "LAG(${1:DOUBLE}, ${2:NUMERIC})"
+   - "LAG(${1:INT}, ${2:NUMERIC})"
+   - "LAG(${1:BIGINT}, ${2:NUMERIC})"
+   - "LAG(${1:DATE}, ${2:NUMERIC})"
+   - "LAG(${1:TIME}, ${2:NUMERIC})"
+   - "LAG(${1:TIMESTAMP}, ${2:NUMERIC})"
+   - "LAG(${1:BOOLEAN}, ${2:NUMERIC}, ${3:BOOLEAN})"
+   - "LAG(${1:BOOLEAN}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:BYTES}, ${2:NUMERIC}, ${3:BYTES})"
+   - "LAG(${1:CHARACTERS}, ${2:NUMERIC}, ${3:BOOLEAN})"
+   - "LAG(${1:CHARACTERS}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LAG(${1:CHARACTERS}, ${2:NUMERIC}, ${3:DATEANDTIME})"
+   - "LAG(${1:CHARACTERS}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:FLOAT}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LAG(${1:FLOAT}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:DECIMAL}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LAG(${1:DECIMAL}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:DOUBLE}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LAG(${1:DOUBLE}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:INT}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LAG(${1:INT}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:BIGINT}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LAG(${1:BIGINT}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:DATE}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:DATE}, ${2:NUMERIC}, ${3:DATE})"
+   - "LAG(${1:DATE}, ${2:NUMERIC}, ${3:TIMESTAMP})"
+   - "LAG(${1:TIME}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:TIME}, ${2:NUMERIC}, ${3:TIME})"
+   - "LAG(${1:TIMESTAMP}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LAG(${1:TIMESTAMP}, ${2:NUMERIC}, ${3:DATE})"
+   - "LAG(${1:TIMESTAMP}, ${2:NUMERIC}, ${3:TIMESTAMP})"
+ -
+  description: "LAST"
+  input: "LAST"
+  output:
+   - "LAST(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "LAST(${1:BYTES}, ${2:NUMERIC})"
+   - "LAST(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "LAST(${1:FLOAT}, ${2:NUMERIC})"
+   - "LAST(${1:DECIMAL}, ${2:NUMERIC})"
+   - "LAST(${1:DOUBLE}, ${2:NUMERIC})"
+   - "LAST(${1:INT}, ${2:NUMERIC})"
+   - "LAST(${1:BIGINT}, ${2:NUMERIC})"
+   - "LAST(${1:DATE}, ${2:NUMERIC})"
+   - "LAST(${1:TIME}, ${2:NUMERIC})"
+   - "LAST(${1:TIMESTAMP}, ${2:NUMERIC})"
+ -
+  description: "LAST_DAY"
+  input: "LAST_DAY"
+  output:
+   - "LAST_DAY(${1:DATE})"
+   - "LAST_DAY(${1:TIMESTAMP})"
+ -
+  description: "LAST_QUERY_ID"
+  input: "LAST_QUERY_ID"
+  output:
+   - "LAST_QUERY_ID()"
+ -
+  description: "LAST_VALUE"
+  input: "LAST_VALUE"
+  output:
+   - "LAST_VALUE(${1:BOOLEAN})"
+   - "LAST_VALUE(${1:BYTES})"
+   - "LAST_VALUE(${1:CHARACTERS})"
+   - "LAST_VALUE(${1:FLOAT})"
+   - "LAST_VALUE(${1:DECIMAL})"
+   - "LAST_VALUE(${1:DOUBLE})"
+   - "LAST_VALUE(${1:INT})"
+   - "LAST_VALUE(${1:BIGINT})"
+   - "LAST_VALUE(${1:DATE})"
+   - "LAST_VALUE(${1:TIME})"
+   - "LAST_VALUE(${1:TIMESTAMP})"
+ -
+  description: "LEAD"
+  input: "LEAD"
+  output:
+   - "LEAD(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "LEAD(${1:BYTES}, ${2:NUMERIC})"
+   - "LEAD(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "LEAD(${1:FLOAT}, ${2:NUMERIC})"
+   - "LEAD(${1:DECIMAL}, ${2:NUMERIC})"
+   - "LEAD(${1:DOUBLE}, ${2:NUMERIC})"
+   - "LEAD(${1:INT}, ${2:NUMERIC})"
+   - "LEAD(${1:BIGINT}, ${2:NUMERIC})"
+   - "LEAD(${1:DATE}, ${2:NUMERIC})"
+   - "LEAD(${1:TIME}, ${2:NUMERIC})"
+   - "LEAD(${1:TIMESTAMP}, ${2:NUMERIC})"
+   - "LEAD(${1:BOOLEAN}, ${2:NUMERIC}, ${3:BOOLEAN})"
+   - "LEAD(${1:BOOLEAN}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:BYTES}, ${2:NUMERIC}, ${3:BYTES})"
+   - "LEAD(${1:CHARACTERS}, ${2:NUMERIC}, ${3:BOOLEAN})"
+   - "LEAD(${1:CHARACTERS}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LEAD(${1:CHARACTERS}, ${2:NUMERIC}, ${3:DATEANDTIME})"
+   - "LEAD(${1:CHARACTERS}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:FLOAT}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LEAD(${1:FLOAT}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:DECIMAL}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LEAD(${1:DECIMAL}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:DOUBLE}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LEAD(${1:DOUBLE}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:INT}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LEAD(${1:INT}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:BIGINT}, ${2:NUMERIC}, ${3:NUMERIC})"
+   - "LEAD(${1:BIGINT}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:DATE}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:DATE}, ${2:NUMERIC}, ${3:DATE})"
+   - "LEAD(${1:DATE}, ${2:NUMERIC}, ${3:TIMESTAMP})"
+   - "LEAD(${1:TIME}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:TIME}, ${2:NUMERIC}, ${3:TIME})"
+   - "LEAD(${1:TIMESTAMP}, ${2:NUMERIC}, ${3:CHARACTERS})"
+   - "LEAD(${1:TIMESTAMP}, ${2:NUMERIC}, ${3:DATE})"
+   - "LEAD(${1:TIMESTAMP}, ${2:NUMERIC}, ${3:TIMESTAMP})"
+ -
+  description: "LEAST"
+  input: "LEAST"
+  output:
+   - "LEAST(${1:BOOLEAN})"
+   - "LEAST(${1:BYTES})"
+   - "LEAST(${1:CHARACTERS})"
+   - "LEAST(${1:FLOAT})"
+   - "LEAST(${1:DECIMAL})"
+   - "LEAST(${1:DOUBLE})"
+   - "LEAST(${1:INT})"
+   - "LEAST(${1:BIGINT})"
+   - "LEAST(${1:DATE})"
+   - "LEAST(${1:TIME})"
+   - "LEAST(${1:TIMESTAMP})"
+ -
+  description: "LEFT"
+  input: "LEFT"
+  output:
+   - "LEFT(${1:CHARACTERS}, ${2:INT})"
+   - "LEFT(${1:CHARACTERS}, ${2:BIGINT})"
+ -
+  description: "LENGTH"
+  input: "LENGTH"
+  output:
+   - "LENGTH(${1:CHARACTERS})"
+ -
+  description: "LENGTHUTF8"
+  input: "LENGTHUTF8"
+  output:
+   - "LENGTHUTF8(${1:BYTES})"
+ -
+  description: "LESS_THAN"
+  input: "LESS_THAN"
+  output:
+   - "LESS_THAN(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "LESS_THAN(${1:STRING}, ${2:STRING})"
+   - "LESS_THAN(${1:FLOAT}, ${2:FLOAT})"
+   - "LESS_THAN(${1:DECIMAL}, ${2:DECIMAL})"
+   - "LESS_THAN(${1:DOUBLE}, ${2:DOUBLE})"
+   - "LESS_THAN(${1:INT}, ${2:INT})"
+   - "LESS_THAN(${1:BIGINT}, ${2:BIGINT})"
+   - "LESS_THAN(${1:DATE}, ${2:DATE})"
+   - "LESS_THAN(${1:TIME}, ${2:TIME})"
+   - "LESS_THAN(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "LESS_THAN_OR_EQUAL_TO"
+  input: "LESS_THAN_OR_EQUAL_TO"
+  output:
+   - "LESS_THAN_OR_EQUAL_TO(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:STRING}, ${2:STRING})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:FLOAT}, ${2:FLOAT})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:DECIMAL}, ${2:DECIMAL})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:DOUBLE}, ${2:DOUBLE})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:INT}, ${2:INT})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:BIGINT}, ${2:BIGINT})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:DATE}, ${2:DATE})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:TIME}, ${2:TIME})"
+   - "LESS_THAN_OR_EQUAL_TO(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "LEVENSHTEIN"
+  input: "LEVENSHTEIN"
+  output:
+   - "LEVENSHTEIN(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "LIKE"
+  input: "LIKE"
+  output:
+   - "LIKE(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
+ -
+  description: "LISTAGG"
+  input: "LISTAGG"
+  output:
+   - "LISTAGG(${1:BYTES}, ${2:STRING})"
+   - "LISTAGG(${1:CHARACTERS}, ${2:STRING})"
+ -
+  description: "LISTAGG_MERGE"
+  input: "LISTAGG_MERGE"
+  output:
+   - "LISTAGG_MERGE(${1:STRING}, ${2:STRING})"
+ -
+  description: "LN"
+  input: "LN"
+  output:
+   - "LN(${1:NUMERIC})"
+ -
+  description: "LOCALTIME"
+  input: "LOCALTIME"
+  output:
+   - "LOCALTIME()"
+ -
+  description: "LOCALTIMESTAMP"
+  input: "LOCALTIMESTAMP"
+  output:
+   - "LOCALTIMESTAMP()"
+ -
+  description: "LOCAL_LISTAGG"
+  input: "LOCAL_LISTAGG"
+  output:
+   - "LOCAL_LISTAGG(${1:STRING}, ${2:STRING})"
+ -
+  description: "LOCATE"
+  input: "LOCATE"
+  output:
+   - "LOCATE(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+ -
+  description: "LOG"
+  input: "LOG"
+  output:
+   - "LOG(${1:FLOAT}, ${2:FLOAT})"
+   - "LOG(${1:DOUBLE}, ${2:DOUBLE})"
+   - "LOG(${1:INT}, ${2:INT})"
+   - "LOG(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "LOG10"
+  input: "LOG10"
+  output:
+   - "LOG10(${1:NUMERIC})"
+ -
+  description: "LOWER"
+  input: "LOWER"
+  output:
+   - "LOWER(${1:CHARACTERS})"
+ -
+  description: "LPAD"
+  input: "LPAD"
+  output:
+   - "LPAD(${1:CHARACTERS}, ${2:INT}, ${3:CHARACTERS})"
+   - "LPAD(${1:CHARACTERS}, ${2:BIGINT}, ${3:CHARACTERS})"
+ -
+  description: "LSHIFT"
+  input: "LSHIFT"
+  output:
+   - "LSHIFT(${1:INT}, ${2:INT})"
+   - "LSHIFT(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "LTRIM"
+  input: "LTRIM"
+  output:
+   - "LTRIM(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "MAPPIFY"
+  input: "MAPPIFY"
+  output:
+   - "MAPPIFY(${1:ANY})"
+ -
+  description: "MASK"
+  input: "MASK"
+  output:
+   - "MASK(${1:BOOLEAN})"
+   - "MASK(${1:BYTES})"
+   - "MASK(${1:CHARACTERS})"
+   - "MASK(${1:FLOAT})"
+   - "MASK(${1:DECIMAL})"
+   - "MASK(${1:DOUBLE})"
+   - "MASK(${1:INT})"
+   - "MASK(${1:BIGINT})"
+   - "MASK(${1:DATE})"
+   - "MASK(${1:TIME})"
+   - "MASK(${1:TIMESTAMP})"
+   - "MASK(${1:BOOLEAN}, ${2:ANY})"
+   - "MASK(${1:BYTES}, ${2:ANY})"
+   - "MASK(${1:CHARACTERS}, ${2:ANY})"
+   - "MASK(${1:FLOAT}, ${2:ANY})"
+   - "MASK(${1:DECIMAL}, ${2:ANY})"
+   - "MASK(${1:DOUBLE}, ${2:ANY})"
+   - "MASK(${1:INT}, ${2:ANY})"
+   - "MASK(${1:BIGINT}, ${2:ANY})"
+   - "MASK(${1:DATE}, ${2:ANY})"
+   - "MASK(${1:TIME}, ${2:ANY})"
+   - "MASK(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "MASK_FIRST_N"
+  input: "MASK_FIRST_N"
+  output:
+   - "MASK_FIRST_N(${1:BOOLEAN})"
+   - "MASK_FIRST_N(${1:BYTES})"
+   - "MASK_FIRST_N(${1:CHARACTERS})"
+   - "MASK_FIRST_N(${1:FLOAT})"
+   - "MASK_FIRST_N(${1:DECIMAL})"
+   - "MASK_FIRST_N(${1:DOUBLE})"
+   - "MASK_FIRST_N(${1:INT})"
+   - "MASK_FIRST_N(${1:BIGINT})"
+   - "MASK_FIRST_N(${1:DATE})"
+   - "MASK_FIRST_N(${1:TIME})"
+   - "MASK_FIRST_N(${1:TIMESTAMP})"
+   - "MASK_FIRST_N(${1:BOOLEAN}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:BYTES}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:CHARACTERS}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:CHARACTERS}, ${2:INT})"
+   - "MASK_FIRST_N(${1:FLOAT}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:DECIMAL}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:DOUBLE}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:INT}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:BIGINT}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:DATE}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:TIME}, ${2:ANY})"
+   - "MASK_FIRST_N(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "MASK_HASH"
+  input: "MASK_HASH"
+  output:
+   - "MASK_HASH(${1:BOOLEAN})"
+   - "MASK_HASH(${1:BYTES})"
+   - "MASK_HASH(${1:CHARACTERS})"
+   - "MASK_HASH(${1:FLOAT})"
+   - "MASK_HASH(${1:DECIMAL})"
+   - "MASK_HASH(${1:DOUBLE})"
+   - "MASK_HASH(${1:INT})"
+   - "MASK_HASH(${1:BIGINT})"
+   - "MASK_HASH(${1:DATE})"
+   - "MASK_HASH(${1:TIME})"
+   - "MASK_HASH(${1:TIMESTAMP})"
+   - "MASK_HASH(${1:BOOLEAN}, ${2:ANY})"
+   - "MASK_HASH(${1:BYTES}, ${2:ANY})"
+   - "MASK_HASH(${1:CHARACTERS}, ${2:ANY})"
+   - "MASK_HASH(${1:FLOAT}, ${2:ANY})"
+   - "MASK_HASH(${1:DECIMAL}, ${2:ANY})"
+   - "MASK_HASH(${1:DOUBLE}, ${2:ANY})"
+   - "MASK_HASH(${1:INT}, ${2:ANY})"
+   - "MASK_HASH(${1:BIGINT}, ${2:ANY})"
+   - "MASK_HASH(${1:DATE}, ${2:ANY})"
+   - "MASK_HASH(${1:TIME}, ${2:ANY})"
+   - "MASK_HASH(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "MASK_INTERNAL"
+  input: "MASK_INTERNAL"
+  output:
+   - "MASK_INTERNAL(${1:BOOLEAN})"
+   - "MASK_INTERNAL(${1:BYTES})"
+   - "MASK_INTERNAL(${1:CHARACTERS})"
+   - "MASK_INTERNAL(${1:FLOAT})"
+   - "MASK_INTERNAL(${1:DECIMAL})"
+   - "MASK_INTERNAL(${1:DOUBLE})"
+   - "MASK_INTERNAL(${1:INT})"
+   - "MASK_INTERNAL(${1:BIGINT})"
+   - "MASK_INTERNAL(${1:DATE})"
+   - "MASK_INTERNAL(${1:TIME})"
+   - "MASK_INTERNAL(${1:TIMESTAMP})"
+   - "MASK_INTERNAL(${1:BOOLEAN}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:BYTES}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:CHARACTERS}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:FLOAT}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:DECIMAL}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:DOUBLE}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:INT}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:BIGINT}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:DATE}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:TIME}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:TIMESTAMP}, ${2:ANY})"
+   - "MASK_INTERNAL(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS})"
+   - "MASK_INTERNAL(${1:INT}, ${2:CHARACTERS}, ${3:INT}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS}, ${8:INT})"
+   - "MASK_INTERNAL(${1:BIGINT}, ${2:CHARACTERS}, ${3:INT}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS}, ${8:INT})"
+   - "MASK_INTERNAL(${1:DATE}, ${2:CHARACTERS}, ${3:INT}, ${4:CHARACTERS}, ${5:CHARACTERS}, ${6:CHARACTERS}, ${7:CHARACTERS}, ${8:INT}, ${9:INT}, ${10:INT}, ${11:INT})"
+ -
+  description: "MASK_LAST_N"
+  input: "MASK_LAST_N"
+  output:
+   - "MASK_LAST_N(${1:BOOLEAN})"
+   - "MASK_LAST_N(${1:BYTES})"
+   - "MASK_LAST_N(${1:CHARACTERS})"
+   - "MASK_LAST_N(${1:FLOAT})"
+   - "MASK_LAST_N(${1:DECIMAL})"
+   - "MASK_LAST_N(${1:DOUBLE})"
+   - "MASK_LAST_N(${1:INT})"
+   - "MASK_LAST_N(${1:BIGINT})"
+   - "MASK_LAST_N(${1:DATE})"
+   - "MASK_LAST_N(${1:TIME})"
+   - "MASK_LAST_N(${1:TIMESTAMP})"
+   - "MASK_LAST_N(${1:BOOLEAN}, ${2:ANY})"
+   - "MASK_LAST_N(${1:BYTES}, ${2:ANY})"
+   - "MASK_LAST_N(${1:CHARACTERS}, ${2:ANY})"
+   - "MASK_LAST_N(${1:CHARACTERS}, ${2:INT})"
+   - "MASK_LAST_N(${1:FLOAT}, ${2:ANY})"
+   - "MASK_LAST_N(${1:DECIMAL}, ${2:ANY})"
+   - "MASK_LAST_N(${1:DOUBLE}, ${2:ANY})"
+   - "MASK_LAST_N(${1:INT}, ${2:ANY})"
+   - "MASK_LAST_N(${1:BIGINT}, ${2:ANY})"
+   - "MASK_LAST_N(${1:DATE}, ${2:ANY})"
+   - "MASK_LAST_N(${1:TIME}, ${2:ANY})"
+   - "MASK_LAST_N(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "MASK_SHOW_FIRST_N"
+  input: "MASK_SHOW_FIRST_N"
+  output:
+   - "MASK_SHOW_FIRST_N(${1:BOOLEAN})"
+   - "MASK_SHOW_FIRST_N(${1:BYTES})"
+   - "MASK_SHOW_FIRST_N(${1:CHARACTERS})"
+   - "MASK_SHOW_FIRST_N(${1:FLOAT})"
+   - "MASK_SHOW_FIRST_N(${1:DECIMAL})"
+   - "MASK_SHOW_FIRST_N(${1:DOUBLE})"
+   - "MASK_SHOW_FIRST_N(${1:INT})"
+   - "MASK_SHOW_FIRST_N(${1:BIGINT})"
+   - "MASK_SHOW_FIRST_N(${1:DATE})"
+   - "MASK_SHOW_FIRST_N(${1:TIME})"
+   - "MASK_SHOW_FIRST_N(${1:TIMESTAMP})"
+   - "MASK_SHOW_FIRST_N(${1:BOOLEAN}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:BYTES}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:CHARACTERS}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:FLOAT}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:DECIMAL}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:DOUBLE}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:INT}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:BIGINT}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:DATE}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:TIME}, ${2:ANY})"
+   - "MASK_SHOW_FIRST_N(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "MASK_SHOW_LAST_N"
+  input: "MASK_SHOW_LAST_N"
+  output:
+   - "MASK_SHOW_LAST_N(${1:BOOLEAN})"
+   - "MASK_SHOW_LAST_N(${1:BYTES})"
+   - "MASK_SHOW_LAST_N(${1:CHARACTERS})"
+   - "MASK_SHOW_LAST_N(${1:FLOAT})"
+   - "MASK_SHOW_LAST_N(${1:DECIMAL})"
+   - "MASK_SHOW_LAST_N(${1:DOUBLE})"
+   - "MASK_SHOW_LAST_N(${1:INT})"
+   - "MASK_SHOW_LAST_N(${1:BIGINT})"
+   - "MASK_SHOW_LAST_N(${1:DATE})"
+   - "MASK_SHOW_LAST_N(${1:TIME})"
+   - "MASK_SHOW_LAST_N(${1:TIMESTAMP})"
+   - "MASK_SHOW_LAST_N(${1:BOOLEAN}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:BYTES}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:CHARACTERS}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:FLOAT}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:DECIMAL}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:DOUBLE}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:INT}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:BIGINT}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:DATE}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:TIME}, ${2:ANY})"
+   - "MASK_SHOW_LAST_N(${1:TIMESTAMP}, ${2:ANY})"
+ -
+  description: "MATCH_NUMBER "
+  input: "MATCH_NUMBER "
+  output:
+   - "MATCH_NUMBER ()"
+ -
+  description: "MAX"
+  input: "MAX"
+  output:
+   - "MAX(${1:BOOLEAN})"
+   - "MAX(${1:BYTES})"
+   - "MAX(${1:CHARACTERS})"
+   - "MAX(${1:FLOAT})"
+   - "MAX(${1:DECIMAL})"
+   - "MAX(${1:DOUBLE})"
+   - "MAX(${1:INT})"
+   - "MAX(${1:BIGINT})"
+   - "MAX(${1:DATE})"
+   - "MAX(${1:TIME})"
+   - "MAX(${1:TIMESTAMP})"
+ -
+  description: "MAXDIR"
+  input: "MAXDIR"
+  output:
+   - "MAXDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "MAX_V2"
+  input: "MAX_V2"
+  output:
+   - "MAX_V2(${1:BOOLEAN})"
+   - "MAX_V2(${1:STRING})"
+   - "MAX_V2(${1:DECIMAL})"
+   - "MAX_V2(${1:INT})"
+   - "MAX_V2(${1:BIGINT})"
+ -
+  description: "MD5"
+  input: "MD5"
+  output:
+   - "MD5(${1:BOOLEAN})"
+   - "MD5(${1:STRING})"
+   - "MD5(${1:DATEANDTIME})"
+   - "MD5(${1:FLOAT})"
+   - "MD5(${1:DOUBLE})"
+   - "MD5(${1:INT})"
+   - "MD5(${1:BIGINT})"
+ -
+  description: "MEDIAN"
+  input: "MEDIAN"
+  output:
+   - "MEDIAN(${1:NUMERIC})"
+ -
+  description: "MIN"
+  input: "MIN"
+  output:
+   - "MIN(${1:BOOLEAN})"
+   - "MIN(${1:BYTES})"
+   - "MIN(${1:CHARACTERS})"
+   - "MIN(${1:FLOAT})"
+   - "MIN(${1:DECIMAL})"
+   - "MIN(${1:DOUBLE})"
+   - "MIN(${1:INT})"
+   - "MIN(${1:BIGINT})"
+   - "MIN(${1:DATE})"
+   - "MIN(${1:TIME})"
+   - "MIN(${1:TIMESTAMP})"
+ -
+  description: "MINDIR"
+  input: "MINDIR"
+  output:
+   - "MINDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "MINUTE"
+  input: "MINUTE"
+  output:
+   - "MINUTE(${1:DATEANDTIME})"
+   - "MINUTE(${1:DATE})"
+   - "MINUTE(${1:TIMESTAMP})"
+ -
+  description: "MIN_V2"
+  input: "MIN_V2"
+  output:
+   - "MIN_V2(${1:BOOLEAN})"
+   - "MIN_V2(${1:STRING})"
+   - "MIN_V2(${1:DECIMAL})"
+   - "MIN_V2(${1:INT})"
+   - "MIN_V2(${1:BIGINT})"
+ -
+  description: "MOD"
+  input: "MOD"
+  output:
+   - "MOD(${1:DECIMAL}, ${2:DECIMAL})"
+   - "MOD(${1:DECIMAL}, ${2:INT})"
+   - "MOD(${1:DECIMAL}, ${2:BIGINT})"
+   - "MOD(${1:DOUBLE}, ${2:DOUBLE})"
+   - "MOD(${1:INT}, ${2:DECIMAL})"
+   - "MOD(${1:INT}, ${2:INT})"
+   - "MOD(${1:INT}, ${2:BIGINT})"
+   - "MOD(${1:BIGINT}, ${2:DECIMAL})"
+   - "MOD(${1:BIGINT}, ${2:INT})"
+   - "MOD(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "MODULO"
+  input: "MODULO"
+  output:
+   - "MODULO(${1:DECIMAL}, ${2:DECIMAL})"
+   - "MODULO(${1:DOUBLE}, ${2:DOUBLE})"
+   - "MODULO(${1:BIGINT}, ${2:INT})"
+   - "MODULO(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "MONTH"
+  input: "MONTH"
+  output:
+   - "MONTH(${1:DATEANDTIME})"
+   - "MONTH(${1:DATE})"
+   - "MONTH(${1:TIMESTAMP})"
+ -
+  description: "MONTHS_BETWEEN"
+  input: "MONTHS_BETWEEN"
+  output:
+   - "MONTHS_BETWEEN(${1:DATE}, ${2:DATE})"
+   - "MONTHS_BETWEEN(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "MULTIPLY"
+  input: "MULTIPLY"
+  output:
+   - "MULTIPLY(${1:FLOAT}, ${2:FLOAT})"
+   - "MULTIPLY(${1:DECIMAL}, ${2:DECIMAL})"
+   - "MULTIPLY(${1:DOUBLE}, ${2:DOUBLE})"
+   - "MULTIPLY(${1:INT}, ${2:INT})"
+   - "MULTIPLY(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "NDV"
+  input: "NDV"
+  output:
+   - "NDV(${1:ANY})"
+ -
+  description: "NEGATIVE"
+  input: "NEGATIVE"
+  output:
+   - "NEGATIVE(${1:FLOAT})"
+   - "NEGATIVE(${1:DECIMAL})"
+   - "NEGATIVE(${1:DOUBLE})"
+   - "NEGATIVE(${1:INT})"
+   - "NEGATIVE(${1:BIGINT})"
+ -
+  description: "NEWPARTITIONNUMBER"
+  input: "NEWPARTITIONNUMBER"
+  output:
+   - "NEWPARTITIONNUMBER(${1:BOOLEAN})"
+   - "NEWPARTITIONNUMBER(${1:DATEANDTIME})"
+   - "NEWPARTITIONNUMBER(${1:FLOAT})"
+   - "NEWPARTITIONNUMBER(${1:DOUBLE})"
+   - "NEWPARTITIONNUMBER(${1:INT})"
+   - "NEWPARTITIONNUMBER(${1:BIGINT})"
+ -
+  description: "NEWPARTITIONVALUE"
+  input: "NEWPARTITIONVALUE"
+  output:
+   - "NEWPARTITIONVALUE(${1:BOOLEAN})"
+   - "NEWPARTITIONVALUE(${1:STRING})"
+   - "NEWPARTITIONVALUE(${1:DATEANDTIME})"
+   - "NEWPARTITIONVALUE(${1:FLOAT})"
+   - "NEWPARTITIONVALUE(${1:DOUBLE})"
+   - "NEWPARTITIONVALUE(${1:INT})"
+   - "NEWPARTITIONVALUE(${1:BIGINT})"
+ -
+  description: "NEXT"
+  input: "NEXT"
+  output:
+   - "NEXT(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "NEXT(${1:BYTES}, ${2:NUMERIC})"
+   - "NEXT(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "NEXT(${1:FLOAT}, ${2:NUMERIC})"
+   - "NEXT(${1:DECIMAL}, ${2:NUMERIC})"
+   - "NEXT(${1:DOUBLE}, ${2:NUMERIC})"
+   - "NEXT(${1:INT}, ${2:NUMERIC})"
+   - "NEXT(${1:BIGINT}, ${2:NUMERIC})"
+   - "NEXT(${1:DATE}, ${2:NUMERIC})"
+   - "NEXT(${1:TIME}, ${2:NUMERIC})"
+   - "NEXT(${1:TIMESTAMP}, ${2:NUMERIC})"
+ -
+  description: "NEXT_DAY"
+  input: "NEXT_DAY"
+  output:
+   - "NEXT_DAY(${1:DATE}, ${2:CHARACTERS})"
+   - "NEXT_DAY(${1:TIMESTAMP}, ${2:CHARACTERS})"
+ -
+  description: "NONNULLSTATCOUNT"
+  input: "NONNULLSTATCOUNT"
+  output:
+   - "NONNULLSTATCOUNT(${1:ANY})"
+ -
+  description: "NOT"
+  input: "NOT"
+  output:
+   - "NOT(${1:BOOLEAN})"
+ -
+  description: "NOT_EQUAL"
+  input: "NOT_EQUAL"
+  output:
+   - "NOT_EQUAL(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "NOT_EQUAL(${1:STRING}, ${2:STRING})"
+   - "NOT_EQUAL(${1:FLOAT}, ${2:FLOAT})"
+   - "NOT_EQUAL(${1:DECIMAL}, ${2:DECIMAL})"
+   - "NOT_EQUAL(${1:DOUBLE}, ${2:DOUBLE})"
+   - "NOT_EQUAL(${1:INT}, ${2:INT})"
+   - "NOT_EQUAL(${1:BIGINT}, ${2:BIGINT})"
+   - "NOT_EQUAL(${1:DATE}, ${2:DATE})"
+   - "NOT_EQUAL(${1:TIME}, ${2:TIME})"
+   - "NOT_EQUAL(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "NOW"
+  input: "NOW"
+  output:
+   - "NOW()"
+ -
+  description: "NTH_VALUE"
+  input: "NTH_VALUE"
+  output:
+   - "NTH_VALUE(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:BYTES}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:FLOAT}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:DECIMAL}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:DOUBLE}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:INT}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:BIGINT}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:DATE}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:TIME}, ${2:NUMERIC})"
+   - "NTH_VALUE(${1:TIMESTAMP}, ${2:NUMERIC})"
+ -
+  description: "NTILE"
+  input: "NTILE"
+  output: []
+ -
+  description: "NULLIF"
+  input: "NULLIF"
+  output:
+   - "NULLIF(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "NULLIF(${1:BOOLEAN}, ${2:CHARACTERS})"
+   - "NULLIF(${1:BYTES}, ${2:BYTES})"
+   - "NULLIF(${1:CHARACTERS}, ${2:BOOLEAN})"
+   - "NULLIF(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "NULLIF(${1:CHARACTERS}, ${2:DATEANDTIME})"
+   - "NULLIF(${1:CHARACTERS}, ${2:CHARACTERS})"
+   - "NULLIF(${1:FLOAT}, ${2:NUMERIC})"
+   - "NULLIF(${1:FLOAT}, ${2:CHARACTERS})"
+   - "NULLIF(${1:DECIMAL}, ${2:NUMERIC})"
+   - "NULLIF(${1:DECIMAL}, ${2:CHARACTERS})"
+   - "NULLIF(${1:DOUBLE}, ${2:NUMERIC})"
+   - "NULLIF(${1:DOUBLE}, ${2:CHARACTERS})"
+   - "NULLIF(${1:INT}, ${2:NUMERIC})"
+   - "NULLIF(${1:INT}, ${2:CHARACTERS})"
+   - "NULLIF(${1:BIGINT}, ${2:NUMERIC})"
+   - "NULLIF(${1:BIGINT}, ${2:CHARACTERS})"
+   - "NULLIF(${1:DATE}, ${2:CHARACTERS})"
+   - "NULLIF(${1:DATE}, ${2:DATE})"
+   - "NULLIF(${1:DATE}, ${2:TIMESTAMP})"
+   - "NULLIF(${1:TIME}, ${2:CHARACTERS})"
+   - "NULLIF(${1:TIME}, ${2:TIME})"
+   - "NULLIF(${1:TIMESTAMP}, ${2:CHARACTERS})"
+   - "NULLIF(${1:TIMESTAMP}, ${2:DATE})"
+   - "NULLIF(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "NVL"
+  input: "NVL"
+  output:
+   - "NVL(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "NVL(${1:NUMERIC}, ${2:DOUBLE})"
+   - "NVL(${1:BYTES}, ${2:BYTES})"
+   - "NVL(${1:CHARACTERS}, ${2:CHARACTERS})"
+   - "NVL(${1:FLOAT}, ${2:FLOAT})"
+   - "NVL(${1:FLOAT}, ${2:DECIMAL})"
+   - "NVL(${1:FLOAT}, ${2:INT})"
+   - "NVL(${1:FLOAT}, ${2:BIGINT})"
+   - "NVL(${1:DECIMAL}, ${2:FLOAT})"
+   - "NVL(${1:DECIMAL}, ${2:DECIMAL})"
+   - "NVL(${1:DECIMAL}, ${2:INT})"
+   - "NVL(${1:DECIMAL}, ${2:BIGINT})"
+   - "NVL(${1:DOUBLE}, ${2:FLOAT})"
+   - "NVL(${1:DOUBLE}, ${2:DECIMAL})"
+   - "NVL(${1:DOUBLE}, ${2:INT})"
+   - "NVL(${1:DOUBLE}, ${2:BIGINT})"
+   - "NVL(${1:INT}, ${2:FLOAT})"
+   - "NVL(${1:INT}, ${2:DECIMAL})"
+   - "NVL(${1:INT}, ${2:INT})"
+   - "NVL(${1:INT}, ${2:BIGINT})"
+   - "NVL(${1:BIGINT}, ${2:FLOAT})"
+   - "NVL(${1:BIGINT}, ${2:DECIMAL})"
+   - "NVL(${1:BIGINT}, ${2:INT})"
+   - "NVL(${1:BIGINT}, ${2:BIGINT})"
+   - "NVL(${1:DATE}, ${2:DATE})"
+   - "NVL(${1:DATE}, ${2:TIMESTAMP})"
+   - "NVL(${1:TIME}, ${2:TIME})"
+   - "NVL(${1:TIMESTAMP}, ${2:DATE})"
+   - "NVL(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "OCTET_LENGTH"
+  input: "OCTET_LENGTH"
+  output:
+   - "OCTET_LENGTH(${1:STRING})"
+ -
+  description: "OR"
+  input: "OR"
+  output:
+   - "OR(${1:BOOLEAN}, ${2:BOOLEAN})"
+ -
+  description: "ORNOSHORTCIRCUIT"
+  input: "ORNOSHORTCIRCUIT"
+  output:
+   - "ORNOSHORTCIRCUIT(${1:BOOLEAN}, ${2:BOOLEAN})"
+ -
+  description: "OVERLAY"
+  input: "OVERLAY"
+  output: []
+ -
+  description: "PARTITIONBITCOUNTER"
+  input: "PARTITIONBITCOUNTER"
+  output:
+   - "PARTITIONBITCOUNTER(${1:BOOLEAN})"
+ -
+  description: "PERCENTILE_CONT"
+  input: "PERCENTILE_CONT"
+  output: []
+ -
+  description: "PERCENTILE_DISC"
+  input: "PERCENTILE_DISC"
+  output: []
+ -
+  description: "PERCENT_RANK"
+  input: "PERCENT_RANK"
+  output:
+   - "PERCENT_RANK()"
+ -
+  description: "PI"
+  input: "PI"
+  output:
+   - "PI()"
+ -
+  description: "PMOD"
+  input: "PMOD"
+  output:
+   - "PMOD(${1:FLOAT}, ${2:FLOAT})"
+   - "PMOD(${1:DOUBLE}, ${2:DOUBLE})"
+   - "PMOD(${1:INT}, ${2:INT})"
+   - "PMOD(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "POSITION"
+  input: "POSITION"
+  output:
+   - "POSITION(${1:BYTES}, ${2:BYTES}, ${3:INT})"
+   - "POSITION(${1:BYTES}, ${2:BYTES}, ${3:BIGINT})"
+   - "POSITION(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+   - "POSITION(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:BIGINT})"
+ -
+  description: "POSITIVE"
+  input: "POSITIVE"
+  output:
+   - "POSITIVE(${1:FLOAT})"
+   - "POSITIVE(${1:DOUBLE})"
+   - "POSITIVE(${1:INT})"
+   - "POSITIVE(${1:BIGINT})"
+ -
+  description: "POW"
+  input: "POW"
+  output:
+   - "POW(${1:DOUBLE}, ${2:DOUBLE})"
+ -
+  description: "POWER"
+  input: "POWER"
+  output:
+   - "POWER(${1:NUMERIC}, ${2:NUMERIC})"
+ -
+  description: "PREV"
+  input: "PREV"
+  output:
+   - "PREV(${1:BOOLEAN}, ${2:NUMERIC})"
+   - "PREV(${1:BYTES}, ${2:NUMERIC})"
+   - "PREV(${1:CHARACTERS}, ${2:NUMERIC})"
+   - "PREV(${1:FLOAT}, ${2:NUMERIC})"
+   - "PREV(${1:DECIMAL}, ${2:NUMERIC})"
+   - "PREV(${1:DOUBLE}, ${2:NUMERIC})"
+   - "PREV(${1:INT}, ${2:NUMERIC})"
+   - "PREV(${1:BIGINT}, ${2:NUMERIC})"
+   - "PREV(${1:DATE}, ${2:NUMERIC})"
+   - "PREV(${1:TIME}, ${2:NUMERIC})"
+   - "PREV(${1:TIMESTAMP}, ${2:NUMERIC})"
+ -
+  description: "QUARTER"
+  input: "QUARTER"
+  output:
+   - "QUARTER(${1:DATEANDTIME})"
+   - "QUARTER(${1:DATE})"
+   - "QUARTER(${1:TIMESTAMP})"
+ -
+  description: "QUERY_USER"
+  input: "QUERY_USER"
+  output:
+   - "QUERY_USER()"
+ -
+  description: "QUOTE"
+  input: "QUOTE"
+  output:
+   - "QUOTE(${1:CHARACTERS})"
+ -
+  description: "RADIANS"
+  input: "RADIANS"
+  output:
+   - "RADIANS(${1:NUMERIC})"
+ -
+  description: "RAND"
+  input: "RAND"
+  output:
+   - "RAND()"
+   - "RAND(${1:NUMERIC})"
+ -
+  description: "RANDOM"
+  input: "RANDOM"
+  output:
+   - "RANDOM()"
+   - "RANDOM(${1:INT})"
+ -
+  description: "RAND_INTEGER"
+  input: "RAND_INTEGER"
+  output:
+   - "RAND_INTEGER(${1:NUMERIC}, ${2:NUMERIC})"
+ -
+  description: "RANK"
+  input: "RANK"
+  output:
+   - "RANK()"
+ -
+  description: "REGEXP_EXTRACT"
+  input: "REGEXP_EXTRACT"
+  output:
+   - "REGEXP_EXTRACT(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+ -
+  description: "REGEXP_LIKE"
+  input: "REGEXP_LIKE"
+  output:
+   - "REGEXP_LIKE(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "REGEXP_MATCHES"
+  input: "REGEXP_MATCHES"
+  output:
+   - "REGEXP_MATCHES(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "REGEXP_REPLACE"
+  input: "REGEXP_REPLACE"
+  output:
+   - "REGEXP_REPLACE(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
+ -
+  description: "REGR_SXX"
+  input: "REGR_SXX"
+  output:
+   - "REGR_SXX(${1:NUMERIC}, ${2:NUMERIC})"
+ -
+  description: "REGR_SYY"
+  input: "REGR_SYY"
+  output:
+   - "REGR_SYY(${1:NUMERIC}, ${2:NUMERIC})"
+ -
+  description: "REPEAT"
+  input: "REPEAT"
+  output:
+   - "REPEAT(${1:CHARACTERS}, ${2:INT})"
+ -
+  description: "REPEATSTR"
+  input: "REPEATSTR"
+  output:
+   - "REPEATSTR(${1:CHARACTERS}, ${2:INT})"
+ -
+  description: "REPLACE"
+  input: "REPLACE"
+  output:
+   - "REPLACE(${1:BYTES}, ${2:STRING}, ${3:STRING})"
+   - "REPLACE(${1:CHARACTERS}, ${2:STRING}, ${3:STRING})"
+ -
+  description: "REVERSE"
+  input: "REVERSE"
+  output:
+   - "REVERSE(${1:CHARACTERS})"
+ -
+  description: "RIGHT"
+  input: "RIGHT"
+  output:
+   - "RIGHT(${1:CHARACTERS}, ${2:INT})"
+   - "RIGHT(${1:CHARACTERS}, ${2:BIGINT})"
+ -
+  description: "ROUND"
+  input: "ROUND"
+  output:
+   - "ROUND(${1:FLOAT}, ${2:INT})"
+   - "ROUND(${1:FLOAT}, ${2:BIGINT})"
+   - "ROUND(${1:DECIMAL}, ${2:INT})"
+   - "ROUND(${1:DECIMAL}, ${2:BIGINT})"
+   - "ROUND(${1:DOUBLE}, ${2:INT})"
+   - "ROUND(${1:DOUBLE}, ${2:BIGINT})"
+   - "ROUND(${1:INT}, ${2:INT})"
+   - "ROUND(${1:INT}, ${2:BIGINT})"
+   - "ROUND(${1:BIGINT}, ${2:INT})"
+   - "ROUND(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "ROW_NUMBER"
+  input: "ROW_NUMBER"
+  output:
+   - "ROW_NUMBER()"
+ -
+  description: "RPAD"
+  input: "RPAD"
+  output:
+   - "RPAD(${1:CHARACTERS}, ${2:INT}, ${3:CHARACTERS})"
+   - "RPAD(${1:CHARACTERS}, ${2:BIGINT}, ${3:CHARACTERS})"
+ -
+  description: "RSHIFT"
+  input: "RSHIFT"
+  output:
+   - "RSHIFT(${1:INT}, ${2:INT})"
+   - "RSHIFT(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "RTRIM"
+  input: "RTRIM"
+  output:
+   - "RTRIM(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "SAME"
+  input: "SAME"
+  output:
+   - "SAME(${1:BOOLEAN}, ${2:BOOLEAN})"
+   - "SAME(${1:FLOAT}, ${2:FLOAT})"
+   - "SAME(${1:DOUBLE}, ${2:DOUBLE})"
+   - "SAME(${1:INT}, ${2:INT})"
+   - "SAME(${1:BIGINT}, ${2:BIGINT})"
+   - "SAME(${1:DATE}, ${2:DATE})"
+   - "SAME(${1:TIME}, ${2:TIME})"
+   - "SAME(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "SAMPLE"
+  input: "SAMPLE"
+  output:
+   - "SAMPLE(${1:DOUBLE})"
+ -
+  description: "SECOND"
+  input: "SECOND"
+  output:
+   - "SECOND(${1:DATEANDTIME})"
+   - "SECOND(${1:DATE})"
+   - "SECOND(${1:TIMESTAMP})"
+ -
+  description: "SESSION"
+  input: "SESSION"
+  output: []
+ -
+  description: "SESSION_END"
+  input: "SESSION_END"
+  output: []
+ -
+  description: "SESSION_START"
+  input: "SESSION_START"
+  output: []
+ -
+  description: "SESSION_USER"
+  input: "SESSION_USER"
+  output:
+   - "SESSION_USER()"
+ -
+  description: "SHA"
+  input: "SHA"
+  output:
+   - "SHA(${1:BOOLEAN})"
+   - "SHA(${1:STRING})"
+   - "SHA(${1:DATEANDTIME})"
+   - "SHA(${1:FLOAT})"
+   - "SHA(${1:DOUBLE})"
+   - "SHA(${1:INT})"
+   - "SHA(${1:BIGINT})"
+ -
+  description: "SHA1"
+  input: "SHA1"
+  output:
+   - "SHA1(${1:BOOLEAN})"
+   - "SHA1(${1:STRING})"
+   - "SHA1(${1:DATEANDTIME})"
+   - "SHA1(${1:FLOAT})"
+   - "SHA1(${1:DOUBLE})"
+   - "SHA1(${1:INT})"
+   - "SHA1(${1:BIGINT})"
+ -
+  description: "SHA256"
+  input: "SHA256"
+  output:
+   - "SHA256(${1:BOOLEAN})"
+   - "SHA256(${1:STRING})"
+   - "SHA256(${1:DATEANDTIME})"
+   - "SHA256(${1:FLOAT})"
+   - "SHA256(${1:DOUBLE})"
+   - "SHA256(${1:INT})"
+   - "SHA256(${1:BIGINT})"
+ -
+  description: "SIGN"
+  input: "SIGN"
+  output:
+   - "SIGN(${1:FLOAT})"
+   - "SIGN(${1:DECIMAL})"
+   - "SIGN(${1:DOUBLE})"
+   - "SIGN(${1:INT})"
+   - "SIGN(${1:BIGINT})"
+ -
+  description: "SIMILAR"
+  input: "SIMILAR"
+  output:
+   - "SIMILAR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
+ -
+  description: "SIMILAR_TO"
+  input: "SIMILAR_TO"
+  output:
+   - "SIMILAR_TO(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
+ -
+  description: "SIN"
+  input: "SIN"
+  output:
+   - "SIN(${1:NUMERIC})"
+ -
+  description: "SINGLE_VALUE"
+  input: "SINGLE_VALUE"
+  output:
+   - "SINGLE_VALUE(${1:BOOLEAN})"
+   - "SINGLE_VALUE(${1:BYTES})"
+   - "SINGLE_VALUE(${1:CHARACTERS})"
+   - "SINGLE_VALUE(${1:FLOAT})"
+   - "SINGLE_VALUE(${1:DECIMAL})"
+   - "SINGLE_VALUE(${1:DOUBLE})"
+   - "SINGLE_VALUE(${1:INT})"
+   - "SINGLE_VALUE(${1:BIGINT})"
+   - "SINGLE_VALUE(${1:DATE})"
+   - "SINGLE_VALUE(${1:TIME})"
+   - "SINGLE_VALUE(${1:TIMESTAMP})"
+ -
+  description: "SINH"
+  input: "SINH"
+  output:
+   - "SINH(${1:FLOAT})"
+   - "SINH(${1:DOUBLE})"
+   - "SINH(${1:INT})"
+   - "SINH(${1:BIGINT})"
+ -
+  description: "SOUNDEX"
+  input: "SOUNDEX"
+  output:
+   - "SOUNDEX(${1:CHARACTERS})"
+ -
+  description: "SPACE"
+  input: "SPACE"
+  output:
+   - "SPACE(${1:INT})"
+   - "SPACE(${1:BIGINT})"
+ -
+  description: "SPLIT_PART"
+  input: "SPLIT_PART"
+  output:
+   - "SPLIT_PART(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+ -
+  description: "SQRT"
+  input: "SQRT"
+  output:
+   - "SQRT(${1:NUMERIC})"
+   - "SQRT(${1:FLOAT})"
+   - "SQRT(${1:INT})"
+   - "SQRT(${1:BIGINT})"
+ -
+  description: "STARTS_WITH"
+  input: "STARTS_WITH"
+  output:
+   - "STARTS_WITH(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "STATCOUNT"
+  input: "STATCOUNT"
+  output:
+   - "STATCOUNT(${1:ANY})"
+ -
+  description: "STATEMENT_TIMESTAMP"
+  input: "STATEMENT_TIMESTAMP"
+  output:
+   - "STATEMENT_TIMESTAMP()"
+ -
+  description: "STDDEV"
+  input: "STDDEV"
+  output:
+   - "STDDEV(${1:NUMERIC})"
+ -
+  description: "STDDEV_POP"
+  input: "STDDEV_POP"
+  output:
+   - "STDDEV_POP(${1:NUMERIC})"
+ -
+  description: "STDDEV_SAMP"
+  input: "STDDEV_SAMP"
+  output:
+   - "STDDEV_SAMP(${1:NUMERIC})"
+ -
+  description: "STRING_BINARY"
+  input: "STRING_BINARY"
+  output:
+   - "STRING_BINARY(${1:BYTES})"
+ -
+  description: "STRPOS"
+  input: "STRPOS"
+  output:
+   - "STRPOS(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "SUBSTR"
+  input: "SUBSTR"
+  output:
+   - "SUBSTR(${1:CHARACTERS}, ${2:CHARACTERS})"
+   - "SUBSTR(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "SUBSTR2"
+  input: "SUBSTR2"
+  output:
+   - "SUBSTR2(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "SUBSTRING"
+  input: "SUBSTRING"
+  output:
+   - "SUBSTRING(${1:CHARACTERS}, ${2:CHARACTERS})"
+   - "SUBSTRING(${1:BYTES}, ${2:INT}, ${3:INT})"
+   - "SUBSTRING(${1:CHARACTERS}, ${2:INT}, ${3:INT})"
+   - "SUBSTRING(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "SUBSTRING2"
+  input: "SUBSTRING2"
+  output:
+   - "SUBSTRING2(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+ -
+  description: "SUBTRACT"
+  input: "SUBTRACT"
+  output:
+   - "SUBTRACT(${1:FLOAT}, ${2:FLOAT})"
+   - "SUBTRACT(${1:DECIMAL}, ${2:DECIMAL})"
+   - "SUBTRACT(${1:DOUBLE}, ${2:DOUBLE})"
+   - "SUBTRACT(${1:INT}, ${2:INT})"
+   - "SUBTRACT(${1:BIGINT}, ${2:BIGINT})"
+   - "SUBTRACT(${1:DATE}, ${2:INT})"
+   - "SUBTRACT(${1:DATE}, ${2:BIGINT})"
+   - "SUBTRACT(${1:TIME}, ${2:INT})"
+   - "SUBTRACT(${1:TIME}, ${2:BIGINT})"
+   - "SUBTRACT(${1:TIMESTAMP}, ${2:INT})"
+   - "SUBTRACT(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "SUM"
+  input: "SUM"
+  output:
+   - "SUM(${1:FLOAT})"
+   - "SUM(${1:DECIMAL})"
+   - "SUM(${1:DOUBLE})"
+   - "SUM(${1:INT})"
+   - "SUM(${1:BIGINT})"
+ -
+  description: "SUM_V2"
+  input: "SUM_V2"
+  output:
+   - "SUM_V2(${1:BOOLEAN})"
+   - "SUM_V2(${1:STRING})"
+   - "SUM_V2(${1:DECIMAL})"
+   - "SUM_V2(${1:INT})"
+   - "SUM_V2(${1:BIGINT})"
+ -
+  description: "SYSTEM_USER"
+  input: "SYSTEM_USER"
+  output:
+   - "SYSTEM_USER()"
+ -
+  description: "TAN"
+  input: "TAN"
+  output:
+   - "TAN(${1:NUMERIC})"
+ -
+  description: "TANH"
+  input: "TANH"
+  output:
+   - "TANH(${1:FLOAT})"
+   - "TANH(${1:DOUBLE})"
+   - "TANH(${1:INT})"
+   - "TANH(${1:BIGINT})"
+ -
+  description: "TDIGEST"
+  input: "TDIGEST"
+  output:
+   - "TDIGEST(${1:ANY}, ${2:BOOLEAN})"
+   - "TDIGEST(${1:ANY}, ${2:STRING})"
+   - "TDIGEST(${1:BYTES}, ${2:NUMERIC})"
+   - "TDIGEST(${1:BYTES}, ${2:DATEANDTIME})"
+ -
+  description: "TDIGEST_MERGE"
+  input: "TDIGEST_MERGE"
+  output:
+   - "TDIGEST_MERGE(${1:STRING})"
+   - "TDIGEST_MERGE(${1:FLOAT})"
+   - "TDIGEST_MERGE(${1:DOUBLE})"
+   - "TDIGEST_MERGE(${1:INT})"
+   - "TDIGEST_MERGE(${1:BIGINT})"
+ -
+  description: "TIMEOFDAY"
+  input: "TIMEOFDAY"
+  output:
+   - "TIMEOFDAY()"
+ -
+  description: "TIMESTAMPADD"
+  input: "TIMESTAMPADD"
+  output: []
+ -
+  description: "TIMESTAMPADDDAY"
+  input: "TIMESTAMPADDDAY"
+  output:
+   - "TIMESTAMPADDDAY(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDDAY(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDDAY(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDDAY(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDDAY(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDDAY(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDDAY(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDDAY(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDHOUR"
+  input: "TIMESTAMPADDHOUR"
+  output:
+   - "TIMESTAMPADDHOUR(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDHOUR(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDHOUR(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDHOUR(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDHOUR(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDHOUR(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDHOUR(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDHOUR(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDMICROSECOND"
+  input: "TIMESTAMPADDMICROSECOND"
+  output:
+   - "TIMESTAMPADDMICROSECOND(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDMICROSECOND(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDMICROSECOND(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDMICROSECOND(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDMINUTE"
+  input: "TIMESTAMPADDMINUTE"
+  output:
+   - "TIMESTAMPADDMINUTE(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDMINUTE(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDMINUTE(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDMINUTE(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDMINUTE(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDMINUTE(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDMINUTE(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDMINUTE(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDMONTH"
+  input: "TIMESTAMPADDMONTH"
+  output:
+   - "TIMESTAMPADDMONTH(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDMONTH(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDMONTH(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDMONTH(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDMONTH(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDMONTH(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDMONTH(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDMONTH(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDQUARTER"
+  input: "TIMESTAMPADDQUARTER"
+  output:
+   - "TIMESTAMPADDQUARTER(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDQUARTER(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDQUARTER(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDQUARTER(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDQUARTER(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDQUARTER(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDQUARTER(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDQUARTER(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDSECOND"
+  input: "TIMESTAMPADDSECOND"
+  output:
+   - "TIMESTAMPADDSECOND(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDSECOND(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDSECOND(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDSECOND(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDSECOND(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDSECOND(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDSECOND(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDSECOND(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDWEEK"
+  input: "TIMESTAMPADDWEEK"
+  output:
+   - "TIMESTAMPADDWEEK(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDWEEK(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDWEEK(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDWEEK(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDWEEK(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDWEEK(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDWEEK(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDWEEK(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPADDYEAR"
+  input: "TIMESTAMPADDYEAR"
+  output:
+   - "TIMESTAMPADDYEAR(${1:INT}, ${2:DATE})"
+   - "TIMESTAMPADDYEAR(${1:INT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDYEAR(${1:BIGINT}, ${2:DATE})"
+   - "TIMESTAMPADDYEAR(${1:BIGINT}, ${2:TIMESTAMP})"
+   - "TIMESTAMPADDYEAR(${1:DATE}, ${2:INT})"
+   - "TIMESTAMPADDYEAR(${1:DATE}, ${2:BIGINT})"
+   - "TIMESTAMPADDYEAR(${1:TIMESTAMP}, ${2:INT})"
+   - "TIMESTAMPADDYEAR(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "TIMESTAMPDIFF"
+  input: "TIMESTAMPDIFF"
+  output:
+   - "TIMESTAMPDIFF(${1:ANY}, ${2:DATEANDTIME}, ${3:DATEANDTIME})"
+ -
+  description: "TIMESTAMPDIFFDAY"
+  input: "TIMESTAMPDIFFDAY"
+  output:
+   - "TIMESTAMPDIFFDAY(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFHOUR"
+  input: "TIMESTAMPDIFFHOUR"
+  output:
+   - "TIMESTAMPDIFFHOUR(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFMICROSECOND"
+  input: "TIMESTAMPDIFFMICROSECOND"
+  output:
+   - "TIMESTAMPDIFFMICROSECOND(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFMINUTE"
+  input: "TIMESTAMPDIFFMINUTE"
+  output:
+   - "TIMESTAMPDIFFMINUTE(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFMONTH"
+  input: "TIMESTAMPDIFFMONTH"
+  output:
+   - "TIMESTAMPDIFFMONTH(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFQUARTER"
+  input: "TIMESTAMPDIFFQUARTER"
+  output:
+   - "TIMESTAMPDIFFQUARTER(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFSECOND"
+  input: "TIMESTAMPDIFFSECOND"
+  output:
+   - "TIMESTAMPDIFFSECOND(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFWEEK"
+  input: "TIMESTAMPDIFFWEEK"
+  output:
+   - "TIMESTAMPDIFFWEEK(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPDIFFYEAR"
+  input: "TIMESTAMPDIFFYEAR"
+  output:
+   - "TIMESTAMPDIFFYEAR(${1:TIMESTAMP}, ${2:TIMESTAMP})"
+ -
+  description: "TIMESTAMPTYPE"
+  input: "TIMESTAMPTYPE"
+  output:
+   - "TIMESTAMPTYPE(${1:STRING})"
+   - "TIMESTAMPTYPE(${1:BIGINT}, ${2:BIGINT}, ${3:BIGINT}, ${4:BIGINT}, ${5:BIGINT}, ${6:BIGINT}, ${7:BIGINT})"
+ -
+  description: "TIMETYPE"
+  input: "TIMETYPE"
+  output:
+   - "TIMETYPE(${1:STRING})"
+   - "TIMETYPE(${1:BIGINT}, ${2:BIGINT}, ${3:BIGINT}, ${4:BIGINT})"
+ -
+  description: "TOASCII"
+  input: "TOASCII"
+  output:
+   - "TOASCII(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "TO_CHAR"
+  input: "TO_CHAR"
+  output:
+   - "TO_CHAR(${1:DATEANDTIME}, ${2:CHARACTERS})"
+   - "TO_CHAR(${1:FLOAT}, ${2:CHARACTERS})"
+   - "TO_CHAR(${1:DOUBLE}, ${2:CHARACTERS})"
+   - "TO_CHAR(${1:INT}, ${2:CHARACTERS})"
+   - "TO_CHAR(${1:BIGINT}, ${2:CHARACTERS})"
+ -
+  description: "TO_DATE"
+  input: "TO_DATE"
+  output:
+   - "TO_DATE(${1:FLOAT})"
+   - "TO_DATE(${1:DOUBLE})"
+   - "TO_DATE(${1:INT})"
+   - "TO_DATE(${1:BIGINT})"
+   - "TO_DATE(${1:TIMESTAMP})"
+   - "TO_DATE(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+ -
+  description: "TO_HEX"
+  input: "TO_HEX"
+  output:
+   - "TO_HEX(${1:STRING})"
+   - "TO_HEX(${1:INT})"
+   - "TO_HEX(${1:BIGINT})"
+ -
+  description: "TO_NUMBER"
+  input: "TO_NUMBER"
+  output:
+   - "TO_NUMBER(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "TO_TIME"
+  input: "TO_TIME"
+  output:
+   - "TO_TIME(${1:FLOAT})"
+   - "TO_TIME(${1:DOUBLE})"
+   - "TO_TIME(${1:INT})"
+   - "TO_TIME(${1:BIGINT})"
+   - "TO_TIME(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+ -
+  description: "TO_TIMESTAMP"
+  input: "TO_TIMESTAMP"
+  output:
+   - "TO_TIMESTAMP(${1:FLOAT})"
+   - "TO_TIMESTAMP(${1:DOUBLE})"
+   - "TO_TIMESTAMP(${1:INT})"
+   - "TO_TIMESTAMP(${1:BIGINT})"
+   - "TO_TIMESTAMP(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+ -
+  description: "TRANSACTION_TIMESTAMP"
+  input: "TRANSACTION_TIMESTAMP"
+  output:
+   - "TRANSACTION_TIMESTAMP()"
+ -
+  description: "TRANSLATE"
+  input: "TRANSLATE"
+  output: []
+ -
+  description: "TRANSLATE3"
+  input: "TRANSLATE3"
+  output:
+   - "TRANSLATE3(${1:BYTES}, ${2:STRING}, ${3:STRING})"
+   - "TRANSLATE3(${1:CHARACTERS}, ${2:STRING}, ${3:STRING})"
+ -
+  description: "TRIM"
+  input: "TRIM"
+  output: []
+ -
+  description: "TRUNC"
+  input: "TRUNC"
+  output:
+   - "TRUNC(${1:FLOAT}, ${2:INT})"
+   - "TRUNC(${1:DECIMAL}, ${2:INT})"
+   - "TRUNC(${1:DOUBLE}, ${2:INT})"
+   - "TRUNC(${1:INT}, ${2:INT})"
+   - "TRUNC(${1:BIGINT}, ${2:INT})"
+ -
+  description: "TRUNCATE"
+  input: "TRUNCATE"
+  output:
+   - "TRUNCATE(${1:FLOAT}, ${2:INT})"
+   - "TRUNCATE(${1:FLOAT}, ${2:BIGINT})"
+   - "TRUNCATE(${1:DECIMAL}, ${2:INT})"
+   - "TRUNCATE(${1:DECIMAL}, ${2:BIGINT})"
+   - "TRUNCATE(${1:DOUBLE}, ${2:INT})"
+   - "TRUNCATE(${1:DOUBLE}, ${2:BIGINT})"
+   - "TRUNCATE(${1:INT}, ${2:INT})"
+   - "TRUNCATE(${1:INT}, ${2:BIGINT})"
+   - "TRUNCATE(${1:BIGINT}, ${2:INT})"
+   - "TRUNCATE(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "TUMBLE"
+  input: "TUMBLE"
+  output: []
+ -
+  description: "TUMBLE_END"
+  input: "TUMBLE_END"
+  output: []
+ -
+  description: "TUMBLE_START"
+  input: "TUMBLE_START"
+  output: []
+ -
+  description: "TYPEOF"
+  input: "TYPEOF"
+  output:
+   - "TYPEOF(${1:ANY})"
+ -
+  description: "U-"
+  input: "U-"
+  output:
+   - "U-(${1:FLOAT})"
+   - "U-(${1:DECIMAL})"
+   - "U-(${1:DOUBLE})"
+   - "U-(${1:BIGINT})"
+ -
+  description: "UNBASE64"
+  input: "UNBASE64"
+  output:
+   - "UNBASE64(${1:CHARACTERS})"
+ -
+  description: "UNHEX"
+  input: "UNHEX"
+  output:
+   - "UNHEX(${1:CHARACTERS})"
+ -
+  description: "UNIX_TIMESTAMP"
+  input: "UNIX_TIMESTAMP"
+  output:
+   - "UNIX_TIMESTAMP()"
+   - "UNIX_TIMESTAMP(${1:CHARACTERS}, ${2:CHARACTERS})"
+ -
+  description: "UPPER"
+  input: "UPPER"
+  output:
+   - "UPPER(${1:CHARACTERS})"
+ -
+  description: "USER"
+  input: "USER"
+  output:
+   - "USER()"
+ -
+  description: "VARCHAR"
+  input: "VARCHAR"
+  output:
+   - "VARCHAR(${1:BOOLEAN}, ${2:BIGINT})"
+   - "VARCHAR(${1:STRING}, ${2:BIGINT})"
+   - "VARCHAR(${1:FLOAT}, ${2:BIGINT})"
+   - "VARCHAR(${1:DOUBLE}, ${2:BIGINT})"
+   - "VARCHAR(${1:INT}, ${2:BIGINT})"
+   - "VARCHAR(${1:BIGINT}, ${2:BIGINT})"
+   - "VARCHAR(${1:DATE}, ${2:BIGINT})"
+   - "VARCHAR(${1:TIMESTAMP}, ${2:BIGINT})"
+ -
+  description: "VARIANCE"
+  input: "VARIANCE"
+  output:
+   - "VARIANCE(${1:NUMERIC})"
+ -
+  description: "VAR_POP"
+  input: "VAR_POP"
+  output:
+   - "VAR_POP(${1:NUMERIC})"
+ -
+  description: "VAR_SAMP"
+  input: "VAR_SAMP"
+  output:
+   - "VAR_SAMP(${1:NUMERIC})"
+ -
+  description: "WEEK"
+  input: "WEEK"
+  output:
+   - "WEEK(${1:DATEANDTIME})"
+ -
+  description: "WEEKOFYEAR"
+  input: "WEEKOFYEAR"
+  output:
+   - "WEEKOFYEAR(${1:DATE})"
+   - "WEEKOFYEAR(${1:DATE})"
+   - "WEEKOFYEAR(${1:TIMESTAMP})"
+   - "WEEKOFYEAR(${1:TIMESTAMP})"
+ -
+  description: "XOR"
+  input: "XOR"
+  output:
+   - "XOR(${1:INT}, ${2:INT})"
+   - "XOR(${1:BIGINT}, ${2:BIGINT})"
+ -
+  description: "YEAR"
+  input: "YEAR"
+  output:
+   - "YEAR(${1:DATEANDTIME})"
+   - "YEAR(${1:DATE})"
+   - "YEAR(${1:TIMESTAMP})"
+ -
+  description: "YEARWEEK"
+  input: "YEARWEEK"
+  output:
+   - "YEARWEEK(${1:DATE})"
+   - "YEARWEEK(${1:DATE})"
+   - "YEARWEEK(${1:TIMESTAMP})"
+   - "YEARWEEK(${1:TIMESTAMP})"
+ -
+  description: "^"
+  input: "^"
+  output:
+   - "^(${1:INT}, ${2:INT})"
+ -
+  description: "__THROWEXCEPTION"
+  input: "__THROWEXCEPTION"
+  output:
+   - "__THROWEXCEPTION(${1:CHARACTERS})"
+ -
+  description: "||"
+  input: "||"
+  output:
+   - "||(${1:BOOLEAN}, ${2:BOOLEAN})"

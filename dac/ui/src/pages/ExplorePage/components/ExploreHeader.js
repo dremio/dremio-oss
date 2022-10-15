@@ -15,11 +15,10 @@
  */
 import { PureComponent, Fragment } from "react";
 import { connect } from "react-redux";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import DocumentTitle from "react-document-title";
-import { FormattedMessage, injectIntl } from "react-intl";
+import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
 import { Tooltip } from "dremio-ui-lib";
 
@@ -37,7 +36,6 @@ import { formatMessage } from "utils/locale";
 import { needsTransform, isSqlChanged } from "sagas/utils";
 
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
-import { replace } from "react-router-redux";
 import explorePageInfoHeaderConfig from "@inject/pages/ExplorePage/components/explorePageInfoHeaderConfig";
 
 //actions
@@ -54,11 +52,9 @@ import {
 import { showConfirmationDialog } from "actions/confirmation";
 import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
 import { withDatasetChanges } from "@app/pages/ExplorePage/DatasetChanges";
-import { showUnsavedChangesConfirmDialog } from "@app/actions/confirmation";
 
 import { startDownloadDataset } from "actions/explore/download";
 import { performNextAction, NEXT_ACTIONS } from "actions/explore/nextAction";
-import { editOriginalSql } from "actions/explore/dataset/reapply";
 
 import ExploreHeaderMixin from "@app/pages/ExplorePage/components/ExploreHeaderMixin";
 import config from "dyn-load/utils/config";
@@ -72,7 +68,7 @@ import SaveMenu, {
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
 import FontIcon from "components/Icon/FontIcon";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
-import Art from "@app/components/Art";
+import { getIconPath } from "@app/utils/getIconPath";
 import { Button } from "dremio-ui-lib";
 import { showQuerySpinner } from "@inject/pages/ExplorePage/utils";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
@@ -107,7 +103,7 @@ import {
   openPrivilegesModalForScript,
 } from "@app/components/SQLScripts/sqlScriptsUtils";
 
-import openPopupNotification from "@app/components/PopupNotification/PopupNotification";
+import { addNotification } from "@app/actions/notification";
 import { ExploreActions } from "./ExploreActions";
 import ExploreTableJobStatusSpinner from "./ExploreTable/ExploreTableJobStatusSpinner";
 import * as classes from "./ExploreHeader.module.less";
@@ -120,7 +116,6 @@ export const QLIK_TOOL_NAME = "Qlik Sense";
 export class ExploreHeader extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
-    datasetSummary: PropTypes.object,
     datasetSql: PropTypes.string,
     pageType: pageTypesProp,
     toggleRightTree: PropTypes.func.isRequired,
@@ -152,9 +147,6 @@ export class ExploreHeader extends PureComponent {
     queryStatuses: PropTypes.array,
     isMultiQueryRunning: PropTypes.bool,
 
-    // provided by withDatasetChanges
-    getDatasetChangeDetails: PropTypes.func,
-
     // actions
     transformHistoryCheck: PropTypes.func.isRequired,
     performNextAction: PropTypes.func.isRequired,
@@ -167,9 +159,6 @@ export class ExploreHeader extends PureComponent {
     startDownloadDataset: PropTypes.func.isRequired,
     showConfirmationDialog: PropTypes.func,
     cancelJob: PropTypes.func,
-    editOriginalSql: PropTypes.func,
-    replaceUrlAction: PropTypes.func,
-    showUnsavedChangesConfirmDialog: PropTypes.func,
     setQueryStatuses: PropTypes.func,
     createScript: PropTypes.func,
     fetchScripts: PropTypes.func,
@@ -180,6 +169,7 @@ export class ExploreHeader extends PureComponent {
     activeScriptPermissions: PropTypes.array,
     user: PropTypes.instanceOf(Immutable.Map),
     numberOfMineScripts: PropTypes.number,
+    addNotification: PropTypes.func,
   };
 
   componentDidUpdate(prevProps) {
@@ -226,6 +216,7 @@ export class ExploreHeader extends PureComponent {
       actionState: null,
       isSaveAsModalOpen: false,
       supportFlags: {},
+      nextAction: null,
     };
   }
 
@@ -440,10 +431,10 @@ export class ExploreHeader extends PureComponent {
       return this.props.updateScript(payload, activeScript.id).then((res) => {
         if (!res.error) {
           this.props.setActiveScript({ script: res.payload });
-          openPopupNotification({
-            type: "success",
-            message: intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
-          });
+          this.props.addNotification(
+            intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
+            "success"
+          );
           fetchAllAndMineScripts(this.props.fetchScripts, null);
         }
         return null;
@@ -692,7 +683,7 @@ export class ExploreHeader extends PureComponent {
                         : classes["preview-icon"]
                     }
                   />
-                  {previewText}
+                  <span className="noText">{previewText}</span>
                 </Button>,
                 previewText,
                 this.props.keyboardShortcuts.preview,
@@ -720,14 +711,12 @@ export class ExploreHeader extends PureComponent {
                       : classes["discard-icon"]
                   }
                 />
-                {discardText}
+                <span className="noText">{discardText}</span>
               </Button>,
               discardText,
               undefined,
               isCancellable || disableButtons
             )}
-
-          {this.renderEditOriginalButton()}
 
           <ExploreActions
             dataset={this.props.dataset}
@@ -762,7 +751,7 @@ export class ExploreHeader extends PureComponent {
 
   renderAnalyzeButton = (name, icon, onclick, iconSize, className) => {
     const { dataset } = this.props;
-    return (
+    return this.wrapWithTooltip(
       <Button
         variant="outlined"
         color="primary"
@@ -773,14 +762,23 @@ export class ExploreHeader extends PureComponent {
         disableRipple
         disableMargin
       >
-        {/* FIXME: PowerBI icon does not render when using <dremio-icon> */}
-        <Art
-          src={icon}
-          alt={name}
-          title={name}
-          style={{ height: iconSize, width: iconSize }}
-        />
-      </Button>
+        {icon === "corporate/tableau" ? (
+          <dremio-icon
+            name={icon}
+            alt={name}
+            style={{ height: iconSize, width: iconSize }}
+            data-qa={icon}
+          />
+        ) : (
+          <img
+            src={getIconPath(icon)}
+            data-qa={icon}
+            alt={name}
+            style={{ height: iconSize, width: iconSize }}
+          />
+        )}
+      </Button>,
+      name
     );
   };
 
@@ -874,21 +872,51 @@ export class ExploreHeader extends PureComponent {
         {showTableau &&
           this.renderAnalyzeButton(
             la("Tableau"),
-            "Tableau.svg",
+            "corporate/tableau",
             this.openTableau,
-            20,
+            24,
             "-noImgHover -noMinWidth"
           )}
         {showPowerBI &&
           this.renderAnalyzeButton(
             la("Power BI"),
-            "PBI Logo.svg",
+            "corporate/power-bi",
             this.openPowerBi,
-            20,
+            24,
             "-noImgHover -noMinWidth"
           )}
       </Fragment>
     );
+  };
+
+  getDefaultSaveButton = () => {
+    const { location, activeScript, numberOfMineScripts, intl } = this.props;
+    const isUntitledScript = !activeScript.id;
+    const isCreateView = !!location.query?.create;
+    const isSqlEditorTab = exploreUtils.isSqlEditorTab(location);
+    const canAddMoreScripts = numberOfMineScripts < MAX_MINE_SCRIPTS_ALLOWANCE;
+    const canModify = activeScript?.permissions
+      ? exploreUtils.hasPermissionToModify(activeScript)
+      : !!activeScript.id; // DX-55721: should be able to update if user owns the script (CE edition)
+
+    if (isCreateView) {
+      return {
+        text: intl.formatMessage({ id: "NewQuery.SaveViewAsBtn" }),
+        onClick: this.handleSaveViewAs,
+      };
+    } else if (isSqlEditorTab && (!isUntitledScript || canAddMoreScripts)) {
+      return {
+        text: intl.formatMessage({
+          id: canModify ? "NewQuery.SaveScript" : "NewQuery.SaveScriptAsBtn",
+        }),
+        onClick: canModify ? this.handleSaveScript : this.handleSaveScriptAs,
+      };
+    } else {
+      return {
+        text: intl.formatMessage({ id: "NewQuery.SaveView" }),
+        onClick: this.handleSaveView,
+      };
+    }
   };
 
   renderSaveButton = () => {
@@ -904,37 +932,13 @@ export class ExploreHeader extends PureComponent {
     const isExtraDisabled = this.getExtraSaveDisable(dataset);
     const isSqlEditorTab = exploreUtils.isSqlEditorTab(location);
 
-    const canModifyScriptDefaultText = exploreUtils.hasPermissionToModify(
-      activeScript
-    )
-      ? "Save Script"
-      : "Save Script As";
-    const canModifyScriptDefaultOnClick = exploreUtils.hasPermissionToModify(
-      activeScript
-    )
-      ? this.handleSaveScript
-      : this.handleSaveScriptAs;
-
-    const groupDropdownProps = {
-      text:
-        isSqlEditorTab &&
-        (!isUntitledScript || numberOfMineScripts < MAX_MINE_SCRIPTS_ALLOWANCE)
-          ? canModifyScriptDefaultText
-          : "Save View",
-      onClick:
-        isSqlEditorTab &&
-        (!isUntitledScript || numberOfMineScripts < MAX_MINE_SCRIPTS_ALLOWANCE)
-          ? canModifyScriptDefaultOnClick
-          : this.handleSaveView,
-    };
-
     return (
       <>
         <DropdownMenu
           className="explore-save-button"
           disabled={disableButtons}
           isButton
-          groupDropdownProps={groupDropdownProps}
+          groupDropdownProps={this.getDefaultSaveButton()}
           menu={
             <SaveMenu
               action={this.doButtonAction}
@@ -956,7 +960,7 @@ export class ExploreHeader extends PureComponent {
     return !this.props.rightTreeVisible ? (
       <button
         className="info-button toogler"
-        style={[style.pullout]}
+        style={{ ...style.pullout }}
         onClick={this.props.toggleRightTree}
       >
         <FontIcon type="Expand" />
@@ -970,82 +974,12 @@ export class ExploreHeader extends PureComponent {
       case PageTypes.details:
       case PageTypes.reflections:
       case PageTypes.wiki:
+      case PageTypes.history:
         return;
       case PageTypes.default:
         return <div className="ExploreHeader">{this.renderHeader()}</div>;
       default:
         throw new Error(`not supported page type; '${this.props.pageType}'`);
-    }
-  }
-
-  handleEditOriginal = () => {
-    const {
-      dataset,
-      editOriginalSql: editSql,
-      datasetSummary,
-      replaceUrlAction,
-      getDatasetChangeDetails,
-      showUnsavedChangesConfirmDialog: showConfirm,
-    } = this.props;
-
-    const reapply = () => {
-      editSql(dataset.get("id"), dataset.getIn(["apiLinks", "self"]));
-    };
-
-    if (this.isDatasetReadyForReapply()) {
-      const { sqlChanged, historyChanged } = getDatasetChangeDetails();
-
-      if (sqlChanged || historyChanged) {
-        showConfirm({
-          confirm: reapply,
-        });
-      } else {
-        reapply();
-      }
-    } else if (
-      datasetSummary &&
-      datasetSummary.links &&
-      datasetSummary.links.edit
-    ) {
-      replaceUrlAction(datasetSummary.links.edit);
-    }
-  };
-
-  isDatasetReadyForReapply = () => {
-    const { dataset } = this.props;
-    return (
-      dataset.get("canReapply") &&
-      dataset.getIn(["apiLinks", "namespaceEntity"])
-    );
-  };
-
-  renderEditOriginalButton() {
-    const { datasetSummary, intl, location } = this.props;
-    const editText = intl.formatMessage({ id: "SQL.EditOriginal" });
-    if (
-      (this.isDatasetReadyForReapply() || datasetSummary) &&
-      !exploreUtils.isSqlEditorTab(location)
-    ) {
-      return this.wrapWithTooltip(
-        <Button
-          className="edit-btn"
-          variant="outlined"
-          color="primary"
-          size="medium"
-          onClick={this.handleEditOriginal}
-          disableRipple
-          disableMargin
-          style={{ fontSize: 14 }}
-        >
-          <dremio-icon
-            name="interface/edit"
-            alt={editText}
-            class={classes["edit-icon"]}
-          />
-          <FormattedMessage id="SQL.EditOriginal" />
-        </Button>,
-        editText
-      );
     }
   }
 
@@ -1088,7 +1022,7 @@ export class ExploreHeader extends PureComponent {
     );
   }
 }
-ExploreHeader = injectIntl(Radium(ExploreHeader));
+ExploreHeader = injectIntl(ExploreHeader);
 
 function mapStateToProps(state, props) {
   const { location = {} } = props;
@@ -1104,7 +1038,6 @@ function mapStateToProps(state, props) {
     jobProgress,
     runStatus,
     jobId,
-    datasetSummary: state.resources.entities.get("datasetSummary"),
     queryContext: explorePageState.view.queryContext,
     showWiki: isWikAvailable(state, location),
     activeScript: getActiveScript(state),
@@ -1129,61 +1062,17 @@ export default withRouter(
     performNextAction,
     showConfirmationDialog,
     cancelJob: cancelJobAndShowNotification,
-    editOriginalSql,
-    replaceUrlAction: replace,
-    showUnsavedChangesConfirmDialog,
     setQueryStatuses,
     createScript,
     fetchScripts,
     updateScript,
     setActiveScript,
     resetQueryState,
+    addNotification,
   })(withDatasetChanges(ExploreHeader))
 );
 
 const style = {
-  base: {
-    display: "flex",
-    justifyContent: "flex-end",
-    height: 52,
-    padding: 0,
-    margin: 0,
-    borderBottom: "none",
-    borderTop: "none",
-    borderLeft: "none",
-    borderRight: "none",
-  },
-  disabledStyle: {
-    pointerEvents: "none",
-    opacity: 0.7,
-  },
-  query: {
-    textDecoration: "none",
-    width: 100,
-    height: 28,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#43B8C9",
-    borderBottom: "1px solid #3399A8",
-    borderRadius: 2,
-    color: "#fff",
-    ":hover": {
-      backgroundColor: "rgb(104, 198, 211)",
-    },
-  },
-  leftWrap: {
-    display: "flex",
-    maxWidth: 250,
-    flexWrap: "wrap",
-    userSelect: "text",
-    marginRight: 150, // distance between a title and navigation buttons
-  },
-  leftPart: {
-    display: "flex",
-    alignContent: "center",
-    alignItems: "center",
-  },
   dbName: {
     maxWidth: 300,
     display: "flex",
@@ -1196,54 +1085,5 @@ const style = {
     borderColor: "transparent",
     position: "relative",
     width: 30,
-  },
-  noTextButton: {
-    minWidth: 50,
-    paddingRight: 10,
-    paddingLeft: 5,
-  },
-  actionBtnWrap: {
-    marginBottom: 0,
-    marginLeft: 0,
-    minWidth: 80,
-  },
-  narwhal: {
-    Icon: {
-      width: 22,
-      height: 22,
-    },
-    Container: {
-      width: 24,
-      height: 24,
-      marginRight: 10,
-    },
-  },
-  titleWrap: {
-    display: "flex",
-    alignItems: "center",
-  },
-  triangle: {
-    width: 0,
-    height: 0,
-    borderStyle: "solid",
-    borderWidth: "0 4px 6px 4px",
-    borderColor: "transparent transparent #fff transparent",
-    position: "absolute",
-    zIndex: 99999,
-    right: 6,
-    top: -6,
-  },
-  popover: {
-    padding: 0,
-  },
-  iconButton: {
-    minWidth: 40,
-    outline: 0,
-  },
-  icon: {
-    width: 20,
-    height: 20,
-    display: "flex",
-    margin: "0 auto",
   },
 };

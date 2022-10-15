@@ -24,6 +24,7 @@ import {
   INTEGER,
   LIST,
   MAP,
+  STRUCT,
   MIXED,
   TEXT,
   TIME,
@@ -44,6 +45,7 @@ export const ALL_TYPES = [
   DATETIME,
   LIST,
   MAP,
+  STRUCT,
   BOOLEAN,
   MIXED,
   BIGINT,
@@ -87,6 +89,7 @@ export const CONVERTIBLE_TYPES = [
   DATETIME,
   LIST,
   MAP,
+  STRUCT,
   BOOLEAN,
 ];
 
@@ -101,7 +104,7 @@ export const REPLACEABLE_TYPES = [
 ];
 
 export const NOT_LIST_AND_MAP_TYPES = ALL_TYPES.filter(
-  (type) => [MAP, LIST].indexOf(type) === -1
+  (type) => [MAP, LIST, STRUCT].indexOf(type) === -1
 );
 
 export const NUMBER_TYPES = [INTEGER, FLOAT, DECIMAL];

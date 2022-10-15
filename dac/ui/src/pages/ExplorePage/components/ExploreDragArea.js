@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from "react";
-import ReactDOM from "react-dom";
+import { Children, Component } from "react";
 import classNames from "classnames";
 
 import PropTypes from "prop-types";
@@ -42,9 +41,9 @@ class ExploreDragArea extends Component {
   };
 
   componentDidUpdate(prevProps) {
-    const newCount = React.Children.count(this.props.children);
-    const prevCount = React.Children.count(prevProps.children);
-    const wrapper = ReactDOM.findDOMNode(this.wrapper);
+    const newCount = Children.count(this.props.children);
+    const prevCount = Children.count(prevProps.children);
+    const wrapper = this.wrapper;
     if (newCount > prevCount && wrapper.scrollHeight > wrapper.clientHeight) {
       $(wrapper).animate(
         {
@@ -76,7 +75,7 @@ class ExploreDragArea extends Component {
       dragContentCls,
     } = this.props;
 
-    const isEmpty = React.Children.count(children) === 0;
+    const isEmpty = Children.count(children) === 0;
     const dragAreaStyle = getDragAreaStyle(isDragged, isEmpty);
     const columnStyle = !isEmpty ? columnWrap : {};
 

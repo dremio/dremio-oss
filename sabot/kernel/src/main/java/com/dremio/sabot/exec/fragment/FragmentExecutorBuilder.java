@@ -38,7 +38,6 @@ import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ExpressionSplitCache;
-import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.CachedFragmentReader;
@@ -114,7 +113,7 @@ public class FragmentExecutorBuilder {
 
   private final OperatorCreatorRegistry opCreator;
   private final FunctionImplementationRegistry funcRegistry;
-  private final DecimalFunctionImplementationRegistry decimalFuncRegistry;
+  private final FunctionImplementationRegistry decimalFuncRegistry;
   private final CodeCompiler compiler;
   private final ExpressionSplitCache expressionSplitCache;
   private final PhysicalPlanReader planReader;
@@ -143,7 +142,7 @@ public class FragmentExecutorBuilder {
     CatalogService sources,
     ContextInformationFactory contextInformationFactory,
     FunctionImplementationRegistry functions,
-    DecimalFunctionImplementationRegistry decimalFunctions,
+    FunctionImplementationRegistry decimalFunctions,
     NodeDebugContextProvider nodeDebugContextProvider,
     SpillService spillService,
     CodeCompiler codeCompiler,
@@ -220,8 +219,14 @@ public class FragmentExecutorBuilder {
       // Add the fragment context to the root allocator.
       final BufferAllocator allocator;
       try {
+        long reservation = fragment.getMemInitial();
+        long limit = fragment.getMemMax();
+        if (optionManager.getOption(ExecConstants.MEMORY_ARBITER_ENABLED)) {
+          reservation = 0;
+          limit = Long.MAX_VALUE;
+        }
         allocator = ticket.newChildAllocator("frag:" + QueryIdHelper.getFragmentId(fragment.getHandle()),
-          fragment.getMemInitial(), fragment.getMemMax());
+          reservation, limit);
         Preconditions.checkNotNull(allocator, "Unable to acquire allocator");
         services.protect(allocator);
       } catch (final OutOfMemoryException e) {
@@ -231,7 +236,7 @@ public class FragmentExecutorBuilder {
         OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
         if (oom != null) {
           nodeDebugContextProvider.addMemoryContext(builder, oom);
-        } else if (ErrorHelper.findWrappedCause(e, OutOfDirectMemoryError.class) != null) {
+        } else if (ErrorHelper.isDirectMemoryException(e)) {
           nodeDebugContextProvider.addMemoryContext(builder);
         }
         throw builder.build(logger);

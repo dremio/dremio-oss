@@ -93,15 +93,7 @@ export class ClusterListView extends Component {
 
   getEngineName(entity) {
     const name = getEntityName(entity, YARN_NODE_TAG_PROPERTY);
-    const engineId = entity.get("id");
-    return (
-      <div
-        className="link"
-        onClick={this.props.selectEngine.bind(this, engineId)}
-      >
-        {name}
-      </div>
-    );
+    return <div>{name}</div>;
   }
 
   getEngineSize(entity) {
@@ -157,6 +149,18 @@ export class ClusterListView extends Component {
     return engines.map((engine) => this.getEngineData(engine, engines.size));
   };
 
+  onRowClick = (rowId) => {
+    const engines = this.getEngines();
+    let eng = {};
+    engines.map((engine, index) => {
+      if (rowId === index + 1) {
+        eng = engine;
+      }
+    });
+    const engineId = eng.get("id");
+    this.props.selectEngine(engineId);
+  };
+
   render() {
     // provisions are sorted in selectors/provision
     const { viewState } = this.props;
@@ -181,6 +185,7 @@ export class ClusterListView extends Component {
             scrollableTable
             fixedColumnCount={2}
             defaultSortDirection="ASC"
+            onClick={this.onRowClick?.bind(this)}
           />
         </div>
       </div>

@@ -40,6 +40,14 @@ public abstract class LogicalOperatorBase implements LogicalOperator{
     return super.hashCode();
   }
 
+  // The below method was marked as final because .hashCode is
+  // Since .equals and .hashCode have to be implemented in tandem, we want to eliminate the chance only .equals is
+  // redefined in a derived class
+  @Override
+  public final boolean equals(final Object other) {
+    return super.equals(other);
+  }
+
   @Override
   public void setupAndValidate(List<LogicalOperator> operators, Collection<ValidationError> errors) {
     // TODO: remove this and implement individually.

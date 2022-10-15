@@ -111,6 +111,7 @@ export class MarkdownEditorView extends PureComponent {
     const { value } = this.props;
 
     this.editor = new SimpleMDE({
+      autoDownloadFontAwesome: false,
       toolbar: this.getToolbar(), // should be rendered in any mode. Toolbar would be hidden via styles in read mode
       initialValue: value,
       spellChecker: false,

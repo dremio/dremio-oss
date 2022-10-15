@@ -92,9 +92,9 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
         test(createTableQuery);
         Thread.sleep(1001);
 
-        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col4 ARRAY(INT), col5 ROW(col6 INT), col3 MAP)", testSchema,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col4 ARRAY(INT), col5 ROW(col6 INT), col3 map)", testSchema,
           tableName);
-        errorMsgTestHelper(query, "Type conversion error for column col3");
+        errorMsgTestHelper(query, "Invalid column type [`map`] specified for column [col3]");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }
@@ -137,7 +137,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
 
         query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col1 int, col3 int)", testSchema,
           tableName);
-        errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
+        errorMsgTestHelper(query, "Column [col1] specified multiple times.");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }

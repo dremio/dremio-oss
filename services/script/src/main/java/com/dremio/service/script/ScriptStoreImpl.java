@@ -76,12 +76,11 @@ public class ScriptStoreImpl implements ScriptStore {
   }
 
   @Override
-  public Optional<Script> getByName(String name, String createdBy) throws ScriptNotFoundException {
+  public Optional<Script> getByName(String name) throws ScriptNotFoundException {
     ImmutableFindByCondition.Builder builder = new ImmutableFindByCondition.Builder();
     FindByCondition condition =
       builder.setCondition(SearchQueryUtils.and(
-          SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.NAME, name),
-          SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.CREATED_BY, createdBy)))
+          SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.NAME, name)))
         .setLimit(1)
         .build();
     Iterable<Document<String, Script>> doc = store.get().find(condition);

@@ -44,7 +44,15 @@ export default class Art extends PureComponent {
 
   render() {
     let { title } = this.props;
-    const { src, alt, id, interactive, tooltipOpen, ...props } = this.props;
+    const {
+      src,
+      alt,
+      id,
+      interactive,
+      tooltipOpen,
+      title: _ignoredTitle, //eslint-disable-line
+      ...props
+    } = this.props;
 
     const bitmapURL = allBitmaps[`./${src}`];
     if (title === true) {
@@ -80,7 +88,6 @@ export default class Art extends PureComponent {
         <SVG
           src={src}
           aria-label={alt}
-          title={title}
           dataQa={src}
           id={id}
           interactive={interactive}

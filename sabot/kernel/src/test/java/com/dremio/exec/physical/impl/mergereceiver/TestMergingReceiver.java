@@ -40,7 +40,6 @@ import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestMergingReceiver extends PopUnitTestBase {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestMergingReceiver.class);
 
   @Test
   public void twoBitTwoExchange() throws Exception {

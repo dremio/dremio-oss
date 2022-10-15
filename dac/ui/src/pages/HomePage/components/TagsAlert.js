@@ -17,7 +17,8 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import { withRouter } from "react-router";
 import { getCanTagsBeSkipped } from "@app/selectors/home";
-import { Alert } from "@app/components/Alert";
+import { Tooltip } from "dremio-ui-lib";
+import * as classes from "./TagsAlert.module.less";
 
 const mapStateToProps = (state, { location }) => ({
   showAlert: getCanTagsBeSkipped(state, location.pathname),
@@ -26,7 +27,14 @@ const mapStateToProps = (state, { location }) => ({
 export const TagsAlertView = ({ showAlert }) => {
   // see CollaborationHelper.getTagsForIds, variable 'maxTagRequestCount' methods for max count number
   return showAlert ? (
-    <Alert text="Tags are only shown inline for the first 200 items." />
+    <>
+      <Tooltip
+        title="Tags are only shown inline for the first 200 items."
+        placement="right"
+      >
+        <dremio-icon name="interface/warning" class={classes["icon"]} />
+      </Tooltip>
+    </>
   ) : null;
 };
 TagsAlertView.propTypes = {

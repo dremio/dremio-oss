@@ -37,8 +37,8 @@ function CommitBrowser({
   hasSearch = true,
   branch,
   path,
-  onClick = (_) => {},
-  onDataChange = (_) => {},
+  onClick,
+  onDataChange,
   selectedHash,
   disabled,
   pageSize = PAGE_SIZE,
@@ -60,7 +60,7 @@ function CommitBrowser({
   );
 
   useEffect(() => {
-    if (data) onDataChange(data);
+    if (onDataChange && data) onDataChange(data);
   }, [data, onDataChange]);
 
   const onSearch = useMemo(

@@ -27,11 +27,7 @@ import com.dremio.exec.store.parquet.ParquetFilters;
  */
 public class HiveParquetFilters extends ParquetFilters {
 
-  public HiveParquetFilters() {
-    super();
-  }
-
   public HiveParquetFilters(List<ParquetFilterCondition> pushdownFilters) {
-    super(pushdownFilters, null);
+    super(pushdownFilters, null, null);
   }
 }

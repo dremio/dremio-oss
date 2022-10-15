@@ -18,21 +18,17 @@ package com.dremio.service.script;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
-
-import javax.ws.rs.core.SecurityContext;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
@@ -41,9 +37,6 @@ import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.script.proto.ScriptProto;
-import com.dremio.service.users.SimpleUser;
-import com.dremio.service.users.UserService;
-import com.dremio.service.users.proto.UID;
 
 /**
  * Test for script service
@@ -53,14 +46,11 @@ public class TestScriptServiceImpl {
   private static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.forClient();
   private static final ScanResult
     CLASSPATH_SCAN_RESULT = ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
-  private static final String USER_NAME_1 = "user1";
   private static final String USER_ID_1 = "87605f99-88da-45b1-8668-09bd0cfa8528";
-  private static final String USER_NAME_2 = "user2";
   private static final String USER_ID_2 = "f7a7c98c-8c44-4691-9b19-e4373a8c38d3";
   private ScriptStore scriptStore;
   private LocalKVStoreProvider kvStoreProvider;
-  private ScriptService scriptService1;
-  private ScriptService scriptService2;
+  private ScriptService scriptService;
 
   @Before
   public void setUp() throws Exception {
@@ -71,40 +61,21 @@ public class TestScriptServiceImpl {
     scriptStore = new ScriptStoreImpl(() -> kvStoreProvider);
     scriptStore.start();
 
-    UserService userService = Mockito.mock(UserService.class);
-
-    Mockito.doReturn(SimpleUser.newBuilder()
-                       .setUserName(USER_NAME_1)
-                       .setUID(new UID(USER_ID_1))
-                       .build()).when(userService).getUser(USER_NAME_1);
-    Mockito.doReturn(SimpleUser.newBuilder()
-                       .setUserName(USER_NAME_2)
-                       .setUID(new UID(USER_ID_2))
-                       .build()).when(userService).getUser(USER_NAME_2);
-
-    // get script service for user1
-    SecurityContext securityContext1 = Mockito.mock(SecurityContext.class);
-    Principal principal1 = Mockito.mock(Principal.class);
-    Mockito.doReturn(USER_NAME_1).when(principal1).getName();
-    Mockito.doReturn(principal1).when(securityContext1).getUserPrincipal();
-    scriptService1 = new ScriptServiceImpl(() -> scriptStore, securityContext1, userService);
-
-    // get script service for user2
-    SecurityContext securityContext2 = Mockito.mock(SecurityContext.class);
-    Principal principal2 = Mockito.mock(Principal.class);
-    Mockito.doReturn(USER_NAME_2).when(principal2).getName();
-    Mockito.doReturn(principal2).when(securityContext2).getUserPrincipal();
-    scriptService2 = new ScriptServiceImpl(() -> scriptStore, securityContext2, userService);
+    // get script service
+    scriptService = new ScriptServiceImpl(() -> scriptStore);
+    scriptService.start();
   }
 
   @After
   public void cleanUp() throws Exception {
     kvStoreProvider.close();
+    scriptStore.close();
+    scriptService.close();
   }
 
   @Test
   public void testCreateScript()
-    throws DuplicateScriptNameException, ScriptNotAccessible, ScriptNotFoundException {
+    throws Exception {
     //-----------------------create----------------------------
     // given script request
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
@@ -114,13 +85,9 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    RequestContext requestContext =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext);
-
     // when create request is sent
-    ScriptProto.Script script = scriptService1.createScript(scriptRequest);
+    ScriptProto.Script script =
+      runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
 
     // assert
     Assert.assertEquals(scriptRequest.getName(), script.getName());
@@ -140,11 +107,13 @@ public class TestScriptServiceImpl {
       .setContent("updated content")
       .build();
 
-    scriptService1.updateScript(script.getScriptId(), updateRequest);
+    runWithUserContext(USER_ID_1,
+                       () -> scriptService.updateScript(script.getScriptId(), updateRequest));
 
     //-------------------validate content after get----------
 
-    ScriptProto.Script updatedScript = scriptService1.getScriptById(script.getScriptId());
+    ScriptProto.Script updatedScript =
+      runWithUserContext(USER_ID_1, () -> scriptService.getScriptById(script.getScriptId()));
 
     Assert.assertEquals(updateRequest.getName(), updatedScript.getName());
     Assert.assertEquals(USER_ID_1, updatedScript.getModifiedBy());
@@ -154,22 +123,25 @@ public class TestScriptServiceImpl {
 
     //--------------------delete-----------------------------
 
-    scriptService1.deleteScriptById(script.getScriptId());
+    runWithUserContext(USER_ID_1, () -> {
+      scriptService.deleteScriptById(script.getScriptId());
+      return null;
+    });
 
 
     //----------------------get------------------------------
     // assert get of script raise scriptnot found exception
 
-    assertThatThrownBy(() -> scriptService1.getScriptById(script.getScriptId()))
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+                                                () -> scriptService.getScriptById(script.getScriptId())))
       .isInstanceOf(ScriptNotFoundException.class)
       .hasMessage(String.format("Script with id or name : %s not found.",
                                 script.getScriptId()));
-    mocked.close();
   }
 
   // test 2 scripts cannot have same script name
   @Test
-  public void testDuplicateScriptName() throws DuplicateScriptNameException {
+  public void testDuplicateScriptName() throws Exception {
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("scriptName")
       .setDescription("test description")
@@ -177,22 +149,18 @@ public class TestScriptServiceImpl {
       .setContent("test content")
       .build();
 
-    RequestContext requestContext =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext);
-
-    ScriptProto.Script script = scriptService1.createScript(scriptRequest);
-    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+    ScriptProto.Script script =
+      runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+                                                () -> scriptService.createScript(scriptRequest)))
       .isInstanceOf(DuplicateScriptNameException.class)
       .hasMessage(
         "Cannot reuse the same script name within a project. Please try another script name.");
-    mocked.close();
   }
 
-  // test 2 scripts created by different users can have same name
+  // test 2 scripts created by different users can't have same name
   @Test
-  public void testDuplicateNameDifferentUser() throws DuplicateScriptNameException {
+  public void testDuplicateNameDifferentUser() throws Exception {
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("scriptName")
       .setDescription("test description")
@@ -200,23 +168,14 @@ public class TestScriptServiceImpl {
       .setContent("test content")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
+//    ScriptProto.Script script1 = scriptService.createScript(scriptRequest);
+    runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
 
-    ScriptProto.Script script1 = scriptService1.createScript(scriptRequest);
-
-    RequestContext requestContext2 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_2));
-    mocked.when(RequestContext::current).thenReturn(requestContext2);
-
-    ScriptProto.Script script2 = scriptService2.createScript(scriptRequest);
-
-    Assert.assertEquals(USER_ID_1, script1.getCreatedBy());
-    Assert.assertEquals(USER_ID_2, script2.getCreatedBy());
-    Assert.assertEquals(script1.getName(), script2.getName());
-    mocked.close();
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+                                                () -> scriptService.createScript(scriptRequest)))
+      .isInstanceOf(DuplicateScriptNameException.class)
+      .hasMessage(
+        "Cannot reuse the same script name within a project. Please try another script name.");
   }
 
   // validate max length of name
@@ -229,15 +188,10 @@ public class TestScriptServiceImpl {
       .setContent("test content")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
-
-    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+                                                () -> scriptService.createScript(scriptRequest)))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Maximum 128 characters allowed in script name.");
-    mocked.close();
   }
 
   // validate max length of content
@@ -250,15 +204,11 @@ public class TestScriptServiceImpl {
       .setContent(StringUtils.repeat("*", 10001))
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
 
-    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+                                                () -> scriptService.createScript(scriptRequest)))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Maximum 10000 characters allowed in script content.");
-    mocked.close();
   }
 
   // validate max length of description
@@ -271,20 +221,15 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
-
-    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+                                                () -> scriptService.createScript(scriptRequest)))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Maximum 1024 characters allowed in script description.");
-    mocked.close();
   }
 
-  // test a script cannot by read/update/delete by another user
+  // test a script can be read/update/delete by another user
   @Test
-  public void testReadAccess() throws DuplicateScriptNameException {
+  public void testReadAccess() throws Exception {
     //given script created by user1
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("testReadAccess")
@@ -293,29 +238,19 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
-
-    ScriptProto.Script script = scriptService1.createScript(scriptRequest);
+    ScriptProto.Script script =
+      runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
 
     // when script is read by user2
-    RequestContext requestContext2 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_2));
-    mocked.when(RequestContext::current).thenReturn(requestContext2);
+    // assert user2 is able to access the script
+    ScriptProto.Script fetchedScript = runWithUserContext(USER_ID_2,
+                                                          () -> scriptService.getScriptById(script.getScriptId()));
 
-    // assert throws scriptNotAccessible
-    assertThatThrownBy(() -> scriptService2.getScriptById(script.getScriptId()))
-      .isInstanceOf(ScriptNotAccessible.class)
-      .hasMessage(String.format("User : %s not authorized to perform this action on Script : %s.",
-                                USER_ID_2,
-                                script.getScriptId()));
-    mocked.close();
+    Assert.assertEquals(USER_ID_1, fetchedScript.getCreatedBy());
   }
 
   @Test
-  public void testUpdateAccess() throws DuplicateScriptNameException {
+  public void testUpdateAccess() throws Exception {
     //given script created by user1
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("testUpdateAccess")
@@ -324,29 +259,20 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
-
-    ScriptProto.Script script = scriptService1.createScript(scriptRequest);
+    ScriptProto.Script script =
+      runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
 
     // when script is updated by user2
-    RequestContext requestContext2 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_2));
-    mocked.when(RequestContext::current).thenReturn(requestContext2);
+    // assert user2 is able to update script
+    ScriptProto.Script updatedScript = runWithUserContext(USER_ID_2,
+                                        () -> scriptService.updateScript(script.getScriptId(),
+                                                                         scriptRequest));
 
-    // assert throws scriptNotAccessible
-    assertThatThrownBy(() -> scriptService2.updateScript(script.getScriptId(), scriptRequest))
-      .isInstanceOf(ScriptNotAccessible.class)
-      .hasMessage(String.format("User : %s not authorized to perform this action on Script : %s.",
-                                USER_ID_2,
-                                script.getScriptId()));
-    mocked.close();
+    Assert.assertEquals(USER_ID_2, updatedScript.getModifiedBy());
   }
 
   @Test
-  public void testDeleteAccess() throws DuplicateScriptNameException {
+  public void testDeleteAccess() throws Exception {
     //given script created by user1
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("testDeleteAccess")
@@ -355,29 +281,25 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
-
-    ScriptProto.Script script = scriptService1.createScript(scriptRequest);
+    ScriptProto.Script script =
+      runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
 
     // when script is deleted by user2
-    RequestContext requestContext2 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_2));
-    mocked.when(RequestContext::current).thenReturn(requestContext2);
+    // assert user2 is able to delete
+    runWithUserContext(USER_ID_2, () -> {
+      scriptService.deleteScriptById(script.getScriptId());
+      return null;
+    });
 
-    // assert throws scriptNotAccessible
-    assertThatThrownBy(() -> scriptService2.deleteScriptById(script.getScriptId()))
-      .isInstanceOf(ScriptNotAccessible.class)
-      .hasMessage(String.format("User : %s not authorized to perform this action on Script : %s.",
-                                USER_ID_2,
+    // assert when script is fetched again throws not found exception
+    assertThatThrownBy(() ->  runWithUserContext(USER_ID_2, () -> scriptService.getScriptById(script.getScriptId())))
+      .isInstanceOf(ScriptNotFoundException.class)
+      .hasMessage(String.format("Script with id or name : %s not found.",
                                 script.getScriptId()));
-    mocked.close();
   }
 
   @Test
-  public void testSearchOnGetAll() throws DuplicateScriptNameException {
+  public void testSearchOnGetAll() throws Exception {
     //given scripts with name FirstScript, SecondScript and RandomName
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("FirstScript")
@@ -386,20 +308,23 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
-
-    ScriptProto.Script script1 = scriptService1.createScript(scriptRequest);
+    ScriptProto.Script script1 =
+      runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
     ScriptProto.Script script2 =
-      scriptService1.createScript(scriptRequest.toBuilder().setName("SecondScript").build());
+      runWithUserContext(USER_ID_1,
+                         () -> scriptService.createScript(scriptRequest.toBuilder()
+                                                            .setName("SecondScript")
+                                                            .build()));
     ScriptProto.Script script3 =
-      scriptService1.createScript(scriptRequest.toBuilder().setName("RandomName").build());
+      runWithUserContext(USER_ID_1,
+                         () -> scriptService.createScript(scriptRequest.toBuilder()
+                                                            .setName("RandomName")
+                                                            .build()));
 
     // when script is searched for name "Script"
     List<ScriptProto.Script> scripts =
-      scriptService1.getScripts(0, 1000, "Script", "", "", null);
+      runWithUserContext(USER_ID_1,
+                         () -> scriptService.getScripts(0, 1000, "Script", "", "", null));
 
     // assert 2 scripts are found
     Assert.assertEquals(2, scripts.size());
@@ -407,13 +332,12 @@ public class TestScriptServiceImpl {
                         .map(ScriptProto.Script::getScriptId)
                         .collect(Collectors.toList())
                         .containsAll(Arrays.asList(script1.getScriptId(), script2.getScriptId())));
-    mocked.close();
   }
 
   // test sort feature
   @Test
   public void testSortOnGetAll()
-    throws DuplicateScriptNameException, ScriptNotAccessible, ScriptNotFoundException {
+    throws Exception {
     // given
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("sortScript1")
@@ -422,48 +346,72 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    RequestContext requestContext1 =
-      RequestContext.current().with(UserContext.CTX_KEY, new UserContext(USER_ID_1));
-    MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
-    mocked.when(RequestContext::current).thenReturn(requestContext1);
-
     // create script 1
-    ScriptProto.Script script1 = scriptService1.createScript(scriptRequest);
+    ScriptProto.Script script1 =
+      runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest));
 
     // create script 2
     ScriptProto.Script script2 =
-      scriptService1.createScript(scriptRequest.toBuilder().setName("sortScript2").build());
+      runWithUserContext(USER_ID_1,
+                         () -> scriptService.createScript(scriptRequest.toBuilder()
+                                                            .setName("sortScript2")
+                                                            .build()));
 
     // update script 1
-    scriptService1.updateScript(script1.getScriptId(),
-                                scriptRequest.toBuilder()
-                                  .setDescription("updated description")
-                                  .build());
+    runWithUserContext(USER_ID_1, () -> scriptService.updateScript(script1.getScriptId(),
+                                                                   scriptRequest.toBuilder()
+                                                                     .setDescription(
+                                                                       "updated description")
+                                                                     .build()));
 
     // when  sorted on name
     List<ScriptProto.Script> scripts =
-      scriptService1.getScripts(0, 1000, "sortScript", "-name", "", null);
+      runWithUserContext(USER_ID_1,
+                         () -> scriptService.getScripts(0, 1000, "sortScript", "-name", "", null));
     Assert.assertEquals("sortScript2", scripts.get(0).getName());
     Assert.assertEquals("sortScript1", scripts.get(1).getName());
 
     // when sorted on createdAt
-    scripts = scriptService1.getScripts(0, 1000, "sortScript", "createdAt", "", null);
+    scripts = runWithUserContext(USER_ID_1,
+                                 () -> scriptService.getScripts(0,
+                                                                1000,
+                                                                "sortScript",
+                                                                "createdAt",
+                                                                "",
+                                                                null));
     Assert.assertEquals("sortScript1", scripts.get(0).getName());
     Assert.assertEquals("sortScript2", scripts.get(1).getName());
     Assert.assertTrue(scripts.get(0).getCreatedAt() <= scripts.get(1).getCreatedAt());
 
     // when sorted on -modifiedAt
-    scripts = scriptService1.getScripts(0, 1000, "sortScript", "-modifiedAt", "", null);
+    scripts = runWithUserContext(USER_ID_1,
+                                 () -> scriptService.getScripts(0,
+                                                                1000,
+                                                                "sortScript",
+                                                                "-modifiedAt",
+                                                                "",
+                                                                null));
     Assert.assertEquals("sortScript1", scripts.get(0).getName());
     Assert.assertEquals("sortScript2", scripts.get(1).getName());
     Assert.assertTrue(scripts.get(0).getCreatedAt() <= scripts.get(1).getCreatedAt());
 
     // when sorted on unsupported key
 
-    assertThatThrownBy(() -> scriptService1.getScripts(0, 1000, "", "xyz", "", null))
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+                                                () -> scriptService.getScripts(0,
+                                                                               1000,
+                                                                               "",
+                                                                               "xyz",
+                                                                               "",
+                                                                               null)))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("sort on parameter : xyz not supported.");
-    mocked.close();
+  }
+
+  private <V> V runWithUserContext(String userId, Callable<V> callable) throws Exception {
+    return RequestContext.current()
+      .with(UserContext.CTX_KEY, new UserContext(userId))
+      .call(callable);
   }
 
   // TODO:

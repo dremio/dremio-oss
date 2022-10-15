@@ -25,8 +25,9 @@ import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.NEXT_OF
 import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.TERMINAL;
 import static com.dremio.sabot.op.join.vhash.spill.partition.VectorizedProbe.SKIP;
 
-import java.util.function.Consumer;
+import org.apache.arrow.memory.ArrowBuf;
 
+import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
 
 import io.netty.util.internal.PlatformDependent;
@@ -40,8 +41,7 @@ public class ProbeCursor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProbeCursor.class);
 
   private final PageListMultimap list;
-  private final long inProbeSV2Addr;
-  private final Consumer<Integer> refiller;
+  private final ArrowBuf inProbeSV2Buf;
   private final boolean projectUnmatchedBuild;
   private final boolean projectUnmatchedProbe;
 
@@ -49,24 +49,21 @@ public class ProbeCursor {
   private Location location;
   private long unmatchedProbeCount;
 
-  public static ProbeCursor startProbe(PageListMultimap list, long inProbeSV2Addr, ProbeBuffers buffers,
-                                       boolean projectUnmatchedBuild, boolean projectUnmatchedProbe,
-                                       Consumer<Integer> refiller) {
-    return new ProbeCursor(list, inProbeSV2Addr, buffers, projectUnmatchedBuild, projectUnmatchedProbe, refiller);
+  public static ProbeCursor startProbe(PageListMultimap list, ArrowBuf inProbeSV2Buf, ProbeBuffers buffers,
+                                       boolean projectUnmatchedBuild, boolean projectUnmatchedProbe) {
+    return new ProbeCursor(list, inProbeSV2Buf, buffers, projectUnmatchedBuild, projectUnmatchedProbe);
   }
 
   private ProbeCursor(
       PageListMultimap list,
-      long inProbeSV2Addr,
+      ArrowBuf inProbeSV2Buf,
       ProbeBuffers buffers,
       boolean projectUnmatchedBuild,
-      boolean projectUnmatchedProbe,
-      Consumer<Integer> refiller) {
+      boolean projectUnmatchedProbe) {
     super();
     this.list = list;
     this.buffers = buffers;
-    this.inProbeSV2Addr = inProbeSV2Addr;
-    this.refiller = refiller;
+    this.inProbeSV2Buf = inProbeSV2Buf;
     this.projectUnmatchedBuild = projectUnmatchedBuild;
     this.projectUnmatchedProbe = projectUnmatchedProbe;
     this.location = new Location(0, PageListMultimap.TERMINAL);
@@ -79,8 +76,8 @@ public class ProbeCursor {
     final int headMask = list.getHeadMask();
     final int elementShift = list.getElementShift();
     final int elementMask = list.getElementMask();
-    final long[] headAddresses = list.getHeadAddresses();
-    final long[] elementAddresses = list.getElementAddresses();
+    final long[] headBufAddrs = list.getHeadBufAddrs();
+    final long[] elementBufAddrs = list.getElementBufAddrs();
 
     int outputRecords = 0;
     int maxOutRecords = maxOutputIdx - startOutputIdx + 1;
@@ -88,34 +85,37 @@ public class ProbeCursor {
     int currentProbeSV2Index = prev.nextProbeSV2Index;
     int currentElementIndex = prev.elementIndex;
 
-    // we have two incoming options: we're starting on a new batch or we're picking up an existing batch.
-    if (currentProbeSV2Index == 0) {
-      // when this is a new batch, we need to find all the matches.
-      refiller.accept(inRecords);
-    }
+    final ArrowBuf inTableMatchOrdinalBuf = buffers.getInTableMatchOrdinals4B();
+    final ArrowBuf outProbeProjectBuf = buffers.getOutProbeProjectOffsets2B();
+    final ArrowBuf outBuildProjectBuf = buffers.getOutBuildProjectOffsets6B();
+    final ArrowBuf projectNullKeyOffsetBuf = buffers.getOutInvalidBuildKeyOffsets2B();
 
-    final long inTableMatchOrdinalAddr = buffers.getInTableMatchOrdinals4B().memoryAddress();
-    final long outProbeProjectAddr = buffers.getOutProbeProjectOffsets2B().memoryAddress();
-    final long outBuildProjectAddr = buffers.getOutBuildProjectOffsets6B().memoryAddress();
-    final long projectNullKeyOffsetAddr = buffers.getOutInvalidBuildKeyOffsets2B().memoryAddress();
+    outProbeProjectBuf.checkBytes(0, maxOutRecords * SelectionVector2.RECORD_SIZE);
+    outBuildProjectBuf.checkBytes(0, maxOutRecords * BUILD_RECORD_LINK_SIZE);
+    projectNullKeyOffsetBuf.checkBytes(0, maxOutRecords * SelectionVector2.RECORD_SIZE);
+
+    final long inProbeSV2StartAddr = inProbeSV2Buf.memoryAddress();
+    final long inTableMatchOrdinalStartAddr = inTableMatchOrdinalBuf.memoryAddress();
+    final long outProbeProjectStartAddr = outProbeProjectBuf.memoryAddress();
+    final long outBuildProjectStartAddr = outBuildProjectBuf.memoryAddress();
+    final long projectNullKeyOffsetStartAddr = projectNullKeyOffsetBuf.memoryAddress();
+
     int nullKeyCount = 0;
-
     while (outputRecords < maxOutRecords && currentProbeSV2Index < inRecords) {
       // we're starting a new probe match
-      final int indexInBuild = PlatformDependent.getInt(inTableMatchOrdinalAddr + currentProbeSV2Index * ORDINAL_SIZE);
-      logger.trace("probe in table returned ordinal {}", indexInBuild);
+      final int indexInBuild = PlatformDependent.getInt(inTableMatchOrdinalStartAddr + currentProbeSV2Index * ORDINAL_SIZE);
       if (indexInBuild == -1) { // not a matching key.
         if (projectUnmatchedProbe) {
 
           // probe doesn't match but we need to project anyways.
-          int idxInProbeBatch = SV2UnsignedUtil.read(inProbeSV2Addr, currentProbeSV2Index);
-          SV2UnsignedUtil.write(outProbeProjectAddr + outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
+          int idxInProbeBatch = SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, currentProbeSV2Index);
+          SV2UnsignedUtil.writeAtOffsetUnsafe(outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
 
           // mark the build as not matching.
-          PlatformDependent.putInt(outBuildProjectAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
+          PlatformDependent.putInt(outBuildProjectStartAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
 
           // add this build location to the list of build keys we'll invalidate after copying.
-          SV2UnsignedUtil.write(projectNullKeyOffsetAddr + nullKeyCount * BATCH_OFFSET_SIZE, startOutputIdx + outputRecords);
+          SV2UnsignedUtil.writeAtOffsetUnsafe(projectNullKeyOffsetStartAddr, nullKeyCount * BATCH_OFFSET_SIZE, startOutputIdx + outputRecords);
 
           nullKeyCount++;
           outputRecords++;
@@ -132,31 +132,33 @@ public class ProbeCursor {
          * The current probe record has a key that matches. Get the index
          * of the first row in the build side that matches the current key
          */
-        final long memStart = headAddresses[indexInBuild >> headShift] + (indexInBuild & headMask) * HEAD_SIZE;
-        currentElementIndex = PlatformDependent.getInt(memStart);
+        assert((indexInBuild & headMask) * HEAD_SIZE + 4 <= list.getBufSize());
+        currentElementIndex =
+          PlatformDependent.getInt(headBufAddrs[indexInBuild >> headShift] + (indexInBuild & headMask) * HEAD_SIZE);
       }
 
       while ((currentElementIndex != TERMINAL) && (outputRecords < maxOutRecords)) {
 
         // project probe side
-        int idxInProbeBatch = SV2UnsignedUtil.read(inProbeSV2Addr, currentProbeSV2Index);
-        SV2UnsignedUtil.write(outProbeProjectAddr + outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
+        int idxInProbeBatch = SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, currentProbeSV2Index);
+        SV2UnsignedUtil.writeAtOffsetUnsafe(outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
 
-        final long elementAddress = elementAddresses[currentElementIndex >> elementShift] +
-          ELEMENT_SIZE * (currentElementIndex & elementMask);
-        final long buildItem = PlatformDependent.getLong(elementAddress);
+        final long elementBufStartAddr = elementBufAddrs[currentElementIndex >> elementShift];
+        final int offsetInPage = ELEMENT_SIZE * (currentElementIndex & elementMask);
+        assert(offsetInPage + ELEMENT_SIZE <= list.getBufSize());
+        final long buildItem = PlatformDependent.getLong(elementBufStartAddr + offsetInPage);
 
         // project matched build item
-        final long projectBuildOffsetAddrStart = outBuildProjectAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
-        PlatformDependent.putInt(projectBuildOffsetAddrStart, PageListMultimap.getBatchIdFromLong(buildItem));
-        SV2UnsignedUtil.write(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE,
+        final int projectBuildOffsetStart = outputRecords * BUILD_RECORD_LINK_SIZE;
+        PlatformDependent.putInt(outBuildProjectStartAddr + projectBuildOffsetStart, PageListMultimap.getBatchIdFromLong(buildItem));
+        SV2UnsignedUtil.writeAtOffsetUnsafe(outBuildProjectStartAddr, projectBuildOffsetStart + BATCH_INDEX_SIZE,
           PageListMultimap.getRecordIndexFromLong(buildItem));
 
-        currentElementIndex = PlatformDependent.getInt(elementAddress + NEXT_OFFSET);
+        currentElementIndex = PlatformDependent.getInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET);
         if (projectUnmatchedBuild) {
           if (currentElementIndex > 0) {
             // first visit, mark as visited by flipping the sign.
-            PlatformDependent.putInt(elementAddress + NEXT_OFFSET, -currentElementIndex);
+            PlatformDependent.putInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET, -currentElementIndex);
           } else {
             // not the first visit, flip the sign of what we just read.
             currentElementIndex = -currentElementIndex;

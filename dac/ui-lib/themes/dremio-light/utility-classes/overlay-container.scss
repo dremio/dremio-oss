@@ -1,0 +1,9 @@
+%overlay-container,
+.overlay-container {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+}

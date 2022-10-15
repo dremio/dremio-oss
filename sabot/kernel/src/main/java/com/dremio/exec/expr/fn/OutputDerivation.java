@@ -47,6 +47,7 @@ public interface OutputDerivation {
   OutputDerivation DECIMAL_SUBTRACT = new DecimalSubtract();
   OutputDerivation DECIMAL_MULTIPLY = new DecimalMultiply();
   OutputDerivation DECIMAL_DIVIDE = new DecimalDivide();
+  OutputDerivation DECIMAL_NEGATIVE = new DecimalNegativeScale();
   OutputDerivation DECIMAL_MOD =
     ((base, args) -> DecimalGandivaBinaryOutput.getOutputType(OperationType.MOD, args));
 
@@ -101,7 +102,7 @@ public interface OutputDerivation {
       }
       if (scale + integral > 38) {
         throw UserException.functionError().message(
-          "derived precision for union of arguments exceeds 38", args
+          "derived precision for union of %d arguments exceeds 38", args.size()
         ).build(logger);
       }
 
@@ -155,6 +156,12 @@ public interface OutputDerivation {
       ArrowType.Decimal type =  getDecimalOutputTypeForRound(prec(args.get(0)),
         scale(args.get(0)), 0);
       return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
+    }
+  }
+
+  class DecimalNegativeScale implements OutputDerivation {
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      return CompleteType.fromDecimalPrecisionScale(prec(args.get(0)), scale(args.get(0)));
     }
   }
 

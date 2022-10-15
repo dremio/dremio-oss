@@ -59,7 +59,7 @@ public class TestConduitWithSSL extends TestConduit {
       .withValue(ConduitUtils.CONDUIT_SSL_PREFIX + DremioConfig.SSL_ENABLED, true)
       .withValue(ConduitUtils.CONDUIT_SSL_PREFIX + DremioConfig.SSL_AUTO_GENERATED_CERTIFICATE, true);
     final SSLConfigurator sslConfigurator =
-      new SSLConfigurator(config, ConduitUtils.CONDUIT_SSL_PREFIX, "test-conduit");
+      new SSLConfigurator(config, () -> null, ConduitUtils.CONDUIT_SSL_PREFIX, "test-conduit");
     final Optional<SSLEngineFactory> conduitSslEngineFactory =
       SSLEngineFactory.create(sslConfigurator.getSSLConfig(false, address));
 

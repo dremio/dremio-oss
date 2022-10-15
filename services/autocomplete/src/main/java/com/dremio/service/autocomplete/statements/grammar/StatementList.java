@@ -22,8 +22,6 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SELECT
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SEMICOLON;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.UPDATE;
 
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
 import com.google.common.collect.ImmutableList;
@@ -37,18 +35,8 @@ import com.google.common.collect.ImmutableList;
 public final class StatementList extends Statement {
   private StatementList(
     ImmutableList<DremioToken> tokens,
-    ImmutableList<? extends Statement> children) {
+    ImmutableList<Statement> children) {
     super(tokens, children);
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
   }
 
   public static StatementList parse(TokenBuffer tokenBuffer) {
@@ -67,14 +55,14 @@ public final class StatementList extends Statement {
     ImmutableList<DremioToken> subTokens = tokenBuffer.readUntilKind(SEMICOLON);
     if (subTokens.isEmpty()) {
       // We could have two consecutive semicolons leading to an empty statement.
-      return UnknownStatement.EMPTY;
+      return UnknownStatement.INSTANCE;
     }
 
     TokenBuffer subBuffer = new TokenBuffer(subTokens);
     int kind = subBuffer.peekKind();
     switch (kind) {
     case SELECT:
-      return QueryStatement.parse(subBuffer);
+      return SetQueryStatement.parse(subBuffer);
     case DROP:
       return DropStatement.parse(subBuffer);
     case DELETE:

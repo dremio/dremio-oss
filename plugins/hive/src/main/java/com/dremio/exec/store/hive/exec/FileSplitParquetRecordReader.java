@@ -297,8 +297,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       if (e instanceof FileNotFoundException) {
         // the outer try-catch handles this.
         throw UserException.invalidMetadataError(e)
-          .addContext("Parquet file not found")
-          .addContext("File", fileSplit.getPath())
+          .addContext("Parquet file not found: %s", fileSplit.getPath())
           .setAdditionalExceptionContext(new InvalidMetadataErrorContext(ImmutableList.copyOf(referencedTables)))
           .build(logger); // better to have these messages in logs
       } else {
@@ -327,6 +326,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         .noSchemaLearning(outputSchema)
         .allowMixedDecimals(true)
         .limitListItems(true)
+        .mapDataTypeEnabled(oContext.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
         .build();
 
       OutputMutatorHelper.addFooterFieldsToOutputMutator(output, schemaHelper, footer, columnsToRead);
@@ -547,7 +547,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       this.prefetchReader = oContext.getOptions().getOption(PREFETCH_READER) && isAsyncEnabled;
     }
 
-    public class HiveParquetRowGroupReaderCreator extends SplitReaderCreator {
+    public final class HiveParquetRowGroupReaderCreator extends SplitReaderCreator {
 
       private UnifiedParquetReader innerReader; // member variable so it can be closed
 
@@ -571,8 +571,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         this.tablePath = Lists.newArrayList(referencedTables);
         if (!fs.supportsPath(path)) {
           throw UserException.invalidMetadataError()
-            .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), path))
-            .addContext("File", path)
+            .addContext("%s: Invalid FS for file '%s'", fs.getScheme(), path)
             .setAdditionalExceptionContext(
               new InvalidMetadataErrorContext(
                 ImmutableList.copyOf(tablePath)))

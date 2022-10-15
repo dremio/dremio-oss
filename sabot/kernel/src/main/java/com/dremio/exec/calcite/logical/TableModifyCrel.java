@@ -51,8 +51,10 @@ public class TableModifyCrel extends TableModifyRelBase {
                          List<RexNode> sourceExpressionList,
                          boolean flattened,
                          CreateTableEntry createTableEntry,
-                         List<String> mergeUpdateColumnList) {
-    super(Convention.NONE, cluster, traitSet, table, schema, input, operation, updateColumnList, sourceExpressionList, flattened, createTableEntry, mergeUpdateColumnList);
+                         List<String> mergeUpdateColumnList,
+                         boolean hasSource) {
+    super(Convention.NONE, cluster, traitSet, table, schema, input, operation, updateColumnList,
+      sourceExpressionList, flattened, createTableEntry, mergeUpdateColumnList, hasSource);
 
     Preconditions.checkArgument(operation != Operation.INSERT, "Insert is not supported in TableModifyCrel");
   }
@@ -60,7 +62,7 @@ public class TableModifyCrel extends TableModifyRelBase {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new TableModifyCrel(getCluster(), traitSet, getTable(), getCatalogReader(), sole(inputs), getOperation(),
-      getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList());
+      getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList(), hasSource());
   }
 
   public static TableModifyCrel create(RelOptTable table,
@@ -70,20 +72,21 @@ public class TableModifyCrel extends TableModifyRelBase {
                                        List<String> updateColumnList,
                                        List<RexNode> sourceExpressionList,
                                        boolean flattened,
-                                       List<String> mergeUpdateColumnList) {
+                                       List<String> mergeUpdateColumnList,
+                                       boolean hasSource) {
     final RelOptCluster cluster = input.getCluster();
     final RelTraitSet traitSet = cluster.traitSetOf(Convention.NONE);
     return new TableModifyCrel(cluster, traitSet, table, schema, input,
-      operation, updateColumnList, sourceExpressionList, flattened, null, mergeUpdateColumnList);
+      operation, updateColumnList, sourceExpressionList, flattened, null, mergeUpdateColumnList, hasSource);
   }
 
   public TableModifyCrel createWith(CreateTableEntry createTableEntry) {
     return new TableModifyCrel(getCluster(), getTraitSet(), getTable(), getCatalogReader(), sole(getInputs()),
-      getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened(), createTableEntry, getMergeUpdateColumnList());
+      getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened(), createTableEntry, getMergeUpdateColumnList(), hasSource());
   }
 
   public TableModifyCrel createWith(RelNode input) {
     return new TableModifyCrel(getCluster(), getTraitSet(), getTable(), getCatalogReader(), input,
-      getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList());
+      getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList(), hasSource());
   }
 }

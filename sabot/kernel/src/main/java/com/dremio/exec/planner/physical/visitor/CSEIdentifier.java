@@ -78,7 +78,7 @@ public class CSEIdentifier {
     costingRootNodeAndBitSet.bitSet.set(0, filteredcandidates.size());
     logger.debug("Costing CommonSubExpression:\n{}", RelOptUtil.toString(costingRootNodeAndBitSet.relNode));
     List<Integer> desirablecandidateList =
-      findDesirablecandidates(costingRootNodeAndBitSet);
+      findDesirableCandidates(costingRootNodeAndBitSet);
     if(desirablecandidateList.isEmpty()) {
       return prel;
     }
@@ -136,10 +136,11 @@ public class CSEIdentifier {
     }
     featureBitSet.clear();
     featureBitSet.or(bestPlan);
+    relNode.getCluster().invalidateMetadataQuery();
     return (Prel) removeCosting(relNode);
   }
 
-  private static List<Integer> findDesirablecandidates(
+  private static List<Integer> findDesirableCandidates(
       CostingRootNodeAndBitSet costingRootNodeAndBitSet) {
     RelNode relNode = costingRootNodeAndBitSet.relNode;
     BitSet featureBitSet = costingRootNodeAndBitSet.bitSet;

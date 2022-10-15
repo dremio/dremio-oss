@@ -18,10 +18,13 @@ package com.dremio.exec.store.dfs;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.Snapshot;
 
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
@@ -32,6 +35,7 @@ import com.dremio.io.file.Path;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PrimaryKey;
 
 /**
  * Base class for operations on primary keys
@@ -69,6 +73,22 @@ public class PrimaryKeyOperations extends MetadataOperations {
       updateDatasetConfigWithIcebergMetadata(opCommitter.getRootPointer(), snapshot.snapshotId(),
         opCommitter.getCurrentSpecMap(), opCommitter.getCurrentSchema());
     }
-    save();
+
+    final List<String> primaryKey = columns.stream()
+      .map(f -> f.getName().toLowerCase(Locale.ROOT))
+      .collect(Collectors.toList());
+    saveInKvStore(table, datasetConfig, schemaConfig.getUserName(), storagePlugin, context, primaryKey);
+  }
+
+  public static void saveInKvStore(NamespaceKey table,
+                                   DatasetConfig datasetConfig,
+                                   String userName,
+                                   StoragePlugin storagePlugin,
+                                   SabotContext context,
+                                   List<String> primaryKey) {
+    if (!(storagePlugin instanceof VersionedPlugin)) { // Don't store in the namespace for versioned plugins.
+      datasetConfig.getPhysicalDataset().setPrimaryKey(new PrimaryKey().setColumnList(primaryKey));
+      save(table, datasetConfig, userName, context);
+    }
   }
 }

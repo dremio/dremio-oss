@@ -15,50 +15,32 @@
  */
 package com.dremio.exec.planner.sql;
 
-import java.util.Map;
-
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-import org.apache.commons.lang3.tuple.Pair;
 
-import com.google.common.collect.Maps;
+import com.google.common.base.Preconditions;
 
-class Checker implements SqlOperandTypeChecker {
-  private SqlOperandCountRange range;
+public final class Checker implements SqlOperandTypeChecker {
+  private final SqlOperandCountRange range;
 
-  public static final Checker ANY_CHECKER = new Checker();
-  private static final Map<Pair<Integer, Integer>, Checker> checkerMap = Maps.newHashMap();
-
-  public static Checker getChecker(int min, int max) {
-    final Pair<Integer, Integer> range = Pair.of(min, max);
-    if(checkerMap.containsKey(range)) {
-      return checkerMap.get(range);
-    }
-
-    final Checker newChecker;
-    if(min == max) {
-      newChecker = new Checker(min);
-    } else {
-      newChecker = new Checker(min, max);
-    }
-
-    checkerMap.put(range, newChecker);
-    return newChecker;
+  private Checker(SqlOperandCountRange range) {
+    Preconditions.checkNotNull(range);
+    this.range = range;
   }
 
-  private Checker(int size) {
-    range = SqlOperandCountRanges.of(size);
+  public static Checker of(int size) {
+    return new Checker(SqlOperandCountRanges.of(size));
   }
 
-  private Checker(int min, int max) {
-    range = SqlOperandCountRanges.between(min, max);
+  public static Checker between(int min, int max) {
+    return new Checker(SqlOperandCountRanges.between(min, max));
   }
 
-  private Checker() {
-    range = SqlOperandCountRanges.any();
+  public static Checker any() {
+    return new Checker(SqlOperandCountRanges.any());
   }
 
   @Override
@@ -85,5 +67,4 @@ class Checker implements SqlOperandTypeChecker {
   public boolean isOptional(int i) {
     return false;
   }
-
 }

@@ -105,7 +105,6 @@ import io.protostuff.ByteString;
 @RolesAllowed({"admin", "user"})
 @Path("/dataset/{cpath}")
 public class DatasetResource extends BaseResourceWithAllocator {
-//  private static final Logger logger = LoggerFactory.getLogger(DatasetResource.class);
 
   private final DatasetVersionMutator datasetService;
   private final JobsService jobsService;
@@ -200,7 +199,9 @@ public class DatasetResource extends BaseResourceWithAllocator {
     Preconditions.checkArgument(descriptor.getAccelerationRefreshPeriod() != null, "refreshPeriod is required");
     Preconditions.checkArgument(descriptor.getAccelerationGracePeriod() != null, "gracePeriod is required");
     Preconditions.checkArgument(descriptor.getMethod() != null, "settings.method is required");
-
+    Preconditions.checkArgument(descriptor.getAccelerationNeverExpire() //we are good here
+      || descriptor.getAccelerationNeverRefresh() //user never want to refresh, assume they just want to let it expire anyway
+      || descriptor.getAccelerationRefreshPeriod() <= descriptor.getAccelerationGracePeriod() , "refreshPeriod must be less than gracePeriod");
     final DatasetConfig config = namespaceService.getDataset(datasetPath.toNamespaceKey());
 
     if (config.getType() == DatasetType.VIRTUAL_DATASET) {

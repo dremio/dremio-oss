@@ -18,13 +18,8 @@ package com.dremio.exec.store.json;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 import org.junit.AfterClass;
@@ -38,7 +33,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.io.Resources;
 
 public class InternalSchemaTestBase extends PlanTestBase {
 
@@ -104,21 +98,6 @@ public class InternalSchemaTestBase extends PlanTestBase {
     Path jsonDir = createDfsTestTableDirWithName(dirName).toPath();
     writeDir(Paths.get(root), jsonDir, dirName);
     return jsonDir;
-  }
-
-  private void copy(java.nio.file.Path source, java.nio.file.Path dest) {
-    try {
-      Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
-    } catch (Exception e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
-  }
-
-  void copyFromJar(String sourceElement, final java.nio.file.Path target) throws URISyntaxException, IOException {
-    URI resource = Resources.getResource(sourceElement).toURI();
-    java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
-    Files.walk(srcDir)
-      .forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
   }
 
   void promoteDataset(String dirName) throws Exception {

@@ -28,7 +28,7 @@ import com.google.common.collect.ImmutableMap;
  * Dremio typically needs for schema operation. Used during both planning and
  * execution.
  */
-public class FieldAnnotation {
+public final class FieldAnnotation {
 
   private final SchemaPath path;
   private final boolean analyzed;

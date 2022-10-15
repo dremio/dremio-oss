@@ -230,7 +230,7 @@ public class TestHashAgg extends BaseTestOperator {
       th("gb",    "sum", "cnt", "sum0", "min", "max"),
       tr("group1", -5L, 2L, -5L, -10, 5),
       tr("group2", -3L, 2L, -3L, -13, 10),
-      tr("group3", Fixtures.NULL_BIGINT, 0L, 0l, Fixtures.NULL_INT, Fixtures.NULL_INT))
+      tr("group3", Fixtures.NULL_BIGINT, 0L, 0L, Fixtures.NULL_INT, Fixtures.NULL_INT))
       .orderInsensitive();
 
     validateAgg(conf, DATA, expected);
@@ -294,15 +294,15 @@ public class TestHashAgg extends BaseTestOperator {
                                            true,
                                            1f);
 
-    Fixtures.DataRow row1 = tr("group1", -5L, 2L, -5l, -10l, 5l);
-    Fixtures.DataRow row2 = tr("group2", -3L, 2L, -3l, -13l, 10l);
-    Fixtures.DataRow row3 = tr("group3", Fixtures.NULL_BIGINT, 0L, 0l, Fixtures.NULL_BIGINT, Fixtures.NULL_BIGINT);
+    Fixtures.DataRow row1 = tr("group1", -5L, 2L, -5L, -10L, 5L);
+    Fixtures.DataRow row2 = tr("group2", -3L, 2L, -3L, -13L, 10L);
+    Fixtures.DataRow row3 = tr("group3", Fixtures.NULL_BIGINT, 0L, 0L, Fixtures.NULL_BIGINT, Fixtures.NULL_BIGINT);
 
     final Table expected = t(
       th("gb",    "sum", "cnt", "sum0", "min", "max"),
       tr("group1", -5L, 2L, -5L, -10L, 5L),
       tr("group2", -3L, 2L, -3L, -13L, 10L),
-      tr("group3", Fixtures.NULL_BIGINT, 0L, 0l, Fixtures.NULL_BIGINT, Fixtures.NULL_BIGINT))
+      tr("group3", Fixtures.NULL_BIGINT, 0L, 0L, Fixtures.NULL_BIGINT, Fixtures.NULL_BIGINT))
       .orderInsensitive();
 
     validateAgg(conf, DATA, expected);
@@ -630,7 +630,7 @@ public class TestHashAgg extends BaseTestOperator {
   @Test
   public void bitWork() throws Exception {
     final int numSixes = 100;
-    final Fixtures.DataRow lotsOfSixes[] = new Fixtures.DataRow[numSixes];
+    final Fixtures.DataRow[] lotsOfSixes = new Fixtures.DataRow[numSixes];
     for (int i = 0; i < numSixes; i++) {
       lotsOfSixes[i] = tr(6, true);
     }
@@ -669,16 +669,16 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("x", "cnt", "min", "max"),
-      tr(4, 1l, false, false),
-      tr(5, 1l, true, true),
-      tr(6, numSixes + 3l, true, true),
-      tr(7, 2l, false, true),
-      tr(8, 2l, false, false),
-      tr(9, 2l, false, true),
-      tr(10, 1l, false, false),
-      tr(11, 1l, true, true),
-      tr(12, 1l, false, false),
-      tr(13, 1l, true, true))
+      tr(4, 1L, false, false),
+      tr(5, 1L, true, true),
+      tr(6, numSixes + 3L, true, true),
+      tr(7, 2L, false, true),
+      tr(8, 2L, false, false),
+      tr(9, 2L, false, true),
+      tr(10, 1L, false, false),
+      tr(11, 1L, true, true),
+      tr(12, 1L, false, false),
+      tr(13, 1L, true, true))
       .orderInsensitive();
 
     final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
@@ -794,10 +794,10 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("x", "cnt", "min", "max"),
-      tr(4, 1l, Fixtures.date("2017-1-1"), Fixtures.date("2017-1-1")),
-      tr(5, 2l, Fixtures.date("2011-1-17"), Fixtures.date("2018-6-17")),
-      tr(6, 1l, Fixtures.date("2020-2-29"), Fixtures.date("2020-2-29")),
-      tr(7, 2l, Fixtures.date("2017-11-30"), Fixtures.date("2017-12-1")))
+      tr(4, 1L, Fixtures.date("2017-1-1"), Fixtures.date("2017-1-1")),
+      tr(5, 2L, Fixtures.date("2011-1-17"), Fixtures.date("2018-6-17")),
+      tr(6, 1L, Fixtures.date("2020-2-29"), Fixtures.date("2020-2-29")),
+      tr(7, 2L, Fixtures.date("2017-11-30"), Fixtures.date("2017-12-1")))
       .orderInsensitive();
 
     final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
@@ -827,13 +827,13 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("x", "cnt", "min_days", "max_days", "min_months", "max_months"),
-      tr(4, 1l, Fixtures.interval_day(2, 0), Fixtures.interval_day(2, 0),
+      tr(4, 1L, Fixtures.interval_day(2, 0), Fixtures.interval_day(2, 0),
          Fixtures.interval_year(0, 2), Fixtures.interval_year(0, 2)),
-      tr(5, 2l, Fixtures.interval_day(1, 100), Fixtures.interval_day(9, 20),
+      tr(5, 2L, Fixtures.interval_day(1, 100), Fixtures.interval_day(9, 20),
          Fixtures.interval_year(1, 3), Fixtures.interval_year(2, 0)),
-      tr(6, 2l, Fixtures.interval_day(0, 30), Fixtures.interval_day(0, 30),
+      tr(6, 2L, Fixtures.interval_day(0, 30), Fixtures.interval_day(0, 30),
          Fixtures.interval_year(0, 7), Fixtures.interval_year(0, 7)),
-      tr(7, 1l, Fixtures.interval_day(1, 0), Fixtures.interval_day(1, 0),
+      tr(7, 1L, Fixtures.interval_day(1, 0), Fixtures.interval_day(1, 0),
          Fixtures.interval_year(0, 7), Fixtures.interval_year(0, 7)))
       .orderInsensitive();
 
@@ -863,10 +863,10 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("x", "cnt", "min", "max"),
-      tr(4, 1l, Fixtures.time("01:00"), Fixtures.time("01:00")),
-      tr(5, 2l, Fixtures.time("16:00"), Fixtures.time("17:00")),
-      tr(6, 1l, Fixtures.time("19:00"), Fixtures.time("19:00")),
-      tr(7, 2l, Fixtures.time("09:00"), Fixtures.time("09:00")))
+      tr(4, 1L, Fixtures.time("01:00"), Fixtures.time("01:00")),
+      tr(5, 2L, Fixtures.time("16:00"), Fixtures.time("17:00")),
+      tr(6, 1L, Fixtures.time("19:00"), Fixtures.time("19:00")),
+      tr(7, 2L, Fixtures.time("09:00"), Fixtures.time("09:00")))
       .orderInsensitive();
 
     final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
@@ -894,10 +894,10 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("x", "cnt", "min", "max"),
-      tr(4, 1l, Fixtures.ts("2017-1-1T11:00"), Fixtures.ts("2017-1-1T11:00")),
-      tr(5, 2l, Fixtures.ts("2011-1-17T19:00"), Fixtures.ts("2018-6-17T10:00")),
-      tr(6, 1l, Fixtures.ts("2020-2-29T12:00"), Fixtures.ts("2020-2-29T12:00")),
-      tr(7, 2l, Fixtures.ts("2017-11-30T21:00"), Fixtures.ts("2017-12-1T07:00")))
+      tr(4, 1L, Fixtures.ts("2017-1-1T11:00"), Fixtures.ts("2017-1-1T11:00")),
+      tr(5, 2L, Fixtures.ts("2011-1-17T19:00"), Fixtures.ts("2018-6-17T10:00")),
+      tr(6, 1L, Fixtures.ts("2020-2-29T12:00"), Fixtures.ts("2020-2-29T12:00")),
+      tr(7, 2L, Fixtures.ts("2017-11-30T21:00"), Fixtures.ts("2017-12-1T07:00")))
       .orderInsensitive();
 
     final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, false, false,1f);
@@ -925,9 +925,9 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("x", "cnt", "min", "max"),
-      tr(1, 2l, "a1", "b1"),
-      tr(2, 2l, "a2", "b2"),
-      tr(3, 2l, "a3", "b3"))
+      tr(1, 2L, "a1", "b1"),
+      tr(2, 2L, "a2", "b2"),
+      tr(3, 2L, "a3", "b3"))
       .orderInsensitive();
 
     final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, false, false,1f);

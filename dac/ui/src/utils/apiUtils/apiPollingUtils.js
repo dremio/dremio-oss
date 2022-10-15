@@ -31,7 +31,7 @@ export default function ApiPolling({
   handleFailure,
   handleSuccess,
   intervalSec = 5,
-  timeoutSec = 600,
+  timeoutSec = 6,
   apiCallFunc,
 }) {
   let pollingHandle;

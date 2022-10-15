@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Future;
 
+import com.dremio.common.VM;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
@@ -54,8 +55,6 @@ import com.google.common.base.Throwables;
  * Monitors current status of reflections.
  */
 public class ReflectionMonitor {
-
-  private static final boolean IS_DEBUG = java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments().toString().indexOf("-agentlib:jdwp") > 0;
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionMonitor.class);
 
@@ -101,6 +100,17 @@ public class ReflectionMonitor {
 
       } else {
         logger.debug("reflection not available");
+      }
+    }
+
+    throw new IllegalStateException();
+  }
+
+  public void waitForRefreshStatus(final ReflectionId reflectionId, final ReflectionStatus.REFRESH_STATUS status) {
+    Wait w = new Wait();
+    while(w.loop()) {
+      if (statusService.getReflectionStatus(reflectionId).getRefreshStatus() == status) {
+        return;
       }
     }
 
@@ -376,7 +386,7 @@ public class ReflectionMonitor {
         return true;
       }
 
-      if(System.currentTimeMillis() > expire && !IS_DEBUG) {
+      if (System.currentTimeMillis() > expire && !VM.isDebugEnabled()) {
         throw new TimeoutException();
       }
       try {

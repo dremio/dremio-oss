@@ -30,7 +30,7 @@ const SideNavAdmin = (props) => {
     <TopAction
       active={isActive({ name: "/admin", loc, admin: true })}
       url="/admin"
-      icon="SideNav-gear.svg"
+      icon="interface/settings"
       alt="SideNav.Admin"
     />
   );

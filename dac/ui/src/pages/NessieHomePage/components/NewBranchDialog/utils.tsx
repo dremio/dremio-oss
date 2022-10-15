@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { DialogTitle, IconButton } from "@material-ui/core";
-import Art from "@app/components/Art";
+import { DialogTitle, IconButton } from "@mui/material";
 
 // ref: https://mui.com/components/dialogs/#customization
 export function CustomDialogTitle(props: any) {
@@ -25,8 +24,12 @@ export function CustomDialogTitle(props: any) {
     <DialogTitle className={className}>
       {children}
       {onClose && (
-        <IconButton aria-label="close" onClick={onClose}>
-          <Art src="XBig.svg" alt={"Close"} style={{ width: 22, height: 22 }} />
+        <IconButton size="large" aria-label="close" onClick={onClose}>
+          <dremio-icon
+            name="interface/close-big"
+            alt="close"
+            style={{ width: 24, height: 24 }}
+          />
         </IconButton>
       )}
     </DialogTitle>

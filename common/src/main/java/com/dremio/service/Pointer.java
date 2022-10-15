@@ -16,6 +16,7 @@
 package com.dremio.service;
 
 public class Pointer<T> {
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   public T value;
 
   public Pointer(){}

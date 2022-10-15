@@ -47,6 +47,8 @@ export const NETEZZA = "NETEZZA";
 export const TERADATA = "TERADATA";
 
 export const NESSIE = "NESSIE";
+export const ARCTIC = "ARCTIC";
+export const HISTORYTABLES = "HISTORYTABLES";
 
 export const sourceProperties = [
   // todo: loc
@@ -72,17 +74,21 @@ export const sourceProperties = [
   { label: "Microsoft Azure Data Explorer", sourceType: ADX },
 ];
 
-export const externalSourceType = {
-  [AMAZONELASTIC]: true,
-  [REDSHIFT]: true,
-  [ELASTIC]: true,
-  [MONGODB]: true,
-  [MYSQL]: true,
-  [SQLSERVER]: true,
-  [ORACLE]: true,
-  [POSTGRESQL]: true,
-  [SYNAPSE]: true,
-  [ADX]: true,
+export const metastoresSourceType = {
+  [HIVE]: true,
+  [HIVE3]: true,
+  [AWSGLUE]: true,
+};
+
+export const objectStorageSourceType = {
+  [S3]: true,
+  [ADL]: true,
+  [AZURE_STORAGE]: true,
+  [HDFS]: true,
+  [MAPRFS]: true,
+  [NAS]: true,
+  [GCS]: true,
+  [HISTORYTABLES]: true,
 };
 
 export const dataLakeSourceType = {
@@ -96,9 +102,15 @@ export const dataLakeSourceType = {
   [HIVE3]: true,
   [AWSGLUE]: true,
   [GCS]: true,
+  [HISTORYTABLES]: true,
 };
 
-export const isExternalSourceType = (sourceType) => {
+const dataPlaneSources = {
+  [NESSIE]: true,
+  [ARCTIC]: true,
+};
+
+export const isDatabaseType = (sourceType) => {
   return !dataLakeSourceType[sourceType] && !dataPlaneSources[sourceType];
 };
 
@@ -106,22 +118,16 @@ export const isDataLakeSourceType = (sourceType) => {
   return dataLakeSourceType[sourceType];
 };
 
-export const isDatalakeTableSourceType = (sourceType) => {
-  return dataLakeTableType[sourceType];
-};
-
-export const dataLakeTableType = {
-  [HIVE]: true,
-  [HIVE3]: true,
-  [AWSGLUE]: true,
-};
-
-const dataPlaneSources = {
-  [NESSIE]: true,
-};
-
 export const isDataPlaneSourceType = (sourceType) => {
   return dataPlaneSources[sourceType];
+};
+
+export const isMetastoreSourceType = (sourceType) => {
+  return metastoresSourceType[sourceType];
+};
+
+export const isObjectStorageSourceType = (sourceType) => {
+  return objectStorageSourceType[sourceType];
 };
 
 export const SHARING_TAB_JSON_TEMPLATE = {};

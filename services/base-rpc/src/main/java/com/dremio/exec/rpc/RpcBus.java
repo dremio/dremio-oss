@@ -316,7 +316,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
   }
 
 
-  private SecondFailureHandler RESPONSE_FAILURE_FAILURE = new SecondFailureHandler();
+  private final SecondFailureHandler RESPONSE_FAILURE_FAILURE = new SecondFailureHandler();
 
   private class SecondFailureHandler implements ChannelFutureListener {
 

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
   <artifactId>dremio-services-telemetry-impl</artifactId>
   <name>Services - Telemetry - Impl</name>
@@ -82,6 +82,10 @@
     </dependency>
     <dependency>
       <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-extension-trace-propagators</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-opentracing-shim</artifactId>
       <version>1.0.1-alpha</version>
     </dependency>
@@ -118,37 +122,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>io.opencensus</groupId>
-      <artifactId>opencensus-exporter-trace-stackdriver</artifactId>
-    </dependency>
-    <!-- A stackdriver trace exporter dependency depends on gax but doesn't include it. -->
-    <dependency>
-      <groupId>com.google.api</groupId>
-      <artifactId>gax</artifactId>
-      <version>1.60.0</version>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.google.api</groupId>
-      <artifactId>gax-grpc</artifactId>
-      <version>1.62.0</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.api.grpc</groupId>
-          <artifactId>proto-google-common-protos</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-netty-shaded</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty</artifactId>
     </dependency>
@@ -156,11 +129,6 @@
     <dependency>
       <groupId>io.opencensus</groupId>
       <artifactId>opencensus-contrib-dropwizard</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.opencensus</groupId>
-      <artifactId>opencensus-exporter-stats-stackdriver</artifactId>
     </dependency>
 
   </dependencies>

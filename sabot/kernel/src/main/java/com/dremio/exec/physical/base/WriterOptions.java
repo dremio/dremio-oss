@@ -55,7 +55,6 @@ public class WriterOptions {
     MERGE,
     UPDATE
   }
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOptions.class);
 
   public static final WriterOptions DEFAULT = new WriterOptions(null, ImmutableList.<String>of(),
       ImmutableList.<String>of(), ImmutableList.<String>of(), PartitionDistributionStrategy.UNSPECIFIED, null, false,

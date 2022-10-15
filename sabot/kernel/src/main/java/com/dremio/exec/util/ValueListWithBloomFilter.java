@@ -16,7 +16,7 @@
 
 package com.dremio.exec.util;
 
-import static org.apache.arrow.util.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.arrow.memory.ArrowBuf;
 

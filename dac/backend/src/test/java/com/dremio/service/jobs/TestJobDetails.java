@@ -89,7 +89,8 @@ public class TestJobDetails extends BaseTestServer {
       .setPart2(id.getLeastSignificantBits())
       .build();
 
-    final Job job = createJob(jobId, Arrays.asList("testA", "dsA1"), "v1", "A", "testA", JobState.COMPLETED, sql, 100L, 110L, QueryType.UI_RUN);
+    List<String> datasetPaths = Arrays.asList("testA", "dsA1");
+    final Job job = createJob(jobId, datasetPaths, "v1", "A", "testA", JobState.COMPLETED, sql, 100L, 110L, QueryType.UI_RUN);
     AttemptId attemptId = AttemptId.of(externalId);
     job.getJobAttempt()
       .setAttemptId(AttemptIdUtils.toString(attemptId))
@@ -107,7 +108,7 @@ public class TestJobDetails extends BaseTestServer {
       .setDetails(new JobDetails());
     job.addAttempt(jobAttempt);
     ParentDatasetInfo parentDatasetInfo = new ParentDatasetInfo();
-    parentDatasetInfo.setDatasetPathList(Arrays.asList("testA", "dsA1"));
+    parentDatasetInfo.setDatasetPathList(datasetPaths);
     parentDatasetInfo.setType(DatasetType.valueOf(2));
     job.getJobAttempt().getInfo().setParentsList(Collections.singletonList(parentDatasetInfo));
 
@@ -156,6 +157,8 @@ public class TestJobDetails extends BaseTestServer {
     assertEquals(0, jobInfoDetailsUI.getDatasetGraph().size());
     assertEquals(0, jobInfoDetailsUI.getTotalMemory());
     assertEquals(0, jobInfoDetailsUI.getCpuUsed());
+    assertEquals(datasetPaths, jobInfoDetailsUI.getDatasetPaths());
+
   }
 
   private Job createJob(final String id, final List<String> datasetPath, final String version, final String user,

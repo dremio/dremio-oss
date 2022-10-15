@@ -17,7 +17,7 @@ package com.dremio.plugins;
 
 import java.util.List;
 
-import org.apache.arrow.util.Preconditions;
+import com.google.common.base.Preconditions;
 
 public final class ExternalNamespaceEntry {
   public enum Type {
@@ -25,6 +25,7 @@ public final class ExternalNamespaceEntry {
     FOLDER,
     ICEBERG_TABLE,
     ICEBERG_VIEW
+
   }
 
   private Type type;

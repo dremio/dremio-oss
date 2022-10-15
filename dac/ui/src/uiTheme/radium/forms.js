@@ -45,7 +45,10 @@ export const section = {
 };
 
 export const sectionTitle = {
-  marginBottom: 6,
+  marginTop: 24,
+  marginBottom: 24,
+  fontSize: 18,
+  fontWeight: 600,
 };
 
 export const subSectionTitle = {
@@ -93,20 +96,6 @@ export const textArea = {
   width: "100%",
   display: "block",
   border: "1px solid var(--dremio--color--neutral--200)",
-
-  ":hover": {
-    borderColor: "var(--dremio--color--neutral--300)",
-  },
-
-  ":focus": {
-    outline: "none",
-    borderColor: "var(--dremio--color--primary--500)",
-  },
-
-  ":disabled": {
-    background: "var(--dremio--color--neutral--150)",
-    color: "var(--dremio--color--text--disabled)",
-  },
 };
 
 export const description = {

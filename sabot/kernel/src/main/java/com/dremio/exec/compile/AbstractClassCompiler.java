@@ -31,7 +31,7 @@ public abstract class AbstractClassCompiler implements ClassCompiler {
       throws CompileException, IOException, ClassNotFoundException, ClassTransformationException {
     if (getLogger().isDebugEnabled()) {
       getLogger().debug("Compiling (source size={}):\n{}", DremioStringUtils.readable(sourceCode.length()),
-          debug ? prefixLineNumbers(sourceCode) : debug);
+          debug ? prefixLineNumbers(sourceCode) : false);
 
 /* uncomment this to get a dump of the generated source in /tmp
       // This can be used to write out the generated operator classes for debugging purposes

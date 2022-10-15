@@ -45,6 +45,8 @@ public interface HiveClient extends AutoCloseable {
 
   boolean databaseExists(final String dbName);
 
+  String getDatabaseLocationUri(final String dbName);
+
   List<String> getTableNames(String dbName, boolean ignoreAuthzErrors) throws TException;
 
   boolean tableExists(final String dbName, final String tableName) throws TException ;

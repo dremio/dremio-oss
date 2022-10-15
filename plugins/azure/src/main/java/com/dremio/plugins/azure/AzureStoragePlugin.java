@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
-import org.apache.arrow.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +43,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 /**
  * Storage plugin for Microsoft Azure Storage
@@ -182,7 +182,7 @@ class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<AzureSt
     final String containerName = resolvedPath.get(0);
     if (resolvedPath.size() == 1) {
       throw UserException.validationError()
-        .message("Creating containers is not supported.", containerName)
+        .message("Creating containers is not supported (name: %s).", containerName)
         .build(logger);
     }
     return containerName;

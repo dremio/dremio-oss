@@ -16,7 +16,7 @@
 
 package com.dremio.exec.work.protector;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 

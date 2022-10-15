@@ -54,6 +54,7 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
    */
   private static void nextUntilEnd(final ResultSet resultSet) throws SQLException {
     while (resultSet.next()) {
+      // reach the end
     }
   }
 

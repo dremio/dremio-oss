@@ -65,7 +65,7 @@ import com.google.common.collect.ImmutableSet;
  * A specialized version of RexInputRef that holds an entire schema path along
  * with important information to support planning.
  */
-public class SchemaField extends RexInputRef {
+public final class SchemaField extends RexInputRef {
 
   public static final Set<ElasticSpecialType> NON_DOC_TYPES = ImmutableSet.of(
     // you can't retrieve geo shapes using doc values

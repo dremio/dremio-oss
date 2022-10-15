@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.store.parquet;
 
-import static com.dremio.sabot.Fixtures.struct;
-import static com.dremio.sabot.Fixtures.t;
-import static com.dremio.sabot.Fixtures.tb;
-import static com.dremio.sabot.Fixtures.th;
-import static com.dremio.sabot.Fixtures.tr;
-import static com.dremio.sabot.Fixtures.tuple;
-import static com.dremio.sabot.Fixtures.varCharList;
+import static com.dremio.sabot.RecordSet.r;
+import static com.dremio.sabot.RecordSet.rb;
+import static com.dremio.sabot.RecordSet.rs;
+import static com.dremio.sabot.RecordSet.st;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -33,10 +30,12 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.FileContent;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -58,7 +57,6 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
@@ -68,10 +66,10 @@ import com.dremio.exec.util.BloomFilter;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.BaseTestTableFunction;
-import com.dremio.sabot.Fixtures;
-import com.dremio.sabot.Fixtures.DataRow;
-import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.Generator;
+import com.dremio.sabot.RecordBatchValidator;
+import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.Record;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
@@ -82,6 +80,7 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 
 import io.protostuff.ByteString;
 import io.protostuff.ByteStringUtil;
@@ -91,6 +90,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
   private static final List<SchemaPath> COLUMNS = ImmutableList.of(
       SchemaPath.getSimplePath("order_id"),
       SchemaPath.getSimplePath("order_year"));
+  private static final BatchSchema OUTPUT_SCHEMA = IcebergTestTables.V2_ORDERS_SCHEMA.maskAndReorder(COLUMNS);
   private static final List<String> PARTITION_COLUMNS = ImmutableList.of("order_year");
   private static final ByteString EXTENDED_PROPS = getExtendedProperties(COLUMNS);
   private static final PartitionProtobuf.NormalizedPartitionInfo PARTITION_INFO_2019 =
@@ -117,12 +117,6 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
               .setIntValue(2021)
               .build())
           .build();
-  private static final Fixtures.HeaderRow INPUT_HEADER = th(
-      struct(SystemSchemas.SPLIT_IDENTITY, ImmutableList.of(
-          SplitIdentity.PATH, SplitIdentity.OFFSET, SplitIdentity.LENGTH, SplitIdentity.FILE_LENGTH)),
-      SystemSchemas.SPLIT_INFORMATION,
-      SystemSchemas.COL_IDS,
-      SystemSchemas.AGG_DELETEFILE_PATHS);
 
   // contains order_id 0..999
   private static final String DATA_2019_00 = "2019/2019-00.parquet";
@@ -194,8 +188,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
 
   @Test
   public void testDataFileWithMultipleRowGroups() throws Exception {
-    Table input = t(
-        INPUT_HEADER,
+    RecordSet input = rs(SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA,
         inputRow(DATA_2021_00, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)));
 
     Iterator<Integer> orderIds = Stream.iterate(6000, i -> i + 1)
@@ -204,15 +197,14 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
         .filter(FILTER_DELETE_2021_01)
         .filter(FILTER_DELETE_2021_02)
         .iterator();
-    Table output = outputTable(orderIds);
+    RecordSet output = outputRecordSet(orderIds);
 
     validate(input, output);
   }
 
   @Test
   public void testWithMultipleDataFilesSharingDeleteFiles() throws Exception {
-    Table input = t(
-        INPUT_HEADER,
+    RecordSet input = rs(SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA,
         inputRow(DATA_2021_00, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)),
         inputRow(DATA_2021_01, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)),
         inputRow(DATA_2021_02, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)));
@@ -223,43 +215,87 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
         .filter(FILTER_DELETE_2021_01)
         .filter(FILTER_DELETE_2021_02)
         .iterator();
-    Table output = outputTable(orderIds);
+    RecordSet output = outputRecordSet(orderIds);
 
     validate(input, output);
   }
 
   @Test
   public void testWithMultipleUnsortedInputBatches() throws Exception {
-    Table input = t(
-        INPUT_HEADER,
-        tb(
+    RecordSet input = rs(SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA,
+        rb(
             inputRow(DATA_2021_01, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)),
             inputRow(DATA_2020_01, ImmutableList.of(DELETE_2020_00)),
             inputRow(DATA_2019_02),
             inputRow(DATA_2020_00, ImmutableList.of(DELETE_2020_00)),
             inputRow(DATA_2019_00)),
-        tb(
+        rb(
             inputRow(DATA_2021_02, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)),
             inputRow(DATA_2020_02, ImmutableList.of(DELETE_2020_00)),
             inputRow(DATA_2021_00, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)),
             inputRow(DATA_2019_01)));
 
-    Iterator<Integer> orderIds = Stream.iterate(0, i -> i + 1)
-        .limit(9000)
-        .filter(FILTER_DELETE_2020_00)
-        .filter(FILTER_DELETE_2021_00)
-        .filter(FILTER_DELETE_2021_01)
-        .filter(FILTER_DELETE_2021_02)
-        .iterator();
-    Table output = outputTable(orderIds).orderInsensitive();
+    Iterator<Integer> orderIds = Iterators.concat(
+        // input batch 1 - ordered by datafile path
+        // DATA_2019_00
+        Stream.iterate(0, i -> i + 1)
+            .limit(1000)
+            .iterator(),
+        // DATA_2019_02
+        Stream.iterate(2000, i -> i + 1)
+            .limit(1000)
+            .iterator(),
+        // DATA_2020_00
+        Stream.iterate(3000, i -> i + 1)
+            .limit(1000)
+            .filter(FILTER_DELETE_2020_00)
+            .iterator(),
+        // DATA_2020_01
+        Stream.iterate(4000, i -> i + 1)
+            .limit(1000)
+            .filter(FILTER_DELETE_2020_00)
+            .iterator(),
+        // DATA_2021_01
+        Stream.iterate(7000, i -> i + 1)
+            .limit(1000)
+            .filter(FILTER_DELETE_2021_00)
+            .filter(FILTER_DELETE_2021_01)
+            .filter(FILTER_DELETE_2021_02)
+            .iterator(),
+
+        // input batch 2 - ordered by datafile path
+        // DATA_2019_01
+        Stream.iterate(1000, i -> i + 1)
+            .limit(1000)
+            .iterator(),
+        // DATA_2020_02
+        Stream.iterate(5000, i -> i + 1)
+            .limit(1000)
+            .filter(FILTER_DELETE_2020_00)
+            .iterator(),
+        // DATA_2021_00
+        Stream.iterate(6000, i -> i + 1)
+            .limit(1000)
+            .filter(FILTER_DELETE_2021_00)
+            .filter(FILTER_DELETE_2021_01)
+            .filter(FILTER_DELETE_2021_02)
+            .iterator(),
+        // DATA_2021_02
+        Stream.iterate(8000, i -> i + 1)
+            .limit(1000)
+            .filter(FILTER_DELETE_2021_00)
+            .filter(FILTER_DELETE_2021_01)
+            .filter(FILTER_DELETE_2021_02)
+            .iterator());
+
+    RecordSet output = outputRecordSet(orderIds);
 
     validate(input, output);
   }
 
   @Test
   public void testWithEmptyBlockSplitExpansion() throws Exception {
-    Table input = t(
-        INPUT_HEADER,
+    RecordSet input = rs(SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA,
         // this split should expand to only the 1st rowgroup which ends around offset 15200
         inputRow(DATA_2021_00, 0, 10000, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)),
         // this should expand to nothing
@@ -271,15 +307,14 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
         .filter(FILTER_DELETE_2021_01)
         .filter(FILTER_DELETE_2021_02)
         .iterator();
-    Table output = outputTable(orderIds);
+    RecordSet output = outputRecordSet(orderIds);
 
     validate(input, output);
   }
 
   @Test
   public void testWithNoDeleteFiles() throws Exception {
-    Table input = t(
-        INPUT_HEADER,
+    RecordSet input = rs(SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA,
         inputRow(DATA_2021_00),
         inputRow(DATA_2021_01),
         inputRow(DATA_2021_02));
@@ -287,15 +322,14 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
     Iterator<Integer> orderIds = Stream.iterate(6000, i -> i + 1)
         .limit(3000)
         .iterator();
-    Table output = outputTable(orderIds);
+    RecordSet output = outputRecordSet(orderIds);
 
     validate(input, output);
   }
 
   @Test
   public void testWithRuntimeFilterThatExcludesDataFiles() throws Exception {
-    Table input = t(
-        INPUT_HEADER,
+    RecordSet input = rs(SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA,
         inputRow(DATA_2021_00, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)),
         inputRow(DATA_2021_01, ImmutableList.of(DELETE_2021_00, DELETE_2021_01, DELETE_2021_02)));
 
@@ -305,7 +339,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
         .filter(FILTER_DELETE_2021_01)
         .filter(FILTER_DELETE_2021_02)
         .iterator();
-    Table output = outputTable(orderIds);
+    RecordSet output = outputRecordSet(orderIds);
     // create a filter that will exclude all data files being scanned
     OutOfBandMessage msg = createRuntimeFilterForOrderYears(ImmutableList.of(2020));
 
@@ -314,43 +348,43 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
     validateWithRuntimeFilter(input, output, msg, 1);
   }
 
-  private DataRow inputRow(String relativePath) throws Exception {
+  private Record inputRow(String relativePath) throws Exception {
     return inputRow(relativePath, 0, -1, ImmutableList.of());
   }
 
-  private DataRow inputRow(String relativePath, List<String> deleteFiles) throws Exception {
+  private Record inputRow(String relativePath, List<String> deleteFiles) throws Exception {
     return inputRow(relativePath, 0, -1, deleteFiles);
   }
 
-  private DataRow inputRow(String relativePath, long offset, long length, List<String> deleteFiles) throws Exception {
+  private Record inputRow(String relativePath, long offset, long length, List<String> deleteFiles) throws Exception {
     Path path = Path.of(table.getLocation() + "/data/" + relativePath);
     long fileSize = fs.getFileAttributes(path).size();
     if (length == -1) {
       length = fileSize;
     }
     PartitionProtobuf.NormalizedPartitionInfo partitionInfo = getPartitionInfoForDataFile(relativePath);
-    return tr(
-        tuple(path.toString(), 0, fileSize, fileSize),
+    return r(
+        st(path.toString(), 0L, fileSize, fileSize),
         createSplitInformation(path.toString(), offset, length, fileSize, 0, partitionInfo),
         EXTENDED_PROPS.toByteArray(),
-        varCharList(deleteFiles.stream()
+        deleteFiles.stream()
             .map(p -> table.getLocation() + "/data/" + p)
-            .toArray(String[]::new)));
+            .map(p -> st(p, FileContent.POSITION_DELETES.id(), 0L, null))
+            .collect(Collectors.toList()));
   }
 
-  private Table outputTable(Iterator<Integer> expectedOrderIds) {
-    List<DataRow> rows = new ArrayList<>();
+  private RecordSet outputRecordSet(Iterator<Integer> expectedOrderIds) {
+    List<Record> rows = new ArrayList<>();
     while (expectedOrderIds.hasNext()) {
       int orderId = expectedOrderIds.next();
       int orderYear = orderId < 3000 ? 2019 : orderId < 6000 ? 2020 : 2021;
-      rows.add(tr(orderId, orderYear));
+      rows.add(r(orderId, orderYear));
     }
-    return t(
-        th("order_id", "order_year"),
-        rows.toArray(new DataRow[0]));
+    return rs(OUTPUT_SCHEMA,
+        rows.toArray(new Record[0]));
   }
 
-  private void validate(Table input, Table output) throws Exception {
+  private void validate(RecordSet input, RecordSet output) throws Exception {
     TableFunctionPOP pop = getPop(table, IcebergTestTables.V2_ORDERS_SCHEMA, COLUMNS, PARTITION_COLUMNS,
         EXTENDED_PROPS);
     try (AutoCloseable closeable = with(ExecConstants.PARQUET_READER_VECTORIZE, false)) {
@@ -358,8 +392,8 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
     }
   }
 
-  private void validateWithRuntimeFilter(Table input, Table result, OutOfBandMessage msg, int sendMsgAtRecordCount)
-      throws Exception {
+  private void validateWithRuntimeFilter(Generator.Creator input, RecordBatchValidator result, OutOfBandMessage msg,
+      int sendMsgAtRecordCount) throws Exception {
     boolean msgSent = false;
     TableFunctionPOP pop = getPop(table, IcebergTestTables.V2_ORDERS_SCHEMA, COLUMNS, PARTITION_COLUMNS,
         EXTENDED_PROPS);

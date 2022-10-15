@@ -16,7 +16,6 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
-import Art from "@app/components/Art";
 import {
   tag,
   selected,
@@ -42,6 +41,7 @@ export class Tag extends Component {
     onClick: PropTypes.func,
     deleteHandler: PropTypes.func,
     onRef: PropTypes.func,
+    style: PropTypes.any,
   };
 
   static defaultProps = {
@@ -65,6 +65,7 @@ export class Tag extends Component {
       daqa,
       title,
       onRef,
+      style,
     } = this.props;
     const isDeletable = !readonly && !!deleteHandler;
 
@@ -87,16 +88,15 @@ export class Tag extends Component {
     }
 
     return (
-      <div {...props} ref={onRef}>
+      <div {...props} ref={onRef} style={style}>
         <span className={textWrapper}>
           <span className={textClass}>{text}</span>
         </span>
         {isDeletable && (
-          <Art
-            src="XBig.svg"
-            alt="delete"
-            title
-            className={classNames(deleteButton)}
+          <dremio-icon
+            name="interface/close-big"
+            alt="Delete"
+            class={classNames(deleteButton)}
             onClick={this.deleteClick}
           />
         )}

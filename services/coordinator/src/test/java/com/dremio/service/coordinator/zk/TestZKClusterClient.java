@@ -18,6 +18,7 @@ package com.dremio.service.coordinator.zk;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.CLUSTER_ID;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ROOT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -41,8 +42,6 @@ import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.test.DremioTest;
 import com.typesafe.config.ConfigValueFactory;
-
-import junit.framework.Assert;
 
 /**
  * Test for {@code TestZKClusterClient}
@@ -443,7 +442,7 @@ public class TestZKClusterClient extends DremioTest {
     ZKClusterClient client = new ZKClusterClient(
       config,
       String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()));
-    Assert.assertNotNull(client);
+    assertNotNull(client);
     return client;
   }
 
@@ -515,11 +514,11 @@ public class TestZKClusterClient extends DremioTest {
         bothLeaders = electionListener1.isLeader && electionListener2.isLeader;
       }
 
-      Assert.assertTrue(electionRegistrationHandle1.instanceCount() == 2);
-      Assert.assertTrue(electionRegistrationHandle2.instanceCount() == 2);
+      assertEquals(2, electionRegistrationHandle1.instanceCount());
+      assertEquals(2, electionRegistrationHandle2.instanceCount());
 
       // assert that there is only one leader
-      Assert.assertFalse("Two leaders are not expected.", bothLeaders);
+      assertFalse("Two leaders are not expected.", bothLeaders);
     }
   }
 

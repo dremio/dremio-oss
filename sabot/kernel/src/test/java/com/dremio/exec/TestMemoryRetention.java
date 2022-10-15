@@ -76,6 +76,7 @@ public class TestMemoryRetention {
       this.allocator = allocator;
     }
 
+    @SuppressWarnings("DoNotCall") // Thread.run is intentionally getting called here
     @Override
     public void run() {
       final Random r = new Random();

@@ -25,8 +25,8 @@ import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.MemoryUtil;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.datasketches.hll.HllSketch;
 import org.apache.datasketches.memory.WritableMemory;
@@ -53,19 +53,14 @@ public abstract class BaseNdvAccumulator implements Accumulator {
   public static class HllAccumHolder {
     private final int maxValuesPerBatch;
     private final ArrowBuf dataBuf;
-    private final ArrowBuf validityBuf;
     private final ByteBuffer accumAddress;
 
-    public HllAccumHolder(final int maxValuesPerBatch, final ArrowBuf dataBuf, final ArrowBuf validityBuf) {
+    public HllAccumHolder(final int maxValuesPerBatch, final ArrowBuf dataBuf) {
       this.maxValuesPerBatch = maxValuesPerBatch;
 
       this.dataBuf = dataBuf;
       Preconditions.checkArgument(dataBuf.capacity() >= (long) maxValuesPerBatch * SKETCH_SIZE);
       dataBuf.getReferenceManager().retain();
-
-      this.validityBuf = validityBuf;
-      Preconditions.checkArgument(BitVectorHelper.getValidityBufferSize(maxValuesPerBatch) <= validityBuf.capacity());
-      validityBuf.getReferenceManager().retain();
 
       accumAddress = MemoryUtil.directBuffer(dataBuf.memoryAddress(), (int)dataBuf.capacity());
 
@@ -78,7 +73,6 @@ public abstract class BaseNdvAccumulator implements Accumulator {
 
         /* Initialize backing memory for the sketch. HllSketch memset the first getMaxUpdatableSerializationBytes() bytes. */
         HllSketch sketch = new HllSketch(SKETCH_ACCURACY, SKETCH_HLLTYPE, WritableMemory.wrap(bb));
-        BitVectorHelper.unsetBit(validityBuf, i);
       }
     }
 
@@ -95,7 +89,6 @@ public abstract class BaseNdvAccumulator implements Accumulator {
 
     public void close() {
       dataBuf.getReferenceManager().release();
-      validityBuf.getReferenceManager().release();
     }
 
     public void reset(final int startIndex, final int numRecords) {
@@ -103,16 +96,13 @@ public abstract class BaseNdvAccumulator implements Accumulator {
       int sketchOffset = startIndex * SKETCH_SIZE;
 
       for (int i = 0; i < numRecords; ++i, sketchOffset += SKETCH_SIZE) {
-        if (BitVectorHelper.get(validityBuf, startIndex + i) != 0) {
-          accumAddress.limit(sketchOffset + SKETCH_SIZE);
-          accumAddress.position(sketchOffset);
-          ByteBuffer bb = accumAddress.slice();
-          bb.order(ByteOrder.nativeOrder());
+        accumAddress.limit(sketchOffset + SKETCH_SIZE);
+        accumAddress.position(sketchOffset);
+        ByteBuffer bb = accumAddress.slice();
+        bb.order(ByteOrder.nativeOrder());
 
-          /* Reinitialize backing memory for the sketch. HllSketch memset the first getMaxUpdatableSerializationBytes() bytes. */
-          HllSketch sketch = new HllSketch(SKETCH_ACCURACY, SKETCH_HLLTYPE, WritableMemory.wrap(bb));
-          BitVectorHelper.unsetBit(validityBuf, startIndex + i);
-        }
+        /* Reinitialize backing memory for the sketch. HllSketch memset the first getMaxUpdatableSerializationBytes() bytes. */
+        HllSketch sketch = new HllSketch(SKETCH_ACCURACY, SKETCH_HLLTYPE, WritableMemory.wrap(bb));
       }
     }
 
@@ -123,41 +113,36 @@ public abstract class BaseNdvAccumulator implements Accumulator {
 
   public void update(final int batchIndex, final int accumIndex, final int newVal) {
     HllSketch sketch = accumBatches[batchIndex].getAccumSketch(accumIndex);
-    BitVectorHelper.setBit(accumBatches[batchIndex].validityBuf, accumIndex);
     sketch.update(newVal);
   }
 
   public void update(final int batchIndex, final int accumIndex, final float newVal) {
     HllSketch sketch = accumBatches[batchIndex].getAccumSketch(accumIndex);
-    BitVectorHelper.setBit(accumBatches[batchIndex].validityBuf, accumIndex);
     sketch.update(newVal);
   }
 
   public void update(final int batchIndex, final int accumIndex, final long newVal) {
     HllSketch sketch = accumBatches[batchIndex].getAccumSketch(accumIndex);
-    BitVectorHelper.setBit(accumBatches[batchIndex].validityBuf, accumIndex);
     sketch.update(newVal);
   }
 
   public void update(final int batchIndex, final int accumIndex, final double newVal) {
     HllSketch sketch = accumBatches[batchIndex].getAccumSketch(accumIndex);
-    BitVectorHelper.setBit(accumBatches[batchIndex].validityBuf, accumIndex);
     sketch.update(newVal);
   }
 
   public void update(final int batchIndex, final int accumIndex, final byte[] newVal) {
     HllSketch sketch = accumBatches[batchIndex].getAccumSketch(accumIndex);
-    BitVectorHelper.setBit(accumBatches[batchIndex].validityBuf, accumIndex);
     sketch.update(newVal);
   }
 
   public BaseNdvAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                            BaseVariableWidthVector tempAccumulatorHolder) {
+                            BaseValueVector tempAccumulatorHolder) {
     this.input = input;
     this.transferVector = transferVector;
-    this.tempAccumulatorHolder = tempAccumulatorHolder;
+    this.tempAccumulatorHolder = (BaseVariableWidthVector)tempAccumulatorHolder;
     this.maxValuesPerBatch = maxValuesPerBatch;
-    Preconditions.checkArgument(tempAccumulatorHolder.getByteCapacity() >= maxValuesPerBatch * SKETCH_SIZE);
+    Preconditions.checkArgument(this.tempAccumulatorHolder.getByteCapacity() >= maxValuesPerBatch * SKETCH_SIZE);
     initArrs(0);
     batches = 0;
     resizeInProgress = false;
@@ -199,7 +184,7 @@ public abstract class BaseNdvAccumulator implements Accumulator {
 
   @Override
   public int getValidityBufferSize() {
-    return BitVectorHelper.getValidityBufferSize(maxValuesPerBatch);
+    return 0;
   }
 
   @Override
@@ -243,7 +228,7 @@ public abstract class BaseNdvAccumulator implements Accumulator {
         System.arraycopy(oldAccumBatches, 0, this.accumBatches, 0, batches);
       }
       /* add a single batch */
-      accumBatches[batches] = new HllAccumHolder(maxValuesPerBatch, dataBuffer, validityBuffer);
+      accumBatches[batches] = new HllAccumHolder(maxValuesPerBatch, dataBuffer);
       ++batches;
       resizeInProgress = true;
     } catch (Exception e) {
@@ -260,11 +245,9 @@ public abstract class BaseNdvAccumulator implements Accumulator {
   private void prepareTransferVector(BaseVariableWidthVector transferVector,
                                      final int batchIndex, final int numRecords, final int targetIndex) {
     for (int i = 0; i < numRecords; ++i) {
-      if (BitVectorHelper.get(accumBatches[batchIndex].validityBuf, i) != 0) {
-        HllSketch sketch = accumBatches[batchIndex].getAccumSketch(i);
-        byte[] ba = sketch.toCompactByteArray();
-        transferVector.set(targetIndex + i, ba);
-      }
+      HllSketch sketch = accumBatches[batchIndex].getAccumSketch(i);
+      byte[] ba = sketch.toCompactByteArray();
+      transferVector.set(targetIndex + i, ba);
     }
     transferVector.setValueCount(targetIndex + numRecords);
   }
@@ -275,6 +258,9 @@ public abstract class BaseNdvAccumulator implements Accumulator {
     prepareTransferVector(tempAccumulatorHolder, batchIndex, numRecordsInChunk, 0);
     return tempAccumulatorHolder.getFieldBuffers();
   }
+
+  @Override
+  public void compact(final int batchIndex, final int nextRecSize) { }
 
   /**
    * Take the accumulator vector (the vector that stores computed values)
@@ -297,10 +283,8 @@ public abstract class BaseNdvAccumulator implements Accumulator {
     int numRecords = 0;
     for (int i = 0; i < recordsInBatches.length; ++i) {
       for (int k = 0; k < recordsInBatches[i]; ++k) {
-        if (BitVectorHelper.get(accumBatches[startBatchIndex + i].validityBuf, k) != 0) {
-          HllSketch sketch = accumBatches[startBatchIndex + i].getAccumSketch(k);
-          size += sketch.getCompactSerializationBytes();
-        }
+        HllSketch sketch = accumBatches[startBatchIndex + i].getAccumSketch(k);
+        size += sketch.getCompactSerializationBytes();
       }
       numRecords += recordsInBatches[i];
     }
@@ -395,14 +379,7 @@ public abstract class BaseNdvAccumulator implements Accumulator {
     accumBatches[dstBatchIndex].dataBuf.setBytes(dstStartIndex * SKETCH_SIZE, accumBatches[srcBatchIndex].dataBuf,
       srcStartIndex * SKETCH_SIZE, numRecords * SKETCH_SIZE);
 
-    /* Set the validity bits in destination batch */
-    /* XXX: Seems no helper function available yet to copy validity bits from a random index at source */
-    for (int i = 0; i < numRecords; ++i) {
-      BitVectorHelper.setValidityBit(accumBatches[dstBatchIndex].validityBuf, dstStartIndex + i,
-        BitVectorHelper.get(accumBatches[srcBatchIndex].validityBuf, srcStartIndex + i));
-    }
-
-    /* Reset the original sketches. reset will unset the validity bits */
+    /* Reset the original sketches */
     accumBatches[srcBatchIndex].reset(srcStartIndex, numRecords);
   }
 
@@ -411,13 +388,6 @@ public abstract class BaseNdvAccumulator implements Accumulator {
     ArrowBuf dataBuf = accumBatches[0].dataBuf;
 
     return dataBuf.slice(0, dataBuf.capacity());
-  }
-
-  public ArrowBuf getValidityBuffer() {
-    Preconditions.checkArgument(batches == 1);
-    ArrowBuf validityBuf = accumBatches[0].validityBuf;
-
-    return validityBuf.slice(0, validityBuf.capacity());
   }
 
   public BaseVariableWidthVector getTempAccumulatorHolder() {

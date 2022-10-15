@@ -17,17 +17,19 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { overlay } from "uiTheme/radium/overlay";
 import Immutable from "immutable";
+import { Button } from "dremio-ui-lib";
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
 import FontIcon from "components/Icon/FontIcon";
 import { Toggle } from "components/Fields";
 import AggregateForm from "components/Aggregate/AggregateForm";
 import Spinner from "components/Spinner";
-import Button from "components/Buttons/Button";
 
 import "@app/uiTheme/less/commonModifiers.less";
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 import { commonThemes } from "../commonThemes";
 
 import LayoutInfo from "../LayoutInfo";
+import { intl } from "@app/utils/intl";
 
 class AccelerationAggregate extends PureComponent {
   static getFields() {
@@ -85,13 +87,13 @@ class AccelerationAggregate extends PureComponent {
             <Spinner
               message={
                 <span style={{ display: "flex", alignItems: "center" }}>
-                  {la("Determining Automatic Aggregation Reflections…")}
+                  {intl.formatMessage({ id: "Reflections.Auto.Aggregation" })}
                   <Button
                     style={{ marginLeft: "1em" }}
-                    disableSubmit
+                    disableMargin
                     onClick={skipRecommendations}
-                    type="CUSTOM"
-                    text={la("Skip")}
+                    color={ButtonTypes.UI_LIB_SECONDARY}
+                    text={intl.formatMessage({ id: "Reflections.Skip" })}
                   />
                 </span>
               }

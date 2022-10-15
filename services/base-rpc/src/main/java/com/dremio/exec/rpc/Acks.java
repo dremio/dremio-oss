@@ -17,9 +17,12 @@ package com.dremio.exec.rpc;
 
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 
-public class Acks {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Acks.class);
+public final class Acks {
 
   public static final Ack OK = Ack.newBuilder().setOk(true).build();
   public static final Ack FAIL = Ack.newBuilder().setOk(false).build();
+
+  private Acks() {
+    // Utility class
+  }
 }

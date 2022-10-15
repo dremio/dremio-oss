@@ -46,17 +46,18 @@
     "prefer-const": "error",
     "no-extra-boolean-cast": "warn",
     "react/no-string-refs": "error",
-    "react/no-find-dom-node": "warn",
+    "react/no-find-dom-node": "error",
     "react/jsx-no-duplicate-props": "error",
     "react/no-unescaped-entities": "error",
     "@typescript-eslint/ban-types": "warn",
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "react/no-unknown-property": "warn",
+    "react-hooks/exhaustive-deps": "error",
 
     // Promise errors switched to warning until DX-48988 is completed
     "promise/always-return": "error",
     "promise/catch-or-return": "error",
-    "promise/no-return-wrap": "warn",
+    "promise/no-return-wrap": "error",
     "promise/valid-params": "error",
     "promise/no-callback-in-promise": "error",
     "@typescript-eslint/no-unused-vars": "error"

@@ -34,18 +34,14 @@ import {
   explorePageChanged,
   jobUpdateWatchers,
 } from "sagas/runDataset";
-import {
-  REAPPLY_DATASET_SUCCESS,
-  navigateAfterReapply,
-} from "actions/explore/dataset/reapply";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
-import { focusSqlEditor, resetQueryState } from "@app/actions/explore/view";
+import { focusSqlEditor } from "@app/actions/explore/view";
 import { getViewStateFromAction } from "@app/reducers/resources/view";
 import {
   getFullDataset,
   getDatasetVersionFromLocation,
   getExploreJobId,
-  getExploreState,
+  getTableDataRaw,
 } from "@app/selectors/explore";
 import { getLocation } from "selectors/routing";
 import { TRANSFORM_PEEK_START } from "@app/actions/explore/dataset/peek";
@@ -74,16 +70,23 @@ import {
 
 export default function* watchLoadDataset() {
   yield takeEvery(PERFORM_LOAD_DATASET, handlePerformLoadDataset);
-  yield takeEvery(REAPPLY_DATASET_SUCCESS, handleReapply);
   yield fork(explorePageDataChecker);
 }
 
 //todo merge this logic into performTransform saga
 export function* handlePerformLoadDataset({ meta }) {
-  const { dataset, viewId } = meta;
+  const { dataset, viewId, willLoadTable = true } = meta;
 
   try {
-    const apiAction = yield call(loadDataset, dataset, viewId);
+    const apiAction = yield call(
+      loadDataset,
+      dataset,
+      viewId,
+      undefined,
+      undefined,
+      willLoadTable
+    );
+
     const response = yield call(transformThenNavigate, apiAction, viewId, {
       replaceNav: true,
       preserveTip: true,
@@ -112,7 +115,7 @@ export function* handlePerformLoadDataset({ meta }) {
       } else {
         const version = nextFullDataset.get("version");
         yield put(initializeExploreJobProgress(false, version)); // Sets if the initial dataset load is a `Run`
-        yield call(loadTableData, version);
+        yield call(loadTableData, version, undefined, willLoadTable);
       }
     }
   } catch (e) {
@@ -130,22 +133,6 @@ export function* handlePerformLoadDataset({ meta }) {
 
 export function* focusSqlEditorSaga() {
   yield put(focusSqlEditor());
-}
-
-function* handleReapply(response) {
-  const { payload, error } = response;
-  if (error) return;
-
-  // since multi queries can exist, we reset the dataset and remove other queries from page
-  const exploreState = yield select(getExploreState);
-  const curQueries =
-    exploreState && exploreState.view && exploreState.view.queryStatuses;
-  if (curQueries) {
-    yield put(resetQueryState());
-  }
-
-  yield put(navigateAfterReapply(response, true));
-  yield call(loadTableData, payload.get("result"));
 }
 
 //export for testing
@@ -166,7 +153,11 @@ export function* cancelDataLoad() {
  * @yields {void}
  * @throws DataLoadError
  */
-export function* loadTableData(datasetVersion, forceReload) {
+export function* loadTableData(
+  datasetVersion,
+  forceReload,
+  isRunOrPreview = true
+) {
   const edition = VersionUtils.getEditionFromConfig();
   log(`prerequisites check; forceReload=${!!forceReload}`);
   let resetViewState = true;
@@ -176,7 +167,7 @@ export function* loadTableData(datasetVersion, forceReload) {
   //#region check if metadata is loaded --------------------
 
   // Tracks all preview queries
-  if (!forceReload && datasetVersion && edition === "DCS") {
+  if (isRunOrPreview && !forceReload && datasetVersion && edition === "DCS") {
     sendEventToIntercom(INTERCOM_EVENTS.JOB_PREVIEW);
   }
 
@@ -211,7 +202,8 @@ export function* loadTableData(datasetVersion, forceReload) {
         datasetVersion,
         jobId,
         forceReload,
-        paginationUrl
+        paginationUrl,
+        isRunOrPreview
       ),
       isLoadCanceled: take([CANCEL_TABLE_DATA_LOAD, TRANSFORM_PEEK_START]), // cancel previous data load
       locationChange: call(resetTableViewStateOnPageLeave),
@@ -280,7 +272,13 @@ function* pageChangeListener(doInitialLoad) {
 function* loadDataForCurrentPage() {
   const location = yield select(getLocation);
   const datasetVersion = getDatasetVersionFromLocation(location);
-  yield call(loadTableData, datasetVersion);
+  const isTransform = location?.state?.isTransform;
+
+  const tableData = yield select(getTableDataRaw, datasetVersion);
+  // Should only load table data if a transform completed, or if it has an active run/preview
+  if (tableData?.get("rows") || isTransform) {
+    yield call(loadTableData, datasetVersion);
+  }
 }
 
 //export for tests
@@ -297,7 +295,13 @@ export function* resetTableViewStateOnPageLeave() {
   yield call(hideTableSpinner);
 }
 
-export function* loadDataset(dataset, viewId, forceDataLoad, sessionId) {
+export function* loadDataset(
+  dataset,
+  viewId,
+  forceDataLoad,
+  sessionId,
+  willLoadTable
+) {
   const location = yield select(getLocation);
   const { mode, tipVersion } = location.query || {};
   let apiAction;
@@ -309,7 +313,8 @@ export function* loadDataset(dataset, viewId, forceDataLoad, sessionId) {
       viewId,
       tipVersion,
       forceDataLoad,
-      sessionId
+      sessionId,
+      willLoadTable
     );
   } else {
     const pathnameParts = location.pathname.split("/");

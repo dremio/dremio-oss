@@ -26,3 +26,7 @@ export function getEditionFromConfig() {
 export function getAboutMode() {
   return "full";
 }
+
+export function isDcsEdition() {
+  return false;
+}

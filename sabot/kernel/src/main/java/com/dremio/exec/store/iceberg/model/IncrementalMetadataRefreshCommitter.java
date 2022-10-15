@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
@@ -98,6 +99,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   private final DatasetConfig datasetConfig;
   private Table table;
   private final MutablePlugin plugin;
+  private final boolean isMapDataTypeEnabled;
 
   public IncrementalMetadataRefreshCommitter(OperatorContext operatorContext, String tableName, List<String> datasetPath, String tableLocation,
                                              String tableUuid, BatchSchema batchSchema,
@@ -129,6 +131,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     this.datasetPath = datasetPath;
     this.executionControls = operatorContext.getExecutionControls();
     this.plugin = plugin;
+    this.isMapDataTypeEnabled = operatorContext.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
   }
 
   boolean hasAnythingChanged() {
@@ -205,7 +208,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     long numDataFiles = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
     datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin, getCurrentSchema());
-    BatchSchema newSchemaFromIceberg = new SchemaConverter().fromIceberg(table.schema());
+    BatchSchema newSchemaFromIceberg = SchemaConverter.getBuilder().setMapTypeEnabled(isMapDataTypeEnabled).build().fromIceberg(table.schema());
     newSchemaFromIceberg = BatchSchema.newBuilder().addFields(newSchemaFromIceberg.getFields())
       .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();
     datasetCatalogRequestBuilder.overrideSchema(newSchemaFromIceberg);
@@ -309,7 +312,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       }
     }
 
-    SchemaConverter schemaConverter = new SchemaConverter(tableName);
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).setMapTypeEnabled(isMapDataTypeEnabled).build();
     Schema oldIcebergSchema = schemaConverter.toIcebergSchema(batchSchema);
     Schema newIcebergSchema = schemaConverter.toIcebergSchema(newSchema);
 

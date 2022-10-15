@@ -21,7 +21,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
   <artifactId>dremio-services-coordinator</artifactId>
   <name>Services - Coordinator</name>
@@ -85,12 +85,12 @@
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
-      <dependency>
-          <groupId>com.dremio.services</groupId>
-          <artifactId>dremio-services-telemetry-api</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-      </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-telemetry-api</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
   <profiles>
     <profile>

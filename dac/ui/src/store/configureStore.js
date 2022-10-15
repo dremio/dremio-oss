@@ -17,7 +17,7 @@ import { isProduction } from "@app/utils/config";
 
 import { createStore, applyMiddleware, compose } from "redux";
 import thunk from "redux-thunk";
-import createLogger from "redux-logger";
+// import createLogger from "redux-logger";
 import { apiMiddleware } from "redux-api-middleware";
 import { browserHistory } from "react-router";
 import { routerMiddleware } from "react-router-redux";
@@ -49,7 +49,7 @@ const middleWares = [
   serverErrorMiddleware,
   serverStatusMiddleware,
   sagaMiddleware,
-  isDev && createLogger({ collapsed: true }),
+  // isDev && createLogger({ collapsed: true }),
   routerMiddleware(browserHistory),
 ].filter(Boolean);
 

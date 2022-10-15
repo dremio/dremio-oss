@@ -26,7 +26,6 @@ import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 
 public abstract class BaseOptionManager implements OptionManager {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseOptionManager.class);
   private final OptionValidatorListing optionValidatorListing;
 
   protected BaseOptionManager(OptionValidatorListing optionValidatorListing) {

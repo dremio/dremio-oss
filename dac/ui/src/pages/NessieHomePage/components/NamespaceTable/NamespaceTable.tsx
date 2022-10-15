@@ -15,11 +15,13 @@
  */
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
+import { connect } from "react-redux";
 
 import { getViewStateFromReq } from "@app/utils/smartPromise";
 import StatefulTableViewer from "@app/components/StatefulTableViewer";
 import useNamespaceList from "../../utils/useNamespaceList";
 import NamespaceItem from "../NamespaceItem/NamespaceItem";
+import NamespaceSettings from "../NamespaceSettings/NamespaceSettings";
 import PageBreadcrumbHeader from "../PageBreadcrumbHeader/PageBreadcrumbHeader";
 import { useNessieContext } from "../../utils/context";
 import NessieLink from "../NessieLink/NessieLink";
@@ -27,18 +29,37 @@ import NessieLink from "../NessieLink/NessieLink";
 import "./NamespaceTable.less";
 import { parseNamespaceUrl } from "@app/utils/nessieUtils";
 
-function NamespaceTable({ location }: { location: any }) {
+function NamespaceTable({
+  location,
+  enableCompaction,
+}: {
+  location: any;
+  enableCompaction: boolean;
+}) {
   const {
     state: { hash, reference },
   } = useNessieContext();
   const intl = useIntl();
-  const columns = [
-    {
-      key: "name",
-      label: intl.formatMessage({ id: "Common.Name" }),
-      flexGrow: 1,
-    },
-  ];
+
+  const columns = enableCompaction
+    ? [
+        {
+          key: "name",
+          label: intl.formatMessage({ id: "Common.Name" }),
+          flexGrow: 1,
+        },
+        {
+          key: "settings",
+          label: "",
+        },
+      ]
+    : [
+        {
+          key: "name",
+          label: intl.formatMessage({ id: "Common.Name" }),
+          flexGrow: 1,
+        },
+      ];
   const path = useMemo(() => {
     return parseNamespaceUrl(location.pathname, "namespace");
   }, [location]);
@@ -48,6 +69,7 @@ function NamespaceTable({ location }: { location: any }) {
     hash,
     path,
   });
+
   const tableData = useMemo(() => {
     return (data?.entries || []).flatMap((entry, i) => {
       return {
@@ -56,6 +78,9 @@ function NamespaceTable({ location }: { location: any }) {
         data: {
           name: {
             node: () => <NamespaceItem entry={entry} />,
+          },
+          settings: {
+            node: () => <NamespaceSettings entry={entry} />,
           },
         },
       };
@@ -86,4 +111,11 @@ function NamespaceTable({ location }: { location: any }) {
   );
 }
 
-export default NamespaceTable;
+const mapStateToProps = (state: any) => {
+  const enableCompaction = state.featureFlag.data_optimization === "ENABLED";
+  return {
+    enableCompaction,
+  };
+};
+
+export default connect(mapStateToProps, {})(NamespaceTable);

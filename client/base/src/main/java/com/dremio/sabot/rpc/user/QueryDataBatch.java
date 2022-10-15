@@ -22,7 +22,6 @@ import org.apache.arrow.memory.ArrowBuf;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 
 public class QueryDataBatch implements AutoCloseable {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryDataBatch.class);
 
   private final QueryData header;
   private final ArrowBuf data;

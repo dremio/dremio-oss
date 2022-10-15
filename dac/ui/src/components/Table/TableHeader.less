@@ -1,0 +1,85 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/color-schema.less";
+
+.sort() {
+  min-width: 24px;
+  height: 24px;
+  width: 24px;
+  inline-size: 24px;
+  block-size: 24px;
+  color: var(--dremio--color--icon--main);
+}
+
+:global {
+  .headerCell {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    margin-left: 0;
+    cursor: default;
+    justify-content: space-between;
+
+    &--alignRight {
+      justify-content: flex-end;
+      text-align: right;
+      width: 100%;
+    }
+
+    &--withBorderBottom {
+      border-bottom: 1px solid var(--dremio--color--neutral--150);
+    }
+
+    &--dragging {
+      cursor: col-resize;
+    }
+
+    &__sorting-icon {
+      display: inline-flex;
+      opacity: 0;
+      .sort();
+      &--selected {
+        display: inline-flex;
+        .sort();
+        opacity: 1 !important;
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+
+      &--unsortable {
+        cursor: default !important;
+      }
+
+      .headerCell__sorting-icon {
+        display: inline-flex;
+        opacity: 0.5;
+      }
+    }
+    &__dragPipe {
+      display: inline-flex;
+      align-items: center;
+      height: 1.5em;
+      color: var(--dremio--color--neutral--150);
+
+      &--noDrag {
+        cursor: default !important;
+      }
+    }
+  }
+}

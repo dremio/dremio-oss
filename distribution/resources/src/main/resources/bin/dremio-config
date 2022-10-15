@@ -289,6 +289,11 @@ are_gcoptions_conflicting() {
   if [[ "$DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS" == *"${1}"* ]]; then
     return 1; # false
   fi
+  # If *EXTRA_OPTS contains UseGC, then return false to indicate that its not an option to select GC algorithm (like G1GC, ZGC, etc)
+  if [[ "$DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS" == *-XX:+UseGC* ]]; then
+      return 1; # false
+  fi
+  #Since we rule-out *UseGC* in above condition, consider *Use*GC* to contain GC algorithm.
   if [[ "$DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS" == *-XX:+Use*GC* ]]; then
     return 0; # true
   fi

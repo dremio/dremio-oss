@@ -17,6 +17,8 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.Objects;
 
+import com.google.errorprone.annotations.FormatMethod;
+
 public class SimpleCommandResult {
 
   public boolean ok;
@@ -28,6 +30,7 @@ public class SimpleCommandResult {
     this.summary = summary;
   }
 
+  @FormatMethod
   public static SimpleCommandResult successful(String msg, Object...objects ) {
     return successful(String.format(msg, objects));
   }
@@ -36,6 +39,7 @@ public class SimpleCommandResult {
     return new SimpleCommandResult(true, msg);
   }
 
+  @FormatMethod
   public static SimpleCommandResult fail(String msg, Object...objects) {
     return new SimpleCommandResult(false, String.format(msg, objects));
   }

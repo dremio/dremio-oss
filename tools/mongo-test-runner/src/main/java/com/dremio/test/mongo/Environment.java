@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
 
 import com.google.common.io.BaseEncoding;
 
@@ -179,14 +180,16 @@ final class Environment implements Closeable{
       resource.close();
     }
     // Delete temporary files
-    Files.walk(tempDirectory)
-      .sorted(Comparator.reverseOrder())
-      .forEach(p -> {
-      try {
-        Files.delete(p);
-      } catch (IOException e) {
-        throw new IOError(e);
-      }
-    });
+    try (Stream<Path> stream = Files.walk(tempDirectory)) {
+      stream
+        .sorted(Comparator.reverseOrder())
+        .forEach(p -> {
+          try {
+            Files.delete(p);
+          } catch (IOException e) {
+            throw new IOError(e);
+          }
+        });
+    }
   }
 }

@@ -110,7 +110,7 @@ public class ReflectionPlanGenerator {
     // retrieve reflection's dataset
     final DatasetConfig dataset = namespaceService.findDatasetByUUID(goal.getDatasetId());
     if (dataset == null) {
-      throw new IllegalStateException(String.format("reflection %s has no corresponding dataset", ReflectionUtils.getId(goal)));
+      throw new IllegalStateException(String.format("Dataset %s not found for %s", goal.getDatasetId(), ReflectionUtils.getId(goal)));
     }
     // generate dataset's plan and viewFieldTypes
     final NamespaceKey path = new NamespaceKey(dataset.getFullPathList());

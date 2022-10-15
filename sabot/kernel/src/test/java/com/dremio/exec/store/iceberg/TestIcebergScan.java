@@ -17,6 +17,7 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.ExecConstants.ENABLE_EXTEND_ON_SELECT;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -25,12 +26,8 @@ import static org.junit.Assert.assertNull;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.stream.Stream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,7 +43,6 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.ColumnUtils;
-import com.google.common.io.Resources;
 
 public class TestIcebergScan extends BaseTestQuery {
   private static FileSystem fs;
@@ -148,12 +144,17 @@ public class TestIcebergScan extends BaseTestQuery {
 
   @Test
   public void testExceptionOnDeleteFile() throws Exception {
-    testRootPath = "/tmp/iceberg";
-    copyFromJar("iceberg/table_with_delete", testRootPath);
-    assertThatThrownBy(() -> {
-      runSQL("alter table dfs_hadoop.tmp.iceberg refresh metadata");
-    }).isInstanceOf(Exception.class)
-      .hasMessageContaining("Iceberg V2 tables with delete files are not supported");
+    try {
+      setSystemOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN, "false");
+      testRootPath = "/tmp/iceberg";
+      copyFromJar("iceberg/table_with_delete", testRootPath);
+      assertThatThrownBy(() -> {
+        runSQL("alter table dfs_hadoop.tmp.iceberg refresh metadata");
+      }).isInstanceOf(Exception.class)
+          .hasMessageContaining("Iceberg V2 tables with delete files are not supported");
+    } finally {
+      resetSystemOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN.getOptionName());
+    }
   }
 
   @Test
@@ -196,18 +197,6 @@ public class TestIcebergScan extends BaseTestQuery {
     }
     fs.mkdirs(path);
 
-    URI resource = Resources.getResource(src).toURI();
-    java.nio.file.Path srcDir = Paths.get(resource);
-    try (Stream<java.nio.file.Path> stream = Files.walk(srcDir)) {
-      stream.forEach(source -> copy(source, Paths.get(testRoot).resolve(srcDir.relativize(source))));
-    }
-  }
-
-  private void copy(java.nio.file.Path source, java.nio.file.Path dest) {
-    try {
-      Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
-    } catch (Exception e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
+    copyFromJar(src, Paths.get(testRoot));
   }
 }

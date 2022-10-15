@@ -60,7 +60,6 @@ public class RefreshStartHandler {
     ReflectionId reflectionId = entry.getId();
 
     final MaterializationId id = new MaterializationId(UUID.randomUUID().toString());
-    logger.debug("starting refresh for materialization {}/{}", reflectionId.getId(), id.getId());
     boolean icebergDataset = isIcebergDataset(optionManager);
     final Materialization materialization = new Materialization()
         .setId(id)
@@ -83,7 +82,7 @@ public class RefreshStartHandler {
     final JobId jobId = ReflectionUtils.submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "materialization job done"));
 
-    logger.debug("starting materialization job {}", jobId.getId());
+    logger.debug("Submitted REFRESH REFLECTION job {} for {}", jobId.getId(), ReflectionUtils.getId(entry, materialization));
 
     materialization.setInitRefreshJobId(jobId.getId());
 

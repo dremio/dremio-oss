@@ -61,6 +61,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.RuleBasedEngineSelector;
+import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
 import com.dremio.service.commandpool.CommandPool;
@@ -78,7 +79,6 @@ import com.google.protobuf.Empty;
 
 import io.grpc.Context;
 import io.netty.buffer.ByteBuf;
-import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
  * AttemptManager manages all the fragments (local and remote) for a single query where this
@@ -337,6 +337,14 @@ public class AttemptManager implements Runnable {
     }
   }
 
+  public boolean canCancelByHeapMonitor() {
+    return state == QueryState.ENQUEUED ||
+      state == QueryState.STARTING &&
+        command != null &&
+        command.getCommandType() != CommandType.ASYNC_QUERY;
+  }
+
+
   /**
    * Resume a paused query
    */
@@ -425,7 +433,7 @@ public class AttemptManager implements Runnable {
     } catch (final UserException | ForemanException e) {
       moveToState(QueryState.FAILED, e);
     } catch (final OutOfMemoryError e) {
-      if (e instanceof OutOfDirectMemoryError || "Direct buffer memory".equals(e.getMessage())) {
+      if (ErrorHelper.isDirectMemoryException(e)) {
         moveToState(QueryState.FAILED, UserException.memoryError(e).build(logger));
       } else {
         /*
@@ -688,7 +696,12 @@ public class AttemptManager implements Runnable {
 
         UserException uex;
         if (resultException != null) {
-          uex = UserException.systemError(resultException).addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+          ResourceAllocationException ex = ErrorHelper.findWrappedCause(resultException, ResourceAllocationException.class);
+          if (ex != null) {
+            uex = UserException.resourceError(ex).message(ex.getMessage()).build(logger);
+          } else {
+            uex = UserException.systemError(resultException).addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+          }
         } else {
           uex = null;
         }
@@ -707,7 +720,7 @@ public class AttemptManager implements Runnable {
           injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_TAIL_PROFLE_ERROR);
           queryProfile = profileTracker.sendTailProfile(uex);
         } catch (Exception e) {
-          logger.warn("Exception sending tail profile. Setting query state to failed", resultException);
+          logger.warn("Exception sending tail profile. Setting query state to failed",  e);
           sendTailProfileFailed = true;
           addException(e);
           recordNewState(QueryState.FAILED);
@@ -719,7 +732,7 @@ public class AttemptManager implements Runnable {
           }
           // As tail profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
           // to use in query result.
-          queryProfile = profileTracker.getPlanningProfile();
+          queryProfile = profileTracker.getPlanningProfileNoException();
         }
 
         // Reflection queries are dependant on stats in Executor Profile, so fetching full profile instead of just planning profile
@@ -746,7 +759,7 @@ public class AttemptManager implements Runnable {
             }
             // As full profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
             // to use in query result.
-            queryProfile = profileTracker.getPlanningProfile();
+            queryProfile = profileTracker.getPlanningProfileNoException();
           }
         }
 
@@ -831,7 +844,11 @@ public class AttemptManager implements Runnable {
 
         case RUNNING: {
           recordNewState(QueryState.RUNNING);
-          observer.execStarted(profileTracker.getPlanningProfile());
+          try {
+            observer.execStarted(profileTracker.getPlanningProfile());
+          } catch (UserCancellationException ucx) {
+            //Ignore this exception here.
+          }
           return;
         }
 

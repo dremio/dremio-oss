@@ -60,6 +60,11 @@ message ContentWithKey {
   Content content = 2;
 }
 
+message IcebergMetadata {
+  string variant = 1;
+  string metadataJson = 2;
+}
+
 message IcebergTable {
   string id = 1;
   string metadataLocation = 2;
@@ -67,6 +72,7 @@ message IcebergTable {
   int32 schemaId = 4;
   int32 specId = 5;
   int32 sortOrderId = 6;
+  optional IcebergMetadata metadata = 7;
 }
 
 message IcebergView {
@@ -76,6 +82,7 @@ message IcebergView {
   int32 schemaId = 4;
   string dialect = 5;
   string sqlText = 6;
+  optional IcebergMetadata metadata = 7;
 }
 
 message DeltaLakeTable {

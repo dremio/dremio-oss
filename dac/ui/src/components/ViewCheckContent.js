@@ -17,7 +17,6 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { CENTER } from "uiTheme/radium/flexStyle";
-import Art from "./Art";
 
 export default class ViewCheckContent extends Component {
   static propTypes = {
@@ -38,11 +37,10 @@ export default class ViewCheckContent extends Component {
     return !viewState.get("isInProgress") && dataIsNotAvailable ? (
       <div style={{ ...style, ...customStyle }}>
         <span>{message || "Nothing Here"}</span>
-        <Art
-          src="GnarlyBook.svg"
-          alt=""
-          title="Gnarly"
-          style={{ height: 133, width: 91 }}
+        <dremio-icon
+          name="narwhal/query"
+          alt="Gnarly"
+          style={{ height: 160, width: 161 }}
         />
       </div>
     ) : (

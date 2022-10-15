@@ -24,6 +24,8 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
@@ -31,8 +33,6 @@ import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-
-import io.netty.util.internal.PlatformDependent;
 
 /**
  * <p>This is akin to an off-heap LinkedListMultimap where the backing memory is a collection of equal-sized Pages
@@ -101,8 +101,10 @@ public class PageListMultimap implements AutoCloseable {
 
   private final List<Page> heads = new ArrayList<>();
   private final List<Page> elements = new ArrayList<>();
-  private long[] headAddresses = new long[0];
-  private long[] elementAddresses = new long[0];
+  private ArrowBuf[] headBufs = new ArrowBuf[0];
+  private ArrowBuf[] elementBufs = new ArrowBuf[0];
+  private long[] headBufAddrs = new long[0];
+  private long[] elementBufAddrs = new long[0];
 
   // the size of elements list
   private int totalListSize = BASE_ELEMENT_INDEX;
@@ -167,12 +169,24 @@ public class PageListMultimap implements AutoCloseable {
     return Short.toUnsignedInt((short)(carryAlongId & 0x0000FFFF));
   }
 
-  long[] getHeadAddresses() {
-    return headAddresses;
+  ArrowBuf[] getHeadBufs() {
+    return headBufs;
   }
 
-  long[] getElementAddresses() {
-    return elementAddresses;
+  ArrowBuf[] getElementBufs() {
+    return elementBufs;
+  }
+
+  long[] getHeadBufAddrs() {
+    return headBufAddrs;
+  }
+
+  long[] getElementBufAddrs() {
+    return elementBufAddrs;
+  }
+
+  int getBufSize() {
+    return pool.getPageSize();
   }
 
   int getHeadShift() {
@@ -199,7 +213,7 @@ public class PageListMultimap implements AutoCloseable {
     Preconditions.checkArgument(state == State.BUILD);
     Preconditions.checkArgument(key >= 0);
     expandIfNecessary(1, key);
-    insertElement(key, getHeadAddresses(), headShift, headMask, getElementAddresses(), elementShift, elementMask, totalListSize, carryAlongId);
+    insertElement(key, getHeadBufs(), headShift, headMask, getElementBufs(), elementShift, elementMask, totalListSize, carryAlongId);
     maxInsertedKey = Integer.max(maxInsertedKey, key);
     totalListSize++;
   }
@@ -226,10 +240,9 @@ public class PageListMultimap implements AutoCloseable {
       while ((heads.size() + localHeadPages.size()) * headsPerPage < maximumKeyValue + 1) {
         final Page p = c.add(pool.newPage());
         localHeadPages.add(p);
-        long bufOffset = p.getAddress();
-        final long maxBufOffset = bufOffset + headsPerPage * HEAD_SIZE;
-        for(; bufOffset < maxBufOffset; bufOffset += HEAD_SIZE) {
-          PlatformDependent.putInt(bufOffset, TERMINAL);
+        final ArrowBuf buf = p.getBackingBuf();
+        for(int bufOffset = 0; bufOffset < headsPerPage * HEAD_SIZE; bufOffset += HEAD_SIZE) {
+          buf.setInt(bufOffset, TERMINAL);
         }
       }
 
@@ -237,8 +250,18 @@ public class PageListMultimap implements AutoCloseable {
       elements.addAll(localElementPages);
       c.commit();
 
-      headAddresses = heads.stream().mapToLong(Page::getAddress).toArray();
-      elementAddresses = elements.stream().mapToLong(Page::getAddress).toArray();
+      headBufs = heads.stream()
+        .map(Page::getBackingBuf)
+        .toArray(ArrowBuf[]::new);
+      elementBufs = elements.stream()
+        .map(Page::getBackingBuf)
+        .toArray(ArrowBuf[]::new);
+      headBufAddrs = heads.stream()
+        .mapToLong(Page::getAddress)
+        .toArray();
+      elementBufAddrs = elements.stream()
+        .mapToLong(Page::getAddress)
+        .toArray();
     } catch (RuntimeException ex) {
       throw ex;
     } catch (Exception ex) {
@@ -251,43 +274,43 @@ public class PageListMultimap implements AutoCloseable {
    */
   private static void insertElement(
     final int key,
-    final long[] headAddresses,
+    final ArrowBuf[] headBufs,
     final int headShift,
     final int headMask,
-    final long[] elementAddresses,
+    final ArrowBuf[] elementBufs,
     final int elementShift,
     final int elementMask,
     final int listIndex,
     final long carryAlongLocation) {
     // get the head corresponding to the key.
-    final int headPage = key >>> headShift;
-    final long headAddr = headAddresses[headPage] + (key & headMask) * HEAD_SIZE;
+    final int headPageIdx = key >>> headShift;
+    final long headOffsetInPage = (key & headMask) * HEAD_SIZE;
 
     // note, this could be a EMPTY value but that is ok
     // since it is a consistent value across both structures.
-    final int oldHead = PlatformDependent.getInt(headAddr);
+    final int oldHead = headBufs[headPageIdx].getInt(headOffsetInPage);
     // overwrite the head
-    PlatformDependent.putInt(headAddr, listIndex);
+    headBufs[headPageIdx].setInt(headOffsetInPage, listIndex);
 
-    final int thisElementPage = listIndex >> elementShift;
-    final int thisElementIndex = listIndex & elementMask;
-    final long thisElementAddr = elementAddresses[thisElementPage] + thisElementIndex * ELEMENT_SIZE;
+    final int thisElementPageIdx = listIndex >> elementShift;
+    final long thisElementOffsetInPage = (listIndex & elementMask) * ELEMENT_SIZE;
+    final ArrowBuf thisElementBuf = elementBufs[thisElementPageIdx];
 
-    PlatformDependent.putLong(thisElementAddr, carryAlongLocation);
-    PlatformDependent.putInt(thisElementAddr + NEXT_OFFSET, oldHead);
-    PlatformDependent.putInt(thisElementAddr + KEY_OFFSET, key);
+    thisElementBuf.setLong(thisElementOffsetInPage, carryAlongLocation);
+    thisElementBuf.setInt(thisElementOffsetInPage + NEXT_OFFSET, oldHead);
+    thisElementBuf.setInt(thisElementOffsetInPage + KEY_OFFSET, key);
 
     logger.trace("insert key {} index {} next {}", key, listIndex, oldHead);
   }
 
   /**
    * Insert a collection of items for a given batchId.
-   * @param keysAddress Address to a collection of four byte keys
+   * @param keysIn buffer with collection of four byte keys
    * @param maxKeyValue The maximum value of the key
    * @param batchId The incoming batch id
    * @param numRecords The number of records to insert.
    */
-  public void insertCollection(long keysAddress, int maxKeyValue, int batchId, int numRecords) {
+  public void insertCollection(ArrowBuf keysIn, int maxKeyValue, int batchId, int numRecords) {
     Preconditions.checkArgument(state == State.BUILD);
     // first, let's allocate another page if it is necessary.
     expandIfNecessary(numRecords, maxKeyValue);
@@ -297,21 +320,16 @@ public class PageListMultimap implements AutoCloseable {
     final int headMask = this.headMask;
     final int elementShift = this.elementShift;
     final int elementMask = this.elementMask;
-    final long[] headAddresses = getHeadAddresses();
-    final long[] elementAddresses = getElementAddresses();
-
-    final long lastKeyAddr = keysAddress + numRecords * KEY_SIZE;
+    final ArrowBuf[] headBufs = getHeadBufs();
+    final ArrowBuf[] elementBufs = getElementBufs();
 
     int listIndex = totalListSize;
-    int currentRecordIdx = 0;
-    for (long currentKeyAddr = keysAddress;
-         currentKeyAddr < lastKeyAddr;
-         currentKeyAddr += KEY_SIZE, listIndex++, currentRecordIdx++) {
+    for (int currentRecordIdx = 0; currentRecordIdx < numRecords; listIndex++, currentRecordIdx++) {
       long carryAlongId = getCarryAlongId(batchId, currentRecordIdx);
-      final int key = PlatformDependent.getInt(currentKeyAddr);
+      final int key = keysIn.getInt(currentRecordIdx * KEY_SIZE);
       Preconditions.checkArgument(key <= maxKeyValue && key >= 0);
       Preconditions.checkState(listIndex < TERMINAL);
-      insertElement(key, headAddresses, headShift, headMask, elementAddresses, elementShift, elementMask, listIndex, carryAlongId);
+      insertElement(key, headBufs, headShift, headMask, elementBufs, elementShift, elementMask, listIndex, carryAlongId);
     }
 
     maxInsertedKey = Integer.max(maxInsertedKey, maxKeyValue);
@@ -339,7 +357,7 @@ public class PageListMultimap implements AutoCloseable {
     if (key > maxInsertedKey) {
       throw new ArrayIndexOutOfBoundsException(String.format("Key requested %d greater than max inserted key %d.", key, maxInsertedKey));
     }
-    final int head = PlatformDependent.getInt(headAddresses[key >>> headShift] + HEAD_SIZE * (key & headMask));
+    final int head = headBufs[key >>> headShift].getInt(HEAD_SIZE * (key & headMask));
     final FindIterator iterator = new FindIterator(key, head);
     return StreamSupport.longStream(Spliterators.spliterator(iterator, 5, 0), false);
   }
@@ -385,15 +403,16 @@ public class PageListMultimap implements AutoCloseable {
     @Override
     public long nextLong() {
       Preconditions.checkArgument(current >= BASE_ELEMENT_INDEX && current < totalListSize);
-      final long address = elementAddresses[current >> elementShift] + ELEMENT_SIZE * (current & elementMask);
-      final long val = PlatformDependent.getLong(address);
+      final ArrowBuf currentElementBuf = elementBufs[current >> elementShift];
+      final int offsetInPage = ELEMENT_SIZE * (current & elementMask);
+      final long val = currentElementBuf.getLong(offsetInPage);
       logger.trace("find key {} index {}", key, current);
 
-      current  = PlatformDependent.getInt(address + NEXT_OFFSET);
+      current  = currentElementBuf.getInt(offsetInPage + NEXT_OFFSET);
       if (trackVisited) {
         if (current > 0) {
           // first visit, mark as visited by flipping the sign.
-          PlatformDependent.putInt(address + NEXT_OFFSET, -current);
+          currentElementBuf.setInt(offsetInPage + NEXT_OFFSET, -current);
         } else {
           // not the first visit, flip the sign of what we just read.
           current = -current;
@@ -419,15 +438,15 @@ public class PageListMultimap implements AutoCloseable {
     @Override
     public int getKey(int index) {
       Preconditions.checkArgument(isIndexValid(index));
-      final long address = elementAddresses[index >> elementShift] + ELEMENT_SIZE * (index & elementMask);
-      return PlatformDependent.getInt(address + KEY_OFFSET);
+      final ArrowBuf buf = elementBufs[index >> elementShift];
+      return buf.getInt(ELEMENT_SIZE * (index & elementMask) + KEY_OFFSET);
     }
 
     @Override
     public long getCarryAlongId(int index) {
       Preconditions.checkArgument(isIndexValid(index));
-      final long address = elementAddresses[index >> elementShift] + ELEMENT_SIZE * (index & elementMask);
-      return PlatformDependent.getLong(address);
+      final ArrowBuf buf = elementBufs[index >> elementShift];
+      return buf.getLong(ELEMENT_SIZE * (index & elementMask));
     }
 
     private boolean isIndexValid(int index) {
@@ -452,9 +471,10 @@ public class PageListMultimap implements AutoCloseable {
     @Override
     public KeyAndCarryAlongId next() {
       Preconditions.checkArgument(current >= BASE_ELEMENT_INDEX && current < totalListSize);
-      final long address = elementAddresses[current >> elementShift] + ELEMENT_SIZE * (current & elementMask);
-      final long val = PlatformDependent.getLong(address);
-      final int key = PlatformDependent.getInt(address + KEY_OFFSET);
+      final ArrowBuf currentElementBuf = elementBufs[current >> elementShift];
+      final int offsetInPage = ELEMENT_SIZE * (current & elementMask);
+      final long val = currentElementBuf.getLong(offsetInPage);
+      final int key = currentElementBuf.getInt(offsetInPage + KEY_OFFSET);
       logger.trace("findUnvisited key {} index {}", key, current);
 
       ++current;
@@ -464,8 +484,9 @@ public class PageListMultimap implements AutoCloseable {
 
     private void skipVisited() {
       while (current < totalListSize) {
-        final long address = elementAddresses[current >> elementShift] + ELEMENT_SIZE * (current & elementMask);
-        int next = PlatformDependent.getInt(address + NEXT_OFFSET);
+        final ArrowBuf currentElementBuf = elementBufs[current >> elementShift];
+        final int offsetInPage = ELEMENT_SIZE * (current & elementMask);
+        int next = currentElementBuf.getInt(offsetInPage + NEXT_OFFSET);
         if (next > 0) {
           // all visited entries will have their sign bit flipped to -ve value.
           break;

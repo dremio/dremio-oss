@@ -15,6 +15,8 @@
  */
 package com.dremio.service.reflection.store;
 
+import java.util.Map;
+
 import javax.inject.Provider;
 
 import com.dremio.datastore.VersionExtractor;
@@ -94,5 +96,9 @@ public class ReflectionSettingsStore {
         .versionExtractor(AccelerationSettingsVersionExtractor.class)
         .build();
     }
+  }
+
+  public Iterable<Map.Entry<NamespaceKey, AccelerationSettings>> getAll() {
+    return store.get().find();
   }
 }

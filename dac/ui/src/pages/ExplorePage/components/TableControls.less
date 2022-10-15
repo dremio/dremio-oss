@@ -232,13 +232,15 @@
         button,
         input {
           font-size: 14px;
+          width: fit-content;
         }
 
-        &-addField,
+        &-addField {
+          width: 120px;
+        }
         &-groupBy {
           width: 102px;
         }
-
         &-join {
           width: 69px;
           min-width: 0;
@@ -270,14 +272,6 @@
             .fa {
               .gray-icon-hover();
             }
-          }
-        }
-
-        & > span {
-          margin: 5px 10px 0 !important;
-
-          &:hover {
-            .gray-icon-hover();
           }
         }
       }

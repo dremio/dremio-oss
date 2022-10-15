@@ -49,7 +49,6 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Charsets;
 
 public class WriterOperator implements SingleInputOperator {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOperator.class);
 
   private final Listener listener = new Listener();
   private final StatsListener statsListener = new StatsListener();

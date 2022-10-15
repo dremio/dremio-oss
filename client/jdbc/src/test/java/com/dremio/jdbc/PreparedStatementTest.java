@@ -186,12 +186,12 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
           metadata.getColumnDisplaySize(colNum) == displaySize &&
           metadata.getColumnClassName(colNum).equals(className) &&
           metadata.isSearchable(colNum) &&
-          metadata.isAutoIncrement(colNum) == false &&
-          metadata.isCaseSensitive(colNum) == false &&
+          !metadata.isAutoIncrement(colNum) &&
+          !metadata.isCaseSensitive(colNum) &&
           metadata.isReadOnly(colNum) &&
-          metadata.isWritable(colNum) == false &&
-          metadata.isDefinitelyWritable(colNum) == false &&
-          metadata.isCurrency(colNum) == false;
+          !metadata.isWritable(colNum) &&
+          !metadata.isDefinitelyWritable(colNum) &&
+          !metadata.isCurrency(colNum);
     }
 
     @Override

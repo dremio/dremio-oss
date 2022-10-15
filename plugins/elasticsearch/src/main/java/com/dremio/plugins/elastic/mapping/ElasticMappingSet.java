@@ -57,7 +57,7 @@ import com.google.common.collect.ImmutableSet;
  */
 public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticIndex> {
 
-  private static final Logger logger = LoggerFactory.getLogger(SchemaMerger.class);
+  private static final Logger logger = LoggerFactory.getLogger(ElasticMappingSet.class);
 
   public static final ObjectMapper MAPPER = new ObjectMapper()
       .registerModule(new GuavaModule())
@@ -315,37 +315,37 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       }
 
       if(!Objects.equal(name, field.name)) {
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
         return null;
       }
 
       if(type != field.type){
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
         return null;
       }
 
       if(indexing != field.indexing){
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "indexing schemes", indexing.toString(), field.indexing.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "indexing schemes", indexing.toString(), field.indexing.toString());
         return null;
       }
 
       if(!Objects.equal(formats, field.formats)){
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
         return null;
       }
 
       if(docValues != field.docValues){
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "doc values storage settings", String.valueOf(docValues), String.valueOf(field.docValues));
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "doc values storage settings", String.valueOf(docValues), String.valueOf(field.docValues));
         return null;
       }
 

@@ -35,14 +35,17 @@ import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
@@ -153,7 +156,7 @@ public class BaseTestQuery extends ExecTest {
   private static final Properties TEST_CONFIGURATIONS = new Properties() {
     {
       put(ExecConstants.HTTP_ENABLE, "false");
-      put(PARQUET_SCHEMA_FALLBACK_DISABLED, "true");
+      put(PARQUET_SCHEMA_FALLBACK_DISABLED, "false");
     }
   };
 
@@ -721,6 +724,22 @@ public class BaseTestQuery extends ExecTest {
     return file;
   }
 
+  protected static void copy(java.nio.file.Path source, java.nio.file.Path dest) {
+    try {
+      java.nio.file.Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+  }
+
+  protected static void copyFromJar(String sourceElement, final java.nio.file.Path target) throws URISyntaxException, IOException {
+    URI resource = Resources.getResource(sourceElement).toURI();
+    java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
+    try (Stream<java.nio.file.Path> stream = java.nio.file.Files.walk(srcDir)) {
+      stream.forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
+    }
+  }
+
   protected static void resetSessionOption(final OptionValidator option) {
     resetSessionOption(option.getOptionName());
   }
@@ -934,6 +953,13 @@ public class BaseTestQuery extends ExecTest {
     return setHiveParquetComplexTypes("true");
   }
 
+  protected static AutoCloseable enableMapDataType() {
+    setSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE, "true");
+    return () ->
+      setSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE,
+        ExecConstants.ENABLE_MAP_DATA_TYPE.getDefault().getBoolVal().toString());
+  }
+
   protected static AutoCloseable disableHiveParquetComplexTypes() {
     return setHiveParquetComplexTypes("false");
   }
@@ -1120,7 +1146,7 @@ public class BaseTestQuery extends ExecTest {
     enableGlobalDictionary();
     FileAttributes withDict = testAndGetResult(query, tag);
     boolean diff = false;
-    final HashMap<String, Void> lines = new HashMap<>();
+    final Map<String, Void> lines = new HashMap<>();
     try (BufferedReader in1 = new BufferedReader(new InputStreamReader(localFs.open(original.getPath()), UTF_8))) {
       String line = null;
       while ((line = in1.readLine()) != null) {

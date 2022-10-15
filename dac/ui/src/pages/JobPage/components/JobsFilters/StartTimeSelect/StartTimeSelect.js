@@ -181,7 +181,7 @@ class StartTimeSelect extends Component {
 export default injectIntl(StartTimeSelect);
 const style = {
   dropDown: {
-    boxShadow: "0 0 5px #999",
+    boxShadow: "var(--dremio--shadow--layer-1)",
     borderRadius: "2px",
     backgroundColor: "#fff",
     zIndex: "99",

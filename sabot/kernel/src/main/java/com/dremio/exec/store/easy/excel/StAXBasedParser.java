@@ -23,10 +23,10 @@ import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -106,7 +106,7 @@ public class StAXBasedParser implements ExcelParser {
   private final ColumnNameHandler columnNameHandler = new ColumnNameHandler();
 
   /* lookup table to find if a particular column is to be projected or not */
-  private final HashSet<String> columnsToProject;
+  private final Set<String> columnsToProject;
 
   /**
    * Merge cell map. Key is the top-left cell in the merged region. Value is null if there is no merge cell
@@ -130,7 +130,7 @@ public class StAXBasedParser implements ExcelParser {
    */
   public StAXBasedParser(final InputStream inputStream, final ExcelFormatPluginConfig pluginConfig,
                          final VectorContainerWriter writer, final ArrowBuf managedBuf,
-                         final HashSet<String> columnsToProject, final boolean skipQuery,
+                         final Set<String> columnsToProject, final boolean skipQuery,
                          final int maxCellSize) throws Exception {
     this.pkgInputStream = OPCPackage.open(inputStream);
     this.writer = writer.rootAsStruct();
@@ -251,6 +251,10 @@ public class StAXBasedParser implements ExcelParser {
           }
           break;
         }
+
+      default:
+        // ignore other events
+        break;
       }
     }
   }
@@ -288,6 +292,10 @@ public class StAXBasedParser implements ExcelParser {
           }
           break;
         }
+
+      default:
+        // ignore other events
+        break;
       }
     }
   }
@@ -359,6 +367,10 @@ public class StAXBasedParser implements ExcelParser {
             }
             break;
           }
+
+          default:
+            // ignore other events
+            break;
         }
       }
     } finally {

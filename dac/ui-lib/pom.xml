@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
 
   <artifactId>dremio-ui-lib</artifactId>
@@ -118,7 +118,7 @@
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <arguments>pnpm@7.0.0 ${pnpm.installscript}</arguments>
+              <arguments>${pnpm.execinstallscript}</arguments>
             </configuration>
           </execution>
 

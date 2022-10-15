@@ -19,7 +19,7 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 
-import { MAP, TEXT, LIST } from "@app/constants/DataTypes";
+import { MAP, TEXT, LIST, STRUCT } from "@app/constants/DataTypes";
 
 import exploreUtils from "utils/explore/exploreUtils";
 import FontIcon from "components/Icon/FontIcon";
@@ -91,7 +91,7 @@ export class TransformHeader extends PureComponent {
   isTabEnabled(id) {
     const columnType = this.props.transform.get("columnType");
 
-    if (columnType === LIST || columnType === MAP) {
+    if (columnType === LIST || columnType === MAP || columnType === STRUCT) {
       return id === EXTRACT_TAB;
     }
 

@@ -35,6 +35,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -60,7 +61,9 @@ import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.exec.planner.sql.Checker;
+import com.dremio.exec.planner.sql.DynamicReturnType;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -317,7 +320,10 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
 
   private static RexNode createPartitionColComparator(final RexBuilder rexBuilder, List<RexNode> inputs) {
 
-    final SqlOperatorImpl op = new SqlOperatorImpl(WriterPrel.PARTITION_COMPARATOR_FUNC, 1, true);
+    final SqlFunction op = SqlFunctionImpl.create(
+      WriterPrel.PARTITION_COMPARATOR_FUNC,
+      DynamicReturnType.INSTANCE,
+      Checker.of(1));
 
     final List<RexNode> compFuncs = Lists.newArrayListWithExpectedSize(inputs.size());
 
@@ -329,7 +335,10 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
   }
 
   private static RexNode composeDisjunction(final RexBuilder rexBuilder, List<RexNode> compFuncs) {
-    final SqlOperatorImpl booleanOrFunc = new SqlOperatorImpl("orNoShortCircuit", 2, true);
+    final SqlFunction booleanOrFunc = SqlFunctionImpl.create(
+      "orNoShortCircuit",
+      DynamicReturnType.INSTANCE,
+      Checker.of(2));
     RexNode node = compFuncs.remove(0);
     while (!compFuncs.isEmpty()) {
       node = rexBuilder.makeCall(booleanOrFunc, node, compFuncs.remove(0));
@@ -361,7 +370,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     List<Field> fields = new ArrayList<>();
     Schema schema = partitionSpec.schema();
 
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     for (PartitionField partitionField : partitionSpec.fields()) {
       Types.NestedField field = schema.findField(partitionField.sourceId());
       Type resultType = partitionField.transform().getResultType(field.type());

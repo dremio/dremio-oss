@@ -119,6 +119,9 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
       case "floor":
         derivation = OutputDerivation.DECIMAL_ZERO_SCALE;
         break;
+      case "negative":
+        derivation = OutputDerivation.DECIMAL_NEGATIVE;
+        break;
       case "round":
         derivation = (args.size() == 1) ? OutputDerivation.DECIMAL_ZERO_SCALE_ROUND :
           OutputDerivation.DECIMAL_SET_SCALE_ROUND;

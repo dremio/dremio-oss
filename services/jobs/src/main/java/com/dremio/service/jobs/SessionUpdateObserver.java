@@ -15,13 +15,13 @@
  */
 package com.dremio.service.jobs;
 
-import org.apache.arrow.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.usersessions.UserSessionService;
 import com.dremio.service.usersessions.UserSessionService.UserSessionAndVersion;
+import com.google.common.base.Preconditions;
 
 /**
  * Implementation of {@link SessionObserver} that will update the session id in the store

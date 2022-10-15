@@ -29,7 +29,7 @@ import com.google.common.collect.ImmutableSet;
 /**
  * Provide async conf from hive jobconf
  */
-public class HiveAsyncStreamConf implements AsyncStreamConf {
+public final class HiveAsyncStreamConf implements AsyncStreamConf {
   private final String fsScheme;
   private final JobConf jobConf;
   private final OptionManager optionManager;

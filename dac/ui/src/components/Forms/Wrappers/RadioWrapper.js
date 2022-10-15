@@ -15,17 +15,15 @@
  */
 import { Component } from "react";
 import Radio from "components/Fields/Radio";
-import HoverHelp from "components/HoverHelp";
 import PropTypes from "prop-types";
 import classNames from "classnames";
-
+import { HoverHelp } from "dremio-ui-lib";
 import { rowOfInputsSpacing } from "@app/uiTheme/less/forms.less";
 import {
   radioColumnWrapper,
   radioTopLabel,
   radioBody,
   radioBodyColumn,
-  tooltipIcon,
   flexContainer,
 } from "./FormWrappers.less";
 
@@ -55,13 +53,7 @@ export default class RadioWrapper extends Component {
           {label && (
             <div className={radioTopLabel}>
               {label}
-              {tooltip && (
-                <HoverHelp
-                  content={tooltip}
-                  className={tooltipIcon}
-                  iconStyle={{ marginTop: -3 }}
-                />
-              )}
+              {tooltip && <HoverHelp content={tooltip} />}
             </div>
           )}
           {elementConfig.getConfig().options.map((option, index) => {

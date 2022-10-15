@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent } from "react";
+import { Children, PureComponent } from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 
@@ -29,7 +29,7 @@ export default class Tabs extends PureComponent {
     const { children, activeTab, style, className } = this.props;
     return (
       <div className={classNames("tab-wrapper", className)} style={style}>
-        {React.Children.map(children, (item) => {
+        {Children.map(children, (item) => {
           if (activeTab === item.props.tabId) {
             return item;
           }

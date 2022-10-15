@@ -138,11 +138,24 @@
     input[type="number"] {
       -moz-appearance: textfield;
     }
+
+    input::placeholder {
+      color: var(--dremio--color--text--disabled);
+      opacity: 1;
+    }
+  }
+
+  .subtitle {
+    margin-top: 0;
   }
 
   &__labelContainer {
     display: flex;
     align-items: center;
+  }
+
+  &--halfWidth {
+    width: 50%;
   }
 
   &__label {

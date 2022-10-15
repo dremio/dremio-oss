@@ -14,16 +14,16 @@ export interface Branch {
   name: string;
   /**
    *
-   * @type {string}
-   * @memberof Branch
-   */
-  hash?: string;
-  /**
-   *
    * @type {ReferenceMetadata}
    * @memberof Branch
    */
   metadata?: ReferenceMetadata;
+  /**
+   *
+   * @type {string}
+   * @memberof Branch
+   */
+  hash?: string;
 }
 /**
  *
@@ -88,7 +88,8 @@ export interface CommitMeta {
 export type Content =
   | ({ type: "DELTA_LAKE_TABLE" } & DeltaLakeTable)
   | ({ type: "ICEBERG_TABLE" } & IcebergTable)
-  | ({ type: "VIEW" } & SqlView);
+  | ({ type: "ICEBERG_VIEW" } & IcebergView)
+  | ({ type: "NAMESPACE" } & Namespace);
 /**
  *
  * @export
@@ -168,13 +169,21 @@ export interface DeltaLakeTable {
 /**
  *
  * @export
- * @enum {string}
+ * @interface Detached
  */
-export enum Dialect {
-  Dremio = "DREMIO",
-  Hive = "HIVE",
-  Presto = "PRESTO",
-  Spark = "SPARK",
+export interface Detached {
+  /**
+   *
+   * @type {ReferenceMetadata}
+   * @memberof Detached
+   */
+  metadata?: ReferenceMetadata;
+  /**
+   *
+   * @type {string}
+   * @memberof Detached
+   */
+  hash: string;
 }
 /**
  *
@@ -264,8 +273,27 @@ export interface Entry {
  * @enum {string}
  */
 export enum FetchOption {
-  All = "ALL",
   Minimal = "MINIMAL",
+  All = "ALL",
+}
+/**
+ *
+ * @export
+ * @interface GenericMetadata
+ */
+export interface GenericMetadata {
+  /**
+   *
+   * @type {string}
+   * @memberof GenericMetadata
+   */
+  variant: string;
+  /**
+   *
+   * @type {JsonNode & object}
+   * @memberof GenericMetadata
+   */
+  metadata?: object | null;
 }
 /**
  *
@@ -294,11 +322,22 @@ export interface GetMultipleContentsResponse {
   contents: Array<ContentWithKey>;
 }
 /**
- * Represents the global state of an Iceberg table in Nessie. An Iceberg table is globally identified via its unique 'Content.id'.
  *
- * A Nessie commit-operation, performed via 'TreeApi.commitMultipleOperations', for Iceberg for Iceberg consists of a 'Operation.Put' with an 'IcebergTable' as in the 'content' field and the previous value of 'IcebergTable' in the 'expectedContent' field.
+ * @export
+ * @interface GetNamespacesResponse
+ */
+export interface GetNamespacesResponse {
+  /**
+   *
+   * @type {Array<Namespace>}
+   * @memberof GetNamespacesResponse
+   */
+  namespaces: Array<Namespace>;
+}
+/**
+ * Represents the state of an Iceberg table in Nessie. An Iceberg table is globally identified via its unique 'Content.id'.
  *
- * During a commit-operation, Nessie checks whether the known global state of the Iceberg table is compatible (think: equal) to 'Operation.Put.expectedContent'.
+ * A Nessie commit-operation, performed via 'TreeApi.commitMultipleOperations',for Iceberg consists of a 'Operation.Put' with an 'IcebergTable' as in the 'content' field and the previous value of 'IcebergTable' in the 'expectedContent' field.
  * @export
  * @interface IcebergTable
  */
@@ -339,6 +378,61 @@ export interface IcebergTable {
    * @memberof IcebergTable
    */
   sortOrderId?: number;
+  /**
+   *
+   * @type {GenericMetadata}
+   * @memberof IcebergTable
+   */
+  metadata?: GenericMetadata;
+}
+/**
+ *
+ * @export
+ * @interface IcebergView
+ */
+export interface IcebergView {
+  /**
+   *
+   * @type {string}
+   * @memberof IcebergView
+   */
+  id?: string;
+  /**
+   *
+   * @type {string}
+   * @memberof IcebergView
+   */
+  metadataLocation: string;
+  /**
+   *
+   * @type {number}
+   * @memberof IcebergView
+   */
+  versionId?: number;
+  /**
+   *
+   * @type {number}
+   * @memberof IcebergView
+   */
+  schemaId?: number;
+  /**
+   *
+   * @type {string}
+   * @memberof IcebergView
+   */
+  sqlText: string;
+  /**
+   *
+   * @type {string}
+   * @memberof IcebergView
+   */
+  dialect?: string;
+  /**
+   *
+   * @type {GenericMetadata}
+   * @memberof IcebergView
+   */
+  metadata?: GenericMetadata;
 }
 /**
  *
@@ -408,6 +502,91 @@ export interface Merge {
    * @memberof Merge
    */
   fromHash: string;
+  /**
+   *
+   * @type {Array<MergeKeyBehavior>}
+   * @memberof Merge
+   */
+  keyMergeModes?: Array<MergeKeyBehavior>;
+  /**
+   *
+   * @type {MergeBehavior}
+   * @memberof Merge
+   */
+  defaultKeyMergeMode?: MergeBehavior;
+}
+/**
+ *
+ * @export
+ * @enum {string}
+ */
+export enum MergeBehavior {
+  Normal = "NORMAL",
+  Force = "FORCE",
+  Drop = "DROP",
+}
+/**
+ *
+ * @export
+ * @interface MergeKeyBehavior
+ */
+export interface MergeKeyBehavior {
+  /**
+   *
+   * @type {ContentKey}
+   * @memberof MergeKeyBehavior
+   */
+  key?: ContentKey;
+  /**
+   *
+   * @type {MergeBehavior}
+   * @memberof MergeKeyBehavior
+   */
+  mergeBehavior?: MergeBehavior;
+}
+/**
+ *
+ * @export
+ * @interface Namespace
+ */
+export interface Namespace {
+  /**
+   *
+   * @type {string}
+   * @memberof Namespace
+   */
+  id?: string;
+  /**
+   *
+   * @type {Array<string>}
+   * @memberof Namespace
+   */
+  elements: Array<string>;
+  /**
+   *
+   * @type {{ [key: string]: string; }}
+   * @memberof Namespace
+   */
+  properties: { [key: string]: string };
+}
+/**
+ *
+ * @export
+ * @interface NamespaceUpdate
+ */
+export interface NamespaceUpdate {
+  /**
+   *
+   * @type {{ [key: string]: string; }}
+   * @memberof NamespaceUpdate
+   */
+  propertyUpdates?: { [key: string]: string };
+  /**
+   *
+   * @type {Set<string>}
+   * @memberof NamespaceUpdate
+   */
+  propertyRemovals?: Set<string>;
 }
 /**
  *
@@ -566,7 +745,10 @@ export interface RefLogResponseEntry {
  *
  * @export
  */
-export type Reference = ({ type: "BRANCH" } & Branch) | ({ type: "TAG" } & Tag);
+export type Reference =
+  | ({ type: "BRANCH" } & Branch)
+  | ({ type: "DETACHED" } & Detached)
+  | ({ type: "TAG" } & Tag);
 /**
  * Only returned by the server when explicitly requested by the client and contains the following information:
  *
@@ -617,6 +799,15 @@ export interface ReferenceMetadata {
 /**
  *
  * @export
+ * @enum {string}
+ */
+export enum ReferenceType {
+  Branch = "branch",
+  Tag = "tag",
+}
+/**
+ *
+ * @export
  * @interface ReferencesResponse
  */
 export interface ReferencesResponse {
@@ -642,31 +833,6 @@ export interface ReferencesResponse {
 /**
  *
  * @export
- * @interface SqlView
- */
-export interface SqlView {
-  /**
-   *
-   * @type {string}
-   * @memberof SqlView
-   */
-  id?: string;
-  /**
-   *
-   * @type {string}
-   * @memberof SqlView
-   */
-  sqlText: string;
-  /**
-   *
-   * @type {Dialect}
-   * @memberof SqlView
-   */
-  dialect: Dialect | null;
-}
-/**
- *
- * @export
  * @interface Tag
  */
 export interface Tag {
@@ -678,16 +844,16 @@ export interface Tag {
   name: string;
   /**
    *
-   * @type {string}
-   * @memberof Tag
-   */
-  hash?: string;
-  /**
-   *
    * @type {ReferenceMetadata}
    * @memberof Tag
    */
   metadata?: ReferenceMetadata;
+  /**
+   *
+   * @type {string}
+   * @memberof Tag
+   */
+  hash?: string;
 }
 /**
  *
@@ -707,6 +873,18 @@ export interface Transplant {
    * @memberof Transplant
    */
   hashesToTransplant: Set<string>;
+  /**
+   *
+   * @type {Array<MergeKeyBehavior>}
+   * @memberof Transplant
+   */
+  keyMergeModes?: Array<MergeKeyBehavior>;
+  /**
+   *
+   * @type {MergeBehavior}
+   * @memberof Transplant
+   */
+  defaultKeyMergeMode?: MergeBehavior;
 }
 /**
  *
@@ -714,10 +892,11 @@ export interface Transplant {
  * @enum {string}
  */
 export enum Type {
-  DeltaLakeTable = "DELTA_LAKE_TABLE",
-  IcebergTable = "ICEBERG_TABLE",
   Unknown = "UNKNOWN",
-  View = "VIEW",
+  IcebergTable = "ICEBERG_TABLE",
+  DeltaLakeTable = "DELTA_LAKE_TABLE",
+  IcebergView = "ICEBERG_VIEW",
+  Namespace = "NAMESPACE",
 }
 /**
  *

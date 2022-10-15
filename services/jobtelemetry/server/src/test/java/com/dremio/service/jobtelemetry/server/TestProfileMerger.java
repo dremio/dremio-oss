@@ -127,6 +127,7 @@ public class TestProfileMerger {
             .setEndpoint(nodeEndPoint)
             .setMaxMemoryUsed(666666)
             .setTimeEnqueuedBeforeSubmitMs(2)
+            .setNumberOfCores(0)
             .build()
         )
         .setTotalFragments(0)
@@ -185,6 +186,7 @@ public class TestProfileMerger {
             .setEndpoint(nodeEndPoint)
             .setMaxMemoryUsed(666666)
             .setTimeEnqueuedBeforeSubmitMs(2)
+            .setNumberOfCores(0)
             .build()
         )
         .setTotalFragments(0)
@@ -298,6 +300,7 @@ public class TestProfileMerger {
             .setEndpoint(nodeEndPoint1)
             .setMaxMemoryUsed(666666)
             .setTimeEnqueuedBeforeSubmitMs(2)
+            .setNumberOfCores(0)
             .build()
         )
         .addNodeProfile(
@@ -305,6 +308,7 @@ public class TestProfileMerger {
             .setEndpoint(nodeEndPoint2)
             .setMaxMemoryUsed(666667)
             .setTimeEnqueuedBeforeSubmitMs(3)
+            .setNumberOfCores(0)
             .build()
         )
         .addFragmentProfile(
@@ -430,6 +434,7 @@ public class TestProfileMerger {
             .setEndpoint(nodeEndPoint)
             .setMaxMemoryUsed(666666)
             .setTimeEnqueuedBeforeSubmitMs(2)
+            .setNumberOfCores(0)
             .build()
         )
         .addFragmentProfile(
@@ -513,6 +518,7 @@ public class TestProfileMerger {
             .setEndpoint(nodeEndPoint)
             .setMaxMemoryUsed(666666)
             .setTimeEnqueuedBeforeSubmitMs(2)
+            .setNumberOfCores(0)
             .build()
         )
         .addFragmentProfile(

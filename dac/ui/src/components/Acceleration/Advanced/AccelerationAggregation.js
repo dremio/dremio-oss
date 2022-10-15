@@ -23,8 +23,10 @@ import { createReflectionFormValues } from "utils/accelerationUtils";
 import AccelerationAggregationMixin from "@inject/components/Acceleration/Advanced/AccelerationAggregationMixin.js";
 
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import { commonThemes } from "../commonThemes";
 import AccelerationGridController from "./AccelerationGridController";
+import clsx from "clsx";
 
 @AccelerationAggregationMixin
 export default class AccelerationAggregation extends Component {
@@ -85,6 +87,7 @@ export default class AccelerationAggregation extends Component {
         <SimpleButton
           onClick={this.addNewLayout}
           buttonStyle="secondary"
+          className={clsx(classes["secondaryButtonPsuedoClasses"])}
           // DX-34369
           style={
             this.checkIfButtonShouldBeRendered()

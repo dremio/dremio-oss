@@ -17,6 +17,8 @@ package com.dremio.exec.planner.sql.handlers.query;
 
 import static com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler.refreshDataset;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
@@ -31,6 +33,7 @@ import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
@@ -134,6 +137,23 @@ public abstract class DmlHandler implements SqlToPlanHandler {
     }
 
     IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, sqlOperator, false);
+    blockDMLForMapTables(catalog, path);
+  }
+
+  static void blockDMLForMapTables(Catalog catalog, NamespaceKey path) {
+    DremioTable table = catalog.getTableNoResolve(path);
+    if (table.getSchema().getFields().stream().anyMatch(DmlHandler::fieldIsMapOrContainsMap)) {
+      throw UserException.unsupportedError()
+        .message("DML operations on tables with MAP columns is not yet supported.")
+        .buildSilently();
+    }
+  }
+
+  static boolean fieldIsMapOrContainsMap(Field field) {
+    if (field.getType().getTypeID() == ArrowType.ArrowTypeID.Map) {
+      return true;
+    }
+    return field.getChildren().stream().anyMatch(DmlHandler::fieldIsMapOrContainsMap);
   }
 
   private Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, Catalog catalog, RelNode relNode) throws Exception {

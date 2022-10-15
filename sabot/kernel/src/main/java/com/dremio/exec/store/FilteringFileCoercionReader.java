@@ -77,8 +77,11 @@ public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
 
   @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
-    // do not allocate if called by FilteringReader
-    if (nextMethodState == NextMethodState.NOT_CALLED_BY_FILTERING_READER) {
+    // Do not allocate if called by FilteringReader when the status is 'FIRST_CALL_BY_FILTERING_READER'.
+    // DX-40891, if the FilteringReader excludes all rows for a batch and needs to call 'inner' reader
+    // to read another batch to process, it needs to allocate more memory for field vectors in 'mutator'.
+    if (nextMethodState == NextMethodState.NOT_CALLED_BY_FILTERING_READER ||
+      nextMethodState == NextMethodState.REPEATED_CALL_BY_FILTERING_READER) {
       super.allocate(vectorMap);
       inner.allocate(mutator.getFieldVectorMap());
     }

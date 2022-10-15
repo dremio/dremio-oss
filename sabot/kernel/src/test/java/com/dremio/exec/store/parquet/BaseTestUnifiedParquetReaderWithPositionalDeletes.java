@@ -26,7 +26,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import com.dremio.exec.store.iceberg.IcebergTestTables;
-import com.dremio.exec.store.iceberg.deletes.ParquetPositionalDeleteFileReaderFactory;
+import com.dremio.exec.store.iceberg.deletes.ParquetRowLevelDeleteFileReaderFactory;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFileReader;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilter;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteIterator;
@@ -67,7 +67,7 @@ public class BaseTestUnifiedParquetReaderWithPositionalDeletes extends BaseTestU
       String predicateDescription,
       int expectedRecordCount) throws Exception {
     readAndValidateOrderIdConditionAndRowCount(
-        new ParquetFilters(positionalDeleteFilter),
+        new ParquetFilters(null, positionalDeleteFilter, null),
         parquetReaderOptions,
         orderIdPredicate,
         predicateDescription,
@@ -120,13 +120,14 @@ public class BaseTestUnifiedParquetReaderWithPositionalDeletes extends BaseTestU
       }
     };
 
-    return new PositionalDeleteFilter(() -> positionalDeleteIterator, initialRefCount);
+    return new PositionalDeleteFilter(() -> positionalDeleteIterator, initialRefCount, context.getStats());
   }
 
   protected PositionalDeleteIterator createDeleteIteratorFromFile(Path path) throws Exception {
-    ParquetPositionalDeleteFileReaderFactory factory = new ParquetPositionalDeleteFileReaderFactory(
-        getInputStreamProviderFactory(), getParquetReaderFactory(), fs, null);
-    PositionalDeleteFileReader creator = factory.create(context, path, ImmutableList.of(DATA_FILE_2.toString()));
+    ParquetRowLevelDeleteFileReaderFactory factory = new ParquetRowLevelDeleteFileReaderFactory(
+        getInputStreamProviderFactory(), getParquetReaderFactory(), fs, null, IcebergTestTables.V2_ORDERS_SCHEMA);
+    PositionalDeleteFileReader creator = factory.createPositionalDeleteFileReader(context, path,
+        ImmutableList.of(DATA_FILE_2.toString()));
     creator.setup();
     return creator.createIteratorForDataFile(DATA_FILE_2.toString());
   }

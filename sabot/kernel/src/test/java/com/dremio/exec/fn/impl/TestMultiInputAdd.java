@@ -33,9 +33,6 @@ import com.google.common.io.Files;
 
 public class TestMultiInputAdd extends BaseTestQuery {
 
-//    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestMathFunctions.class);
-
-
     @Test
     public void testMultiInputAdd() throws Exception {
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,

@@ -82,6 +82,8 @@ import com.google.common.collect.Lists;
 
 abstract class ParquetGroupConverter extends GroupConverter implements ParquetListElementConverter {
 
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetGroupConverter.class);
+
   protected final List<Converter> converters;
   private final List<ListWriter> listWriters = Lists.newArrayList();
   private final OutputMutator mutator;
@@ -247,6 +249,20 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       );
     }
 
+    if (isEligibleForMapVectorConversion(groupType)) {
+      return new MapGroupConverter(
+        columnResolver,
+        fieldName,
+        mutator,
+        getWriterProvider().map(getNameForChild(columnResolver.getBatchSchemaColumnName(fieldName))),
+        groupType,
+        c,
+        options,
+        arrowSchema,
+        schemaHelper
+      );
+    }
+
     final String nameForChild = getNameForChild(columnResolver.getBatchSchemaColumnName(fieldName));
     final StructWriter struct;
     if (groupType.isRepetition(REPEATED)) {
@@ -263,6 +279,23 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     }
 
     return new StructGroupConverter(columnResolver, fieldName, mutator, struct, groupType, c, options, arrowSchema, schemaHelper);
+  }
+
+  private boolean isEligibleForMapVectorConversion(GroupType groupType) {
+    if (schemaHelper.isMapDataTypeEnabled() && groupType.getOriginalType()==OriginalType.MAP && groupType.getFieldCount() == 1
+      && groupType.getType(0).isRepetition(Repetition.REPEATED) && groupType.getType(0).asGroupType().getFieldCount() == 2) {
+      boolean isEligible = true;
+      if (groupType.getType(0).asGroupType().getType(0).getOriginalType() != OriginalType.UTF8) {
+        isEligible = false;
+        logger.debug(String.format(" Key of map Field %s is not of VarChar (String) type or is a Complex Type", groupType.getName()));
+      }
+      if (!groupType.getType(0).asGroupType().getType(1).isPrimitive()) {
+        isEligible = false;
+        logger.debug(String.format(" Value of map Field %s is a Complex Type",groupType.getName()));
+      }
+      return isEligible;
+    }
+    return false;
   }
 
   /**

@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { FormattedMessage, injectIntl } from "react-intl";
-import Art from "components/Art";
+import { getIconPath } from "@app/utils/getIconPath";
 import jobsUtils from "utils/jobsUtils";
 import ReflectionList from "./ReflectionList";
 
@@ -42,8 +42,8 @@ class AccelerationContent extends PureComponent {
       flameDesc = "";
     if (accelerated) {
       flame = jobDetails.get("snowflakeAccelerated")
-        ? "FlameSnowflake.svg"
-        : "Flame.svg";
+        ? "interface/flame-snowflake"
+        : "interface/flame";
       flameAlt = jobDetails.get("snowflakeAccelerated")
         ? "Job.AcceleratedHoverSnowFlake"
         : "Job.AcceleratedHover";
@@ -58,10 +58,11 @@ class AccelerationContent extends PureComponent {
           <FormattedMessage id="Job.Summary" />
         </h4>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <Art
-            src={accelerated ? flame : "FlameDisabled.svg"}
+          <img
+            src={getIconPath(accelerated ? flame : "interface/flame-disabled")}
             alt={flameAlt}
             style={{ height: 20, marginRight: 5 }}
+            data-qa={accelerated ? flame : "interface/flame-disabled"}
           />
           <div>
             <FormattedMessage

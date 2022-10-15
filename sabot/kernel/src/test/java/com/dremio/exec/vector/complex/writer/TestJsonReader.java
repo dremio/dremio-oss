@@ -57,7 +57,6 @@ import com.google.common.io.Files;
 
 
 public class TestJsonReader extends PlanTestBase {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJsonReader.class);
 
   private static final boolean VERBOSE_DEBUG = false;
 
@@ -74,7 +73,7 @@ public class TestJsonReader extends PlanTestBase {
         .sqlQuery(query)
         .ordered()
         .baselineColumns("ct")
-        .baselineValues(6l)
+        .baselineValues(6L)
         .build()
         .run();
   }
@@ -195,7 +194,7 @@ public class TestJsonReader extends PlanTestBase {
         .sqlQuery("select * from dfs.\"" + f.getPath() + ".gz" + "\"")
         .unOrdered()
         .baselineColumns("a")
-        .baselineValues(5l)
+        .baselineValues(5L)
         .build().run();
 
     // test reading the uncompressed version as well
@@ -203,7 +202,7 @@ public class TestJsonReader extends PlanTestBase {
         .sqlQuery("select * from dfs.\"" + f.getPath() + "\"")
         .unOrdered()
         .baselineColumns("a")
-        .baselineValues(5l)
+        .baselineValues(5L)
         .build().run();
   }
 
@@ -259,7 +258,8 @@ public class TestJsonReader extends PlanTestBase {
   }
 
   private void testLeafLimit(String file) throws Exception {
-    try (AutoCloseable op1 = withOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, 4)) {
+    try (AutoCloseable op1 = withOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, 4);
+         AutoCloseable op2 = withOption(CatalogOptions.METADATA_LEAF_COLUMN_SCANNED_MAX, 10000)) {
       String[] queries = {"select * from cp.\"" + file + "\" t"};
       long[] rowCounts = {1};
       runTestsOnFile(file, UserBitShared.QueryType.SQL, queries, rowCounts);
@@ -403,7 +403,7 @@ public class TestJsonReader extends PlanTestBase {
         .sqlQuery(queryRightEmpty)
         .unOrdered()
         .baselineColumns("a")
-        .baselineValues(1l)
+        .baselineValues(1L)
         .build()
         .run();
   }
@@ -422,8 +422,8 @@ public class TestJsonReader extends PlanTestBase {
         batchLoader.getValueVectorId(SchemaPath.getCompoundPath("field_3", "inner_1")).getFieldIds() //
     );
     assertNull(vw.getValueVector().getObject(0));
-    assertEquals(2l, vw.getValueVector().getObject(1));
-    assertEquals(5l, vw.getValueVector().getObject(2));
+    assertEquals(2L, vw.getValueVector().getObject(1));
+    assertEquals(5L, vw.getValueVector().getObject(2));
 
     vw = batchLoader.getValueAccessorById(
         IntVector.class, //
@@ -431,7 +431,7 @@ public class TestJsonReader extends PlanTestBase {
     );
     assertNull(vw.getValueVector().getObject(0));
     assertNull(vw.getValueVector().getObject(1));
-    assertEquals(3l, vw.getValueVector().getObject(2));
+    assertEquals(3L, vw.getValueVector().getObject(2));
 
     vw = batchLoader.getValueAccessorById(
         ListVector.class, //

@@ -15,9 +15,9 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.partition;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -29,16 +29,14 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentMatchers;
 
 import com.dremio.common.config.SabotConfig;
@@ -73,9 +71,6 @@ public class BlockJoinTableTest {
   @Rule
   public final AllocatorRule defaultAllocatorRule = AllocatorRule.defaultAllocator();
 
-  @Rule
-  public final ExpectedException expectOomExceptionRule = ExpectedException.none();
-
   @Before
   public void setupBeforeTest() {
     defaultAllocator = defaultAllocatorRule.newAllocator("test-block_join_table", 0, Long.MAX_VALUE);
@@ -103,19 +98,16 @@ public class BlockJoinTableTest {
   }
 
   @Test
-  @Ignore("DX-50441")
   public void testInsertingMoreRecordsThanCapacityToNonSpillingHashTable() throws Exception {
     // ARRANGE
     ExecProtos.FragmentHandle fragmentHandle = ExecProtos.FragmentHandle.newBuilder().setMinorFragmentId(1).build();
     OperatorContext context = mockOpContext(fragmentHandle, defaultAllocator);
 
-    expectOomExceptionRule.expect(OutOfMemoryException.class);
-    expectOomExceptionRule.expectMessage("Only 3 records");
-
     // Mocks
     HashTable mockedHashTable = mock(HashTable.class);
 
-    when(mockedHashTable.addSv2(anyInt(), anyLong(), anyLong(), anyLong(), anyLong(), anyLong())).
+    when(mockedHashTable.addSv2(ArgumentMatchers.any(), anyInt(), anyInt(), ArgumentMatchers.any(ArrowBuf.class),
+      ArgumentMatchers.any(ArrowBuf.class), ArgumentMatchers.any(ArrowBuf.class), ArgumentMatchers.any(ArrowBuf.class))).
       thenReturn(3);
 
     doReturn(mockedHashTable).when(sabotConfig).getInstance(
@@ -125,17 +117,20 @@ public class BlockJoinTableTest {
     );
 
     // Instantiation
-    BlockJoinTable table = new BlockJoinTable(buildPivot, defaultAllocator, comparator, 0,
-      INITIAL_VAR_FIELD_AVERAGE_SIZE, context.getConfig(), context.getOptions());
+    try (BlockJoinTable table = new BlockJoinTable(buildPivot, defaultAllocator, comparator, 0,
+      INITIAL_VAR_FIELD_AVERAGE_SIZE, context.getConfig(), context.getOptions(), false);
+         ArrowBuf tableHash4B = defaultAllocator.buffer(0);
+         ArrowBuf output = defaultAllocator.buffer(0)) {
 
-    FixedBlockVector fixedBlockVector = new FixedBlockVector(defaultAllocator, 4);
-    VariableBlockVector variableBlockVector = new VariableBlockVector(defaultAllocator, 10);
+      FixedBlockVector fixedBlockVector = new FixedBlockVector(defaultAllocator, 4);
+      VariableBlockVector variableBlockVector = new VariableBlockVector(defaultAllocator, 10);
 
-    // ACT
-    table.insertPivoted(0, 10, 0, fixedBlockVector, variableBlockVector, 0);
+      // ACT
+      final int inserted = table.insertPivoted(null, 0, 10, tableHash4B, fixedBlockVector, variableBlockVector, output);
 
-    // CLEAN UP
-    table.close();
+      // ASSERT
+      assertEquals(3, inserted);
+    }
   }
 
   private SabotConfig mockSabotConfig() {
@@ -147,7 +142,7 @@ public class BlockJoinTableTest {
   private OptionManager mockOptionManager() {
     OptionManager optionManager = mock(OptionManager.class);
 
-    when(optionManager.getOption(eq(ExecConstants.RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE))).thenReturn(1000l);
+    when(optionManager.getOption(eq(ExecConstants.RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE))).thenReturn(1000L);
     when(optionManager.getOption(eq(ExecConstants.ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET))).thenReturn(true);
 
     return optionManager;

@@ -1,0 +1,51 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "CORR"
+signatures:
+ -
+  returnType: "DOUBLE"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "expression1"
+    description: "The first expression."
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "expression2"
+    description: "The second expression."
+  description: "Returns"
+  sampleCodes:
+   -
+    call: >
+      SELECT weight_class, CORR(list_price, min_price)
+         FROM product_information
+         GROUP BY weight_class
+    result: >
+      WEIGHT_CLASS CORR(LIST_PRICE,MIN_PRICE)
+      ------------ --------------------------
+                 1                  .99914795
+                 2                 .999022941
+                 3                 .998484472
+                 4                 .999359909
+                 5                 .999536087
+dremioVersion: "1.0+"
+functionCategories:
+ - "AGGREGATE"
+description: "Calculates the covariance of the values expression1 and expression2. The function name must be enclosed in NUMERIC quotes (\\\"CORR\\\"). \n"

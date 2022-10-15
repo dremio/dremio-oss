@@ -14,34 +14,12 @@
  * limitations under the License.
  */
 
-import { useContext, useState } from "react";
 import { FormattedMessage } from "react-intl";
-
-import { NessieState } from "@app/reducers/nessie/nessie";
 import FontIcon from "@app/components/Icon/FontIcon";
-import NewBranchDialog from "../../../NewBranchDialog/NewBranchDialog";
-import BranchButton from "../../../BranchButton/BranchButton";
-
-import { RepoViewContext } from "../../RepoView";
 
 import "./RepoViewHeader.less";
 
-function RepoViewHeader({
-  reference,
-}: {
-  reference: NessieState["reference"];
-}): JSX.Element {
-  const { allRefs, setAllRefs } = useContext(RepoViewContext);
-  const [open, setOpen] = useState(false);
-
-  const openDialog = (): void => {
-    setOpen(true);
-  };
-
-  const closeDialog = (): void => {
-    setOpen(false);
-  };
-
+function RepoViewHeader(): JSX.Element {
   return (
     <div className="repo-view-header">
       <span className="repo-view-header-git-branch">
@@ -53,18 +31,6 @@ function RepoViewHeader({
       <span className="repo-view-header-name">
         <FormattedMessage id="RepoView.AllBranches" />
       </span>
-      {reference && (
-        <>
-          <BranchButton onClick={openDialog} />
-          <NewBranchDialog
-            open={open}
-            closeDialog={closeDialog}
-            allRefs={allRefs}
-            setAllRefs={setAllRefs}
-            forkFrom={reference}
-          />
-        </>
-      )}
     </div>
   );
 }

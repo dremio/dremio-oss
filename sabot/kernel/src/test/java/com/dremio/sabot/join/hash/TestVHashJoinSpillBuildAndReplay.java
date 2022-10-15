@@ -17,6 +17,7 @@ package com.dremio.sabot.join.hash;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
@@ -24,6 +25,7 @@ import com.dremio.options.OptionValue;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 
 // Test join with build, followed by spill & then, replay.
+@Ignore("DX-53045")
 public class TestVHashJoinSpillBuildAndReplay extends TestVHashJoinSpill {
   private final OptionManager options = testContext.getOptions();
 

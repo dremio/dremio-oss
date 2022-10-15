@@ -226,14 +226,14 @@ class OverviewContent extends PureComponent {
           )}
           <ListItem
             label={intl.formatMessage({ id: "Job.JobID" })}
-            style={{ position: "relative" }}
+            style={styles.jobIdContainer}
           >
             <span style={styles.jobId}>
               {jobId}
               <CopyButton
-                style={{ marginLeft: 5 }}
                 title={intl.formatMessage({ id: "Common.CopyLink" })}
                 text={jobIdUrl}
+                buttonStyle={styles.copyButton}
               />
             </span>
           </ListItem>
@@ -510,9 +510,17 @@ const styles = {
     borderStyle: "solid",
     borderColor: BORDER_TABLE,
   },
+  jobIdContainer: {
+    position: "relative",
+    height: "14.5px",
+  },
   jobId: {
     display: "flex",
     alignItems: "center",
+  },
+  copyButton: {
+    height: "28px",
+    width: "28px",
   },
 };
 

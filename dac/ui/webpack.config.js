@@ -17,6 +17,7 @@ const path = require("path");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+const HtmlWebpackTagsPlugin = require("html-webpack-tags-plugin");
 const SentryCliPlugin = require("@sentry/webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { getVersion, getEdition } = require("./scripts/versionUtils");
@@ -29,7 +30,6 @@ const BundleAnalyzerPlugin =
   require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
 
 dynLoader.applyNodeModulesResolver();
-dynLoader.applyTSConfig();
 
 const enableBundleAnalyzer = process.env.ENABLE_BUNDLE_ANALYZER === "true";
 const isProductionBuild = process.env.NODE_ENV === "production";
@@ -164,6 +164,16 @@ const rules = [
     },
   },
   {
+    test: /(ui-lib)\/.*\.svg(\?.*)?$/,
+    use: {
+      loader: "url-loader",
+      options: {
+        limit: 10000,
+        mimetype: "image/svg+xml",
+      },
+    },
+  },
+  {
     test: /\.(woff(2)?|ttf|eot|gif)(\?.*)?$/,
     use: {
       loader: "url-loader",
@@ -210,6 +220,9 @@ const config = {
   },
   devtool,
   plugins: [
+    new webpack.ProvidePlugin({
+      process: "process/browser",
+    }),
     enableBundleAnalyzer && new BundleAnalyzerPlugin(),
     new MiniCssExtractPlugin({
       // Options similar to the same options in webpackOptions.output
@@ -219,7 +232,6 @@ const config = {
       ignoreOrder: false, // Enable to remove warnings about conflicting order
     }),
     new webpack.BannerPlugin(require(dynLoader.path + "/webpackBanner")),
-    new webpack.HashedModuleIdsPlugin(),
     new HtmlWebpackPlugin({
       dremioConfig: getDremioConfig(),
       template: "./src/index.html",
@@ -232,6 +244,9 @@ const config = {
       minify: {
         removeComments: stripComments,
       },
+    }),
+    new HtmlWebpackTagsPlugin({
+      tags: ["static/js/jsPlumb-2.1.4-min.js"],
     }),
     // 'process.env.NODE_ENV' does not work, despite the fact that it is a recommended way, according
     // to documentation (see https://webpack.js.org/plugins/define-plugin/)
@@ -246,6 +261,7 @@ const config = {
         "DCS_V2_URL",
         "DCS_V3_URL",
         "DREMIO_BETA",
+        "ENABLE_MSW",
       ].reduce(
         (resultObj, variableToCopy) => {
           resultObj[variableToCopy] = JSON.stringify(
@@ -277,10 +293,18 @@ const config = {
           to: "static",
         },
         {
+          from: "node_modules/jsplumb/dist/js/jsPlumb-2.1.4-min.js",
+          to: "static/js",
+        },
+        {
           from: `node_modules/dremio-ui-lib/icons`,
           to: "static/icons",
         },
-      ],
+        process.env.ENABLE_MSW && {
+          from: "public/mockServiceWorker.js",
+          to: "mockServiceWorker.js",
+        },
+      ].filter(Boolean),
     }),
     !skipSourceMapUpload &&
       new SentryCliPlugin({
@@ -295,6 +319,7 @@ const config = {
       }),
   ].filter(Boolean),
   optimization: {
+    moduleIds: "deterministic",
     runtimeChunk: "single",
     splitChunks: {
       cacheGroups: {
@@ -314,6 +339,14 @@ const config = {
       "node_modules",
       path.resolve(__dirname, "node_modules"), // TODO: this is ugly, needed to resolve module dependencies outside of src/ so they can find our main node_modules
     ],
+    // Webpack v4 previously supplied all of these Node polyfills, now we need to include
+    // them manually.
+    fallback: {
+      path: require.resolve("path-browserify"),
+      stream: require.resolve("stream-browserify"),
+      url: require.resolve("url"),
+      util: require.resolve("util"),
+    },
     alias: {
       ...(dcsPath
         ? {
@@ -330,7 +363,7 @@ const config = {
       ),
       // Todo: Below lines are to fix the issue with 2 instances of react because of lib. Find a better fix for this. https://github.com/facebook/react/issues/13991
       react: path.resolve(__dirname, "node_modules/react"),
-      "@material-ui": path.resolve(__dirname, "node_modules/@material-ui"),
+      "@mui": path.resolve(__dirname, "node_modules/@mui"),
     },
     plugins: [new InjectionResolver()],
   },

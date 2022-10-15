@@ -15,8 +15,8 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Switch from "@material-ui/core/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 
 import { ToggleWithMixin } from "@inject/components/Fields/ToggleMixin.js";
 

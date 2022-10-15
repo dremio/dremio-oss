@@ -15,43 +15,100 @@
  */
 package com.dremio.service.autocomplete.functions;
 
-import org.apache.calcite.sql.type.SqlTypeName;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
+import org.immutables.value.Value;
+
+import com.dremio.service.autocomplete.snippets.Snippet;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Signature for a function that holds operand types and corresponding return type.
  */
-public final class FunctionSignature {
-  private final SqlTypeName returnType;
-  private final ImmutableList<SqlTypeName> operandTypes;
-  private final String template;
+@Value.Immutable
+@Value.Style(stagedBuilder = true)
+@JsonSerialize(using = FunctionSignatureSerializer.class)
+@JsonDeserialize(using = FunctionSignatureDeserializer.class)
+@JsonInclude(JsonInclude.Include.NON_ABSENT)
+public abstract class FunctionSignature {
+  public abstract ParameterType getReturnType();
 
-  @JsonCreator
-  public FunctionSignature(
-    @JsonProperty("returnType") SqlTypeName returnType,
-    @JsonProperty("operandTypes") ImmutableList<SqlTypeName> operandTypes,
-    @JsonProperty("template") String template) {
-    Preconditions.checkNotNull(returnType);
-    Preconditions.checkNotNull(operandTypes);
+  public abstract ImmutableList<Parameter> getParameters();
 
-    this.returnType = returnType;
-    this.operandTypes = operandTypes;
-    this.template = template;
+  public abstract Optional<Snippet> getSnippetOverride();
+
+  public static ImmutableFunctionSignature.ReturnTypeBuildStage builder() {
+    return ImmutableFunctionSignature.builder();
   }
 
-  public SqlTypeName getReturnType() {
-    return returnType;
+  public static FunctionSignature create(ParameterType returnType, Parameter ... parameters) {
+    return builder()
+      .returnType(returnType)
+      .addParameters(parameters)
+      .build();
   }
 
-  public ImmutableList<SqlTypeName> getOperandTypes() {
-    return operandTypes;
+  @Override
+  public String toString() {
+    StringBuilder stringBuilder = new StringBuilder()
+      .append("(");
+
+    for (int i = 0; i < getParameters().size(); i++) {
+      if (i != 0) {
+        stringBuilder.append(", ");
+      }
+
+      Parameter parameter = getParameters().get(i);
+      stringBuilder.append(parameter);
+    }
+
+    stringBuilder
+      .append(")")
+      .append(" -> ")
+      .append(getReturnType());
+
+    if (getSnippetOverride().isPresent()) {
+      Snippet snippetOverride = getSnippetOverride().get();
+      stringBuilder
+        .append("\n\t")
+        .append(snippetOverride);
+    }
+
+    return stringBuilder.toString();
   }
 
-  public String getTemplate() {
-    return template;
+  public static FunctionSignature parse(String text) {
+    String[] preSnippetAndPostSnippet = text.split("\n\t");
+    Optional<Snippet> snippetOverride;
+    if (preSnippetAndPostSnippet.length != 1) {
+      snippetOverride = Optional.of(Snippet.tryParse(preSnippetAndPostSnippet[1]).get());
+    } else {
+      snippetOverride = Optional.empty();
+    }
+
+    String paramsAndReturnTypeText = preSnippetAndPostSnippet[0];
+    String[] paramsAndReturnType = paramsAndReturnTypeText.split(" -> ");
+    String params = paramsAndReturnType[0];
+    String returnTypeString = paramsAndReturnType[1];
+    params = params.substring(1, params.length() - 1);
+    List<Parameter> parameterList = new ArrayList<Parameter>();
+    if (!params.isEmpty()) {
+      String[] parametersText = params.split(", ");
+      for (String parameterText : parametersText) {
+        Parameter parameter = Parameter.parse(parameterText);
+        parameterList.add(parameter);
+      }
+    }
+
+    return FunctionSignature.builder()
+      .returnType(ParameterType.valueOf(returnTypeString))
+      .addAllParameters(parameterList)
+      .snippetOverride(snippetOverride)
+      .build();
   }
 }

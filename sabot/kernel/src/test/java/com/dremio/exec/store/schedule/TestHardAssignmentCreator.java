@@ -257,7 +257,7 @@ public class TestHardAssignmentCreator extends ExecTest {
     assertTrue("There are some extra works in assigned work unit list: " + summary, assignedSet.size() == 0);
 
     int i = 0;
-    HashSet<CompleteWork> inputWorkSet = new HashSet<>(inputWorks);
+    Set<CompleteWork> inputWorkSet = new HashSet<>(inputWorks);
     for(NodeEndpoint ep : inputEps) {
       Collection<CompleteWork> assignedWorks = assignments.get(i);
       for(CompleteWork assignedWork : assignedWorks) {
@@ -267,7 +267,6 @@ public class TestHardAssignmentCreator extends ExecTest {
       }
       i++;
     }
-
   }
 
   private static final String summary(ListMultimap<Integer, CompleteWork> assignments,

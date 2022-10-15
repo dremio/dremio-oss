@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -60,10 +59,10 @@ class ExtractSingleList extends Component {
   render() {
     const { startIndex } = this.props;
     return (
-      <div style={[styles.extract]}>
-        <div style={[styles.largeItem, { marginTop: 0 }]}>
-          <div style={[styles.item]}>
-            <span style={[styles.font, formLabel]}>
+      <div style={styles.extract}>
+        <div style={{ ...styles.largeItem, marginTop: 0 }}>
+          <div style={styles.item}>
+            <span style={{ ...styles.font, ...formLabel }}>
               {this.props.firstElementLabel}
             </span>
             <FieldWithError {...startIndex.value} errorPlacement="bottom">
@@ -75,15 +74,6 @@ class ExtractSingleList extends Component {
               />
             </FieldWithError>
           </div>
-          {/* <div style={[styles.item]}> // put it back when DX-7090 is complete
-            <span style={[styles.font, formLabel]}>
-              Relative To
-            </span>
-            <Select
-              items={this.items}
-              {...startIndex.direction}
-              style={styles.select}/>
-          </div> */}
         </div>
       </div>
     );
@@ -127,4 +117,4 @@ const styles = {
     margin: 0,
   },
 };
-export default Radium(ExtractSingleList);
+export default ExtractSingleList;

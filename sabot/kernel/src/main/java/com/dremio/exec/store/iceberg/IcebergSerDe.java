@@ -197,7 +197,7 @@ public class IcebergSerDe {
       return null;
     }
 
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     Schema icebergSchema = schemaConverter.toIcebergSchema(schema);
     PartitionSpec.Builder partitionSpec = PartitionSpec
       .builderFor(icebergSchema);

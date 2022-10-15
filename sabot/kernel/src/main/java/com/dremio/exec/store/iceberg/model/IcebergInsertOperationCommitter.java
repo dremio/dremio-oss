@@ -52,7 +52,7 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
     this.icebergCommand = icebergCommand;
     this.icebergCommand.beginTransaction();
     this.operatorStats = operatorStats;
-    this.prevMetadataRootPointer = icebergCommand.getRootPointer();;
+    this.prevMetadataRootPointer = icebergCommand.getRootPointer();
   }
 
   @Override

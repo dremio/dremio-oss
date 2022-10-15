@@ -113,6 +113,9 @@ public class PathUtils {
    */
   public static String getQuotedFileName(Path path) {
     List<String> components = toPathComponents(path);
+    if (components == null || components.size() == 0) {
+      throw new IllegalArgumentException("Fail to get a valid path from: " + path);
+    }
     return String.format("%1$s%2$s%1$s", SqlUtils.QUOTE, components.get(components.size() - 1));
   }
 
@@ -152,7 +155,7 @@ public class PathUtils {
    * @return list of path components
    */
   public static List<String> toPathComponents(String fsPath) {
-    if (fsPath == null ) {
+    if (fsPath == null) {
       return EMPTY_SCHEMA_PATHS;
     }
 
@@ -170,7 +173,6 @@ public class PathUtils {
     if (fsPath == null ) {
       return EMPTY_SCHEMA_PATHS;
     }
-
     return toPathComponents(fsPath.toURI().getPath());
   }
 

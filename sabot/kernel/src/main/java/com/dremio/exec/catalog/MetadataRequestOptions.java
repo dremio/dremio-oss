@@ -21,6 +21,7 @@ import java.util.Map;
 import org.immutables.value.Value;
 
 import com.dremio.ValidatingGnarlyStyle;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -38,7 +39,8 @@ public abstract class MetadataRequestOptions {
     return new MetadataStatsCollector();
   }
 
-  public abstract Map<String, VersionContext> getSourceVersionMapping();
+  @Value.Default
+  public  CaseInsensitiveMap<VersionContext> getSourceVersionMapping() { return CaseInsensitiveMap.newHashMap(); } ;
 
   /**
    * Consider the metadata valid only if it is newer than the given time.
@@ -78,7 +80,7 @@ public abstract class MetadataRequestOptions {
 
   MetadataRequestOptions cloneWith(Map<String, VersionContext> sourceVersionMapping) {
     return new ImmutableMetadataRequestOptions.Builder().from(this)
-      .setSourceVersionMapping(sourceVersionMapping)
+      .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
       .build();
   }
 
@@ -86,7 +88,7 @@ public abstract class MetadataRequestOptions {
     Map<String, VersionContext> sourceVersionMapping = new HashMap<>(this.getSourceVersionMapping());
     sourceVersionMapping.put(sourceName,versionContext);
     return new ImmutableMetadataRequestOptions.Builder().from(this)
-      .setSourceVersionMapping(sourceVersionMapping)
+      .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
       .build();
   }
 

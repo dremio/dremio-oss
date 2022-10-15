@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn;
 
+import com.google.errorprone.annotations.FormatMethod;
+
 /**
  * Injectable used in SimpleFunction definitions. Function code uses an object of this interface to construct exceptions
  * that have a full context -- in particular, where in the original expression did the function occur.
@@ -48,12 +50,21 @@ public interface FunctionErrorContext {
     /**
      * sets or replaces the error message.
      *
+     * @param message error string
+     * @return this builder
+     */
+    ExceptionBuilder message(final String message);
+
+    /**
+     * sets or replaces the error message.
+     *
      * @see String#format(String, Object...)
      *
      * @param format format string
      * @param args Arguments referenced by the format specifiers in the format string
      * @return this builder
      */
+    @FormatMethod
     ExceptionBuilder message(final String format, final Object... args);
 
     /**
@@ -68,6 +79,7 @@ public interface FunctionErrorContext {
      * @param value string line
      * @return this builder
      */
+    @FormatMethod
     ExceptionBuilder addContext(final String value, Object... args);
 
     /**

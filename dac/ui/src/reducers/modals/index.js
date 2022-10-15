@@ -17,10 +17,13 @@ import { combineReducers } from "redux";
 
 import addFileModal from "./addFileModal";
 import dataSettings from "./dataSettings";
+import { showAddPatModal, showAccountSettingsModal } from "./accountSettings";
 
 const modalsReducer = combineReducers({
   addFileModal,
   dataSettings,
+  showAddPatModal,
+  showAccountSettingsModal,
 });
 
 export default modalsReducer;

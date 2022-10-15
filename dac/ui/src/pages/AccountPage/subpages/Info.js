@@ -29,14 +29,29 @@ export class Info extends Component {
     onFormSubmit: PropTypes.func.isRequired,
     updateFormDirtyState: PropTypes.func.isRequired,
     cancel: PropTypes.func,
+    leftAlignFooter: PropTypes.bool,
+    hideCancel: PropTypes.bool,
+    isModal: PropTypes.bool,
   };
 
   render() {
-    const { onFormSubmit, userId, cancel, updateFormDirtyState } = this.props;
+    const {
+      onFormSubmit,
+      userId,
+      cancel,
+      updateFormDirtyState,
+      leftAlignFooter,
+      hideCancel,
+      isModal,
+    } = this.props;
 
     const addProps = modalFormProps(this.props);
     return (
-      <div className="account-info-form">
+      <div
+        className={
+          !isModal ? "account-info-form" : "account-info-form--isModal"
+        }
+      >
         <SettingHeader title="Account.GeneralInformation" />
         <EditUserForm
           userId={userId}
@@ -44,7 +59,9 @@ export class Info extends Component {
           onCancel={cancel}
           onFormSubmit={onFormSubmit}
           updateFormDirtyState={updateFormDirtyState}
-          isModal={false}
+          leftAlignFooter={leftAlignFooter}
+          hideCancel={hideCancel}
+          isModal={isModal}
         />
       </div>
     );

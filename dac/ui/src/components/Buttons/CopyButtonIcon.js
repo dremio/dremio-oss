@@ -15,79 +15,71 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
+import clsx from "clsx";
 
-import Art from "@app/components/Art";
-import Spinner from "@app/components/Spinner";
+import { Tooltip } from "@mui/material";
 
 export default class CopyButtonIcon extends PureComponent {
   static propTypes = {
     title: PropTypes.string,
     style: PropTypes.object,
+    buttonStyle: PropTypes.object,
     onClick: PropTypes.func,
     disabled: PropTypes.bool,
-    showSpinner: PropTypes.bool,
-    version: PropTypes.number,
-  };
-
-  static defaultProps = {
-    version: 1,
+    isLoading: PropTypes.bool,
+    className: PropTypes.string,
   };
 
   render() {
-    const { title, style, onClick, disabled, showSpinner, version } =
-      this.props;
+    const {
+      title,
+      style,
+      buttonStyle,
+      onClick,
+      disabled,
+      isLoading,
+      className,
+    } = this.props;
+
     const clickHandler = disabled ? undefined : onClick;
-    const iconSrc = version === 2 ? "copy.svg" : "Clipboard.svg";
+
+    // Directly use Tooltip instead of IconButton to work around bug where tooltip is overflowing the page content
     return (
-      <span style={{ ...styles.wrap, ...style }}>
-        {showSpinner && (
-          <Spinner style={styles.spinner} iconStyle={styles.spinnerIcon} />
-        )}
-        <Art
-          src={iconSrc}
-          onClick={clickHandler}
-          alt={title}
+      <span
+        style={{ ...styles.wrap, ...(disabled && styles.disabled), ...style }}
+        className={className}
+      >
+        <Tooltip
           title={title}
-          className="copy-button"
-          data-qa="copy-icon"
-          style={{
-            ...styles.icon,
-            ...(disabled && styles.disabled),
-            ...(version === 2 && styles.version2),
-          }}
-        />
+          placement="bottom-start"
+          arrow
+          enterDelay={500}
+          enterNextDelay={500}
+        >
+          <button
+            onClick={clickHandler}
+            disabled={disabled}
+            className={clsx("dremio-icon-button", "copy-button")}
+            data-qa="copy-icon"
+            style={buttonStyle}
+          >
+            <dremio-icon
+              name={`${isLoading ? "job-state/loading" : "interface/copy"}`}
+              class={`copy-button__icon ${isLoading && "spinner"}`}
+            />
+          </button>
+        </Tooltip>
       </span>
     );
   }
 }
 
 const styles = {
-  icon: {
-    cursor: "pointer",
-    width: 14,
-    height: 14,
-  },
   wrap: {
     display: "inline-block",
+    color: "var(--dremio--color--icon--main)",
   },
   disabled: {
-    opacity: 0.7,
-    cursor: "default",
-    color: "#DDDDDD",
-  },
-  spinner: {
-    top: -4,
-    right: 18,
-    left: "inherit",
-  },
-  spinnerIcon: {
-    width: 24,
-    height: 24,
-  },
-  version2: {
-    height: 21,
-    width: 16,
-    filter:
-      "invert(50%) sepia(22%) saturate(275%) hue-rotate(174deg) brightness(89%) contrast(85%)",
+    cursor: "not-allowed",
   },
 };

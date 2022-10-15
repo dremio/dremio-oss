@@ -20,6 +20,7 @@ import static java.util.stream.Collectors.toCollection;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
@@ -51,7 +52,7 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
   private final FileSystem dfs;
   private final Path path;
 
-  private HashSet<String> columnsToProject;
+  private Set<String> columnsToProject;
   private VectorContainerWriter writer;
   private InputStream inputStream;
   private long runningRecordCount;

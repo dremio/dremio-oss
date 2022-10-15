@@ -37,22 +37,6 @@
     </dependencySet>
 
     <dependencySet>
-      <outputDirectory>winutils/bin</outputDirectory>
-      <unpack>true</unpack>
-      <unpackOptions>
-        <excludes>
-          <exclude>**/*.pdb</exclude>
-          <exclude>**/*.lib</exclude>
-          <exclude>**/*.exp</exclude>
-        </excludes>
-      </unpackOptions>
-      <useProjectArtifact>false</useProjectArtifact>
-      <includes>
-        <include>org.apache.hadoop:hadoop-winutils</include>
-      </includes>
-    </dependencySet>
-
-    <dependencySet>
       <fileMode>0755</fileMode>
       <outputDirectory>lib/</outputDirectory>
       <unpack>true</unpack>

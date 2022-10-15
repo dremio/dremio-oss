@@ -86,18 +86,14 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
       tableOptionsMapBuilder.put(optionName, optionValue);
     } else { // RESET option
       throw UserException.validationError()
-                         .message("RESET is not supported", path)
+                         .message("RESET is not supported for %s", path)
                          .buildSilently();
     }
 
     boolean changed = catalog.alterDataset(path, tableOptionsMapBuilder.build());
-    String resultMessage;
-    if (changed) {
-      resultMessage = "Table [%s] options updated";
-    } else {
-      resultMessage = "Table [%s] options did not change";
-    }
-    return Collections.singletonList(SimpleCommandResult.successful(resultMessage, path));
+    String changedMessage = changed ? "updated" : "did not change";
+    return Collections.singletonList(SimpleCommandResult.successful(
+      "Table [%s] options %s", path, changedMessage));
   }
 
   static AttributeValue createAttributeValue(final SqlLiteral literal) {

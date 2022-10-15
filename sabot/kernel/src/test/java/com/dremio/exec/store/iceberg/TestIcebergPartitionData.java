@@ -234,7 +234,7 @@ public class TestIcebergPartitionData extends BaseTestQuery {
       FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
       IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
-      SchemaConverter schemaConverter = new SchemaConverter(tableName);
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
         icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
         schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null, null);

@@ -44,6 +44,10 @@ public class VariableBlockVector implements AutoCloseable {
     reset();
   }
 
+  public ArrowBuf getBuf() {
+    return buf;
+  }
+
   public long getMemoryAddress(){
     return buf.memoryAddress();
   }
@@ -107,7 +111,7 @@ public class VariableBlockVector implements AutoCloseable {
     buf.setZero(0, buf.capacity());
   }
 
-  int getCapacity() {
+  public int getCapacity() {
     return buf != null ? LargeMemoryUtil.checkedCastToInt(buf.capacity()) : 0;
   }
 

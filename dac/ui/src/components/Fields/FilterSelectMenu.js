@@ -21,7 +21,6 @@ import { injectIntl } from "react-intl";
 import { Tooltip, Button } from "dremio-ui-lib";
 import { AutoSizer, List, CellMeasurer } from "react-virtualized";
 
-import Art from "@app/components/Art";
 import EllipsedText from "components/EllipsedText";
 import { memoOne } from "utils/memoUtils";
 
@@ -32,6 +31,7 @@ import FontIcon from "components/Icon/FontIcon";
 import Checkbox from "components/Fields/Checkbox";
 import { SearchField } from "components/Fields";
 import { SelectView } from "./SelectView";
+import { getIconPath } from "@app/utils/getIconPath";
 
 import "./FilterSelectMenu.less";
 
@@ -117,6 +117,14 @@ export function FilterSelectMenuItem({
                 theme={{ Container: styles.checkboxLabelContainer }}
               />
             ),
+            item.iconId && (
+              <img
+                src={getIconPath(item.iconId)}
+                data-qa={item.iconId}
+                alt={item.label}
+                style={{ height: 24, width: 24, marginRight: "4px" }}
+              />
+            ),
             item.label.length > 24 ? (
               <Tooltip title={item.label}>
                 <EllipsedText text={item.label} className="ellipseLabel" />
@@ -168,10 +176,10 @@ export function FilterSelectMenuItem({
           }}
         >
           <div className="flex --alignCenter margin-right">
-            <Art
-              src={"DragHandle.svg"}
-              alt={"DragHandle"}
-              className="filterSelectMenu__dragHandle"
+            <dremio-icon
+              name="interface/drag-handle"
+              alt="Drag handle"
+              class="filterSelectMenu__dragHandle"
             />
             {renderContent()}
           </div>
@@ -211,7 +219,6 @@ export default class FilterSelectMenu extends Component {
     preventSelectedLabel: PropTypes.bool,
     noSearch: PropTypes.bool,
     selectedToTop: PropTypes.bool,
-    isArtIcon: PropTypes.bool,
     selectType: PropTypes.string,
 
     // callbacks
@@ -221,7 +228,7 @@ export default class FilterSelectMenu extends Component {
 
     intl: PropTypes.object.isRequired,
     showSelectedLabel: PropTypes.bool,
-    icon: PropTypes.string,
+    iconId: PropTypes.string,
     iconStyle: PropTypes.object,
     onClick: PropTypes.func,
     popoverFilters: PropTypes.string,
@@ -243,7 +250,6 @@ export default class FilterSelectMenu extends Component {
   static defaultProps = {
     // todo: `la` loc not building correctly here
     items: [],
-    isArtIcon: true,
     selectedValues: Immutable.List(),
     searchPlaceholder: "Search",
     showSelectedLabel: true,
@@ -476,9 +482,9 @@ export default class FilterSelectMenu extends Component {
   }
 
   getLabelIcon() {
-    const { icon, selectedValues } = this.props;
-    if (icon) {
-      return icon;
+    const { iconId, selectedValues } = this.props;
+    if (iconId) {
+      return iconId;
     }
     return selectedValues.size ? "ArrowDownBlue.svg" : "ArrowDown.svg";
   }
@@ -523,7 +529,6 @@ export default class FilterSelectMenu extends Component {
       iconStyle,
       popoverFilters,
       selectClass,
-      isArtIcon,
       iconClass,
       selectedValues,
       noSearch,
@@ -534,6 +539,7 @@ export default class FilterSelectMenu extends Component {
       popoverContentHeight,
       cellCache,
       items,
+      iconId,
       menuHeader,
       hasIconFirst,
     } = this.props;
@@ -568,13 +574,13 @@ export default class FilterSelectMenu extends Component {
         beforeOpen={this.beforeDDOpen}
         className={className}
         dataQa={name + "-filter"}
-        icon={this.getLabelIcon()}
+        iconId={this.getLabelIcon()}
         iconStyle={iconStyle}
         popoverFilters={popoverFilters}
         iconClass={iconClassName}
-        isArtIcon={isArtIcon}
         hasIconFirst={hasIconFirst}
         menuHeader={menuHeader}
+        hasSpecialIcon={!!iconId}
       >
         <div
           style={{ ...styles.popoverContent, height: pHeight }}

@@ -156,7 +156,7 @@ public class JobResultsStore implements Service {
       final Path jobOutputDir = getJobOutputDir(jobId);
       if (!doesQueryResultsDirExists(jobOutputDir, jobId)) {
         throw UserException.dataReadError()
-            .message(getErrorMessageQueryResultsDirNotexists(), jobId.getId())
+            .message("Error in Job '%s': %s", jobId.getId(), getErrorMessageQueryResultsDirNotexists())
             .build(logger);
       }
 
@@ -232,7 +232,7 @@ public class JobResultsStore implements Service {
   }
 
   public String getErrorMessageQueryResultsDirNotexists() {
-    return "Job '%s' output doesn't exist";
+    return "output doesn't exist";
   }
 
   private boolean shouldSkipJobResults(JobId jobId) {

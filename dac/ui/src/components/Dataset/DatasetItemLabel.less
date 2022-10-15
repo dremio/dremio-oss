@@ -43,28 +43,29 @@
     }
 
     &__add {
-      filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg)
-        brightness(91%) contrast(85%);
       height: 2.4rem;
+      width: 2.4rem;
       opacity: 0;
       transition: 300ms ease all;
-      width: 2.4rem;
+      padding: 0;
+      color: var(--dremio--color--neutral--600) !important;
 
       &:hover {
-        .gray-icon-hover();
+        color: var(--dremio--color--link) !important;
       }
     }
 
     &__starIcon {
       height: 2.4rem;
+      width: 2.4rem;
       margin-right: 0.5rem;
       transition: 300ms ease all;
-      width: 2.4rem;
       opacity: 0;
-      margin-bottom: 1px;
+      padding: 0;
+      color: var(--dremio--color--neutral--600) !important;
 
       &:hover {
-        cursor: pointer;
+        color: var(--dremio--color--link) !important;
       }
     }
 
@@ -88,6 +89,13 @@
 
     &__content {
       flex: 1;
+
+      .expand-icon {
+        height: 24px;
+        min-width: 24px;
+        padding: 0;
+        color: var(--dremio--color--icon--main);
+      }
 
       .font-icon {
         min-width: 2.4rem;

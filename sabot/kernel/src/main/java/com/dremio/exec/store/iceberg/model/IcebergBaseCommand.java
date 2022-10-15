@@ -36,6 +36,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFiles;
 import org.apache.iceberg.ExpireSnapshots;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.OverwriteFiles;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
@@ -46,6 +47,7 @@ import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.Transaction;
 import org.apache.iceberg.UpdateProperties;
 import org.apache.iceberg.UpdateSchema;
+import org.apache.iceberg.exceptions.RuntimeIOException;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.types.TypeUtil;
@@ -59,6 +61,8 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.FieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -73,9 +77,10 @@ public class IcebergBaseCommand implements IcebergCommand {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergBaseCommand.class);
     private static final String MANIFEST_FILE_DEFAULT_SIZE = "153600";
     private Transaction transaction;
-    protected TableOperations tableOperations;
+    private TableOperations tableOperations;
     private AppendFiles appendFiles;
     private DeleteFiles deleteFiles;
+    private OverwriteFiles overwriteFiles;
     private final Configuration configuration;
     protected final Path fsPath;
     private final FileSystem fs;
@@ -103,7 +108,7 @@ public class IcebergBaseCommand implements IcebergCommand {
         Preconditions.checkNotNull(tableOperations);
         Schema schema;
         try {
-            SchemaConverter schemaConverter = new SchemaConverter(tableName);
+            SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
             schema = schemaConverter.toIcebergSchema(writerSchema);
         } catch (Exception ex) {
             throw UserException.validationError(ex).buildSilently();
@@ -111,7 +116,7 @@ public class IcebergBaseCommand implements IcebergCommand {
         if(partitionSpec == null){
           partitionSpec = IcebergUtils.getIcebergPartitionSpec(writerSchema, partitionColumns, null);
         }
-        HashMap<String, String> tableProp = new HashMap<>(tableParameters);
+        Map<String, String> tableProp = new HashMap<>(tableParameters);
         tableProp.put(TableProperties.SNAPSHOT_ID_INHERITANCE_ENABLED, "true");
         tableProp.put(TableProperties.MANIFEST_TARGET_SIZE_BYTES,  MANIFEST_FILE_DEFAULT_SIZE);
         TableMetadata metadata = TableMetadata.newTableMetadata(schema, partitionSpec, getTableLocation(), tableProp);
@@ -136,6 +141,34 @@ public class IcebergBaseCommand implements IcebergCommand {
         Table table = transaction.table();
         transaction = null;
         return table;
+    }
+
+    @Override
+    public void beginOverwrite(long snapshotId) {
+      Preconditions.checkState(transaction != null, "Unexpected state");
+      // Mark the transaction as a read-modify-write transaction. When performing DML (DELETE, UPDATE, MERGE) operations
+      // to update an iceberg table, the version of the table while updating should be the same as the version that was read.
+      overwriteFiles = transaction.newOverwrite().validateFromSnapshot(snapshotId).validateNoConflictingData();
+    }
+
+    @Override
+    public Snapshot finishOverwrite() {
+      overwriteFiles.commit();
+      return transaction.table().currentSnapshot();
+    }
+
+    @Override
+    public void consumeDeleteDataFilesWithOverwriteByPaths(List<String> filePathsList) {
+      Preconditions.checkState(transaction != null, "Transaction was not started");
+      Preconditions.checkState(overwriteFiles != null, "OverwriteFiles was not started");
+      filePathsList.forEach(x -> overwriteFiles.deleteFile(x));
+    }
+
+    @Override
+    public void consumeManifestFilesWithOverwrite(List<ManifestFile> filesList) {
+      Preconditions.checkState(transaction != null, "Transaction was not started");
+      Preconditions.checkState(overwriteFiles != null, "OverwriteFiles was not started");
+      filesList.forEach(x -> overwriteFiles.appendManifest(x));
     }
 
     @Override
@@ -196,21 +229,21 @@ public class IcebergBaseCommand implements IcebergCommand {
     @Override
     public void consumeManifestFiles(List<ManifestFile> filesList) {
       Preconditions.checkState(transaction != null, "Transaction was not started");
-      Preconditions.checkState(appendFiles != null, "Transaction was not started");
+      Preconditions.checkState(appendFiles != null, "AppendFiles was not started");
       filesList.forEach(x -> appendFiles.appendManifest(x));
     }
 
     @Override
     public void consumeDeleteDataFiles(List<DataFile> filesList) {
       Preconditions.checkState(transaction != null, "Transaction was not started");
-      Preconditions.checkState(deleteFiles != null, "Transaction was not started");
+      Preconditions.checkState(deleteFiles != null, "DeleteFiles was not started");
       filesList.forEach(x -> deleteFiles.deleteFile(x.path()));
     }
 
     @Override
     public void consumeDeleteDataFilesByPaths(List<String> filePathsList) {
       Preconditions.checkState(transaction != null, "Transaction was not started");
-      Preconditions.checkState(deleteFiles != null, "Transaction was not started");
+      Preconditions.checkState(deleteFiles != null, "DeleteFiles was not started");
       filePathsList.forEach(p -> deleteFiles.deleteFile(p));
     }
 
@@ -245,13 +278,10 @@ public class IcebergBaseCommand implements IcebergCommand {
   public void deleteTable() {
       try {
         com.dremio.io.file.Path p = com.dremio.io.file.Path.of(fsPath.toString());
-        if(fs != null) {
-          fs.delete(p, true);
-        }else{
-          mutablePlugin.getSystemUserFS().delete(p,true);
-        }
-      } catch (IOException e) {
-        String message = String.format("The dataset is now forgotten by dremio, but there was an error while cleaning up respective metadata files residing at %s.", fsPath.toString());
+        DremioFileIO dremioFileIO = new DremioFileIO(mutablePlugin.getFsConfCopy(), mutablePlugin);
+        dremioFileIO.deleteFile(p.toString(), true, mutablePlugin instanceof FileSystemPlugin);
+      } catch (RuntimeIOException e) {
+        String message = String.format("The dataset is now forgotten by dremio, but there was an error while cleaning up respective data and metadata files residing at %s.", fsPath.toString());
         logger.error(message);
         throw new RuntimeException(e);
       }
@@ -298,7 +328,7 @@ public class IcebergBaseCommand implements IcebergCommand {
   @Override
   public void addColumnsInternalTable(List<Field> columnsToAdd) {
     UpdateSchema updateSchema = transaction.updateSchema();
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     List<Types.NestedField> icebergFields = schemaConverter.toIcebergFields(columnsToAdd);
     icebergFields.forEach(c -> updateSchema.addColumn(c.name(), c.type()));
     updateSchema.commit();
@@ -312,7 +342,7 @@ public class IcebergBaseCommand implements IcebergCommand {
   public void changeColumnForInternalTable(String columnToChange, Field batchField) {
     UpdateSchema schema = transaction.updateSchema();
     dropColumn(columnToChange, transaction.table(), schema, false);
-    SchemaConverter converter = new SchemaConverter();
+    SchemaConverter converter = SchemaConverter.getBuilder().build();
     List<Types.NestedField> nestedFields = converter.toIcebergFields(ImmutableList.of(batchField));
     schema.addColumn(nestedFields.get(0).name(),nestedFields.get(0).type());
     schema.commit();
@@ -346,7 +376,7 @@ public class IcebergBaseCommand implements IcebergCommand {
   public void changeColumn(String columnToChange, Field batchField) {
     Table table = loadTable();
     UpdateSchema updateSchema = table.updateSchema();
-    changeColumn(columnToChange, batchField, table, new SchemaConverter(table.name()), updateSchema, false);
+    changeColumn(columnToChange, batchField, table, SchemaConverter.getBuilder().setTableName(table.name()).build(), updateSchema, false);
     updateSchema.commit();
   }
 
@@ -368,7 +398,7 @@ public class IcebergBaseCommand implements IcebergCommand {
   }
 
     private String sqlTypeNameWithPrecisionAndScale(org.apache.iceberg.types.Type type) {
-        SchemaConverter schemaConverter = new SchemaConverter(getTableName());
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(getTableName()).build();
         CompleteType completeType = schemaConverter.fromIcebergType(type);
         SqlTypeName calciteTypeFromMinorType = CalciteArrowHelper.getCalciteTypeFromMinorType(completeType.toMinorType());
         if (calciteTypeFromMinorType == SqlTypeName.DECIMAL) {
@@ -390,7 +420,9 @@ public class IcebergBaseCommand implements IcebergCommand {
         Table table = new BaseTable(getTableOps(), getTableName());
         table.refresh();
         if (getTableOps().current() == null) {
-            throw UserException.ioExceptionError(new IOException("Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry.")).buildSilently();
+            throw UserException.ioExceptionError(new IOException(
+              "Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry: " + fsPath))
+              .buildSilently();
         }
         this.currentSnapshot = table.currentSnapshot();
         return table;
@@ -489,7 +521,7 @@ public class IcebergBaseCommand implements IcebergCommand {
   public String getRootPointer() {
     TableMetadata metadata = getTableOps().current();
     if (metadata == null) {
-      throw UserException.dataReadError().message("Failed to get iceberg metadata").buildSilently();
+      throw UserException.dataReadError().message("Failed to get iceberg metadata: " + fsPath).buildSilently();
     }
     return metadata.metadataFileLocation();
   }

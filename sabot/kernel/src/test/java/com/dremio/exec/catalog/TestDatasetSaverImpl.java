@@ -22,9 +22,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -42,6 +43,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 @Ignore("DX-50441")
+@RunWith(MockitoJUnitRunner.class)
 public class TestDatasetSaverImpl {
 
   @Mock
@@ -60,7 +62,6 @@ public class TestDatasetSaverImpl {
 
   @Before
   public void init() {
-    MockitoAnnotations.openMocks(this);
     datasetSaver = new DatasetSaverImpl(null, null, optionManager);
     List<String> entityPaths = new ArrayList<>();
     entityPaths.add("items");

@@ -33,7 +33,6 @@ import com.dremio.common.util.TestTools;
 import com.google.common.base.Function;
 
 public class TestJdbcQuery extends JdbcTestQueryBase {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJdbcQuery.class);
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(70, TimeUnit.SECONDS);
 

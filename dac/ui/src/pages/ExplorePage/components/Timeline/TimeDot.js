@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import { Component, createRef } from "react";
-import { Link, withRouter } from "react-router";
+import { withRouter } from "react-router";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import classNames from "classnames";
@@ -137,7 +138,7 @@ export class TimeDot extends Component {
           </Button>
           <IconButton
             tooltip={"Explore.History.LoadInNewTab"}
-            as={Link}
+            as={LinkWithRef}
             to={this.getHistoryPath()}
             target="_blank"
             onClick={() => this.handleMouseLeave()}

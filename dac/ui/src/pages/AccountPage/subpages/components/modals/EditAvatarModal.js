@@ -22,6 +22,8 @@ import { formLabel } from "uiTheme/radium/typography";
 import { secondary } from "uiTheme/radium/buttons";
 import { FieldWithError, TextField } from "components/Fields";
 import { ModalForm, FormBody, modalFormProps } from "components/Forms";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import clsx from "clsx";
 
 export default class EditAvatarModal extends Component {
   static propTypes = {
@@ -50,7 +52,14 @@ export default class EditAvatarModal extends Component {
                 <FieldWithError>
                   <TextField style={{ cursor: "pointer" }} />
                 </FieldWithError>
-                <button key="browse" style={styles.button}>
+                <button
+                  key="browse"
+                  style={styles.button}
+                  className={clsx(
+                    classes["buttonPsuedoClasses"],
+                    classes["secondaryButtonPsuedoClasses"]
+                  )}
+                >
                   <span>Browse</span>
                 </button>
               </div>

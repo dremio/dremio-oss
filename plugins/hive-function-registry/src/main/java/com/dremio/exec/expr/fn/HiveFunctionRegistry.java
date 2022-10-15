@@ -15,12 +15,15 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
 
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.hadoop.hive.ql.exec.Description;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.UDFType;
@@ -43,7 +46,7 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
 
   private ArrayListMultimap<String, Class<? extends GenericUDF>> methodsGenericUDF = ArrayListMultimap.create();
   private ArrayListMultimap<String, Class<? extends UDF>> methodsUDF = ArrayListMultimap.create();
-  private HashSet<Class<?>> nonDeterministicUDFs = new HashSet<>();
+  private Set<Class<?>> nonDeterministicUDFs = new HashSet<>();
 
   /**
    * Scan the classpath for implementation of GenericUDF/UDF interfaces,
@@ -86,8 +89,10 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
   @Override
   public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
     for (String name : Sets.union(methodsGenericUDF.asMap().keySet(), methodsUDF.asMap().keySet())) {
-      operatorTable.add(name, new HiveUDFOperator(name.toUpperCase(), new
-        PlugginRepositorySqlReturnTypeInference(this, isDecimalV2Enabled)));
+      SqlFunction hiveFunction = new HiveUDFOperator(
+        name.toUpperCase(),
+        new PlugginRepositorySqlReturnTypeInference(this, isDecimalV2Enabled));
+      operatorTable.add(name, hiveFunction);
     }
   }
 
@@ -142,6 +147,7 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
    */
   private HiveFuncHolder resolveFunction(FunctionCall call, boolean varCharToStringReplacement) {
     HiveFuncHolder holder;
+
     CompleteType[] argTypes = new CompleteType[call.args.size()];
     ObjectInspector[] argOIs = new ObjectInspector[call.args.size()];
     for (int i=0; i<call.args.size(); i++) {
@@ -152,16 +158,16 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
       } catch(Exception e) {
         // Hive throws errors if there are unsupported types. Consider there is no hive UDF supporting the
         // given argument types
-        logger.trace("Failed to find a hive function for given FunctionCall: '{}'", call.toString(), e);
+        logger.info("Failed to find a hive function for given FunctionCall: '{}' and the argument number is '{}' and the error is", call, i, e);
         return null;
       }
     }
 
     String funcName = call.getName().toLowerCase();
-
+    List<Exception> errors = new ArrayList<>();
     // search in GenericUDF list
     for (Class<? extends GenericUDF> clazz: methodsGenericUDF.get(funcName)) {
-      holder = matchAndCreateGenericUDFHolder(clazz, argTypes, argOIs);
+      holder = matchAndCreateGenericUDFHolder(clazz, argTypes, argOIs, errors);
       if (holder != null) {
         return holder;
       }
@@ -169,32 +175,49 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
 
     // search in UDF list
     for (Class<? extends UDF> clazz : methodsUDF.get(funcName)) {
-      holder = matchAndCreateUDFHolder(call.getName(), clazz, argTypes, argOIs);
+      holder = matchAndCreateUDFHolder(call.getName(), clazz, argTypes, argOIs, errors);
       if (holder != null) {
         return holder;
       }
     }
 
+    if (errors.size() == 0) {
+      logger.info("Unable to find a hive function with the same name for the following function: '{}'", call);
+    } else {
+      logger.info("Failed to instantiate Hive class for the following function: '{}' and the error is '{}'", call, appendAllTheErrors(errors));
+    }
     return null;
+  }
+
+  private String appendAllTheErrors(List<Exception> errors) {
+    StringBuilder sb = new StringBuilder();
+    for(int i=0;i<errors.size();i++) {
+      if(i>0) {
+        sb.append("; ");
+      }
+      sb.append(errors.get(i).getMessage());
+    }
+    return sb.toString();
   }
 
   private HiveFuncHolder matchAndCreateGenericUDFHolder(Class<? extends GenericUDF> udfClazz,
                                               CompleteType[] argTypes,
-                                              ObjectInspector[] argOIs) {
+                                              ObjectInspector[] argOIs, List<Exception> errors) {
     // probe UDF to find if the arg types and acceptable
     // if acceptable create a holder object
     try {
       GenericUDF udfInstance = udfClazz.newInstance();
-      ObjectInspector returnOI = udfInstance.initialize(argOIs);
+       ObjectInspector returnOI = udfInstance.initialize(argOIs);
       return new HiveFuncHolder(
         udfClazz,
         argTypes,
         returnOI,
         CompleteType.fromMinorType(ObjectInspectorHelper.getMinorType(returnOI)),
         nonDeterministicUDFs.contains(udfClazz));
-    } catch (IllegalAccessException | InstantiationException e) {
-      logger.debug("Failed to instantiate class", e);
-    } catch (Exception e) { /*ignore this*/ }
+    } catch (Exception e) {
+      errors.add(e);
+      /*ignore this*/
+    }
 
     return null;
   }
@@ -202,7 +225,7 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
   private HiveFuncHolder matchAndCreateUDFHolder(String udfName,
                                                  Class<? extends UDF> udfClazz,
                                                  CompleteType[] argTypes,
-                                                 ObjectInspector[] argOIs) {
+                                                 ObjectInspector[] argOIs, List<Exception> errors) {
     try {
       GenericUDF udfInstance = new GenericUDFBridge(udfName, false/* is operator */, udfClazz.getName());
       ObjectInspector returnOI = udfInstance.initialize(argOIs);
@@ -214,7 +237,10 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
         returnOI,
         CompleteType.fromMinorType(ObjectInspectorHelper.getMinorType(returnOI)),
         nonDeterministicUDFs.contains(udfClazz));
-    } catch (Exception e) { /*ignore this*/ }
+    } catch (Exception e) {
+      errors.add(e);
+      /*ignore this*/
+    }
 
     return null;
   }

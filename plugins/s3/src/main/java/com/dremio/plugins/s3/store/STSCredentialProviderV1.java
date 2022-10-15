@@ -18,6 +18,7 @@ package com.dremio.plugins.s3.store;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
+import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactory.GLUE_DREMIO_ASSUME_ROLE_PROVIDER;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -63,6 +64,7 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
         awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();
         break;
       case DREMIO_ASSUME_ROLE_PROVIDER:
+      case GLUE_DREMIO_ASSUME_ROLE_PROVIDER:
         awsCredentialsProvider = new DremioAssumeRoleCredentialsProviderV1();
         break;
       default:

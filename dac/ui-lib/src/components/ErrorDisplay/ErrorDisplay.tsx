@@ -15,91 +15,37 @@
  */
 
 import * as React from "react";
-import { CollapsibleStacktrace } from "./CollapsibleStacktrace";
+import type { ErrorDisplayProps } from "./ErrorDisplay.type";
+import { renderDevInfo } from "./renderDevInfo";
+import { renderProdInfo } from "./renderProdInfo";
 
-const DEFAULT_SUPPORT_MESSAGE =
-  "Something went wrong when we tried to render this content.";
-
-const errorIcon = (
+const narwhalErrorIcon = (
   //@ts-ignore
   <dremio-icon
-    name="job-state/failed"
+    name="narwhal/error"
     class="dremio-error-display__title-icon"
-    style={{ margin: "-7px" }}
+    alt=""
     //@ts-ignore
   ></dremio-icon>
 );
 
-type ErrorDisplayProps = {
-  details: React.ReactNode;
-  error: Error;
-  errorInfo?: { componentStack: string };
-  production?: boolean;
-  supportInfo?: string;
-
-  // A customized support message depending on the product edition
-  supportMessage?: string;
-  title: string;
-};
-
-const renderDevInfo = ({
-  error,
-  errorInfo,
-}: Pick<ErrorDisplayProps, "error" | "errorInfo">): React.ReactElement => {
-  return (
-    <React.Fragment>
-      <div className="dremio-error-display__codeblock">{error.message}</div>
-      {errorInfo?.componentStack && (
-        <CollapsibleStacktrace
-          title="Component Tree"
-          contents={errorInfo.componentStack}
-        />
-      )}
-    </React.Fragment>
-  );
-};
-
-const renderProdInfo = ({
-  supportInfo,
-  supportMessage,
-}: Pick<
-  ErrorDisplayProps,
-  "supportInfo" | "supportMessage"
->): React.ReactElement => {
-  return (
-    <React.Fragment>
-      <p
-        aria-details="dremio-error-display__supportInfo"
-        className="dremio-error-display__support-message"
-      >
-        {supportMessage}
-      </p>
-      {supportInfo && (
-        <pre
-          id="dremio-error-display__supportInfo"
-          className="dremio-error-display__codeblock"
-        >
-          {supportInfo}
-        </pre>
-      )}
-    </React.Fragment>
-  );
-};
-
+/**
+ * An error overlay component providing support information (in production mode)
+ * or stack traces (in development mode). Can be used inside of an ErrorBoundary
+ * or rendered directly as a standalone component.
+ */
 export const ErrorDisplay: React.FC<ErrorDisplayProps> = (props) => {
   return (
     <div className="dremio-error-display" role="alert">
       <div className="dremio-error-display__wrapper">
         <header>
-          <p className="dremio-error-display__title">
-            {errorIcon}
-            {props.title}
-          </p>
+          {narwhalErrorIcon}
+          <div className="dremio-error-display__title-text">{props.title}</div>
         </header>
         {props.production
           ? renderProdInfo({
-              supportMessage: props.supportMessage || DEFAULT_SUPPORT_MESSAGE,
-              supportInfo: props.supportInfo,
+              supportMessage: props.supportMessage,
+              renderSupportInfo: props.renderSupportInfo,
             })
           : renderDevInfo({ error: props.error, errorInfo: props.errorInfo })}
       </div>

@@ -50,6 +50,12 @@ public final class TokenBufferTests {
   }
 
   @Test
+  public void testPeekImage() {
+    TokenBuffer tokenBuffer = new TokenBuffer(SAMPLE_TOKENS);
+    Assert.assertEquals(SAMPLE_TOKENS.get(0).getImage(), tokenBuffer.peekImage());
+  }
+
+  @Test
   public void testKindIs() {
     TokenBuffer tokenBuffer = new TokenBuffer(SAMPLE_TOKENS);
     Assert.assertTrue(tokenBuffer.kindIs(SAMPLE_TOKENS.get(0).getKind()));
@@ -64,6 +70,29 @@ public final class TokenBufferTests {
     Assert.assertEquals(SAMPLE_TOKENS.get(2), tokenBuffer.read());
     Assert.assertEquals(SAMPLE_TOKENS.get(3), tokenBuffer.read());
     Assert.assertEquals(null, tokenBuffer.read());
+  }
+
+  @Test
+  public void testReadLength() {
+    {
+      TokenBuffer tokenBuffer = new TokenBuffer(SAMPLE_TOKENS);
+      Assert.assertEquals( 2,tokenBuffer.read(2).size());
+    }
+
+    {
+      TokenBuffer tokenBuffer = new TokenBuffer(SAMPLE_TOKENS);
+      Assert.assertEquals( 0,tokenBuffer.read(0).size());
+    }
+
+    {
+      TokenBuffer tokenBuffer = new TokenBuffer(SAMPLE_TOKENS);
+      Assert.assertEquals( 0,tokenBuffer.read(-1).size());
+    }
+
+    {
+      TokenBuffer tokenBuffer = new TokenBuffer(SAMPLE_TOKENS);
+      Assert.assertEquals( SAMPLE_TOKENS.size(),tokenBuffer.read(SAMPLE_TOKENS.size() * 2).size());
+    }
   }
 
   @Test

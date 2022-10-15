@@ -251,6 +251,7 @@ export class FileFormatForm extends Component {
                 location={this.context.location}
                 dragType="groupBy"
                 exploreViewState={previewViewState}
+                shouldRenderInvisibles
               />
             )}
           </div>

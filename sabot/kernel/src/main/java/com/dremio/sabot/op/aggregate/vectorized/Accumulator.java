@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +42,15 @@ public interface Accumulator extends AutoCloseable {
    * this function works on a per-partition basis.
    */
   void accumulate(long offsetAddr, int count, int bitsInChunk, int chunkOffsetMask);
+
+  /**
+   * Along with force accumulation, compact() allow to free up space in the accumulation vector, if any.
+   *
+   * @param batchIndex Compaction to be applied on batchIndex batch.
+   * @param nextRecSize Size of the next record, expected to join the accumulator. It is up to the
+   *                    accumulator to reserve the space or let the batch get spliced.
+   */
+  void compact(final int batchIndex, final int nextRecSize);
 
   /**
    * Output the data from multiple batches starting from startBatchIndex.
@@ -101,14 +112,15 @@ public interface Accumulator extends AutoCloseable {
 
   /**
    * Check if the accumulator for the given batchIndex has given 'space' space
-   * available. This is valid only for variable length accumulator.
+   * available. This is valid for variable length accumulators.
    *
-   * @param space
-   * @param batchIndex
+   * @param space Total space to be reserved
+   * @param numOfRecords Total number of records to be reserved
+   * @param batchIndex Batch at which the reservation has to made
+   * @param offsetInBatch Index in the batch for which the reservation is made
    * @return
    */
-
-  default boolean hasSpace(final int space, final int batchIndex) {
+  default boolean hasSpace(final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
     return true;
   }
 
@@ -170,5 +182,26 @@ public interface Accumulator extends AutoCloseable {
 
   default int getMaxVarLenKeySize() {
     return 0;
+  }
+
+  class AccumStats {
+    private int numCompactions = 0;
+    private long totalCompactionTimeNS = 0;
+
+    public void incNumCompactions() {
+      numCompactions += 1;
+    }
+
+    public int getNumCompactions() {
+      return numCompactions;
+    }
+
+    public void updateTotalCompactionTimeBy(long compactionTimeNS) {
+      totalCompactionTimeNS += compactionTimeNS;
+    }
+
+    public long getTotalCompactionTime(TimeUnit unit) {
+      return unit.convert(totalCompactionTimeNS, NANOSECONDS);
+    }
   }
 }

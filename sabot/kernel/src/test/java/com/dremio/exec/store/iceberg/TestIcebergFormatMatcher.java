@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 

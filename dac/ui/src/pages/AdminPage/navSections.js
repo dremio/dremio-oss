@@ -18,27 +18,27 @@ export default function () {
   return Promise.resolve(
     [
       {
-        icon: "Node.svg",
+        icon: "settings/node-activity",
         title: "Admin.Engines.NodeActivity",
         url: "/admin/nodeActivity",
       },
       {
-        icon: "Engines.svg",
+        icon: "settings/engines",
         title: "Admin.Engines.ElasticEngines",
         url: "/admin/provisioning",
       },
       {
-        icon: "SubNavSupport.svg",
+        icon: "settings/support",
         title: "Admin.Engines.Support",
         url: "/admin/support",
       },
       {
-        icon: "Engines.svg",
+        icon: "settings/queue-control",
         title: "Admin.Engines.QueueControl",
         url: "/admin/advanced",
       },
       {
-        icon: "UserManagmentRole.svg",
+        icon: "settings/users",
         title: "Admin.UserManagement.Users",
         url: "/admin/users",
       },
@@ -49,5 +49,3 @@ export default function () {
 export const getTitle = () => {
   return "Settings";
 };
-
-export const navigationSection = null;

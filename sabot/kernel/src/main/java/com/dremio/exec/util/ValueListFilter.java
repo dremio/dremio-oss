@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.util;
 
-import static org.apache.arrow.util.Preconditions.checkArgument;
-import static org.apache.arrow.util.Preconditions.checkNotNull;
-import static org.apache.arrow.util.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.nio.charset.StandardCharsets;
 
@@ -246,6 +246,7 @@ public class ValueListFilter implements AutoCloseable {
             mergedValList.setContainsTrue(valList1.isContainsTrue() || valList2.isContainsTrue());
             checkState(!mergedValList.containsAllBoolCombinations(), "Merged buffer contains all boolean combinations. " +
                     "Unlikely to filter anything.");
+            mergedValList.writeMetaToBuffer();
             return;
         }
 

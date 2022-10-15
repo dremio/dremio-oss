@@ -23,4 +23,5 @@ public class UserConstants {
    * System user running the Dremio service.
    */
   public static final String SYSTEM_USERNAME = "$dremio$";
+  public static final String SYSTEM_ID = "1";
 }

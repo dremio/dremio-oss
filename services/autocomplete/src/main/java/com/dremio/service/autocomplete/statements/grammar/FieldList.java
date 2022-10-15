@@ -19,6 +19,13 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.IDENTI
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.LPAREN;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.RPAREN;
 
+import java.util.Set;
+
+import com.dremio.service.autocomplete.AutocompleteEngineContext;
+import com.dremio.service.autocomplete.columns.Column;
+import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
+import com.dremio.service.autocomplete.columns.ColumnResolver;
+import com.dremio.service.autocomplete.completions.Completions;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
 import com.google.common.collect.ImmutableList;
@@ -26,24 +33,34 @@ import com.google.common.collect.ImmutableList;
 /**
  * Represents the fields in a reflection create statement.
  */
-public final class FieldList {
+public final class FieldList extends LeafStatement {
   private final ImmutableList<DremioToken> tokens;
   private final ImmutableList<String> fields;
+  private final TableReference tableReference;
 
-  public FieldList(ImmutableList<DremioToken> tokens, ImmutableList<String> fields) {
+  public FieldList(
+    ImmutableList<DremioToken> tokens,
+    ImmutableList<String> fields,
+    TableReference tableReference) {
+    super(tokens);
     this.tokens = tokens;
     this.fields = fields;
+    this.tableReference = tableReference;
   }
 
   public ImmutableList<DremioToken> getTokens() {
     return tokens;
   }
 
+  public TableReference getTableReference() {
+    return tableReference;
+  }
+
   public ImmutableList<String> getFields() {
     return fields;
   }
 
-  public static FieldList parse(TokenBuffer tokenBuffer) {
+  public static FieldList parse(TokenBuffer tokenBuffer, TableReference tableReference) {
     ImmutableList.Builder<String> fieldBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<DremioToken> tokenBuilder = new ImmutableList.Builder<>();
     int level = 0;
@@ -60,7 +77,7 @@ public final class FieldList {
       case RPAREN:
         level--;
         if (level == 0) {
-          return new FieldList(tokenBuilder.build(), fieldBuilder.build());
+          return new FieldList(tokenBuilder.build(), fieldBuilder.build(), tableReference);
         }
         break;
       default:
@@ -68,6 +85,21 @@ public final class FieldList {
       }
     }
 
-    return new FieldList(tokenBuilder.build(), fieldBuilder.build());
+    return new FieldList(tokenBuilder.build(), fieldBuilder.build(), tableReference);
+  }
+
+  @Override
+  public Completions getCompletions(AutocompleteEngineContext autocompleteEngineContext) {
+    Set<ColumnAndTableAlias> allColumns = ColumnResolver
+      .create(autocompleteEngineContext)
+      .resolve(ImmutableList.of(tableReference));
+    ImmutableList<Column> remainingColumns = allColumns
+      .stream()
+      .filter(columnAndTableAlias -> !fields.contains(columnAndTableAlias.getColumn().getName()))
+      .map(ColumnAndTableAlias::getColumn)
+      .collect(ImmutableList.toImmutableList());
+    return Completions.builder()
+      .addColumns(remainingColumns, tableReference)
+      .build();
   }
 }

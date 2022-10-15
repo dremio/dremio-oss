@@ -159,7 +159,7 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
         CompleteType.VARBINARY.toField("varBinaryCol")
       );
 
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     icebergSchema = schemaConverter.toIcebergSchema(tableSchema);
 
     PartitionSpec.Builder specBuilder = PartitionSpec.builderFor(icebergSchema);

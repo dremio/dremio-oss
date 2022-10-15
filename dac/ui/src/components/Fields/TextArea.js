@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
+import clsx from "clsx";
 
 import PropTypes from "prop-types";
 
 import forms from "uiTheme/radium/forms";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 class TextArea extends PureComponent {
   static propTypes = {
@@ -37,6 +38,7 @@ class TextArea extends PureComponent {
     visited: PropTypes.any,
     autofilled: PropTypes.any,
     placeholder: PropTypes.any,
+    className: PropTypes.string,
   };
 
   constructor(props) {
@@ -47,15 +49,17 @@ class TextArea extends PureComponent {
     return (
       <textarea
         {...this.props}
-        className="field"
-        style={[
-          forms.textArea,
-          this.props.error && forms.textInputError,
-          this.props.disabled && forms.textInputDisabled,
-          this.props.style && { ...this.props.style },
-        ]}
+        className={clsx("field", classes["textAreaPsuedoClasses"], {
+          [this.props.className]: this.props.className,
+        })}
+        style={{
+          ...forms.textArea,
+          ...(this.props.error ? forms.textInputError : {}),
+          ...(this.props.disabled ? forms.textInputDisabled : {}),
+          ...(this.props.style ? this.props.style : {}),
+        }}
       />
     );
   }
 }
-export default Radium(TextArea);
+export default TextArea;

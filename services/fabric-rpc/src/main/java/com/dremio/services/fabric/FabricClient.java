@@ -43,8 +43,6 @@ import io.netty.channel.socket.SocketChannel;
  */
 class FabricClient extends BasicClient<RpcType, FabricConnection, FabricHandshake, FabricHandshake>{
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricClient.class);
-
   private final FabricMessageHandler handler;
   private final FabricIdentity remoteIdentity;
   private final FabricConnectionManager.CloseHandlerCreator closeHandlerFactory;

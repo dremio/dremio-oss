@@ -79,7 +79,6 @@ import com.dremio.test.AllocatorRule;
 import com.google.common.base.Joiner;
 
 public class TestParquetWriter extends BaseTestQuery {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestParquetWriter.class);
 
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
@@ -178,13 +177,13 @@ public class TestParquetWriter extends BaseTestQuery {
     for (int i = 0 ; i < numCols - 1; i++) {
       sb.append(String.format("\"col_%d\" : 100,", i));
       colNames[i] = "col_" + i;
-      values[i] = 100l;
+      values[i] = 100L;
     }
     // add one column without a comma after it
     sb.append(String.format("\"col_%d\" : 100", numCols - 1));
     sb.append("}");
     colNames[numCols - 1] = "col_" + (numCols - 1);
-    values[numCols - 1] = 100l;
+    values[numCols - 1] = 100L;
 
     // write it to a file in the temp directory for the test
     new TestConstantFolding.SmallFileCreator(folder).setRecord(sb.toString()).createFiles(1, 1, "json");

@@ -33,7 +33,7 @@ public class HiveIcebergScanTableMetadata extends TableMetadataImpl {
   public HiveIcebergScanTableMetadata(TableMetadata tableMetadata,
                                       SupportsIcebergRootPointer icebergTableStoragePlugin) {
     super(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(),
-      tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey());
+      tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey(), tableMetadata.getPrimaryKey());
     formatPlugin = icebergTableStoragePlugin.getFormatPlugin(new IcebergFormatConfig());
     this.tableMetadata = tableMetadata;
   }

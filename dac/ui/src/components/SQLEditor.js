@@ -23,6 +23,8 @@ import * as SQLLanguage from "monaco-editor/dev/vs/basic-languages/src/sql";
 import { RESERVED_WORDS } from "utils/pathUtils";
 import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
 import { SQLAutoCompleteProvider } from "./SQLAutoCompleteProvider";
+import { debounce } from "lodash";
+
 import "./SQLEditor.less";
 
 let haveLoaded = false;
@@ -235,7 +237,10 @@ export class SQLEditor extends PureComponent {
             []
           );
       }
-      this.props.onChange(...args);
+
+      // Debouncing helps with UI lag from autocomplete and undo/redo
+      const debounced = debounce(() => this.props.onChange(...args), 50);
+      debounced();
     }
   };
 
@@ -243,7 +248,20 @@ export class SQLEditor extends PureComponent {
     if (!this.monacoEditorComponent.editor) return;
     this.reseting = true;
     try {
-      this.monacoEditorComponent.editor.setValue(this.props.defaultValue || "");
+      const editor = this.monacoEditorComponent.editor;
+      editor.executeEdits("dremio", [
+        {
+          identifier: "dremio-reset",
+          range: editor.getModel()?.getFullModelRange(),
+          text: this.props.defaultValue ?? "",
+        },
+      ]);
+      const range = editor.getModel()?.getFullModelRange() ?? {};
+      editor.setSelection({
+        ...range,
+        startColumn: range.endColumn,
+        startLineNumber: range.endLineNumber,
+      });
       this.applyDecorations();
       this.focus();
     } finally {
@@ -434,13 +452,23 @@ export class SQLEditor extends PureComponent {
     }
   }
   setEditorTheme = () => {
-    if (this.props.customTheme) {
+    const {
+      background,
+      customTheme,
+      inactiveSelectionBackground,
+      selectionBackground,
+      theme,
+    } = this.props;
+
+    if (customTheme) {
       this.monaco.editor.defineTheme("sqlEditorTheme", {
-        base: this.props.theme,
+        base: theme,
         inherit: true,
         rules: [],
         colors: {
-          "editor.background": this.props.background,
+          "editor.background": background,
+          "editor.selectionBackground": selectionBackground,
+          "editor.inactiveSelectionBackground": inactiveSelectionBackground,
         },
       });
       this.monaco.editor.setTheme("sqlEditorTheme");
@@ -449,6 +477,7 @@ export class SQLEditor extends PureComponent {
       });
     }
   };
+
   editorDidMount = (editor, monaco) => {
     this.monaco = monaco;
     this.setEditorTheme();
@@ -460,7 +489,6 @@ export class SQLEditor extends PureComponent {
       const { language: tokenProvider, conf } = SQLLanguage;
       tokenProvider.builtinVariables = [];
       tokenProvider.keywords = [...RESERVED_WORDS];
-
       // currently mixed into .keywords due to RESERVED_WORDS; todo: factor out
       tokenProvider.operators = [];
       tokenProvider.builtinFunctions = [];
@@ -528,8 +556,10 @@ export class SQLEditor extends PureComponent {
       keybindingContext: null,
       run: this.onKbdRun,
     });
-    // Disable Autocomplete details slide out
-    editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Space, () => null);
+    // trigger autocomplete suggestWidget
+    editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Space, () =>
+      editor.trigger("", "editor.action.triggerSuggest")
+    );
   };
 
   insertSnippet() {
@@ -565,6 +595,7 @@ export class SQLEditor extends PureComponent {
             automaticLayout: true,
             lineDecorationsWidth: 12,
             fontSize: 14,
+            fixedOverflowWidgets: true,
             minimap: {
               enabled: false,
             },

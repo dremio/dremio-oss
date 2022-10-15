@@ -15,21 +15,20 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.HashMap;
+import java.util.Map;
 
 public class ParquetTestProperties {
 
-  int numberRowGroups;
-  int recordsPerRowGroup;
-  int bytesPerPage = 1024 * 1024 * 1;
-  HashMap<String, FieldInfo> fields = new HashMap<>();
+  final int numberRowGroups;
+  final int recordsPerRowGroup;
+  final int bytesPerPage;
+  final Map<String, FieldInfo> fields;
 
   public ParquetTestProperties(int numberRowGroups, int recordsPerRowGroup, int bytesPerPage,
-                               HashMap<String, FieldInfo> fields){
+                               Map<String, FieldInfo> fields){
     this.numberRowGroups = numberRowGroups;
     this.recordsPerRowGroup = recordsPerRowGroup;
     this.bytesPerPage = bytesPerPage;
     this.fields = fields;
-
   }
 }

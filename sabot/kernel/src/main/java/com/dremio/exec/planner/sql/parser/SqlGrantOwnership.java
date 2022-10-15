@@ -59,7 +59,8 @@ public class SqlGrantOwnership extends SqlCall implements SimpleDirectHandler.Cr
     FOLDER,
     SOURCE,
     SPACE,
-    FUNCTION
+    FUNCTION,
+    ARCTIC_CATALOG
   }
 
   public enum GranteeType{

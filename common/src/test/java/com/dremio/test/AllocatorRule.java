@@ -17,16 +17,16 @@ package com.dremio.test;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.arrow.util.Preconditions;
 import org.junit.rules.ExternalResource;
 
 import com.dremio.common.config.SabotConfig;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.ConfigValueFactory;
 
 /**
  * Allocator rule to automatically create a valid Dremio buffer allocator
  */
-public class AllocatorRule extends ExternalResource {
+public final class AllocatorRule extends ExternalResource {
 
   private final SabotConfig config;
   private BufferAllocator rootAllocator;

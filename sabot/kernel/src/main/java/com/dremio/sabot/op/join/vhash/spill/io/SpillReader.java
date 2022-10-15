@@ -20,9 +20,10 @@ import java.io.IOException;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.CloseableIterator;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
+import com.dremio.sabot.op.join.vhash.spill.pool.PageSupplier;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
+import com.google.common.base.Preconditions;
 
 /**
  * Reader for spilled file, returns an iterator of chunks.
@@ -30,7 +31,7 @@ import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
  */
 public class SpillReader implements CloseableIterator<SpillChunk> {
   private final SpillFile spillFile;
-  private final PagePool pagePool;
+  private final PageSupplier pageSupplier;
   private final BatchSchema unpivotedColumnsSchema;
   private final SpillSerializable serializable;
   private SpillChunk prefetchedChunk = null;
@@ -38,11 +39,11 @@ public class SpillReader implements CloseableIterator<SpillChunk> {
 
   public SpillReader(SpillFile spillFile,
                      SpillSerializable serializable,
-                     PagePool pagePool,
+                     PageSupplier pageSupplier,
                      BatchSchema unpivotedColumnsSchema) {
     this.spillFile = spillFile;
     this.serializable = serializable;
-    this.pagePool = pagePool;
+    this.pageSupplier = pageSupplier;
     this.unpivotedColumnsSchema = unpivotedColumnsSchema;
   }
 
@@ -63,12 +64,17 @@ public class SpillReader implements CloseableIterator<SpillChunk> {
     return current;
   }
 
+  public SpillChunk peek() {
+    Preconditions.checkState(hasNext());
+    return prefetchedChunk;
+  }
+
   private void prefetch() {
     try {
       if (inputStream == null) {
         inputStream = spillFile.open(true);
       }
-      prefetchedChunk = serializable.readChunkFromStream(pagePool, unpivotedColumnsSchema, inputStream);
+      prefetchedChunk = serializable.readChunkFromStream(pageSupplier, unpivotedColumnsSchema, inputStream);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }

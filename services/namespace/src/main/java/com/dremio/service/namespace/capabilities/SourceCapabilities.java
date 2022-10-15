@@ -20,6 +20,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -51,6 +52,9 @@ public final class SourceCapabilities {
     new BooleanCapability("correlated_pushdownable", true);
 
   public static final BooleanCapability VARCHARS_WITH_WIDTH = new BooleanCapability("varchars_with_width", false);
+
+  // Any plugin that supports Iceberg tables can support this capabilities if the planner can depend on partition stats while planning
+  private static BooleanCapability CAN_USE_PARTITION_STATS = new BooleanCapability("can_use_partition_stats", false);
 
   private final ImmutableMap<Capability<?>, CapabilityValue<?,?>> values;
 
@@ -131,4 +135,15 @@ public final class SourceCapabilities {
     return Objects.hashCode(values);
   }
 
+
+  //For testing purposes only. Don't use elsewhere
+  @VisibleForTesting
+  public static void setCanUsePartitionStatsCapability(boolean capability) {
+    CAN_USE_PARTITION_STATS = new BooleanCapability("can_use_partition_stats", capability);
+  }
+
+  @VisibleForTesting
+  public static BooleanCapability getCanUsePartitionStats() {
+    return CAN_USE_PARTITION_STATS;
+  }
 }

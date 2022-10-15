@@ -1,0 +1,50 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "POWER"
+signatures:
+ -
+  returnType: "NUMERIC"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "numeric_expression"
+    description: "The input expression."
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "power"
+    description: "The power to raise the numeric_expression to."
+  description: "Returns the result of raising the numeric_expression to the specified power."
+  sampleCodes:
+   -
+    call: "SELECT POWER(5, 2)"
+    result: "25.0"
+   -
+    call: "SELECT POWER(0.1, 2)"
+    result: "0.010000000000000002"
+   -
+    call: "SELECT POWER(-2, 2)"
+    result: "4.0"
+   -
+    call: "SELECT POWER(10, -2)"
+    result: "0.01"
+dremioVersion: "1.0+"
+functionCategories:
+ - "MATH"
+description: "Returns the result of raising the input value to the specified power."

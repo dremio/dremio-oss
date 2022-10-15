@@ -109,14 +109,14 @@ public class TestFrameworkTest extends BaseTestQuery{
         .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\" limit 1")
         .ordered()
         .baselineColumns("employee_id", "first_name", "last_name")
-        .baselineValues(12l, "Jewel", "Creek")
+        .baselineValues(12L, "Jewel", "Creek")
         .build().run();
 
     testBuilder()
         .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\" limit 1")
         .unOrdered()
         .baselineColumns("employee_id", "first_name", "last_name")
-        .baselineValues(12l, "Jewel", "Creek")
+        .baselineValues(12L, "Jewel", "Creek")
         .build().run();
   }
 
@@ -174,19 +174,19 @@ public class TestFrameworkTest extends BaseTestQuery{
         .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\"")
         .ordered()
         .baselineColumns("a", "b")
-        .baselineValues(5l, 10l)
-        .baselineValues(7l, null)
+        .baselineValues(5L, 10L)
+        .baselineValues(7L, null)
         .baselineValues(null, null)
-        .baselineValues(9l, 11l)
+        .baselineValues(9L, 11L)
         .build().run();
 
     testBuilder()
         .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\"")
         .unOrdered()
         .baselineColumns("a", "b")
-        .baselineValues(5l, 10l)
-        .baselineValues(9l, 11l)
-        .baselineValues(7l, null)
+        .baselineValues(5L, 10L)
+        .baselineValues(9L, 11L)
+        .baselineValues(7L, null)
         .baselineValues(null, null)
         .build().run();
   }
@@ -197,16 +197,16 @@ public class TestFrameworkTest extends BaseTestQuery{
         .sqlQuery("select * from cp.\"/jsoninput/input2.json\" limit 1")
         .ordered()
         .baselineColumns("integer", "float", "x", "z", "l", "rl")
-        .baselineValues(2010l,
+        .baselineValues(2010L,
                         17.4,
                         mapOf("y", "kevin",
                             "z", "paul"),
                         listOf(mapOf("orange", "yellow",
                                 "pink", "red"),
                             mapOf("pink", "purple")),
-                        listOf(4l, 2l),
-                        listOf(listOf(2l, 1l),
-                            listOf(4l, 6l)))
+                        listOf(4L, 2L),
+                        listOf(listOf(2L, 1L),
+                            listOf(4L, 6L)))
         .build().run();
   }
 

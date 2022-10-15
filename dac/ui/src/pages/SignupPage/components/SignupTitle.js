@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import FontIcon from "components/Icon/FontIcon";
 import { FLEX_NOWRAP_ROW_BETWEEN_CENTER } from "uiTheme/radium/flexStyle";
@@ -27,15 +26,15 @@ const OVERLAY_POINTER_SIZE = 10;
 class SignupTitle extends PureComponent {
   render() {
     return (
-      <div id="signup-title" style={[styles.base]}>
-        <h1 style={[styles.mainTitle]}>{la("Welcome to Dremio")}</h1>
-        <div style={[styles.subtitleWrap]}>
+      <div id="signup-title" style={styles.base}>
+        <h1 style={styles.mainTitle}>{la("Welcome to Dremio")}</h1>
+        <div style={styles.subtitleWrap}>
           <FontIcon
             type="NarwhalLogo"
             theme={styles.theme}
             iconClass={"dremioLogo"}
           />
-          <h3 style={[styles.subtitle]}>
+          <h3 style={styles.subtitle}>
             {la("We are excited to have you on board!")}
             <br />
             {la(
@@ -45,9 +44,9 @@ class SignupTitle extends PureComponent {
           <div></div>
           {/*for flex, to center the text*/}
         </div>
-        <h4 className="whiteText" style={[styles.overlay]}>
+        <h4 className="whiteText" style={styles.overlay}>
           {la("Create Admin Account")}
-          <div style={[styles.overlayPointer]} />
+          <div style={styles.overlayPointer} />
         </h4>
       </div>
     );
@@ -94,4 +93,4 @@ const styles = {
     marginLeft: -OVERLAY_POINTER_SIZE,
   },
 };
-export default Radium(SignupTitle);
+export default SignupTitle;

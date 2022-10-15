@@ -16,8 +16,8 @@
 
 package com.dremio.sabot.op.common.ht2;
 
-import static org.apache.arrow.util.Preconditions.checkArgument;
-import static org.apache.arrow.util.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,13 +28,13 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.collections.CollectionUtils;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.util.KeyFairSliceCalculator;
 import com.dremio.sabot.op.common.ht2.PivotBuilder.FieldMode;
+import com.google.common.base.Preconditions;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -268,7 +268,7 @@ public class HashTableKeyReader implements AutoCloseable {
                 if (field.getName().equalsIgnoreCase(fieldName)) {
                     checkArgument(!field.getType().isComplex(), "Runtime filter not supported on complex type fields");
                     return Optional.of(new KeyPosition(fieldName, vectorPivotDef.getOffset(), vectorPivotDef.getNullByteOffset(),
-                            vectorPivotDef.getNullBitOffset(), vectorPivotDef.getType().byteSize, vectorPivotDef.getType().mode));
+                            vectorPivotDef.getNullBitOffset(), vectorPivotDef.getByteSize(), vectorPivotDef.getMode()));
                 }
             }
 

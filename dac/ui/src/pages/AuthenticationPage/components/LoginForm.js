@@ -20,7 +20,7 @@ import Immutable from "immutable";
 import { LOGIN_VIEW_ID, loginUser } from "@inject/actions/account";
 
 import * as ButtonTypes from "components/Buttons/ButtonTypes";
-import Button from "@app/components/Buttons/Button";
+import { Button } from "dremio-ui-lib";
 import { FieldWithError, TextField } from "@app/components/Fields";
 import { getViewState } from "selectors/resources";
 import {
@@ -32,6 +32,7 @@ import Spinner from "@app/components/Spinner";
 
 import { formLabel } from "uiTheme/radium/typography";
 import { applyValidators, isRequired } from "@app/utils/validation";
+import { intl } from "@app/utils/intl";
 
 export class LoginForm extends PureComponent {
   static propTypes = {
@@ -103,10 +104,11 @@ export class LoginForm extends PureComponent {
           <div style={styles.submitWrapper}>
             <div style={{ display: "flex", flexGrow: 1 }}>
               <Button
-                type={ButtonTypes.NEXT}
+                color={ButtonTypes.UI_LIB_PRIMARY}
                 key="details-wizard-next"
                 style={{ marginBottom: 0 }}
-                text={la("Log In")}
+                text={intl.formatMessage({ id: "Log.In" })}
+                disableMargin
               />
               <Spinner
                 iconStyle={styles.spinnerIcon}

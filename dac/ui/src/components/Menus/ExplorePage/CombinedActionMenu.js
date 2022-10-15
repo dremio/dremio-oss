@@ -21,9 +21,9 @@ import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 
 import { CombinedActionMenuMixin } from "dyn-load/components/Menus/ExplorePage/CombinedActionMenuMixin.js";
-import HoverHelp from "@app/components/HoverHelp";
 import MenuItem from "@app/components/Menus/MenuItem";
 import { getJobProgress } from "@app/selectors/explore";
+import { HoverHelp } from "dremio-ui-lib";
 
 import Menu from "./Menu";
 import MenuLabel from "./MenuLabel";
@@ -77,12 +77,7 @@ export class CombinedActionMenu extends PureComponent {
     return (
       <MenuLabel>
         {headerText}
-        <HoverHelp
-          content={helpContent}
-          tooltipStyle={{ zIndex: 1400 }} // greater than 1300 in MenuItem.js
-          container={document.body}
-          placement="bottom-start"
-        />
+        <HoverHelp content={helpContent} placement="bottom-start" />
       </MenuLabel>
     );
   };

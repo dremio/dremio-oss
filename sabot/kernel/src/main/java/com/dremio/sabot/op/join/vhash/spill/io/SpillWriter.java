@@ -24,7 +24,6 @@ import org.apache.calcite.util.ImmutableBitSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.sabot.op.common.ht2.Copier;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
@@ -35,29 +34,31 @@ import com.dremio.sabot.op.sort.external.SpillManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.util.internal.PlatformDependent;
-
 /**
  * Spill an incoming batch of records, some of the columns are pivoted and the rest, unpivoted.
  * The writer should not allocate any additional memory, uses 2 pages from the pool.
  * TODO: the page pool must be inited with min 2 pages : one for pivoted, one for non-pivoted
  */
 public class SpillWriter implements AutoCloseable {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpillWriter.class);
   private final SpillManager spillManager;
   private final SpillSerializable serializable;
   private final String fileName;
   private final PagePool pagePool;
-  private final long sv2;
+  private final ArrowBuf sv2;
   private final FixedBlockVector fixed;
   private final VariableBlockVector var;
   private final PageBatchSlicer slicer;
 
   private SpillManager.SpillOutputStream outputStream;
   private SpillManager.SpillFile spillFile;
+  private SpillFileDescriptor spillFileDescriptor;
+  private long numRecordsWritten = 0;
+  private long numBatchesWritten = 0;
 
   public SpillWriter(SpillManager spillManager, SpillSerializable serializable,
                      String fileName, PagePool pagePool,
-                     long sv2, VectorAccessible input, ImmutableBitSet unpivotedColumns,
+                     ArrowBuf sv2, VectorAccessible input, ImmutableBitSet unpivotedColumns,
                      FixedBlockVector fixed, VariableBlockVector var) {
     this.spillManager = spillManager;
     this.serializable = serializable;
@@ -69,9 +70,10 @@ public class SpillWriter implements AutoCloseable {
     this.slicer = new PageBatchSlicer(pagePool, sv2, input, unpivotedColumns);
   }
 
-  public void writeBatch(int records) throws Exception  {
+  public void writeBatch(int pivotShift, int records) throws Exception  {
     if (outputStream == null) {
       spillFile = spillManager.getSpillFile(fileName);
+      spillFileDescriptor = new SpillFileDescriptor(spillFile);
       outputStream = spillFile.create(true);
     }
 
@@ -79,7 +81,7 @@ public class SpillWriter implements AutoCloseable {
     while (recordsDone < records) {
       try (Page pivotedPage = pagePool.newPage(); Page unpivotedPage = pagePool.newPage()) {
         // count pivoted records that will fit into a page.
-        int pickedRecords = pickMaxPivotedRecordsForPage(pivotedPage.getPageSize(), recordsDone, records - 1);
+        int pickedRecords = pickMaxPivotedRecordsForPage(pivotedPage.getPageSize(), pivotShift, recordsDone, records - 1);
         Preconditions.checkState(pickedRecords > 0);
 
         // copy unpivoted records that will fit into a page.
@@ -87,21 +89,23 @@ public class SpillWriter implements AutoCloseable {
           pickedRecords = batchData.getRecordCount(); // the slicer can pick lesser records than asked.
           Preconditions.checkState(pickedRecords > 0);
 
-          ArrowBuf[] dstBufs = copyPivoted(pivotedPage, recordsDone, recordsDone + pickedRecords - 1);
+          ArrowBuf[] dstBufs = copyPivoted(pivotedPage, pivotShift, recordsDone, recordsDone + pickedRecords - 1);
           try (SpillChunk chunk = new SpillChunk(pickedRecords, dstBufs[0], dstBufs[1], batchData.getContainer(), ImmutableList.of())) {
             serializable.writeChunkToStream(chunk, outputStream);
             recordsDone += batchData.getRecordCount();
+            numRecordsWritten += recordsDone;
+            ++numBatchesWritten;
           }
         }
       }
     }
   }
 
-  public SpillManager.SpillFile getSpillFile() {
-    return spillFile;
+  public SpillFileDescriptor getSpillFileDescriptor() {
+    return spillFileDescriptor;
   }
 
-  private int pickMaxPivotedRecordsForPage(int availableSize, int startIdx, int endIdx) {
+  private int pickMaxPivotedRecordsForPage(int availableSize, int pivotShift, int startIdx, int endIdx) {
     int maxRecords = endIdx - startIdx + 1;
     if (var.getVariableFieldCount() == 0) {
       // fast-path
@@ -117,10 +121,10 @@ public class SpillWriter implements AutoCloseable {
         break;
       }
 
-      final int keyIndex = SV2UnsignedUtil.read(sv2, startIdx + numRecordsPicked);
-      final long keyFixedAddr = fixed.getMemoryAddress() + ((long) fixed.getBlockWidth() * keyIndex);
-      final long keyVarAddr = var.getMemoryAddress() + PlatformDependent.getInt(keyFixedAddr + fixed.getBlockWidth() - VAR_OFFSET_SIZE);
-      final long recordVariableSize = PlatformDependent.getInt(keyVarAddr);
+      final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, startIdx + numRecordsPicked);
+      final int keyFixedOffset = fixed.getBlockWidth() * (keyIndex - pivotShift);
+      final int keyVarOffset = fixed.getBuf().getInt(keyFixedOffset + fixed.getBlockWidth() - VAR_OFFSET_SIZE);
+      final long recordVariableSize = var.getBuf().getInt(keyVarOffset);
       if (totalSize + recordFixedSize + recordVariableSize + VAR_LENGTH_SIZE > availableSize) {
         // cannot include this record in the page.
         break;
@@ -132,43 +136,49 @@ public class SpillWriter implements AutoCloseable {
     return numRecordsPicked;
   }
 
-  private ArrowBuf[] copyPivoted(Page dstPage, int startIdx, int endIdx) {
+  private ArrowBuf[] copyPivoted(Page dstPage, int pivotShift, int startIdx, int endIdx) {
+    final ArrowBuf dstBuf = dstPage.getBackingBuf();
     int numRecords = endIdx - startIdx + 1;
 
-    long startDstFixedAddr = dstPage.getAddress();
-    long curDstFixedAddr = startDstFixedAddr;
+    int startDstFixedOffset = 0;
+    int curDstFixedOffset = 0;
     // the var section starts after the fixed section
-    long startDstVarAddr = startDstFixedAddr + (long) fixed.getBlockWidth() * numRecords;
-    long curDstVarAddr = startDstVarAddr;
+    int startDstVarOffset = fixed.getBlockWidth() * numRecords;
+    int curDstVarOffset = startDstVarOffset;
     for (int i = 0; i < numRecords; ++i) {
-      final int keyIndex = SV2UnsignedUtil.read(sv2, startIdx + i);
+      final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, startIdx + i);
 
       // copy fixed section from src to dst
-      long curSrcFixedAddr = fixed.getMemoryAddress() + ((long) fixed.getBlockWidth() * keyIndex);
-      Copier.copy(curSrcFixedAddr, curDstFixedAddr, fixed.getBlockWidth());
-      curSrcFixedAddr += fixed.getBlockWidth();
-      curDstFixedAddr += fixed.getBlockWidth();
+      int curSrcFixedOffset = fixed.getBlockWidth() * (keyIndex - pivotShift);
+      dstBuf.setBytes(curDstFixedOffset, fixed.getBuf(), curSrcFixedOffset, fixed.getBlockWidth());
+      curSrcFixedOffset += fixed.getBlockWidth();
+      curDstFixedOffset += fixed.getBlockWidth();
 
       if (var.getVariableFieldCount() > 0) {
-        final long curSrcVarAddr = var.getMemoryAddress() + PlatformDependent.getInt(curSrcFixedAddr - VAR_OFFSET_SIZE);
-        final int recordVarLen = PlatformDependent.getInt(curSrcVarAddr);
+        final int curSrcVarOffset = fixed.getBuf().getInt(curSrcFixedOffset - VAR_OFFSET_SIZE);
+        final int recordVarLen = var.getBuf().getInt(curSrcVarOffset);
 
         // store the relative offset of the var section in the fixed block
-        PlatformDependent.putInt(curDstFixedAddr - VAR_OFFSET_SIZE, (int) (curDstVarAddr - startDstVarAddr));
+        dstBuf.setInt(curDstFixedOffset - VAR_OFFSET_SIZE, curDstVarOffset - startDstVarOffset);
 
         // copy the var section from src to dst
-        Copier.copy(curSrcVarAddr, curDstVarAddr, recordVarLen + VAR_LENGTH_SIZE);
-        curDstVarAddr += (recordVarLen + VAR_LENGTH_SIZE);
+        dstBuf.setBytes(curDstVarOffset, var.getBuf(), curSrcVarOffset, recordVarLen + VAR_LENGTH_SIZE);
+        curDstVarOffset += (recordVarLen + VAR_LENGTH_SIZE);
       }
     }
     return new ArrowBuf[]{
-      dstPage.slice((int) (curDstFixedAddr - startDstFixedAddr)),
-      dstPage.slice((int) (curDstVarAddr - startDstVarAddr))
+      dstPage.slice(curDstFixedOffset - startDstFixedOffset),
+      dstPage.slice(curDstVarOffset - startDstVarOffset)
     };
   }
 
   @Override
   public void close() throws Exception {
+    if (outputStream != null) {
+      spillFileDescriptor.update(numRecordsWritten, outputStream.getWriteBytes());
+      logger.debug("spilled to {} records {} batches {} size {}", spillFile.getPath().getName(), numRecordsWritten,
+        numBatchesWritten, outputStream.getWriteBytes());
+    }
     AutoCloseables.close(outputStream);
   }
 }

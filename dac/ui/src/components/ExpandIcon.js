@@ -14,38 +14,20 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import Art from "components/Art";
 import { formatMessage } from "../utils/locale";
 
-const ARROW_DOWN = "ArrowDownSmall";
-
 const ExpandIcon = ({ expanded }) => {
-  const topArrowStyle = expanded
-    ? {
-        ...styles.transform,
-        bottom: -4,
-      }
-    : {};
-  const bottomArrowStyle = !expanded
-    ? {
-        bottom: -4,
-      }
-    : styles.transform;
   return (
     <div
       style={styles.wrapper}
       role="img"
       aria-label={formatMessage(`Common.${expanded ? "Collapse" : "Expand"}`)}
     >
-      <Art
-        src={`${ARROW_DOWN}.svg`}
-        alt={""}
-        style={{ ...styles.base, ...topArrowStyle }}
-      />
-      <Art
-        src={`${ARROW_DOWN}.svg`}
-        alt={""}
-        style={{ ...styles.base, ...bottomArrowStyle }}
+      <dremio-icon
+        name={
+          expanded ? "interface/double-arrow-up" : "interface/double-arrow-down"
+        }
+        style={styles.icon}
       />
     </div>
   );
@@ -57,15 +39,13 @@ ExpandIcon.propTypes = {
 
 const styles = {
   wrapper: {
-    width: 24,
-    height: 24,
-    position: "relative",
+    display: "flex",
+    alignItems: "center",
   },
-  base: {
-    position: "absolute",
-  },
-  transform: {
-    transform: "rotate(180deg)",
+  icon: {
+    height: 18,
+    width: 18,
+    color: "var(--dremio--color--neutral--600)",
   },
 };
 

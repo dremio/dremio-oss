@@ -19,6 +19,7 @@ import static com.dremio.dac.api.TestCatalogResource.getFolderIdByName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
@@ -34,6 +35,7 @@ import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
@@ -176,6 +178,107 @@ public class TestPromotion extends BaseTestServer {
         new GenericType<Folder>() {}
     );
     assertEquals(folder.getChildren().size(), 19);
+  }
+
+  @Test
+  public void mapFile() throws Exception {
+    setSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE, "true");
+    doc("browse to the datasets directory");
+    String id = getFolderIdByName(source.getChildren(), "datasets");
+    assertNotNull(id, "Failed to find datasets directory");
+
+    doc("load the datasets dir");
+    Folder folder = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(PathUtils.encodeURIComponent(id))
+      ).buildGet(),
+      new GenericType<Folder>() {
+      }
+    );
+    assertEquals(folder.getChildren().size(), 20);
+
+    String fileId = null;
+
+    for (CatalogItem item : folder.getChildren()) {
+      List<String> path = item.getPath();
+      // get the numbers.json file
+      if (item.getType()==CatalogItem.CatalogItemType.FILE &&
+        path.get(path.size() - 1).equals("map.parquet")) {
+        fileId = item.getId();
+        break;
+      }
+    }
+
+    assertNotNull(fileId, "Failed to find map.parquet file");
+
+    doc("load the file");
+    final File file = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(PathUtils.encodeURIComponent(fileId))
+      ).buildGet(),
+      new GenericType<File>() {
+      }
+    );
+
+    doc("promote the file");
+    Dataset dataset = createPDS(CatalogServiceHelper.getPathFromInternalId(file.getId()), new ParquetFileConfig());
+
+    dataset = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(PathUtils.encodeURIComponent(fileId)))
+        .buildPost(Entity.json(dataset)
+        ),
+      new GenericType<Dataset>() {
+      }
+    );
+
+    final Response response = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(dataset.getId())).buildGet());
+    final String body = response.readEntity(String.class);
+    assertTrue(body.contains("\"fields\":[{\"name\":\"f1\",\"type\":{\"name\":\"MAP\",\"subSchema\":[{\"type\":{\"name\":\"STRUCT\",\"subSchema\":[{\"name\":\"key\",\"type\":{\"name\":\"VARCHAR\"}},{\"name\":\"value\",\"type\":{\"name\":\"INTEGER\"}}]}}]}}]}"));
+
+    doc("load the dataset");
+    dataset = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(dataset.getId())
+      ).buildGet(),
+      new GenericType<Dataset>() {
+      }
+    );
+
+    doc("verify listing");
+    folder = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(PathUtils.encodeURIComponent(id))
+      ).buildGet(),
+      new GenericType<Folder>() {
+      }
+    );
+    assertEquals(folder.getChildren().size(), 20);
+
+    doc("unpromote file");
+    expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(dataset.getId())
+      ).buildDelete()
+    );
+
+    doc("dataset should no longer exist");
+    expectStatus(Response.Status.NOT_FOUND,
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(dataset.getId())
+      ).buildGet()
+    );
+    resetSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE.getOptionName());
   }
 
   @Test

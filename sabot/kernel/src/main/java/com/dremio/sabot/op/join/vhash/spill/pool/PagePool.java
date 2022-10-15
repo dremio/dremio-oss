@@ -48,15 +48,19 @@ public class PagePool implements AutoCloseable {
   private final int pageSize;
   private final int minimumCount;
   private final BufferAllocator allocator;
-  private final Set<Page> pages = new HashSet<>();
-  private final List<Page> unused = new ArrayList<>();
+  private final Set<PageImpl> pages = new HashSet<>();
+  private final List<PageImpl> unused = new ArrayList<>();
 
   private final Release releaser = page -> {
-      Preconditions.checkArgument(pages.remove(page));
-      Page p = page.toNewPage();
+    Preconditions.checkArgument(pages.remove(page));
+    if (unused.size() < getMinimumCount()) {
+      PageImpl p = page.toNewPage();
       pages.add(p);
       unused.add(p);
-    };
+    } else {
+      page.deallocate();
+    }
+  };
 
   public PagePool(BufferAllocator allocator) {
     this(allocator, DEFAULT_PAGE_SIZE, 0);
@@ -73,7 +77,7 @@ public class PagePool implements AutoCloseable {
     Preconditions.checkArgument(state == State.NEW);
     try(RollbackCloseable rb = new RollbackCloseable()){
       for (int i = 0; i < minimumCount; i++) {
-        Page p = createNewPage();
+        PageImpl p = createNewPage();
         pages.add(rb.add(p));
         unused.add(p);
       }
@@ -84,6 +88,10 @@ public class PagePool implements AutoCloseable {
       throw new RuntimeException(e);
     }
     state = State.INIT;
+  }
+
+  private int getMinimumCount() {
+    return minimumCount;
   }
 
   public int getPageCount() {
@@ -100,7 +108,7 @@ public class PagePool implements AutoCloseable {
 
   public void releaseUnusedToMinimum() {
     while (pages.size() > minimumCount && !unused.isEmpty()) {
-      Page p = unused.remove(unused.size() - 1);
+      PageImpl p = unused.remove(unused.size() - 1);
       pages.remove(p);
       p.deallocate();
     }
@@ -119,7 +127,7 @@ public class PagePool implements AutoCloseable {
     try(RollbackCloseable rb = new RollbackCloseable()){
       List<Page> pages = new ArrayList<>();
       for (int i = 0; i < count; i++) {
-        Page p = newPage();
+        PageImpl p = (PageImpl) newPage();
         pages.add(rb.add(p));
       }
       rb.commit();
@@ -131,18 +139,18 @@ public class PagePool implements AutoCloseable {
     }
   }
 
-  private Page createNewPage() {
-    return new Page(pageSize, allocator.buffer(pageSize), releaser);
+  private PageImpl createNewPage() {
+    return new PageImpl(pageSize, allocator.buffer(pageSize), releaser);
   }
 
   public Page newPage() {
     if (!unused.isEmpty()) {
-      Page p = unused.remove(unused.size() - 1);
+      PageImpl p = unused.remove(unused.size() - 1);
       p.initialRetain();
       return p;
     }
 
-    Page p = createNewPage();
+    PageImpl p = createNewPage();
     pages.add(p);
     p.initialRetain();
     return p;
@@ -173,7 +181,7 @@ public class PagePool implements AutoCloseable {
   }
 
   interface Release {
-    void release(Page page);
+    void release(PageImpl page);
   }
 
 }

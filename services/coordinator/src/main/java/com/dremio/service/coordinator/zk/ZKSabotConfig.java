@@ -28,19 +28,23 @@ import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY_UNLIMITED;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ROOT;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_SESSION_TIMEOUT;
+import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_SUPERVISOR_INTERVAL_MS;
+import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_SUPERVISOR_MAX_FAILURES;
+import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_SUPERVISOR_READ_TIMEOUT_MS;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_TIMEOUT;
 import static com.dremio.service.coordinator.zk.ZKClusterClient.ZK_LOST_HANDLER_MODULE_CLASS;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.configfeature.ConfigFeatureProvider;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
 
 /**
  * ZKClusterConfig through SabotConfig
  */
-class ZKSabotConfig implements ZKClusterConfig {
+public class ZKSabotConfig implements ZKClusterConfig {
   private final SabotConfig config;
 
-  ZKSabotConfig(SabotConfig sabotConfig) {
+  public ZKSabotConfig(SabotConfig sabotConfig) {
     this.config = sabotConfig;
   }
 
@@ -102,5 +106,21 @@ class ZKSabotConfig implements ZKClusterConfig {
 
   public String getConnection() {
     return config.getString(ZK_CONNECTION);
+  }
+
+  public ConfigFeatureProvider getConfigFeatureProvider() {
+    return null;
+  }
+
+  public int getZkSupervisorIntervalMilliSec() {
+    return config.getInt(ZK_SUPERVISOR_INTERVAL_MS);
+  }
+
+  public int getZkSupervisorReadTimeoutMilliSec() {
+    return config.getInt(ZK_SUPERVISOR_READ_TIMEOUT_MS);
+  }
+
+  public int getZkSupervisorMaxFailures() {
+    return config.getInt(ZK_SUPERVISOR_MAX_FAILURES);
   }
 }

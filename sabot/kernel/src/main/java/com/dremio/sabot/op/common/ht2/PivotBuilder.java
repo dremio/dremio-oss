@@ -229,6 +229,14 @@ public class PivotBuilder {
       this.mode = mode;
       this.byteSize = byteSize;
     }
+
+    public int getByteSize() {
+      return byteSize;
+    }
+
+    public FieldMode getMode() {
+      return mode;
+    }
   }
 
   public static enum FieldMode {

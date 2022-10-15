@@ -72,80 +72,25 @@ public class APIFieldDescriber {
 
     @Override
     public Void visit(ArrowType.Struct type) {
-      try {
-        generator.writeStartObject();
-
-        if (!skipName) {
-          generator.writeFieldName("name");
-          generator.writeString(field.getName());
-        }
-
-        generator.writeFieldName("type");
-
-        generator.writeStartObject();
-        generator.writeFieldName("name");
-        type.accept(typeDescriber);
-
-        List<Field> children = field.getChildren();
-        if (children != null) {
-          generator.writeFieldName("subSchema");
-          generator.writeStartArray();
-
-          for (Field field : children) {
-            APIFieldDescriber.FieldDescriber describer = new APIFieldDescriber.FieldDescriber(generator, field, false);
-            field.getType().accept(describer);
-          }
-
-          generator.writeEndArray();
-        }
-        generator.writeEndObject();
-
-        generator.writeEndObject();
-      } catch (IOException e) {
-        // no op
-      }
-      return null;
+      return getDescriberWithChildren(type, false);
     }
 
     @Override
     public Void visit(ArrowType.List type) {
-      try {
-        generator.writeStartObject();
+      return getDescriberWithChildren(type, true);
+    }
 
-        if (!skipName) {
-          generator.writeFieldName("name");
-          generator.writeString(field.getName());
-        }
-
-        generator.writeFieldName("type");
-
-        generator.writeStartObject();
-        generator.writeFieldName("name");
-        type.accept(typeDescriber);
-
-        List<Field> children = field.getChildren();
-        if (children != null) {
-          generator.writeFieldName("subSchema");
-          generator.writeStartArray();
-
-          for (Field field : children) {
-            APIFieldDescriber.FieldDescriber describer = new APIFieldDescriber.FieldDescriber(generator, field, true);
-            field.getType().accept(describer);
-          }
-
-          generator.writeEndArray();
-        }
-        generator.writeEndObject();
-
-        generator.writeEndObject();
-      } catch (IOException e) {
-        // no op
-      }
-      return null;
+    @Override
+    public Void visit(ArrowType.Map type) {
+      return getDescriberWithChildren(type, true);
     }
 
     @Override
     public Void visit(ArrowType.Union type) {
+      return getDescriberWithChildren(type, true);
+    }
+
+    private Void getDescriberWithChildren(ArrowType type, boolean skipChildName) {
       try {
         generator.writeStartObject();
 
@@ -166,7 +111,7 @@ public class APIFieldDescriber {
           generator.writeStartArray();
 
           for (Field field : children) {
-            APIFieldDescriber.FieldDescriber describer = new APIFieldDescriber.FieldDescriber(generator, field, true);
+            FieldDescriber describer = new FieldDescriber(generator, field, skipChildName);
             field.getType().accept(describer);
           }
 
@@ -316,8 +261,8 @@ public class APIFieldDescriber {
     }
 
     @Override
-    public Void visit(ArrowType.Map interval) {
-      throw new UnsupportedOperationException("Map arrow type is not supported");
+    public Void visit(ArrowType.Map map) {
+      return writeString(sqlTypeNameVisitor.visit(map));
     }
   }
 }

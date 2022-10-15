@@ -56,7 +56,7 @@ public class BaseIcebergViewTest {
   static DatabaseAdapter databaseAdapter;
 
   @RegisterExtension
-  static NessieJaxRsExtension server = buildNessieJaxRsExtension();
+  private static NessieJaxRsExtension server = buildNessieJaxRsExtension();
 
   private static NessieJaxRsExtension buildNessieJaxRsExtension() {
     // Prevents CDIExtension to load beans through JNDI causing

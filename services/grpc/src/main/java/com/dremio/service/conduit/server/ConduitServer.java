@@ -36,6 +36,7 @@ import com.google.common.base.Preconditions;
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.ServerServiceDefinition;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyServerBuilder;
@@ -104,6 +105,12 @@ public class ConduitServer implements Service {
       inProcessServerBuilder.addService(closeableService);
       closeableServices.add(closeableService);
     }
+
+    for (ServerServiceDefinition serverServiceDefinition : registry.getServerServiceDefinitionList()) {
+      serverBuilder.addService(serverServiceDefinition);
+      inProcessServerBuilder.addService(serverServiceDefinition);
+    }
+
 
     serverBuilder.maxInboundMetadataSize(Integer.MAX_VALUE).maxInboundMessageSize(Integer.MAX_VALUE)
       .intercept(TransmitStatusRuntimeExceptionInterceptor.instance());

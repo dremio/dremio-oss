@@ -106,8 +106,8 @@ public interface AsyncByteReader extends AutoCloseable {
    * list are implementation specific.
    */
   class ReaderStat {
-    String name;
-    double value;
+    private String name;
+    private double value;
 
     public ReaderStat(String name, double value) {
       this.name = name;

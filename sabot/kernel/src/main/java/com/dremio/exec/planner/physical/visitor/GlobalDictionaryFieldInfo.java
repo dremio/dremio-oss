@@ -17,12 +17,12 @@ package com.dremio.exec.planner.physical.visitor;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.parquet.Preconditions;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 
 /**
  * Metadata about Dictionary encoded field.

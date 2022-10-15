@@ -63,7 +63,6 @@ describe("ExploreTableController", () => {
       transformHistoryCheck: sinon.spy(),
       performTransform: sinon.spy(),
       createNewDatasetAndTransformIfReview: sinon.spy(),
-      hideTransformWarningModal: sinon.spy(),
       accessEntity: sinon.spy(),
       location,
       routeParams,
@@ -379,7 +378,7 @@ describe("ExploreTableController", () => {
     });
   });
 
-  describe("ExploreCellLargeOverlay", () => {
+  describe.skip("ExploreCellLargeOverlay", () => {
     it("should render ExploreCellLargeOverlay", () => {
       instance.setState({
         activeCell: {

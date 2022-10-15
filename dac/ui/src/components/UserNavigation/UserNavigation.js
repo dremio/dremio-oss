@@ -18,7 +18,8 @@ import classNames from "classnames";
 import PropTypes from "prop-types";
 import { Link, withRouter } from "react-router";
 import { FormattedMessage } from "react-intl";
-import Art from "@app/components/Art";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
 
 import "./userNavigation.less";
 
@@ -49,10 +50,10 @@ const UserNavigation = (props) => {
       return (
         <div className="userNavigation__header">
           {section.icon && (
-            <Art
-              src={section.icon}
+            <dremio-icon
+              name={section.icon}
               alt={section.title}
-              className="userNavigation__icon"
+              class="userNavigation__icon"
             />
           )}
           <span>
@@ -82,11 +83,11 @@ const UserNavigation = (props) => {
       >
         <div className={itemClassName}>
           {section.icon && (
-            <Art
-              src={section.icon}
+            <dremio-icon
+              name={section.icon}
               alt={section.title}
               id={selected ? "selected" : null}
-              className={
+              class={
                 selected || section.icon === "Back.svg"
                   ? "userNavigation__icon"
                   : "userNavigation__icon --unselected"
@@ -100,10 +101,10 @@ const UserNavigation = (props) => {
             />
           </span>
           {section.rightIcon && (
-            <Art
-              src={section.rightIcon}
+            <dremio-icon
+              name={section.rightIcon}
               alt={section.title}
-              className="userNavigation__icon"
+              class="userNavigation__icon"
             />
           )}
         </div>
@@ -115,19 +116,32 @@ const UserNavigation = (props) => {
     <div className="left-menu userNavigation__container" data-qa="left-menu">
       {titleObject ? (
         <div className="userNavigation__title">
-          <div className="userNavigation__iconContainer">
-            <Link to={titleObject.url}>
-              <Art
-                src={titleObject.icon}
-                alt={titleObject.title}
-                className="userNavigation__title-icon"
-              />
-            </Link>
-          </div>
+          <FeatureSwitch
+            flag={ORGANIZATION_LANDING}
+            renderEnabled={() => null}
+            renderDisabled={() => (
+              <div className="userNavigation__iconContainer">
+                <Link to={titleObject.url}>
+                  <dremio-icon
+                    name={titleObject.icon}
+                    alt={titleObject.title}
+                    class="userNavigation__title-icon"
+                  />
+                </Link>
+              </div>
+            )}
+          />
           <div className="userNavigation__titleContainer">
-            <span className="userNavigation__location">
-              <FormattedMessage id={titleObject.topTitle} />
-            </span>
+            <FeatureSwitch
+              flag={ORGANIZATION_LANDING}
+              renderEnabled={() => null}
+              renderDisabled={() => (
+                <span className="userNavigation__location">
+                  <FormattedMessage id={titleObject.topTitle} />
+                </span>
+              )}
+            />
+
             <p className="text-ellipsis" title={titleObject.title}>
               {titleObject.title}
             </p>

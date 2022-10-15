@@ -128,6 +128,76 @@ public class ITUpdate extends ITDmlQueryBase {
   }
 
   @Test
+  public void testUpdateALLWithOneUnusedSourceTable() throws Exception {
+    UpdateTests.testUpdateALLWithOneUnusedSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithOneSourceTableFullPath() throws Exception {
+    UpdateTests.testUpdateWithOneSourceTableFullPath(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithViewAsSourceTable() throws Exception {
+    UpdateTests.testUpdateWithViewAsSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithOneSourceTableNoAlias() throws Exception {
+    UpdateTests.testUpdateWithOneSourceTableNoAlias(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithOneSourceTableUseAlias() throws Exception {
+    UpdateTests.testUpdateWithOneSourceTableUseAlias(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithOneSourceTableSubQuery() throws Exception {
+    UpdateTests.testUpdateWithOneSourceTableSubQuery(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithTwoSourceTables() throws Exception {
+    UpdateTests.testUpdateWithTwoSourceTables(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithTwoSourceTableOneSourceQuery() throws Exception {
+    UpdateTests.testUpdateWithTwoSourceTableOneSourceQuery(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithDupsInSource() throws Exception {
+    UpdateTests.testUpdateWithDupsInSource(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithUnrelatedConditionToSourceTableNoCondition() throws Exception {
+    UpdateTests.testUpdateWithUnrelatedConditionToSourceTableNoCondition(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithUnrelatedConditionToSourceTable() throws Exception {
+    UpdateTests.testUpdateWithUnrelatedConditionToSourceTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithSchemaNotMatch() throws Exception {
+    UpdateTests.testUpdateWithSchemaNotMatch(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithImplicitTypeCasting1() throws Exception {
+    UpdateTests.testUpdateWithImplicitTypeCasting1(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithImplicitTypeCasting2() throws Exception {
+    UpdateTests.testUpdateWithImplicitTypeCasting2(allocator, SOURCE);
+  }
+
+  @Test
   public void testUpdateWithWrongContextWithPathTable() throws Exception {
     UpdateTests.testUpdateWithWrongContextWithPathTable(allocator, SOURCE);
   }

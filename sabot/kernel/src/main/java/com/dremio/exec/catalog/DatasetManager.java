@@ -247,11 +247,30 @@ class DatasetManager {
   private NamespaceTable getTableFromNamespace(NamespaceKey key, DatasetConfig datasetConfig, ManagedStoragePlugin plugin,
                                                String accessUserName, MetadataRequestOptions options) {
     plugin.checkAccess(key, datasetConfig, accessUserName, options);
+
     final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(),
-        datasetConfig,
-        accessUserName,
-        DatasetSplitsPointer.of(userNamespaceService, datasetConfig));
+      datasetConfig,
+      accessUserName,
+      DatasetSplitsPointer.of(userNamespaceService, datasetConfig),
+      getPrimaryKey(plugin.getPlugin(), datasetConfig, options.getSchemaConfig(), key, true));
     return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
+  }
+
+  private List<String> getPrimaryKey(StoragePlugin plugin,
+                                     DatasetConfig datasetConfig,
+                                     SchemaConfig config,
+                                     NamespaceKey key,
+                                     boolean saveInKvStore) {
+    List<String> primaryKey = null;
+    if (plugin instanceof MutablePlugin) {
+      MutablePlugin mutablePlugin = (MutablePlugin) plugin;
+      try {
+        primaryKey = mutablePlugin.getPrimaryKey(key, datasetConfig, config, null, saveInKvStore);
+      } catch (Exception ex) {
+        logger.debug("Failed to get primary key", ex);
+      }
+    }
+    return primaryKey;
   }
 
   /**
@@ -402,7 +421,11 @@ class DatasetManager {
 
     // TODO: use MaterializedSplitsPointer if metadata is not too big!
     final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(), datasetConfig,
-        accessUserName, DatasetSplitsPointer.of(userNamespaceService, datasetConfig));
+      accessUserName, DatasetSplitsPointer.of(userNamespaceService, datasetConfig),
+      getPrimaryKey(plugin.getPlugin(), datasetConfig, schemaConfig, key,
+        false /* The metadata for the table is either incomplete, missing or out of date.
+        Storing in namespace can cause issues if the metadata is missing. Don't save here.
+        */));
     return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
   }
 

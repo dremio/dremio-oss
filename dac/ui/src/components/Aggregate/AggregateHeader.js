@@ -28,6 +28,7 @@ import SimpleButton from "components/Buttons/SimpleButton";
 import EllipsedText from "components/EllipsedText";
 import { ExploreInfoHeader } from "pages/ExplorePage/components/ExploreInfoHeader";
 import { AggregateHeaderWithMixin } from "@inject/components/Aggregate/AggregateHeaderMixin.js";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export class AggregateHeader extends Component {
   static propTypes = {
@@ -50,6 +51,7 @@ export class AggregateHeader extends Component {
         <SimpleButton
           type="button"
           buttonStyle="secondary"
+          className={classes["secondaryButtonPsuedoClasses"]}
           // DX-34369: all SimpleButton usage need to change from style to classname
           style={
             renderClearAllButtons

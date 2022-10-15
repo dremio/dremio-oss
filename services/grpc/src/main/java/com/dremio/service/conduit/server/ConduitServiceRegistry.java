@@ -19,6 +19,7 @@ package com.dremio.service.conduit.server;
 import com.dremio.service.grpc.CloseableBindableService;
 
 import io.grpc.BindableService;
+import io.grpc.ServerServiceDefinition;
 
 
 /**
@@ -39,4 +40,11 @@ public interface ConduitServiceRegistry {
    * @param bindableService
    */
   void registerService(CloseableBindableService bindableService);
+
+  /**
+   * Register the service.
+   *
+   * @param serverServiceDefinition server service
+   */
+  void registerServerService(ServerServiceDefinition serverServiceDefinition);
 }

@@ -63,6 +63,7 @@ message Materialization {
   optional int64 previous_iceberg_snapshot = 33;
   optional int64 last_refresh_finished = 34;
   optional int64 last_refresh_duration_millis = 35;
+  repeated string primary_key = 36;
 }
 
 message RefreshId {

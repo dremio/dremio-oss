@@ -23,6 +23,7 @@ import { FormattedMessage, injectIntl } from "react-intl";
 import urlParse from "url-parse";
 
 import MainInfoMixin from "dyn-load/pages/HomePage/components/MainInfoMixin";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { loadWiki } from "@app/actions/home";
 import DatasetMenu from "components/Menus/HomePage/DatasetMenu";
 import FolderMenu from "components/Menus/HomePage/FolderMenu";
@@ -30,13 +31,12 @@ import FolderMenu from "components/Menus/HomePage/FolderMenu";
 import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
 import { getRootEntityType } from "utils/pathUtils";
 import SettingsBtn from "components/Buttons/SettingsBtn";
-import FontIcon from "components/Icon/FontIcon";
 import { ENTITY_TYPES } from "@app/constants/Constants";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import Art from "@app/components/Art";
+import { IconButton } from "dremio-ui-lib";
 import { TagsAlert } from "@app/pages/HomePage/components/TagsAlert";
 
-import { NESSIE } from "@app/constants/sourceTypes";
+import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { tableStyles } from "../tableStyles";
 import BrowseTable from "./BrowseTable";
 import { HeaderButtons } from "./HeaderButtons";
@@ -45,10 +45,14 @@ import WikiView from "./WikiView";
 import SourceBranchPicker from "./SourceBranchPicker/SourceBranchPicker";
 import { getSortedSources } from "@app/selectors/home";
 import { getSourceByName } from "@app/utils/nessieUtils";
+import ProjectHistoryButton from "@app/exports/pages/ArcticCatalog/components/ProjectHistoryButton";
+import { selectState } from "@app/selectors/nessie/nessie";
+import { constructArcticUrl } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
+
+const folderPath = "/folder/";
 
 const shortcutBtnTypes = {
-  view: "view",
-  wiki: "wiki",
+  edit: "edit",
   settings: "settings",
 };
 
@@ -72,8 +76,10 @@ export class MainInfoView extends Component {
     intl: PropTypes.object.isRequired,
     fetchWiki: PropTypes.func, // (entityId) => Promise
     source: PropTypes.instanceOf(Immutable.Map),
+    canUploadFile: PropTypes.bool,
     isSonarSource: PropTypes.bool,
     rootEntityType: PropTypes.string,
+    nessieState: PropTypes.object,
   };
 
   static defaultProps = {
@@ -95,7 +101,7 @@ export class MainInfoView extends Component {
   fetchWiki(prevProps) {
     const oldId = getEntityId(prevProps);
     const newId = getEntityId(this.props);
-    if (newId && oldId !== newId) {
+    if (newId && oldId !== newId && !this.isArctic()) {
       this.props.fetchWiki(newId);
     }
   }
@@ -136,13 +142,8 @@ export class MainInfoView extends Component {
     ) {
       return [
         this.renderConvertButton(folder, {
-          icon: (
-            <FontIcon
-              type="FolderConvert"
-              style={{ marginTop: 8, marginLeft: -2 }}
-              tooltip={la("Format Folder")}
-            />
-          ),
+          icon: <dremio-icon name="interface/format-folder" />,
+          tooltip: "Folder.FolderFormat",
           to: {
             ...this.context.location,
             state: {
@@ -159,10 +160,11 @@ export class MainInfoView extends Component {
       ];
     } else if (
       isAdmin ||
-      (permissions && permissions.canAlter) ||
-      permissions.canRead ||
-      permissions.canEditAccessControlList ||
-      permissions.canDelete
+      (permissions &&
+        (permissions.canAlter ||
+          permissions.canRead ||
+          permissions.canEditAccessControlList ||
+          permissions.canDelete))
     ) {
       return this.getSettingsBtnByType(<FolderMenu folder={folder} />, folder);
     } else {
@@ -180,13 +182,8 @@ export class MainInfoView extends Component {
     if (this.checkToRenderConvertFileButton(isAdmin, permissions)) {
       return [
         this.renderConvertButton(file, {
-          icon: (
-            <FontIcon
-              type="FileConvert"
-              style={{ marginTop: 8 }}
-              tooltip={la("Format File")}
-            />
-          ),
+          icon: <dremio-icon name="interface/format-file" />,
+          tooltip: "File.FileFormat",
           to: {
             ...this.context.location,
             state: {
@@ -220,18 +217,16 @@ export class MainInfoView extends Component {
         .filter((btn) => btn.isShown)
         // return rendered link buttons
         .map((btnType, index) => (
-          <Link
+          <IconButton
+            as={LinkWithRef}
             to={btnType.link}
+            tooltip={btnType.tooltip}
             key={item.get("id") + index}
             className="main-settings-btn min-btn"
-            style={{
-              marginRight: 5, // all buttons should have 5px margin. Last settings button should not have any margin
-            }}
+            data-qa={btnType.type}
           >
-            <button className="settings-button" data-qa={btnType.type}>
-              {btnType.label}
-            </button>
-          </Link>
+            {btnType.label}
+          </IconButton>
         )),
       this.getSettingsBtnByType(
         <DatasetMenu entity={item} entityType={entityType} />,
@@ -240,10 +235,8 @@ export class MainInfoView extends Component {
     ];
   }
 
-  getInlineIcon(iconSrc, alt) {
-    return (
-      <Art src={iconSrc} alt={alt} title style={{ height: 24, width: 24 }} />
-    );
+  getInlineIcon(icon) {
+    return <dremio-icon name={icon} data-qa={icon} />;
   }
 
   getWikiButtonLink(item) {
@@ -259,10 +252,12 @@ export class MainInfoView extends Component {
         handleSettingsOpen={this.handleSettingsOpen.bind(this)}
         dataQa={item.get("name")}
         menu={menu}
+        classStr="main-settings-btn min-btn catalog-btn"
         key={`${item.get("name")}-${item.get("id")}`}
+        tooltip="Common.More"
         hideArrowIcon
       >
-        {this.getInlineIcon("Ellipsis.svg", "more")}
+        {this.getInlineIcon("interface/more")}
       </SettingsBtn>
     );
   }
@@ -270,14 +265,15 @@ export class MainInfoView extends Component {
   getRow(item) {
     const [name, jobs, action] = this.getTableColumns();
     const jobsCount =
-      item.get("jobCount") ||
-      item.getIn(["extendedConfig", "jobCount"]) ||
-      la("—");
+      item.get("jobCount") || item.getIn(["extendedConfig", "jobCount"]) || 0;
+    const isArcticSource = this.isArctic();
     return {
       rowClassName: item.get("name"),
       data: {
         [name.key]: {
-          node: () => <MainInfoItemNameAndTag item={item} />,
+          node: () => (
+            <MainInfoItemNameAndTag item={item} isIceberg={isArcticSource} />
+          ),
           value: item.get("name"),
         },
         [jobs.key]: {
@@ -295,6 +291,7 @@ export class MainInfoView extends Component {
 
   getTableColumns() {
     const { intl } = this.props;
+
     return [
       {
         key: "name",
@@ -306,13 +303,14 @@ export class MainInfoView extends Component {
         key: "jobs",
         label: intl.formatMessage({ id: "Job.Jobs" }),
         style: tableStyles.digitColumn,
+        columnAlignment: "alignRight",
         headerStyle: { justifyContent: "flex-end" },
         isFixedWidth: true,
-        width: 60,
+        width: 66,
       },
       {
         key: "action",
-        label: intl.formatMessage({ id: "Common.Action" }),
+        label: " ",
         style: tableStyles.actionColumn,
         isFixedWidth: true,
         width: 140,
@@ -383,26 +381,71 @@ export class MainInfoView extends Component {
     return entity && source && source.get("type") === NESSIE;
   };
 
+  isArctic = () => {
+    const { source, entity } = this.props;
+    return entity && source && source.get("type") === ARCTIC;
+  };
+
+  isNeitherNessieOrArctic = () => {
+    return !this.isNessie() && !this.isArctic();
+  };
+
+  constructArcticSourceLink = () => {
+    const { source, nessieState = {} } = this.props;
+    const { hash, reference } = nessieState;
+    const { pathname } = this.context.location;
+    let namespace = "";
+    if (pathname.includes(folderPath)) {
+      namespace = pathname.substring(
+        pathname.indexOf(folderPath) + folderPath.length,
+        pathname.length
+      );
+      if (reference) {
+        namespace = `${reference?.name}/${namespace}`;
+      }
+    }
+    return constructArcticUrl({
+      type: "source",
+      baseUrl: `/sources/arctic/${source.get("name")}`,
+      tab: "commits",
+      namespace: namespace,
+      hash: hash ? `?hash=${hash}` : "",
+    });
+  };
+
   renderExternalLink = () => {
     const { source } = this.props;
-    if (!this.isNessie()) return null;
-    return (
-      <Link to={`/sources/dataplane/${source.get("name")}/branches`}>
-        <FormattedMessage id="Nessie.ViewAllBranches" />
-      </Link>
-    );
+    if (this.isNeitherNessieOrArctic()) return null;
+    else if (this.isNessie()) {
+      return (
+        <Link to={`/sources/dataplane/${source.get("name")}/branches`}>
+          <FormattedMessage id="Nessie.ViewAllBranches" />
+        </Link>
+      );
+    } else {
+      return (
+        <Link
+          to={this.constructArcticSourceLink()}
+          style={{ textDecoration: "none" }}
+        >
+          <ProjectHistoryButton />
+        </Link>
+      );
+    }
   };
 
   renderTitleExtraContent = () => {
     const { source } = this.props;
-    if (!this.isNessie()) return null;
+    if (this.isNeitherNessieOrArctic()) return null;
     return <SourceBranchPicker source={source.toJS()} />;
   };
 
   render() {
-    const { entity, viewState, isSonarSource, rootEntityType } = this.props;
+    const { canUploadFile, entity, viewState, isSonarSource, rootEntityType } =
+      this.props;
     const { pathname } = this.context.location;
-    const showWiki = entity && !entity.get("fileSystemFolder"); // should be removed when DX-13804 would be fixed
+    const showWiki =
+      entity && !entity.get("fileSystemFolder") && !this.isArctic(); // should be removed when DX-13804 would be fixed
 
     const buttons = entity && (
       <HeaderButtons
@@ -410,6 +453,7 @@ export class MainInfoView extends Component {
         rootEntityType={rootEntityType}
         rightTreeVisible={this.props.rightTreeVisible}
         toggleVisibility={this.toggleRightTree}
+        canUploadFile={canUploadFile}
         isSonarSource={isSonarSource}
       />
     );
@@ -436,6 +480,8 @@ export class MainInfoView extends Component {
         viewState={viewState}
         renderExternalLink={this.renderExternalLink}
         renderTitleExtraContent={this.renderTitleExtraContent}
+        disableZebraStripes
+        rowHeight={40}
       >
         <DocumentTitle
           title={
@@ -448,47 +494,6 @@ export class MainInfoView extends Component {
   }
 }
 MainInfoView = injectIntl(MainInfoView);
-
-export const styles = {
-  height: {
-    height: "100%",
-  },
-  loader: {
-    display: "flex",
-    justifyContent: "center",
-    color: "gray",
-    marginTop: 10,
-    fontSize: 22,
-  },
-  viewerHeader: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  folderConvertButton: {
-    borderRadius: "2px",
-    height: 23,
-    width: 68,
-    boxShadow: "0 1px 1px #b2bec7",
-    cursor: "pointer",
-    display: "flex",
-    paddingTop: 1,
-    marginRight: 5,
-  },
-  button: {
-    borderRadius: "2px",
-    height: 23,
-    width: 68,
-    boxShadow: "0 1px 1px #b2bec7",
-    cursor: "pointer",
-    display: "flex",
-    paddingTop: 1,
-  },
-  searchField: {
-    width: 200,
-    height: 30,
-  },
-};
 
 function ActionWrap({ children }) {
   return <span className="action-wrap">{children}</span>;
@@ -515,12 +520,16 @@ function mapStateToProps(state, props) {
       sources.toJS()
     );
 
-    isSonarSource = parentSource?.type === NESSIE;
+    isSonarSource = [NESSIE, ARCTIC].includes(parentSource?.type);
   }
+
+  const nessieState = selectState(state.nessie, props.source?.get("name"));
 
   return {
     rootEntityType,
     isSonarSource,
+    canUploadFile: state.privileges?.project?.canUploadFile,
+    nessieState,
   };
 }
 

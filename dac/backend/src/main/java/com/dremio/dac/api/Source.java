@@ -192,6 +192,8 @@ public class Source implements CatalogEntity {
 
   public void setMetadataPolicy(MetadataPolicy metadataPolicy) {
     this.metadataPolicy = metadataPolicy;
+    // set defaults if not defined
+    this.metadataPolicy.setMetadataPolicyDefaults();
   }
 
   public Long getAccelerationGracePeriodMs() {

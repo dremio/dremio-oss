@@ -35,6 +35,8 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.FamilyExpectation;
+import com.dremio.dac.server.ValidationErrorMessage;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -160,6 +162,41 @@ public class TestDatasetResource extends BaseTestServer {
   }
 
   @Test
+  public void testAccelerationSettingsRefreshLessthanExpire() throws Exception {
+    final String endpoint = String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
+
+    final AccelerationSettingsDescriptor goodDescriptor = expectSuccess(
+      getBuilder(getAPIv2().path(endpoint)).buildGet(),
+      AccelerationSettingsDescriptor.class
+    );
+
+    goodDescriptor.setAccelerationRefreshPeriod(1L);
+    goodDescriptor.setAccelerationGracePeriod(2L);
+    goodDescriptor.setAccelerationNeverExpire(false);
+    goodDescriptor.setAccelerationNeverRefresh(false);
+
+
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+        .buildPut(Entity.entity(goodDescriptor, JSON)));
+
+    final AccelerationSettingsDescriptor badDescriptor = expectSuccess(
+      getBuilder(getAPIv2().path(endpoint)).buildGet(),
+      AccelerationSettingsDescriptor.class
+    );
+
+    badDescriptor.setAccelerationRefreshPeriod(2L); //this is > than expiration
+    badDescriptor.setAccelerationGracePeriod(1L);
+    badDescriptor.setAccelerationNeverExpire(false);
+    badDescriptor.setAccelerationNeverRefresh(false);
+
+    expectError(FamilyExpectation.CLIENT_ERROR,
+      getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+        .buildPut(Entity.entity(badDescriptor, JSON)), ValidationErrorMessage.class);
+
+  }
+
+  @Test
   public void testUpdateSettingsInFullMode() throws Exception {
     {
       final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
@@ -248,6 +285,19 @@ public class TestDatasetResource extends BaseTestServer {
       expectStatus(Response.Status.BAD_REQUEST,
           getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", path2.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
+    }
+
+    {
+      expectStatus(Response.Status.BAD_REQUEST,
+        getBuilder(getAPIv2().path(String.format("/dataset/%s/moveTo/%s", DATASET_PATH.toPathString(), DATASET_PATH.toPathString())))
+          .build("POST"));
+    }
+
+    {
+      expectStatus(Response.Status.BAD_REQUEST,
+        getBuilder(getAPIv2().path(String.format("/dataset/%s/rename/", DATASET_PATH.toPathString()))
+          .queryParam("renameTo", DATASET_PATH.getLeaf().toString()))
+          .build("POST"));
     }
 
   }

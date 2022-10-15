@@ -17,13 +17,13 @@ package com.dremio.service.autocomplete.columns;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
@@ -37,17 +37,16 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.exec.planner.sql.parser.SqlVersionedTableCollectionCall;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
 import com.dremio.exec.planner.sql.parser.TableVersionSpec;
 import com.dremio.service.autocomplete.AutocompleteEngineContext;
 import com.dremio.service.autocomplete.catalog.AutocompleteSchemaProvider;
 import com.dremio.service.autocomplete.parsing.SqlNodeParser;
 import com.dremio.service.autocomplete.parsing.ValidatingParser;
-import com.dremio.service.autocomplete.statements.grammar.FromClause;
-import com.dremio.service.autocomplete.statements.grammar.SelectQueryStatement;
-import com.dremio.service.autocomplete.statements.grammar.Statement;
-import com.dremio.service.autocomplete.tokens.Cursor;
+import com.dremio.service.autocomplete.statements.grammar.TableReference;
 import com.dremio.service.autocomplete.tokens.QueryBuilder;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -68,35 +67,19 @@ public final class ColumnResolver {
     this.queryParser = queryParser;
   }
 
-  public Set<ColumnAndTableAlias> resolve(List<Statement> statementPath) {
-    Preconditions.checkNotNull(statementPath);
-    Set<ColumnAndTableAlias> columns = new TreeSet<>(ColumnAndTableAliasComparator.INSTANCE);
-    for (int i = 0; i < statementPath.size(); i++) {
-      Statement statement = statementPath.get(i);
-      if (statement instanceof SelectQueryStatement) {
-        SelectQueryStatement selectQueryStatement = (SelectQueryStatement) statement;
-        // If we have a scenario like:
-        // SELECT * FROM (SELECT ^ FROM EMP)
-        // Then we don't want to use the from clause from the outer query, since it's an invalid query
-        // But we do want to use a partial from clause if it's in the current query:
-        // SELECT * FROM EMP JOIN DEPT ON EMP.ID = ^
-        FromClause fromClause = selectQueryStatement.getFromClause();
-        boolean invalidFromClause = (i != statementPath.size() - 1) && Cursor.tokensHasCursor(fromClause.getTokens());
-        if (!invalidFromClause) {
-          columns.addAll(resolve(fromClause));
-        }
-      }
+  public Set<ColumnAndTableAlias> resolve(ImmutableList<TableReference> tableReferences) {
+    Preconditions.checkNotNull(tableReferences);
+
+    if (tableReferences.isEmpty()) {
+      return Collections.emptySet();
     }
 
-    return columns;
-  }
-
-  public Set<ColumnAndTableAlias> resolve(FromClause fromClause) {
     // Take the FROM clause and append it with SELECT *
     // So that we have a query in the from:
     // SELECT * <FROM_CLAUSE>
-    String modifiedQuery = QueryBuilder.build(fromClause);
-    SqlNode parsedQuery = queryParser.toSqlNode(modifiedQuery);
+    String modifiedQuery = QueryBuilder.build(tableReferences);
+    SqlNode parsedQuery = queryParser.parse(modifiedQuery);
+
     SqlSelect sqlSelect = (SqlSelect) parsedQuery;
 
     return resolveFromSelectListAndFromNode(
@@ -231,7 +214,7 @@ public final class ColumnResolver {
         break;
 
       case COLLECTION_TABLE:
-        SqlVersionedTableMacroCall sqlVersionedTableMacroCall = (SqlVersionedTableMacroCall) ((SqlBasicCall) sourceNode).getOperands()[0];
+        SqlVersionedTableMacroCall sqlVersionedTableMacroCall = (SqlVersionedTableMacroCall) ((SqlVersionedTableCollectionCall) sourceNode).getOperandList().get(0);
         TableVersionSpec tableVersionSpec = sqlVersionedTableMacroCall.getTableVersionSpec();
         TableVersionContext tableVersionContext = tableVersionSpec.getResolvedTableVersionContext();
         TableVersionType tableVersionType = tableVersionContext.getType();
@@ -239,7 +222,7 @@ public final class ColumnResolver {
           alias = sqlVersionedTableMacroCall.getAlias().names.get(0);
         }
 
-        String[] pathTokens = ((SqlVersionedTableMacroCall) ((SqlBasicCall) sourceNode).getOperands()[0])
+        String[] pathTokens = ((SqlVersionedTableMacroCall) ((SqlVersionedTableCollectionCall) sourceNode).getOperandList().get(0))
           .getOperands()[0]
           .toString()
           .replaceAll("\'", "")

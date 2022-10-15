@@ -59,7 +59,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.io.Resources;
 
-public class HiveTestDataGenerator {
+public final class HiveTestDataGenerator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestHiveImpersonation.class);
   public static final String HIVE_TEST_PLUGIN_NAME = "hive";
   public static final String HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE = "hive plugin name with whitespace";
@@ -572,6 +572,7 @@ public class HiveTestDataGenerator {
 
       // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
       createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
+      createTableWithMapColumn(hiveDriver, "parquet_with_map_column");
     }
   }
 
@@ -599,7 +600,7 @@ public class HiveTestDataGenerator {
 
     PrintWriter printWriter = new PrintWriter(file);
 
-    String partValues[] = {"1", "2", "null"};
+    String[] partValues = {"1", "2", "null"};
 
     for(int c = 0; c < partValues.length; c++) {
       for(int d = 0; d < partValues.length; d++) {
@@ -1920,6 +1921,17 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert);
   }
 
+  private void createTableWithMapColumn(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (" +
+      "intCol int, stringKey map<string,int>, stringValue map<int,string>, bothString map<string,string>, structValue map<string, struct<x:int, y:int>> )" +
+      " stored as parquet";
+    String insert = "insert into " + table + " select 12, map(\"abc\", 123) as stringKey, map(11, \"xyz\") as stringValue, map(\"aa\",\"bb\") as bothString, " +
+      " map(\"cc\", named_struct(\"x\", 3, \"y\", 4)) as structValue";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
   private void createTableNestedWithUnsupportedComplexTypes(Driver hiveDriver, String table) {
     String createTable = "create table " + table + " (name_col string, " +
       "map_list_col array<map<string, string>>, " +
@@ -1940,7 +1952,7 @@ public class HiveTestDataGenerator {
       " col5 struct<f1: array<map<int, int>>>, " +
       " col6 struct<f1: array<array<array<map<int, int>>>>>, " +
       " col7 struct<f1: struct<f2: array<array<array<map<int, int>>>>>>, " +
-      " col8 struct<crossdomainid: string, deviceuseragentid: string, sourcelist: map<string, string>>)" +
+      " col8 struct<crossdomainid: string, deviceuseragentid: string, sourcelist: map<string, map<string, string>>>)" +
       " stored as parquet";
     String insert = "insert into " + table + " select map(1,1), " +
       " array(map(1,1)), " +
@@ -1949,7 +1961,7 @@ public class HiveTestDataGenerator {
       " named_struct('f1',array(map(1,1))), " +
       " named_struct('f1',array(array(array(map(1,1))))), " +
       " named_struct('f1',named_struct('f2',array(array(array(map(1,1)))))), " +
-      " named_struct('crossdomainid','abc','deviceuseragentid','edf','sourcelist',map('a','b'))";
+      " named_struct('crossdomainid','abc','deviceuseragentid','edf','sourcelist',map('a',map('b', 'c')))";
 
     executeQuery(hiveDriver, createTable);
     executeQuery(hiveDriver, insert);

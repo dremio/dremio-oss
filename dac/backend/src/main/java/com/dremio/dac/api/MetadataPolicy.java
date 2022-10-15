@@ -15,6 +15,10 @@
  */
 package com.dremio.dac.api;
 
+import static com.dremio.exec.store.CatalogService.DEFAULT_AUTHTTLS_MILLIS;
+import static com.dremio.exec.store.CatalogService.DEFAULT_EXPIRE_MILLIS;
+import static com.dremio.exec.store.CatalogService.DEFAULT_REFRESH_MILLIS;
+
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
@@ -52,13 +56,21 @@ public class MetadataPolicy {
   public MetadataPolicy() { }
 
   public MetadataPolicy(com.dremio.service.namespace.source.proto.MetadataPolicy policy) {
-    this.authTTLMs = policy.getAuthTtlMs();
-    this.namesRefreshMs = policy.getNamesRefreshMs();
-    this.datasetRefreshAfterMs = policy.getDatasetDefinitionRefreshAfterMs();
-    this.datasetExpireAfterMs = policy.getDatasetDefinitionExpireAfterMs();
-    this.datasetUpdateMode = policy.getDatasetUpdateMode().name();
-    this.deleteUnavailableDatasets = policy.getDeleteUnavailableDatasets();
-    this.autoPromoteDatasets = policy.getAutoPromoteDatasets();
+    setAuthTTLMs(policy.getAuthTtlMs());
+    setNamesRefreshMs(policy.getNamesRefreshMs());
+    setDatasetRefreshAfterMs(policy.getDatasetDefinitionRefreshAfterMs());
+    setDatasetExpireAfterMs(policy.getDatasetDefinitionExpireAfterMs());
+    setDatasetUpdateMode(policy.getDatasetUpdateMode().name());
+    setDeleteUnavailableDatasets(policy.getDeleteUnavailableDatasets());
+    setAutoPromoteDatasets(policy.getAutoPromoteDatasets());
+  }
+
+  // Set default values if not provided.
+  public void setMetadataPolicyDefaults() {
+    setAuthTTLMs(this.authTTLMs);
+    setNamesRefreshMs(this.namesRefreshMs);
+    setDatasetRefreshAfterMs(this.datasetRefreshAfterMs);
+    setDatasetExpireAfterMs(this.datasetExpireAfterMs);
   }
 
   public Long getAuthTTLMs() {
@@ -66,7 +78,12 @@ public class MetadataPolicy {
   }
 
   public void setAuthTTLMs(Long authTTLMs) {
-    this.authTTLMs = authTTLMs;
+    // Set to default if not provided in request.
+    if (authTTLMs == 0) {
+      this.authTTLMs = DEFAULT_AUTHTTLS_MILLIS;
+    } else {
+      this.authTTLMs = authTTLMs;
+    }
   }
 
   public long getNamesRefreshMs() {
@@ -74,7 +91,12 @@ public class MetadataPolicy {
   }
 
   public void setNamesRefreshMs(long namesRefreshMs) {
-    this.namesRefreshMs = namesRefreshMs;
+    // Set to default if not provided in request.
+    if (namesRefreshMs == 0) {
+      this.namesRefreshMs = DEFAULT_REFRESH_MILLIS;
+    } else {
+      this.namesRefreshMs = namesRefreshMs;
+    }
   }
 
   public long getDatasetRefreshAfterMs() {
@@ -82,7 +104,12 @@ public class MetadataPolicy {
   }
 
   public void setDatasetRefreshAfterMs(long datasetRefreshAfterMs) {
-    this.datasetRefreshAfterMs = datasetRefreshAfterMs;
+    // Set to default if not provided in request.
+    if (datasetRefreshAfterMs == 0) {
+      this.datasetRefreshAfterMs = DEFAULT_REFRESH_MILLIS;
+    } else {
+      this.datasetRefreshAfterMs = datasetRefreshAfterMs;
+    }
   }
 
   public long getDatasetExpireAfterMs() {
@@ -90,7 +117,12 @@ public class MetadataPolicy {
   }
 
   public void setDatasetExpireAfterMs(long datasetExpireAfterMs) {
-    this.datasetExpireAfterMs = datasetExpireAfterMs;
+    // Set to default if not provided in request.
+    if (datasetExpireAfterMs == 0) {
+      this.datasetExpireAfterMs = DEFAULT_EXPIRE_MILLIS;
+    } else {
+      this.datasetExpireAfterMs = datasetExpireAfterMs;
+    }
   }
 
   @NotNull

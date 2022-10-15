@@ -89,6 +89,8 @@ QMark    : '?';
 Colon    : ':';
 SingleQuote: '\'';
 InputReference : 'INPUT_REFERENCE';
+ListAggExp : 'LIST_AGG';
+Order: 'ORDERING';
 
 Bool
   :  'true' 

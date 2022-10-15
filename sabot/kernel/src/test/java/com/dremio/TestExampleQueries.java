@@ -329,7 +329,7 @@ public class TestExampleQueries extends PlanTestBase {
         .sqlQuery(SqlQuery)
         .unOrdered()
         .baselineColumns("o_orderkey", "y1", "y2")
-        .baselineValues(1, 1996l, 1996l)
+        .baselineValues(1, 1996L, 1996L)
         .go();
 
 
@@ -341,7 +341,7 @@ public class TestExampleQueries extends PlanTestBase {
           + "ORDER BY o_orderkey limit 1")
         .unOrdered()
         .baselineColumns("o_orderkey", "y1", "y2")
-        .baselineValues(1, 1996l, 1996l)
+        .baselineValues(1, 1996L, 1996L)
         .go();
 
       test(String.format("ALTER SESSION SET \"%s\" = false", ExecConstants.SPLIT_CACHING_ENABLED_KEY));
@@ -353,7 +353,7 @@ public class TestExampleQueries extends PlanTestBase {
           + "ORDER BY o_orderkey limit 1")
         .unOrdered()
         .baselineColumns("o_orderkey", "y1", "y2")
-        .baselineValues(1, 1996l, 1996l)
+        .baselineValues(1, 1996L, 1996L)
         .go();
     } finally {
       test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
@@ -864,7 +864,7 @@ public class TestExampleQueries extends PlanTestBase {
     testPlanMatchingPatterns(query, new String[] {
         "Filter\\(condition=\\[CASE\\(IS NOT NULL\\(\\$1\\), =\\(\\$1, 10\\), false\\)\\]\\)",
         "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[.?SUM.?\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
-        "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=(?:\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]|\\[\\/\\(CAST\\(CASE\\(\\=\\(\\$3, 0\\), null, \\$2\\)\\)\\:DOUBLE, \\$3\\)\\])\\)" },
+        "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=(?:\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]|\\[\\/\\(CAST\\(CASE\\(\\=\\(\\$3, 0\\), null:BIGINT, \\$2\\)\\)\\:DOUBLE, \\$3\\)\\])\\)" },
         null);
   }
 
@@ -1655,16 +1655,13 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test // DX-15425: GreenPlum query
   public void testQuery2WithoutFrom() throws Exception {
-    try {
-      testBuilder()
-        .sqlQuery("select 1 union (select distinct '10' from (select 1, 3.0 union select distinct 2, CAST(null AS INTEGER)) as foo)")
-        .unOrdered()
-        .baselineColumns("employee_id")
-        .baselineValues(100)
-        .build().run();
-    } catch (Exception e) {
-      assertTrue(e.getMessage().contains("attempting to union two datasets that have different underlying schemas"));
-    }
+    testBuilder()
+      .sqlQuery("select 1 union (select distinct '10' from (select 1, 3.0 union select distinct 2, CAST(null AS INTEGER)) as foo)")
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues("10")
+      .baselineValues("1")
+      .build().run();
   }
 
   @Test // DRILL-2094
@@ -1697,7 +1694,7 @@ public class TestExampleQueries extends PlanTestBase {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("cnt")
-        .baselineValues(60175l)
+        .baselineValues(60175L)
         .go();
   }
 
@@ -2053,11 +2050,11 @@ public class TestExampleQueries extends PlanTestBase {
         .sqlQuery(query)
         .ordered()
         .baselineColumns("col")
-        .baselineValues(-27l)
-        .baselineValues(-27l)
-        .baselineValues(-27l)
-        .baselineValues(-26l)
-        .baselineValues(-26l)
+        .baselineValues(-27L)
+        .baselineValues(-27L)
+        .baselineValues(-27L)
+        .baselineValues(-26L)
+        .baselineValues(-26L)
         .build()
         .run();
   }
@@ -2415,6 +2412,21 @@ public class TestExampleQueries extends PlanTestBase {
 
     testBuilder()
       .unOrdered()
+      .optionSettingQueriesForTestQuery("alter system set \"exec.operator.copier.complex.vectorize\" = true")
+      .sqlQuery(query)
+      .optionSettingQueriesForBaseline("alter system set \"exec.operator.copier.complex.vectorize\" = false")
+      .sqlBaselineQuery(query)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void TestCopier5() throws Exception {
+    String query = "SELECT * FROM cp.\"parquet/52864-1.parquet\" t where id0 = '2' or id0 = '4' or id0 = '6' or id0 = '7' or id0 = '8'";
+
+    testBuilder()
+      .unOrdered()
+      .optionSettingQueriesForTestQuery("alter system set \"dremio.data_types.map.enabled\" = true")
       .optionSettingQueriesForTestQuery("alter system set \"exec.operator.copier.complex.vectorize\" = true")
       .sqlQuery(query)
       .optionSettingQueriesForBaseline("alter system set \"exec.operator.copier.complex.vectorize\" = false")

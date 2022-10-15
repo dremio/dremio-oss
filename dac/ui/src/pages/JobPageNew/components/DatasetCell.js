@@ -19,6 +19,9 @@ import PropTypes from "prop-types";
 import { Tooltip } from "@app/components/Tooltip";
 import FontIcon from "components/Icon/FontIcon";
 import { getIconByEntityType } from "utils/iconUtils";
+import DatasetSummaryOverlay from "components/Dataset/DatasetSummaryOverlay";
+import { checkTypeToShowOverlay } from "utils/datasetUtils";
+import { Tooltip as DremioTooltip } from "dremio-ui-lib";
 
 import "./JobsContent.less";
 
@@ -50,10 +53,35 @@ const DatasetCell = ({ job }) => {
   const datasetArray = job.get("queriedDatasets");
   const isInternalQuery =
     job.get("queryType") && job.get("queryType") === "UI_INITIAL_PREVIEW";
+  const datasetType = datasetArray.getIn([0, "datasetType"]);
 
   if (!datasetArray) {
     return null;
   }
+  const iconType = getIconByEntityType(isInternalQuery ? "OTHER" : datasetType);
+  const datasetTitle = datasetArray.getIn([0, "datasetName"]);
+
+  const showOverlay = checkTypeToShowOverlay(datasetType);
+
+  const renderNameAndIcon = () => {
+    return (
+      <div className="jobsContent-dataset">
+        <span className="jobsContent-dataset__dataset">
+          <FontIcon
+            type={iconType}
+            iconStyle={{
+              verticalAlign: "middle",
+              flexShrink: 0,
+            }}
+          />
+        </span>
+        <div className="jobsContent-dataset__name">
+          {datasetArray.getIn([0, "datasetName"])}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="jobsContent-dataset"
@@ -62,59 +90,67 @@ const DatasetCell = ({ job }) => {
       onMouseLeave={handleMouseLeave}
       data-qa="dataSetCell"
     >
-      <span className="jobsContent-dataset__dataset">
-        <FontIcon
-          type={getIconByEntityType(
-            isInternalQuery ? "OTHER" : datasetArray.getIn([0, "datasetType"])
-          )}
-          iconStyle={{
-            verticalAlign: "middle",
-            flexShrink: 0,
-          }}
-        />
-      </span>
-      <div className="jobsContent-dataset__name">
-        {datasetArray.getIn([0, "datasetName"])}
-      </div>
-      <Tooltip
-        key="tooltip"
-        target={() => (tooltipOpen ? datasetRef.current : null)}
-        placement="bottom-start"
-        type="custom"
-        className="jobsContent-dataset__tooltip"
-        tooltipArrowClass="textWithHelp__tooltipArrow --light"
-        tooltipInnerStyle={TooltipInnerStyle}
-      >
-        {datasetArray.map((dataset, index) => {
-          const datasetName = dataset.get("datasetName");
-          const datasetPath = dataset.get("datasetPath");
-          const queryText = job.get("queryText");
-          const description = job.get("description");
-          const datasetDescription =
-            !queryText || queryText === "NA" ? description : datasetPath;
-          const datasetType = dataset.get("datasetType");
-          return (
-            <div
-              key={`datasetCell-${index}`}
-              className="jobsContent-dataset__tooltipWrapper"
-            >
-              <FontIcon
-                type={getIconByEntityType(datasetType)}
-                iconStyle={{
-                  verticalAlign: "middle",
-                  flexShrink: 0,
-                }}
-              />
-              <div className="jobsContent-dataset__nameWrapper">
-                <div className="jobsContent-dataset__label">{datasetName}</div>
-                <div className="jobsContent-dataset__path">
-                  {datasetDescription}
+      {showOverlay ? (
+        <DremioTooltip
+          interactive
+          type="richTooltip"
+          enterDelay={1000}
+          title={
+            <DatasetSummaryOverlay
+              inheritedTitle={datasetTitle}
+              datasetType={datasetType}
+              fullPath={datasetArray.getIn([0, "datasetPathsList"])}
+            />
+          }
+        >
+          {renderNameAndIcon()}
+        </DremioTooltip>
+      ) : (
+        renderNameAndIcon()
+      )}
+      {!showOverlay && (
+        <Tooltip
+          key="tooltip"
+          target={() => (tooltipOpen ? datasetRef.current : null)}
+          placement="bottom-start"
+          type="custom"
+          className="jobsContent-dataset__tooltip"
+          tooltipArrowClass="textWithHelp__tooltipArrow --light"
+          tooltipInnerStyle={TooltipInnerStyle}
+        >
+          {datasetArray.map((dataset, index) => {
+            const datasetName = dataset.get("datasetName");
+            const datasetPath = dataset.get("datasetPath");
+            const queryText = job.get("queryText");
+            const description = job.get("description");
+            const datasetDescription =
+              !queryText || queryText === "NA" ? description : datasetPath;
+            const datasetType = dataset.get("datasetType");
+            return (
+              <div
+                key={`datasetCell-${index}`}
+                className="jobsContent-dataset__tooltipWrapper"
+              >
+                <FontIcon
+                  type={getIconByEntityType(datasetType)}
+                  iconStyle={{
+                    verticalAlign: "middle",
+                    flexShrink: 0,
+                  }}
+                />
+                <div className="jobsContent-dataset__nameWrapper">
+                  <div className="jobsContent-dataset__label">
+                    {datasetName}
+                  </div>
+                  <div className="jobsContent-dataset__path">
+                    {datasetDescription}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </Tooltip>
+            );
+          })}
+        </Tooltip>
+      )}
     </div>
   );
 };

@@ -24,7 +24,7 @@ public class TestAggregationQueries extends PlanTestBase {
   public void ensureVarianceIsAggregateReduced() throws Exception {
     String query01 = "select variance(salary) from cp.\"employee.json\"";
     testPlanSubstrPatterns(query01,
-            new String[] {"EXPR$0=[/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null, -($2, 1)))]"},
+            new String[] {"EXPR$0=[/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null:BIGINT, -($2, 1)))]"},
             new String[] {"EXPR$0=[VARIANCE($0)]"});
     testBuilder().sqlQuery(query01).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(2.8856749581279494E7).go();
 
@@ -39,7 +39,7 @@ public class TestAggregationQueries extends PlanTestBase {
   public void ensureStddevIsAggregateReduced() throws Exception {
     String query01 = "select stddev(salary) from cp.\"employee.json\"";
     testPlanSubstrPatterns(query01,
-            new String[] {"EXPR$0=[POWER(/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null, -($2, 1))), 0.5)]"},
+            new String[] {"EXPR$0=[POWER(/(-($0, /(*($1, $1), $2)), CASE(=($2, 1), null:BIGINT, -($2, 1))), 0.5:DECIMAL(2, 1))]"},
             new String[] {"EXPR$0=[STDDEV($0)]"});
     testBuilder().sqlQuery(query01).approximateEquality().unOrdered().baselineColumns("EXPR$0").baselineValues(5371.84787398894).go();
 

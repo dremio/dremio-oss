@@ -26,7 +26,7 @@ import "./CommitDetailsPage.less";
 function CommitDetailsPage({ params }: { params: any }) {
   const { api } = useNessieContext();
   const [branchName, commitHash] = useMemo(() => {
-    const name = params?.branchName || "";
+    const name = decodeURIComponent(params?.branchName || "");
     const hash = params?.commitHash || "";
     return [name, hash];
   }, [params]);

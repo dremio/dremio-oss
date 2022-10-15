@@ -18,7 +18,7 @@ package com.dremio.common.util;
 /**
  * Utility class for number related things.
  */
-public class Numbers {
+public final class Numbers {
 
   private Numbers(){}
 

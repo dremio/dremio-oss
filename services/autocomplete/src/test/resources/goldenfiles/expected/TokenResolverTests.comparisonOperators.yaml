@@ -22,11 +22,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "TRUE"
      - "("
-     - "+"
-     - "-"
+     - "TIMESTAMP"
      - "?"
-     - "ALL"
+     - "+"
  -
   description: "Not equal"
   input: "SELECT * FROM EMP WHERE EMP.age <> "
@@ -118,11 +118,11 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
+     - "NOT"
      - "A"
      - "DISTINCT"
      - "EMPTY"
      - "FALSE"
-     - "NOT"
  -
   description: "IS NULL"
   input: "SELECT * FROM EMP WHERE EMP.age IS NULL"
@@ -142,8 +142,8 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
-     - "NULL"
      - "A"
+     - "NULL"
      - "DISTINCT"
      - "EMPTY"
      - "FALSE"
@@ -380,11 +380,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
-     - "ARRAY"
  -
   description: "IN(value"
   input: "SELECT * FROM EMP WHERE EMP.name IN('alice'"
@@ -392,11 +392,11 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
+     - ")"
+     - ","
      - "!="
      - "%"
-     - ")"
      - "*"
-     - "+"
  -
   description: "IN(value,"
   input: "SELECT * FROM EMP WHERE EMP.name IN('alice', "
@@ -404,11 +404,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
      - "("
      - "+"
      - "-"
      - "?"
-     - "ARRAY"
  -
   description: "IN(value)"
   input: "SELECT * FROM EMP WHERE EMP.name IN('alice')"
@@ -416,11 +416,11 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
-     - "!="
-     - "%"
-     - "*"
-     - "+"
-     - "-"
+     - "MULTISET"
+     - "GROUP"
+     - "IS"
+     - "IMMEDIATELY"
+     - ">"
  -
   description: "NOT IN"
   input: "SELECT * FROM EMP WHERE EMP.name NOT IN "
@@ -437,10 +437,10 @@
     hasMoreResults: true
     tokens:
      - "SELECT"
+     - "VALUES"
+     - "CASE"
+     - "WITH"
      - "("
-     - "+"
-     - "-"
-     - "?"
  -
   description: "NOT IN(value"
   input: "SELECT * FROM EMP WHERE EMP.name NOT IN('alice'"
@@ -448,11 +448,11 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
+     - ")"
+     - ","
      - "!="
      - "%"
-     - ")"
      - "*"
-     - "+"
  -
   description: "NOT IN(value,"
   input: "SELECT * FROM EMP WHERE EMP.name NOT IN('alice', "
@@ -460,11 +460,11 @@
     hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
      - "("
      - "+"
      - "-"
      - "?"
-     - "ARRAY"
  -
   description: "NOT IN(value)"
   input: "SELECT * FROM EMP WHERE EMP.name NOT IN('alice')"
@@ -472,8 +472,8 @@
     hasIdentifier: false
     hasMoreResults: true
     tokens:
-     - "!="
-     - "%"
-     - "*"
-     - "+"
-     - "-"
+     - "MULTISET"
+     - "GROUP"
+     - "IS"
+     - "IMMEDIATELY"
+     - ">"

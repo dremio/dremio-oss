@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.metadatarefresh;
 
+import java.util.List;
+
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMetadataImpl;
 import com.dremio.exec.record.BatchSchema;
@@ -27,8 +29,8 @@ public class RefreshExecTableMetadata extends TableMetadataImpl {
     // if the plugin doesn't support fetching schema in the coordinator
     private final BatchSchema tableSchema;
 
-    public RefreshExecTableMetadata(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits, BatchSchema tableSchema) {
-        super(plugin, config, user, splits);
+    public RefreshExecTableMetadata(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits, BatchSchema tableSchema, List<String> primaryKeys) {
+        super(plugin, config, user, splits, primaryKeys);
         this.tableSchema = tableSchema;
     }
 

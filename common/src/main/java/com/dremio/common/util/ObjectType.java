@@ -19,9 +19,9 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.google.flatbuffers.FlatBufferBuilder;
 
-public class ObjectType extends ArrowType.Null {
+public final class ObjectType extends ArrowType.Null {
 
-  public static ArrowType INTERNAL_OBJECT_TYPE = new ObjectType();
+  public static final ArrowType INTERNAL_OBJECT_TYPE = new ObjectType();
 
   private ObjectType(){}
 

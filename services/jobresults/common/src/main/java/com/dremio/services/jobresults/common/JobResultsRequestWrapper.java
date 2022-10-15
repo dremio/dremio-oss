@@ -108,7 +108,9 @@ public class JobResultsRequestWrapper implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
-    Arrays.stream(byteBuffers).forEach(b -> b.release());
+  public void close() {
+    if (byteBuffers != null) {
+      Arrays.stream(byteBuffers).filter(buf -> buf !=null).forEach(b -> b.release());
+    }
   }
 }

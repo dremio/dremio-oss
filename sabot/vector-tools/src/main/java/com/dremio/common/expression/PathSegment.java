@@ -19,9 +19,10 @@ import com.dremio.common.expression.BasePath.SchemaPathVisitor;
 
 public abstract class PathSegment {
 
-  PathSegment child;
+  @SuppressWarnings("checkstyle:VisibilityModifier")
+  protected PathSegment child;
 
-  int hash;
+  private int hash;
 
   public abstract PathSegment cloneWithNewChild(PathSegment segment);
 
@@ -330,12 +331,9 @@ public abstract class PathSegment {
     if (!segmentEquals(otherSeg)) {
       return false;
     }
-    else if (child == null || otherSeg.child == null) {
+    if (child == null || otherSeg.child == null) {
       return true;
-    } else {
-      return child.contains(otherSeg.child);
     }
-
+    return child.contains(otherSeg.child);
   }
-
 }

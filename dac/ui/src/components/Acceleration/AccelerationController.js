@@ -23,7 +23,6 @@ import reflectionActions from "actions/resources/reflection";
 import ApiPolling from "@app/utils/apiUtils/apiPollingUtils";
 import { getViewState } from "selectors/resources";
 import { loadDataset } from "actions/resources/dataset";
-import { getReflectionUiStatus } from "utils/accelerationUtils";
 import ViewStateWrapper from "../ViewStateWrapper";
 import AccelerationForm from "./AccelerationForm";
 
@@ -63,6 +62,9 @@ export class AccelerationController extends Component {
     this.reloadReflections = this.reloadReflections.bind(this);
   }
 
+  isUnmounting = false;
+  restartPollingTimeoutInt;
+
   componentDidMount() {
     this.loadReflections();
   }
@@ -71,6 +73,11 @@ export class AccelerationController extends Component {
     if (prevProps.datasetId !== this.props.datasetId) {
       this.loadReflections();
     }
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.restartPollingTimeoutInt);
+    this.isUnmounting = true;
   }
 
   handleReflectionLoadFailure = (error) => {
@@ -84,28 +91,27 @@ export class AccelerationController extends Component {
     if (error.payload instanceof Error) return; // legacy error handling
   };
 
-  handleReflectionLoadSuccess = (response) => {
-    const reflections =
-      response && response.payload.getIn(["entities", "reflection"]);
-    const hasReflectionsStillRunning =
-      reflections &&
-      reflections.some((reflection) => {
-        const reflectionStatusMap = getReflectionUiStatus(reflection);
-        const statusIconForReflection = reflectionStatusMap.get("icon");
-        return (
-          statusIconForReflection === "Loader" ||
-          statusIconForReflection === "Ellipsis"
-        );
-      });
-
-    if (hasReflectionsStillRunning) {
+  handleReflectionLoadSuccess = () => {
+    // because reflections can continuously change their status, such as expiring after they were successful, the stop point for polling is removed DX-37046
+    if (!document.hidden && !this.isUnmounting) {
       return false;
     } else {
-      this.setState({
-        isPolling: false,
-      });
+      if (!this.isUnmounting) {
+        this.restartPolling();
+      }
       return true;
     }
+  };
+
+  restartPolling = () => {
+    clearTimeout(this.restartPollingTimeoutInt);
+    this.restartPollingTimeoutInt = setTimeout(() => {
+      if (document.hidden) {
+        this.restartPolling();
+      } else {
+        this.reloadReflections();
+      }
+    }, 5000);
   };
 
   makeReflectionsCall() {
@@ -132,24 +138,17 @@ export class AccelerationController extends Component {
       .then(() => this.setState({ getComplete: true }));
   };
 
-  reloadReflections = (startWaitTime = 0) => {
+  reloadReflections = () => {
     const { datasetId } = this.props;
     if (!datasetId) return;
-    this.setState({
-      isPolling: true,
-    });
 
-    return setTimeout(
-      () =>
-        ApiPolling({
-          apiCallFunc: () => this.makeReflectionsCall(),
-          handleFailure: this.handleReflectionLoadFailure,
-          handleSuccess: this.handleReflectionLoadSuccess,
-          intervalSec: 5,
-          timeoutSec: 600,
-        }),
-      startWaitTime
-    );
+    ApiPolling({
+      apiCallFunc: () => this.makeReflectionsCall(),
+      handleFailure: this.handleReflectionLoadFailure,
+      handleSuccess: this.handleReflectionLoadSuccess,
+      intervalSec: 5,
+      timeoutSec: 600,
+    });
   };
 
   handleSubmitSuccess = () => {
@@ -191,10 +190,9 @@ export class AccelerationController extends Component {
 
   render() {
     const { viewState } = this.props;
-    const { isPolling } = this.state;
 
     return (
-      <ViewStateWrapper viewState={viewState} hideSpinner={isPolling}>
+      <ViewStateWrapper viewState={viewState} hideSpinner={true}>
         {this.renderContent()}
       </ViewStateWrapper>
     );

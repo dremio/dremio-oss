@@ -27,7 +27,7 @@ public class TestFunctionsQueryPlan extends PlanTestBase {
     String query = String.format("SELECT nvl(y.o_orderstatus, 'None') AS Lid FROM %s x LEFT JOIN (" + "SELECT \"a\".\"o_orderkey\", \"b\".\"o_orderstatus\"\n" + "FROM (SELECT \"o_orderkey\" FROM %s) \"a\" LEFT JOIN" + "(SELECT \"o_orderkey\", \"o_orderstatus\" FROM %s) \"b\"\n" + "ON \"a\".\"o_orderkey\" = \"b\".\"o_orderkey\"\n" + ") y ON \"x\".\"c_custkey\" = \"y\".\"o_orderkey\"", table1, table2, table2);
 
     // test plan to assert that operands are nullable
-    testPhysicalPlan(query, "Lid=[CASE(IS NOT NULL($1), $1, 'None')]");
+    testPhysicalPlan(query, "Lid=[CASE(IS NOT NULL($1), $1, 'None':VARCHAR(65536))]");
 
     // test execution
     test(query);

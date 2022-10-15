@@ -19,7 +19,6 @@ import { injectIntl } from "react-intl";
 import DatasetItemLabel from "@app/components/Dataset/DatasetItemLabel";
 import { Label } from "dremio-ui-lib";
 import Immutable from "immutable";
-import Art from "@app/components/Art";
 import { getIconByEntityType } from "utils/iconUtils";
 import "./QueriedDataset.less";
 
@@ -61,17 +60,19 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
                 className="queriedDataset-dataWrapper__label"
                 fullPath={dataset.get("datasetPathsList")}
                 shouldShowOverlay={ShowOverlay(dataset.get("datasetType"))}
+                customNode={
+                  <span className="queriedDataset-dataWrapper__wrapper__dataHeader">
+                    <Label
+                      value={dataset.get("datasetName")}
+                      className="queriedDataset-dataWrapper__wrapper__dataLabel"
+                    />
+                    <Label
+                      value={dataset.get("datasetPath")}
+                      className="queriedDataset-dataWrapper__wrapper__datasetPath margin--none"
+                    />
+                  </span>
+                }
               />
-              <span className="queriedDataset-dataWrapper__wrapper__dataHeader">
-                <Label
-                  value={dataset.get("datasetName")}
-                  className="queriedDataset-dataWrapper__wrapper__dataLabel"
-                />
-                <Label
-                  value={dataset.get("datasetPath")}
-                  className="queriedDataset-dataWrapper__wrapper__datasetPath margin--none"
-                />
-              </span>
             </div>
           );
         })}
@@ -84,11 +85,11 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
           <span className="queriedDataset-buttonStyle__showmoreContent">
             {showMore ? "Show less" : "Show more"}
           </span>
-          <Art
-            src={showMore ? "ShowMore.svg" : "ShowLess.svg"}
-            alt="icon"
-            title="icon"
-            className="queriedDataset-buttonStyle__showmoreIcon"
+          <dremio-icon
+            name={
+              showMore ? "interface/down-chevron" : "interface/right-chevron"
+            }
+            class="queriedDataset-buttonStyle__showmoreIcon"
           />
         </div>
       )}

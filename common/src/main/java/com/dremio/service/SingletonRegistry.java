@@ -116,7 +116,9 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
   }
 
   private abstract static class AbstractServiceReference<T extends Service> implements Resolver, Service {
+    @SuppressWarnings("checkstyle:VisibilityModifier")
     protected final Class<?> iface;
+    @SuppressWarnings("checkstyle:VisibilityModifier")
     protected final T service;
     private volatile ServiceState state = ServiceState.INIT;
 

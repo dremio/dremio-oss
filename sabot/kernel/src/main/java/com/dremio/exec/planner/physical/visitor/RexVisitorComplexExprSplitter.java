@@ -17,6 +17,7 @@ package com.dremio.exec.planner.physical.visitor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -113,6 +114,36 @@ public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
   @Override
   public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
     return fieldAccess;
+  }
+
+// Only top level complex expression will be detected by this visitor
+// For eg - COMPLEX1(COMPLEX2, 3) only Complex1 will be detected and inner COMPLEX 2 will not be detected
+  public static class TopLevelComplexFilterExpression extends RexVisitorComplexExprSplitter{
+
+    public TopLevelComplexFilterExpression(RelOptCluster cluster, FunctionImplementationRegistry funcReg, int firstUnused) {
+      super(cluster, funcReg, firstUnused);
+    }
+
+    @Override
+    public RexNode visitCall(RexCall call) {
+
+      String functionName = call.getOperator().getName();
+
+      if (funcReg.isFunctionComplexOutput(functionName) ||
+        // Dremio Filter cannot handle item on list Also Item is a type of complexOutput but it is not a function in functionRegistry
+        functionName.toLowerCase(Locale.ROOT).equals("item")) {
+        RexNode ret = builder.makeInputRef( factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true), lastUsedIndex);
+        lastUsedIndex++;
+        complexExprs.add(call.clone(factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true), call.getOperands()));
+        return ret;
+      }
+      List<RexNode> newOps = new ArrayList<>();
+      for (RexNode operand : call.operands) {
+        newOps.add(operand.accept(this));
+      }
+      return call.clone(call.getType(), newOps);
+    }
+
   }
 
 }

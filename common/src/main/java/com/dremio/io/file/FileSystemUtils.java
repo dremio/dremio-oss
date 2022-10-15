@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Iterator;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -28,10 +29,11 @@ import java.util.function.Predicate;
 import com.dremio.io.CompressionCodec;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.FSInputStream;
+import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 
-public class FileSystemUtils {
+public final class FileSystemUtils {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(FileSystemUtils.class);
   private static final Queue<DeleteEntry> TO_DELETE_ON_EXIT = new ConcurrentLinkedQueue<>();
 
@@ -158,6 +160,21 @@ public class FileSystemUtils {
   public static DirectoryStream<FileAttributes> globRecursive(FileSystem wrapper, Path pattern, Predicate<Path> filter) throws IOException {
     final DirectoryStream<FileAttributes> globStream = wrapper.glob(pattern, filter);
     return new RecursiveDirectoryStream(wrapper, globStream, filter);
+  }
+
+  public static DirectoryStream<FileAttributes> listFilterDirectoryRecursive(
+    FileSystem fs, Path path, int maxFilesLimit, Predicate<Path> pathFilter) throws IOException {
+    final DirectoryStream<FileAttributes> baseIterator = listRecursive(fs, path, pathFilter);
+    if (maxFilesLimit <= 0) {
+      return baseIterator;
+    }
+
+    return new FilterDirectoryStream<FileAttributes>(baseIterator) {
+      @Override
+      public Iterator<FileAttributes> iterator() {
+        return Iterators.limit(super.iterator(), maxFilesLimit);
+      }
+    };
   }
 
   /** Copy files between FileSystems. */

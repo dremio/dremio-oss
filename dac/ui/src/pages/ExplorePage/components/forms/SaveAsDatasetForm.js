@@ -121,6 +121,17 @@ export class SaveAsDatasetForm extends Component {
     return null;
   }
 
+  submitOnEnter = (preventSubmit) => (e) => {
+    const { handleSubmit, onFormSubmit } = this.props;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (preventSubmit) {
+        return;
+      }
+      handleSubmit(onFormSubmit)();
+    }
+  };
+
   render() {
     const {
       fields: { name, location },
@@ -128,11 +139,13 @@ export class SaveAsDatasetForm extends Component {
       onFormSubmit,
       message,
     } = this.props;
+    const preventSubmit = !location.value;
     return (
       <ModalForm
         {...modalFormProps(this.props)}
-        {...(!location.value && { canSubmit: false })}
+        {...(preventSubmit && { canSubmit: false })}
         onSubmit={handleSubmit(onFormSubmit)}
+        wrapperStyle={{ height: "auto" }}
       >
         {this.renderWarning()}
         {this.renderHistoryWarning()}
@@ -140,7 +153,11 @@ export class SaveAsDatasetForm extends Component {
           {message && <div style={formRow}>{message}</div>}
           <div style={formRow}>
             <FieldWithError label="Name" {...name}>
-              <TextField initialFocus {...name} />
+              <TextField
+                initialFocus
+                {...name}
+                onKeyDown={this.submitOnEnter(preventSubmit)}
+              />
             </FieldWithError>
           </div>
           <div style={formRow}>

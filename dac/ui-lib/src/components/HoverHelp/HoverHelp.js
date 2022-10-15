@@ -16,9 +16,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-import Tooltip from "@material-ui/core/Tooltip";
-
-import { ReactComponent as InfoCircleSvg } from "../../art/InfoCircle.svg";
+import { default as Tooltip } from "../Tooltip/Tooltip.tsx";
 
 import "./HoverHelp.scss";
 
@@ -26,10 +24,14 @@ const HoverHelp = (props) => {
   const { arrow, content, placement } = props;
 
   return (
-    <div className="margin-left--half">
+    <div className="margin-left--half flex">
       <Tooltip arrow={arrow} placement={placement} title={content}>
         <div className="iconContainer">
-          <InfoCircleSvg alt="info" />
+          <dremio-icon
+            name="interface/information"
+            alt="info"
+            class="infoIcon"
+          />
         </div>
       </Tooltip>
     </div>

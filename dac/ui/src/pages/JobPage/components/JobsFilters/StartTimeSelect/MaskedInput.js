@@ -41,6 +41,7 @@ class MaskedInput extends PureComponent {
     onBlur: PropTypes.func,
     onFocus: PropTypes.func,
     onChange: PropTypes.func,
+    disabled: PropTypes.bool,
   };
 
   constructor(props) {
@@ -219,10 +220,14 @@ class MaskedInput extends PureComponent {
 
   render() {
     const { inputsList } = this.state;
+    const { disabled = false } = this.props;
     // look for false value of showPlaceholder
     const showPlaceholder = inputsList.every((item) => {
       return item.get("showPlaceholder");
     });
+
+    const disabledClass = disabled ? classes["disabled"] : "";
+
     const inputs = inputsList.map((item, index) => {
       return (
         <span
@@ -240,8 +245,9 @@ class MaskedInput extends PureComponent {
             onBlur={this._onInnerInputBlur}
             onChange={this._onInnerInputChange}
             showPlaceholder={showPlaceholder}
+            disabled={disabled}
           />
-          <span className={classes["masked-input__sep"]}>
+          <span className={`${classes["masked-input__sep"]} ${disabledClass}`}>
             {item.get("separator")}
           </span>
         </span>

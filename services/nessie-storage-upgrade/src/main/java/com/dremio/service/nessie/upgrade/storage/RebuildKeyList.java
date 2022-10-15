@@ -42,6 +42,7 @@ import com.dremio.dac.cmd.upgrade.UpgradeTask;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapter;
+import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.common.annotations.VisibleForTesting;
@@ -49,9 +50,10 @@ import com.google.protobuf.ByteString;
 
 /**
  * This upgrade task rebuilds the most recent key list to add missing commit IDs to key list entries.
- * <p>Nessie will put commit IDs in new key list entries automatically to speed up reads, but in v0.22
- * it does not yet automatically rebuild older key list entries unless the key is re-written, hence
- * the need for this upgrade step.</p>
+ * <p>Nessie will put commit IDs into key list entries automatically to speed up reads, but that happens
+ * only at key list reconstruction (change). This upgrade step will unconditionally rebuild the latest
+ * key list to ensure that even older data get immediate read performance boost right after an upgrade,
+ * and without waiting for changes to force the key list to be rebuilt at run time.</p>
  * <p>Note: only the latest key list needs to be rebuilt to fix read performance, because Embedded
  * Nessie use cases do not involve time travel.</p>
  */
@@ -82,10 +84,10 @@ public class RebuildKeyList extends UpgradeTask {
         .build());
       store.initialize();
       TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-      DatastoreDatabaseAdapter adapter = new DatastoreDatabaseAdapter(
-        ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build(),
-        store,
-        worker);
+      DatastoreDatabaseAdapter adapter = (DatastoreDatabaseAdapter) new DatastoreDatabaseAdapterFactory().newBuilder()
+        .withConnector(store)
+        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build())
+        .build(worker);
 
       // Only process main. Other branches in the Embedded Nessie are not utilized during runtime.
       ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);

@@ -15,12 +15,15 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static com.dremio.sabot.Fixtures.struct;
-import static com.dremio.sabot.Fixtures.t;
-import static com.dremio.sabot.Fixtures.th;
-import static com.dremio.sabot.Fixtures.tr;
-import static com.dremio.sabot.Fixtures.tuple;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.dremio.sabot.RecordSet.li;
+import static com.dremio.sabot.RecordSet.r;
+import static com.dremio.sabot.RecordSet.rs;
+import static com.dremio.sabot.RecordSet.st;
+import static com.dremio.sabot.op.tablefunction.TableFunctionOperator.Metric.NUM_DATA_FILE;
+import static com.dremio.sabot.op.tablefunction.TableFunctionOperator.Metric.NUM_DELETE_MANIFESTS;
+import static com.dremio.sabot.op.tablefunction.TableFunctionOperator.Metric.NUM_MANIFEST_FILE;
+import static com.dremio.sabot.op.tablefunction.TableFunctionOperator.Metric.NUM_POS_DELETE_FILES;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -67,17 +70,17 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.BaseTestTableFunction;
-import com.dremio.sabot.Fixtures;
-import com.dremio.sabot.Fixtures.Table;
+import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -93,12 +96,16 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
       Types.NestedField.optional(3, "name", Types.StringType.get()));
 
   private static final PartitionSpec PARTITION_SPEC_1 = PartitionSpec.builderFor(SCHEMA)
-      .withSpecId(0)
+      .withSpecId(1)
       .identity("date")
       .build();
 
   private static final Map<Integer, PartitionSpec> PARTITION_SPEC_MAP = ImmutableMap.of(
       PARTITION_SPEC_1.specId(), PARTITION_SPEC_1);
+
+  private static final Map<Integer, PartitionSpec> DELETE_PARTITION_SPEC_MAP = ImmutableMap.of(
+      PARTITION_SPEC_1.specId(), PARTITION_SPEC_1,
+      PartitionSpec.unpartitioned().specId(), PartitionSpec.unpartitioned());
 
   private static final Map<Integer, ByteBuffer> LOWER_BOUNDS = ImmutableMap.of(
       1, Conversions.toByteBuffer(Types.IntegerType.get(), 0),
@@ -117,8 +124,11 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
   private static ManifestFile deleteManifestFile1;
   private static ManifestFile deleteManifestFile2;
   private static ManifestFile deleteManifestFile3;
+  private static ManifestFile deleteManifestFile4;
+  private static ManifestFile deleteManifestWithLongPaths;
   private static byte[] serializedKey1;
   private static byte[] serializedKey2;
+  private static byte[] serializedUnpartitionedKey;
   private static FileSystem fs;
 
   @Mock
@@ -134,8 +144,10 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
     partitionKey1.set(0, 10);
     PartitionKey partitionKey2 = new PartitionKey(PARTITION_SPEC_1, SCHEMA);
     partitionKey2.set(0, 20);
+    PartitionKey unpartitionedKey = new PartitionKey(PartitionSpec.unpartitioned(), SCHEMA);
     serializedKey1 = IcebergSerDe.serializeToByteArray(new Object[] { 10 });
     serializedKey2 = IcebergSerDe.serializeToByteArray(new Object[] { 20 });
+    serializedUnpartitionedKey = IcebergSerDe.serializeToByteArray(new Object[] {});
 
     String tempDir = TestUtilities.createTempDir();
     String manifestPath1 = Paths.get(tempDir, "manifest1.avro").toString();
@@ -143,20 +155,22 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
     String deleteManifestPath1 = Paths.get(tempDir, "deletemanifest1.avro").toString();
     String deleteManifestPath2 = Paths.get(tempDir, "deletemanifest2.avro").toString();
     String deleteManifestPath3 = Paths.get(tempDir, "deletemanifest3.avro").toString();
+    String deleteManifestPath4 = Paths.get(tempDir, "deletemanifest4.avro").toString();
+    String longPathsManifestPath = Paths.get(tempDir, "manifest_with_long_paths.avro").toString();
 
     manifestFile1 = createDataManifest(manifestPath1, PARTITION_SPEC_1, ImmutableList.of(
         DataFiles.builder(PARTITION_SPEC_1)
             .withPartition(partitionKey1)
             .withPath("datafile1.parquet")
             .withFileSizeInBytes(100)
-            .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+            .withMetrics(createMetrics(SCHEMA, 10, LOWER_BOUNDS, UPPER_BOUNDS))
             .withFormat(FileFormat.PARQUET)
             .build(),
         DataFiles.builder(PARTITION_SPEC_1)
             .withPartition(partitionKey2)
             .withPath("datafile2.parquet")
             .withFileSizeInBytes(200)
-            .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+            .withMetrics(createMetrics(SCHEMA, 20, LOWER_BOUNDS, UPPER_BOUNDS))
             .withFormat(FileFormat.PARQUET)
             .build()));
 
@@ -165,7 +179,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
             .withPartition(partitionKey2)
             .withPath("datafile3.parquet")
             .withFileSizeInBytes(300)
-            .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+            .withMetrics(createMetrics(SCHEMA, 30, LOWER_BOUNDS, UPPER_BOUNDS))
             .withFormat(FileFormat.PARQUET)
             .build()));
 
@@ -175,7 +189,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
             .withPartition(partitionKey1)
             .withPath("deletefile1.parquet")
             .withFileSizeInBytes(100)
-            .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+            .withMetrics(createMetrics(SCHEMA, 10, LOWER_BOUNDS, UPPER_BOUNDS))
             .withFormat(FileFormat.PARQUET)
             .build(),
         FileMetadata.deleteFileBuilder(PARTITION_SPEC_1)
@@ -183,7 +197,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
             .withPartition(partitionKey2)
             .withPath("deletefile2.parquet")
             .withFileSizeInBytes(200)
-            .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+            .withMetrics(createMetrics(SCHEMA, 20, LOWER_BOUNDS, UPPER_BOUNDS))
             .withFormat(FileFormat.PARQUET)
             .build()),
         ImmutableList.of(1L, 2L));
@@ -194,7 +208,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
             .withPartition(partitionKey2)
             .withPath("deletefile3.parquet")
             .withFileSizeInBytes(300)
-            .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+            .withMetrics(createMetrics(SCHEMA, 30, LOWER_BOUNDS, UPPER_BOUNDS))
             .withFormat(FileFormat.PARQUET)
             .build()),
         ImmutableList.of(3L));
@@ -205,19 +219,41 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
                 .withPartition(partitionKey2)
                 .withPath("deletefile3.parquet")
                 .withFileSizeInBytes(300)
-                .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+                .withMetrics(createMetrics(SCHEMA, 30, LOWER_BOUNDS, UPPER_BOUNDS))
                 .withFormat(FileFormat.PARQUET)
                 .build(),
             FileMetadata.deleteFileBuilder(PARTITION_SPEC_1)
-                .ofEqualityDeletes(1)
+                .ofEqualityDeletes(1, 3)
                 .withPartition(partitionKey2)
                 .withPath("deletefile4.parquet")
                 .withFileSizeInBytes(200)
-                .withMetrics(createMetrics(SCHEMA, LOWER_BOUNDS, UPPER_BOUNDS))
+                .withMetrics(createMetrics(SCHEMA, 20, LOWER_BOUNDS, UPPER_BOUNDS))
                 .withFormat(FileFormat.PARQUET)
                 .build()),
         ImmutableList.of(3L, 4L));
 
+    deleteManifestFile4 = createDeleteManifest(deleteManifestPath4, PartitionSpec.unpartitioned(),
+        ImmutableList.of(
+            FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
+                .ofEqualityDeletes(1)
+                .withPartition(unpartitionedKey)
+                .withPath("deletefile5.parquet")
+                .withFileSizeInBytes(200)
+                .withMetrics(createMetrics(SCHEMA, 20, LOWER_BOUNDS, UPPER_BOUNDS))
+                .withFormat(FileFormat.PARQUET)
+                .build()),
+        ImmutableList.of(3L));
+
+    deleteManifestWithLongPaths = createDeleteManifest(longPathsManifestPath, PARTITION_SPEC_1, ImmutableList.of(
+        FileMetadata.deleteFileBuilder(PARTITION_SPEC_1)
+            .ofPositionDeletes()
+            .withPartition(partitionKey1)
+            .withPath("deletefile-" + Strings.repeat("0", 2000) + "1.parquet")
+            .withFileSizeInBytes(100)
+            .withMetrics(createMetrics(SCHEMA, 10, LOWER_BOUNDS, UPPER_BOUNDS))
+            .withFormat(FileFormat.PARQUET)
+            .build()),
+        ImmutableList.of(1L));
   }
 
   @Before
@@ -230,158 +266,146 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
 
   @Test
   public void testPathGeneratingProcessor() throws Exception {
-    Table input = inputTable();
-    Table output = t(
-        th(
-            SystemSchemas.DATAFILE_PATH,
-            SystemSchemas.FILE_SIZE,
-            SystemSchemas.SEQUENCE_NUMBER,
-            SystemSchemas.PARTITION_SPEC_ID,
-            SystemSchemas.PARTITION_KEY,
-            SystemSchemas.PARTITION_INFO,
-            SystemSchemas.COL_IDS),
-        tr("datafile1.parquet", 100L, 1L, 0, serializedKey1,
-            createDatePartitionInfo("date", 10, 0), COL_IDS),
-        tr("datafile2.parquet", 200L, 1L, 0, serializedKey2,
-            createDatePartitionInfo("date", 20, 0), COL_IDS),
-        tr("datafile3.parquet", 300L, 1L, 0, serializedKey2,
-            createDatePartitionInfo("date", 20, 0), COL_IDS));
+    RecordSet input = inputRecordSet();
 
     BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA;
+    RecordSet output = rs(outputSchema,
+        r("datafile1.parquet", 100L, 1L, 1, serializedKey1,
+            createDatePartitionInfo("date", 10, 0), COL_IDS),
+        r("datafile2.parquet", 200L, 1L, 1, serializedKey2,
+            createDatePartitionInfo("date", 20, 0), COL_IDS),
+        r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
+            createDatePartitionInfo("date", 20, 0), COL_IDS));
+
     validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class, input, output, 2);
   }
 
   @Test
   public void testPathGeneratingProcessorWithMinMaxColValues() throws Exception {
-    Table input = inputTable();
-    Table output = t(
-        th(
-            SystemSchemas.DATAFILE_PATH,
-            SystemSchemas.FILE_SIZE,
-            SystemSchemas.SEQUENCE_NUMBER,
-            SystemSchemas.PARTITION_SPEC_ID,
-            SystemSchemas.PARTITION_KEY,
-            SystemSchemas.PARTITION_INFO,
-            SystemSchemas.COL_IDS,
-            "id_min",
-            "id_max"),
-        tr("datafile1.parquet", 100L, 1L, 0, serializedKey1,
-            createDatePartitionInfo("date", 10, 0), COL_IDS, 0, 9),
-        tr("datafile2.parquet", 200L, 1L, 0, serializedKey2,
-            createDatePartitionInfo("date", 20, 0), COL_IDS, 0, 9),
-        tr("datafile3.parquet", 300L, 1L, 0, serializedKey2,
-            createDatePartitionInfo("date", 20, 0), COL_IDS, 0, 9));
+    RecordSet input = inputRecordSet();
 
     BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.addColumns(
         ImmutableList.of(
             Field.nullable("id_min", new ArrowType.Int(32, true)),
             Field.nullable("id_max", new ArrowType.Int(32, true))));
+    RecordSet output = rs(outputSchema,
+        r("datafile1.parquet", 100L, 1L, 1, serializedKey1,
+            createDatePartitionInfo("date", 10, 0), COL_IDS, 0, 9),
+        r("datafile2.parquet", 200L, 1L, 1, serializedKey2,
+            createDatePartitionInfo("date", 20, 0), COL_IDS, 0, 9),
+        r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
+            createDatePartitionInfo("date", 20, 0), COL_IDS, 0, 9));
 
-    validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class, input, output, 2);
+     validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class, input, output, 2);
   }
 
   @Test
   public void testPathGeneratingProcessorWithPartColValues() throws Exception {
-    Table input = inputTable();
-    Table output = t(
-        th(
-            SystemSchemas.DATAFILE_PATH,
-            SystemSchemas.FILE_SIZE,
-            SystemSchemas.SEQUENCE_NUMBER,
-            SystemSchemas.PARTITION_SPEC_ID,
-            SystemSchemas.PARTITION_KEY,
-            SystemSchemas.PARTITION_INFO,
-            SystemSchemas.COL_IDS,
-            "date_val"),
-        tr("datafile1.parquet", 100L, 1L, 0, serializedKey1,
-            createDatePartitionInfo("date", 10, 0), COL_IDS, 10),
-        tr("datafile2.parquet", 200L, 1L, 0, serializedKey2,
-            createDatePartitionInfo("date", 20, 0), COL_IDS, 20),
-        tr("datafile3.parquet", 300L, 1L, 0, serializedKey2,
-            createDatePartitionInfo("date", 20, 0), COL_IDS, 20));
+    RecordSet input = inputRecordSet();
 
     BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.addColumns(
         ImmutableList.of(
             Field.nullable("date_val", new ArrowType.Int(32, true))));
+    RecordSet output = rs(outputSchema,
+        r("datafile1.parquet", 100L, 1L, 1, serializedKey1,
+            createDatePartitionInfo("date", 10, 0), COL_IDS, 10),
+        r("datafile2.parquet", 200L, 1L, 1, serializedKey2,
+            createDatePartitionInfo("date", 20, 0), COL_IDS, 20),
+        r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
+            createDatePartitionInfo("date", 20, 0), COL_IDS, 20));
 
     validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class, input, output, 2);
   }
 
   @Test
   public void testPathGeneratingProcessorWithDeleteManifests() throws Exception {
-    Table input = deletesInputTable();
-    Table output = t(
-        th(
-            SystemSchemas.DELETEFILE_PATH,
-            SystemSchemas.FILE_CONTENT,
-            SystemSchemas.SEQUENCE_NUMBER,
-            SystemSchemas.PARTITION_SPEC_ID,
-            SystemSchemas.PARTITION_KEY),
-        tr("deletefile1.parquet", FileContent.POSITION_DELETES.id(), 1L, 0, serializedKey1),
-        tr("deletefile2.parquet", FileContent.POSITION_DELETES.id(), 2L, 0, serializedKey2),
-        tr("deletefile3.parquet", FileContent.POSITION_DELETES.id(), 3L, 0, serializedKey2));
+    RecordSet input = deletesInputRecordSet();
+    RecordSet output = rs(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA,
+        r(st("deletefile1.parquet", FileContent.POSITION_DELETES.id(), 10L, null), 1L, 1, serializedKey1),
+        r(st("deletefile2.parquet", FileContent.POSITION_DELETES.id(), 20L, null), 2L, 1, serializedKey2),
+        r(st("deletefile3.parquet", FileContent.POSITION_DELETES.id(), 30L, null), 3L, 1, serializedKey2));
 
-    validateSingle(getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContent.DELETES),
+    validateSingle(
+        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContent.DELETES, DELETE_PARTITION_SPEC_MAP),
         TableFunctionOperator.class, input, output, 3);
   }
 
   @Test
-  public void testPathGeneratingProcessorWithEqDeletesFails() throws Exception {
-    Table input = t(
-        th(
-            struct(SystemSchemas.SPLIT_IDENTITY, ImmutableList.of(
-                SplitIdentity.PATH, SplitIdentity.OFFSET, SplitIdentity.LENGTH, SplitIdentity.FILE_LENGTH)),
-            SystemSchemas.SPLIT_INFORMATION,
-            SystemSchemas.COL_IDS),
-        inputRow(deleteManifestFile3, COL_IDS));
-    Table output = t(
-        th(
-            SystemSchemas.DELETEFILE_PATH,
-            SystemSchemas.FILE_CONTENT,
-            SystemSchemas.SEQUENCE_NUMBER,
-            SystemSchemas.PARTITION_SPEC_ID,
-            SystemSchemas.PARTITION_KEY),
-        true,
-        tr("", 0, 0L, 0, new byte[] {})); // fake row to match types
+  public void testPathGeneratingProcessorWithEqDeletes() throws Exception {
+    RecordSet input = rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
+        inputRow(deleteManifestFile3, COL_IDS),
+        inputRow(deleteManifestFile4, COL_IDS));
+    RecordSet output = rs(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA,
+        r(st("deletefile3.parquet", FileContent.POSITION_DELETES.id(), 30L, null), 3L, 1, serializedKey2),
+        r(st("deletefile4.parquet", FileContent.EQUALITY_DELETES.id(), 20L, li(1, 3)), 4L, 1, serializedKey2),
+        r(st("deletefile5.parquet", FileContent.EQUALITY_DELETES.id(), 20L, li(1)), 3L, 0,
+            serializedUnpartitionedKey));
 
-    assertThatThrownBy(() -> validateSingle(
+    validateSingle(
+        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContent.DELETES, DELETE_PARTITION_SPEC_MAP),
+        TableFunctionOperator.class, input, output, 3);
+  }
+
+  @Test
+  public void testWithLongDeleteFilePath() throws Exception {
+    RecordSet input = rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
+        inputRow(deleteManifestWithLongPaths, COL_IDS));
+
+    BatchSchema outputSchema = SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA;
+    RecordSet output = rs(outputSchema,
+        r(st("deletefile-" + Strings.repeat("0", 2000) + "1.parquet", FileContent.POSITION_DELETES.id(), 10L, null),
+            1L, 1, serializedKey1));
+
+    validateSingle(getPop(outputSchema, ManifestContent.DELETES), TableFunctionOperator.class, input, output, 2);
+  }
+
+  @Test
+  public void testDataManifestStats() throws Exception {
+    RecordSet input = inputRecordSet();
+    BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA;
+    OperatorStats stats = validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class,
+        input, null, 2);
+
+    assertThat(stats.getLongStat(NUM_MANIFEST_FILE)).isEqualTo(2);
+    assertThat(stats.getLongStat(NUM_DATA_FILE)).isEqualTo(3);
+    assertThat(stats.getLongStat(NUM_DELETE_MANIFESTS)).isEqualTo(0);
+    assertThat(stats.getLongStat(NUM_POS_DELETE_FILES)).isEqualTo(0);
+  }
+
+  @Test
+  public void testDeleteManifestStats() throws Exception {
+    RecordSet input = deletesInputRecordSet();
+    OperatorStats stats = validateSingle(
         getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContent.DELETES),
-        TableFunctionOperator.class, input, output, 3))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Equality deletes are not supported.");
+        TableFunctionOperator.class, input, null, 3);
+
+    assertThat(stats.getLongStat(NUM_MANIFEST_FILE)).isEqualTo(0);
+    assertThat(stats.getLongStat(NUM_DATA_FILE)).isEqualTo(0);
+    assertThat(stats.getLongStat(NUM_DELETE_MANIFESTS)).isEqualTo(2);
+    assertThat(stats.getLongStat(NUM_POS_DELETE_FILES)).isEqualTo(3);
   }
 
   @Test
   public void testOutputBufferNotReused() throws Exception {
-    Table input = inputTable();
+    RecordSet input = inputRecordSet();
     validateOutputBufferNotReused(getPop(SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA, ManifestContent.DATA), input, 2);
   }
 
-  private Table inputTable() {
-    return t(
-        th(
-            struct(SystemSchemas.SPLIT_IDENTITY, ImmutableList.of(
-                SplitIdentity.PATH, SplitIdentity.OFFSET, SplitIdentity.LENGTH, SplitIdentity.FILE_LENGTH)),
-            SystemSchemas.SPLIT_INFORMATION,
-            SystemSchemas.COL_IDS),
+  private RecordSet inputRecordSet() {
+    return rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
         inputRow(manifestFile1, COL_IDS),
         inputRow(manifestFile2, COL_IDS));
   }
 
-  private Table deletesInputTable() {
-    return t(
-        th(
-            struct(SystemSchemas.SPLIT_IDENTITY, ImmutableList.of(
-                SplitIdentity.PATH, SplitIdentity.OFFSET, SplitIdentity.LENGTH, SplitIdentity.FILE_LENGTH)),
-            SystemSchemas.SPLIT_INFORMATION,
-            SystemSchemas.COL_IDS),
+  private RecordSet deletesInputRecordSet() {
+    return rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
         inputRow(deleteManifestFile1, COL_IDS),
         inputRow(deleteManifestFile2, COL_IDS));
   }
 
-  private Fixtures.DataRow inputRow(ManifestFile manifestFile, byte[] colIds) {
-    return tr(
-        tuple(manifestFile.path(), 0, manifestFile.length(), manifestFile.length()),
+  private RecordSet.Record inputRow(ManifestFile manifestFile, byte[] colIds) {
+    return r(
+        st(manifestFile.path(), 0L, manifestFile.length(), manifestFile.length()),
         IcebergSerDe.serializeManifestFile(manifestFile),
         colIds);
   }
@@ -403,6 +427,11 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
   }
 
   private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContent manifestContent) throws Exception {
+    return getPop(outputSchema, manifestContent, PARTITION_SPEC_MAP);
+  }
+
+  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContent manifestContent,
+      Map<Integer, PartitionSpec> partitionSpecMap) throws Exception {
     return new TableFunctionPOP(
         PROPS,
         null,
@@ -411,12 +440,12 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
             true,
             new ManifestScanTableFunctionContext(
                 null,
-                ByteString.copyFrom(IcebergSerDe.serializePartitionSpecAsJsonMap(PARTITION_SPEC_MAP)),
+                ByteString.copyFrom(IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap)),
                 SchemaParser.toJson(SCHEMA),
                 IcebergSerDe.serializeToByteArray(null),
                 null,
                 outputSchema,
-                new SchemaConverter(TABLE_NAME).fromIceberg(SCHEMA),
+                SchemaConverter.getBuilder().setTableName(TABLE_NAME).build().fromIceberg(SCHEMA),
                 ImmutableList.of(ImmutableList.of(TABLE_NAME)),
                 null,
                 pluginId,
@@ -463,11 +492,11 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
   }
 
 
-  private static Metrics createMetrics(Schema schema, Map<Integer, ByteBuffer> lowerBounds,
+  private static Metrics createMetrics(Schema schema, long recordCount, Map<Integer, ByteBuffer> lowerBounds,
       Map<Integer, ByteBuffer> upperBounds) {
     Map<Integer, Long> counts = schema.columns().stream()
         .collect(Collectors.toMap(Types.NestedField::fieldId, f -> 1L));
-    return new Metrics(1L, counts, counts, counts, counts,
+    return new Metrics(recordCount, counts, counts, counts, counts,
         lowerBounds, upperBounds);
   }
 

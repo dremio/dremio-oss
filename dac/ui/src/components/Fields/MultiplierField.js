@@ -36,10 +36,15 @@ export default class MultiplierField extends Component {
     unitMultipliers: PropTypes.instanceOf(Map).isRequired,
     min: PropTypes.number.isRequired, // this UI only enforces the units displayed, your form should have its own validation (BE and/or FE)
     from: PropTypes.string,
+    classes: PropTypes.object,
   };
 
   static defaultProps = {
     min: 0,
+    classes: {
+      input: "",
+      select: "",
+    },
   };
 
   state = {
@@ -120,7 +125,7 @@ export default class MultiplierField extends Component {
   }
 
   render() {
-    const { className, style, from } = this.props;
+    const { className, style, from, classes } = this.props;
     return (
       <span
         className={classNames(["field", rowOfInputsSpacing, className])}
@@ -134,6 +139,7 @@ export default class MultiplierField extends Component {
           touched={this.props.touched}
           disabled={this.props.disabled}
           onChange={this.handleTextChange}
+          className={classes.input}
           style={
             from === "queueControl"
               ? { ...styles.textField, width: "222px" }
@@ -148,6 +154,7 @@ export default class MultiplierField extends Component {
             value={this.getUnit()}
             disabled={this.props.disabled}
             onChange={this.handleSelectChange}
+            className={classes.select}
             style={
               from === "queueControl"
                 ? { ...styles.select, width: "225px" }

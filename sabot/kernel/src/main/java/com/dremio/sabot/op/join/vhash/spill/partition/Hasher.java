@@ -19,6 +19,8 @@ import static com.dremio.sabot.op.join.vhash.spill.partition.Partition.INITIAL_V
 
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
@@ -35,13 +37,13 @@ public class Hasher implements AutoCloseable {
     this.setupParams = setupParams;
     this.table = new BlockJoinTable(setupParams.getBuildKeyPivot(), setupParams.getOpAllocator(), setupParams.getComparator(),
       (int)setupParams.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE,
-      setupParams.getSabotConfig(), setupParams.getOptions());
+      setupParams.getSabotConfig(), setupParams.getOptions(), false);
   }
 
-  void hashPivoted(int records, long hashoutAddr8B) {
+  void hashPivoted(int records, ArrowBuf hashOut8B) {
     table.hashPivoted(records,
-      setupParams.getPivotedFixedBlock().getMemoryAddress(),
-      setupParams.getPivotedVariableBlock().getMemoryAddress(), seed, hashoutAddr8B);
+      setupParams.getPivotedFixedBlock().getBuf(),
+      setupParams.getPivotedVariableBlock().getBuf(), seed, hashOut8B);
   }
 
   void reseed() {

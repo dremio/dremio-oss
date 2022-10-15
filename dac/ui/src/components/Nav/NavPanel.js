@@ -17,8 +17,6 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
-import Art from "components/Art";
-
 import { tabLabel, tabIcon } from "@app/uiTheme/less/layout.less";
 import { nav, navBtn, navBtnActive } from "./NavPanel.less";
 
@@ -40,8 +38,8 @@ export default class NavPanel extends PureComponent {
         <span>{text}</span>
         {icon && (
           <span className={tabIcon}>
-            <Art
-              src={icon.name}
+            <dremio-icon
+              name={icon.name}
               alt={icon.alt || ""}
               style={icon.style || ""}
             />

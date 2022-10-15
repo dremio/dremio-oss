@@ -15,13 +15,11 @@
  */
 package com.dremio.service.autocomplete;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.test.GoldenFileTestBuilder;
 
 public final class DeleteStatementCompletionTests extends AutocompleteEngineTests {
-  @Ignore("DX-50485")
   @Test
   public void tests() {
     new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)

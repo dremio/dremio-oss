@@ -33,7 +33,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -43,16 +42,14 @@ import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.store.sys.udf.FunctionOperatorTable;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.google.common.collect.ImmutableList;
 
 public class SqlUserDefinedFunctionExpanderRuleTest {
 
   @Test
-  @Ignore("DX-50441")
   public void convertCall() {
-    SqlRexContext sqlRexContext = mock(SqlRexContext.class);
-
     UserDefinedFunction userDefinedFunction =
       new UserDefinedFunction("foo", "SELECT 1", CompleteType.INT, ImmutableList.of());
 
@@ -73,16 +70,21 @@ public class SqlUserDefinedFunctionExpanderRuleTest {
       .thenReturn(subject.rexBuilder.makeLiteral(1,
         subject.rexBuilder.getTypeFactory().createSqlType(SqlTypeName.INTEGER)));
 
+    SqlRexContext sqlRexContext = mock(SqlRexContext.class);
+    when(sqlRexContext.getRexBuilder()).thenReturn(subject.rexBuilder);
+
 
     //TEST
     RexNode result = subject.sqlUserDefinedFunctionExpanderRule.convertCall(sqlRexContext, sqlCall);
 
     //ASSERT
-    Assert.assertEquals("1", result.toString());
+    Assert.assertEquals("CAST(1):INTEGER", result.toString());
     verify(subject.sqlSubQueryConverterBuilder, times(1))
-      .withSchemaPath(ImmutableList.of(""));
+      .withSchemaPath(ImmutableList.of());
     verify(subject.sqlSubQueryConverterBuilder, times(1))
       .withUser(catalogIdentity);
+    verify(subject.sqlSubQueryConverterBuilder, times(1))
+      .withContextualSqlOperatorTable(new FunctionOperatorTable(ImmutableList.of()));
   }
 }
 
@@ -102,7 +104,10 @@ class Subject {
   public Subject() {
     when(sqlSubQueryConverterBuilder.withSchemaPath(any())).thenReturn(sqlSubQueryConverterBuilder);
     when(sqlSubQueryConverterBuilder.withUser(any())).thenReturn(sqlSubQueryConverterBuilder);
+    when(sqlSubQueryConverterBuilder.withContextualSqlOperatorTable(any())).thenReturn(sqlSubQueryConverterBuilder);
     when(sqlSubQueryConverterBuilder.build()).thenReturn(sqlSubQueryConverter);
+
+    when(sqlSubQueryConverter.getSqlConverter()).thenReturn(sqlConverter);
 
     when(sqlConverter.getCluster()).thenReturn(relOptCluster);
     when(sqlConverter.parse(any())).thenReturn(sqlSelect);

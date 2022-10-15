@@ -15,24 +15,23 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.partition;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.Preconditions;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.ValueListFilter;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashTable;
-import com.dremio.sabot.op.common.ht2.HashTableFilterUtil;
 import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
+import com.dremio.sabot.op.join.vhash.PartitionColFilters;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
 
@@ -46,36 +45,40 @@ public class BlockJoinTable implements JoinTable {
   private boolean tableTracing;
 
   public BlockJoinTable(PivotDef buildPivot, BufferAllocator allocator, NullComparator nullMask,
-                        int minSize, int varFieldAverageSize, SabotConfig sabotConfig, OptionManager optionManager) {
+                        int minSize, int varFieldAverageSize, SabotConfig sabotConfig,
+                        OptionManager optionManager, boolean runtimeFilterEnabled) {
     super();
-    this.allocator = allocator;
+    this.allocator = allocator.newChildAllocator("block-join", 0, allocator.getLimit());
     this.buildPivot = buildPivot;
     Preconditions.checkState(buildPivot.getBlockWidth() != 0);
     this.table = HashTable.getInstance(sabotConfig,
       optionManager.getOption(ExecConstants.ENABLE_NATIVE_HASHTABLE_FOR_JOIN),
-      new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot, allocator, minSize,
-        varFieldAverageSize, false, MAX_VALUES_PER_BATCH, nullMask));
+      new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot,
+        allocator, minSize, varFieldAverageSize, false,
+        MAX_VALUES_PER_BATCH, nullMask, runtimeFilterEnabled));
     this.tableTracing = false;
   }
 
-  /* Copy the keys of the records specified in keyOffsetAddr to destination memory
-   * keyOffsetAddr contains all the ordinals of keys
+  /* Copy the keys of the records specified in keyOffset to destination memory
+   * keyOrdinals contains all the ordinals of keys
    * count is the number of keys
-   * keyFixedAddr is the destination memory for fixed keys
-   * keyVarAddr is the destination memory for variable keys
+   * keyFixed is the destination memory for fixed portion of the keys
+   * keyVar is the destination memory for variable portion of the keys
    */
-  public void copyKeysToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr) {
-    table.copyKeysToBuffer(keyOffsetAddr, count, keyFixedAddr, keyVarAddr);
+  @Override
+  public void copyKeysToBuffer(final ArrowBuf keyOrdinals, final int count, final ArrowBuf keyFixed, final ArrowBuf keyVar) {
+    table.copyKeysToBuffer(keyOrdinals, count, keyFixed, keyVar);
   }
 
-  // Get the total length of the variable keys for the all the ordinals in keyOffsetAddr, from hash table.
-  public int getCumulativeVarKeyLength(final long keyOffsetAddr, final int count) {
-    return table.getCumulativeVarKeyLength(keyOffsetAddr, count);
+  // Get the total length of the variable keys for the all the ordinals in keyOrdinals, from hash table.
+  @Override
+  public int getCumulativeVarKeyLength(final ArrowBuf keyOrdinals, final int count) {
+    return table.getCumulativeVarKeyLength(keyOrdinals, count);
   }
 
   @Override
-  public void getVarKeyLengths(long keyOffsetAddr, int count, long outAddr) {
-    table.getVarKeyLengths(keyOffsetAddr, count, outAddr);
+  public void getVarKeyLengths(ArrowBuf keyOrdinals, int count, ArrowBuf out) {
+    table.getVarKeyLengths(keyOrdinals, count, out);
   }
 
   @Override
@@ -88,50 +91,43 @@ public class BlockJoinTable implements JoinTable {
     return insertWatch.elapsed(unit);
   }
 
-  /**
-   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
-   * the consumer. Instead, they get an empty optional.
-   * @param fieldNames
-   * @param sizeDynamically Size the filter according to the number of entries in table.
-   * @return
-   */
   @Override
-  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    return HashTableFilterUtil.prepareBloomFilter(table, allocator, buildPivot,
-      fieldNames, sizeDynamically, maxKeySize);
+  public void prepareBloomFilters(PartitionColFilters partitionColFilters) {
+    partitionColFilters.prepareBloomFilters(table);
   }
 
   @Override
-  public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    return HashTableFilterUtil.prepareValueListFilter(table, allocator, buildPivot, fieldName, maxElements);
+  public void prepareValueListFilters(NonPartitionColFilters nonPartitionColFilters) {
+    nonPartitionColFilters.prepareValueListFilters(table);
   }
 
   @Override
-  public void hashPivoted(int records, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashoutAddr8B) {
-    table.computeHash(records, keyFixedVectorAddr, keyVarVectorAddr, seed, hashoutAddr8B);
+  public void hashPivoted(int records, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashout8B) {
+    table.computeHash(records, keyFixed, keyVar, seed, hashout8B);
   }
 
   @Override
-  public int insertPivoted(long sv2Addr, int records,
-                            long tableHashAddr4B, FixedBlockVector fixed, VariableBlockVector variable,
-                            long outputAddr) {
+  public int insertPivoted(ArrowBuf sv2, int pivotShift, int records,
+                           ArrowBuf tableHash4B, FixedBlockVector fixed, VariableBlockVector variable,
+                           ArrowBuf output) {
     if (tableTracing) {
       table.traceInsertStart(records);
     }
 
-    final long keyFixedVectorAddr = fixed.getMemoryAddress();
-    final long keyVarVectorAddr = variable.getMemoryAddress();
-
     insertWatch.start();
-    int recordsAdded = table.addSv2(records, sv2Addr, keyFixedVectorAddr, keyVarVectorAddr, tableHashAddr4B,
-      outputAddr);
+    int recordsAdded = table.addSv2(sv2, pivotShift, records, fixed.getBuf(), variable.getBuf(), tableHash4B, output);
     insertWatch.stop();
 
     if (tableTracing) {
-      table.traceOrdinals(outputAddr, recordsAdded);
+      table.traceOrdinals(output.memoryAddress(), recordsAdded);
       table.traceInsertEnd();
     }
     return recordsAdded;
+  }
+
+  @Override
+  public int getMaxOrdinal() {
+    return table.getMaxOrdinal();
   }
 
   @Override
@@ -140,14 +136,11 @@ public class BlockJoinTable implements JoinTable {
   }
 
   @Override
-  public void findPivoted(long sv2Addr, int records, long tableHashAddr4B, FixedBlockVector fixed, VariableBlockVector variable, long outputAddr) {
+  public void findPivoted(ArrowBuf sv2, int pivotShift, int records, ArrowBuf tableHash4B, FixedBlockVector fixed, VariableBlockVector variable, ArrowBuf output) {
     final HashTable table = this.table;
-    final long keyFixedVectorAddr = fixed.getMemoryAddress();
-    final long keyVarVectorAddr = variable.getMemoryAddress();
 
     probeFindWatch.start();
-    table.findSv2(records, sv2Addr, keyFixedVectorAddr, keyVarVectorAddr,
-      tableHashAddr4B, outputAddr);
+    table.findSv2(sv2, pivotShift, records, fixed.getBuf(), variable.getBuf(), tableHash4B, output);
     probeFindWatch.stop();
   }
 
@@ -169,6 +162,7 @@ public class BlockJoinTable implements JoinTable {
   @Override
   public void close() throws Exception {
     table.close();
+    AutoCloseables.close(allocator);
   }
 
   @Override

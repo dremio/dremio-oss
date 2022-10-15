@@ -146,9 +146,12 @@ export class ExplorePageControllerComponent extends Component {
       (needsLoad !== prevNeedsLoad || datasetChanged)
     ) {
       //todo move viewId handling in handlePerformLoadDataset saga. See /dac/ui/src/sagas/performLoadDataset.js
-      const { exploreViewState } = nextProps;
+      const { exploreViewState, location } = nextProps;
       const viewId = exploreViewState.get("viewId");
-      nextProps.performLoadDataset(nextProps.dataset, viewId);
+
+      // Only execute the table results when opening from the job list page
+      const isOpenResults = location?.query?.openResults;
+      nextProps.performLoadDataset(nextProps.dataset, viewId, !!isOpenResults);
     }
   }
 

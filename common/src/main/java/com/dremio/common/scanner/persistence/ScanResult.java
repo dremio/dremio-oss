@@ -131,22 +131,18 @@ public class ScanResult {
   public <T> Set<Class<? extends T>> getImplementations(Class<T> c) {
     ParentClassDescriptor p = getImplementations(c.getName());
     Set<Class<? extends T>> result = new HashSet<>();
-    try {
-      if (p != null) {
-        for (ChildClassDescriptor child : p.getChildren()) {
-          if (!child.isAbstract()) {
-            try {
-              result.add(Class.forName(child.getName()).asSubclass(c));
-            } catch (ClassNotFoundException e) {
-              throw new RuntimeException("scanned class could not be found: " + child.getName(), e);
-            }
+    if (p != null) {
+      for (ChildClassDescriptor child : p.getChildren()) {
+        if (!child.isAbstract()) {
+          try {
+            result.add(Class.forName(child.getName()).asSubclass(c));
+          } catch (ClassNotFoundException e) {
+            throw new RuntimeException("scanned class could not be found: " + child.getName(), e);
           }
         }
       }
-      return result;
-    } finally {
-      //
     }
+    return result;
   }
 
 

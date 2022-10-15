@@ -21,8 +21,8 @@ import PropTypes from "prop-types";
 import SelectConnectionButton from "components/SelectConnectionButton";
 import { sourceTypesIncludeS3 } from "utils/sourceUtils";
 import {
-  isExternalSourceType,
-  isDatalakeTableSourceType,
+  isDatabaseType,
+  isMetastoreSourceType,
   isDataPlaneSourceType,
 } from "@app/constants/sourceTypes.js";
 import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
@@ -131,7 +131,7 @@ export default class SelectSourceType extends Component {
     const sources = filteredSourceTypes || sourceTypes;
     const externalSources = sources.filter(
       (source) =>
-        isExternalSourceType(source.sourceType) &&
+        isDatabaseType(source.sourceType) &&
         !isDataPlaneSourceType(source.sourceType)
     );
     return (
@@ -191,12 +191,12 @@ export default class SelectSourceType extends Component {
     const sources = filteredSourceTypes || sourceTypes;
     const fileStoreSources = sources.filter(
       (source) =>
-        !isExternalSourceType(source.sourceType) &&
-        !isDatalakeTableSourceType(source.sourceType) &&
+        !isDatabaseType(source.sourceType) &&
+        !isMetastoreSourceType(source.sourceType) &&
         !isDataPlaneSourceType(source.sourceType)
     );
     const tableStoreSources = sources.filter((source) =>
-      isDatalakeTableSourceType(source.sourceType)
+      isMetastoreSourceType(source.sourceType)
     );
     const sampleSource = "Sample Source";
     const renderSampleSource = filteredSourceTypes

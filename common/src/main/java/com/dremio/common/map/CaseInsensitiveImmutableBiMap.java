@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableBiMap;
  *  A special type of {@link ImmutableBiMap} with {@link String}s as keys, and the case of a key is ignored for get operations
  * @param <VALUE> the type of values to be stored in the map
  */
-public class CaseInsensitiveImmutableBiMap<VALUE> implements BiMap<String, VALUE> {
+public final class CaseInsensitiveImmutableBiMap<VALUE> implements BiMap<String, VALUE> {
   private final ImmutableBiMap<String, VALUE> underlyingMap;
   private CaseInsensitiveImmutableBiMap(final ImmutableBiMap<String, VALUE> underlyingMap) {
     this.underlyingMap = underlyingMap;

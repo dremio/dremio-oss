@@ -18,6 +18,7 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { propTypes as reduxFormPropTypes } from "redux-form";
+import clsx from "clsx";
 
 import {
   connectComplexForm,
@@ -31,6 +32,7 @@ import ApiUtils from "utils/apiUtils/apiUtils";
 import settingActions from "actions/resources/setting";
 
 import { FIELD_OVERRIDES, LABELS } from "./settingsConfig";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 export class SettingsMicroForm extends PureComponent {
   static propTypes = {
@@ -44,6 +46,7 @@ export class SettingsMicroForm extends PureComponent {
     allowEmpty: PropTypes.bool,
     style: PropTypes.object,
     resetSetting: PropTypes.func,
+    beforeSubmit: PropTypes.func,
   };
 
   static defaultProps = {
@@ -64,6 +67,8 @@ export class SettingsMicroForm extends PureComponent {
     if (type === "INTEGER" || type === "FLOAT") {
       data.value = +data.value;
     }
+
+    this.props.beforeSubmit?.();
 
     return ApiUtils.attachFormSubmitHandlers(
       this.props.putSetting(data, { viewId: this.props.viewId })
@@ -101,7 +106,6 @@ export class SettingsMicroForm extends PureComponent {
           </div>
         );
       case "INTEGER":
-      case "FLOAT": // todo: create dedicated int and number inputs
         return (
           <TextField
             style={{ marginRight: "6px" }}
@@ -111,6 +115,8 @@ export class SettingsMicroForm extends PureComponent {
             wrapperClassName={"input-wrapper-advanced"}
           />
         );
+      // DX-56918 - "number" type prevents typing decimal point after DX-47588
+      case "FLOAT": // todo: create dedicated int and number inputs
       case "TEXT":
       default:
         return (
@@ -205,6 +211,7 @@ export class SettingsMicroForm extends PureComponent {
           <SimpleButton
             data-qa="save-support-key"
             buttonStyle="secondary"
+            className={clsx(classes["secondaryButtonPsuedoClasses"])}
             style={saveButtonStyle}
           >
             {la("Save")}
@@ -214,6 +221,7 @@ export class SettingsMicroForm extends PureComponent {
               data-qa="reset-support-key"
               onClick={this.remove}
               buttonStyle="secondary"
+              className={clsx(classes["secondaryButtonPsuedoClasses"])}
               style={buttonStyle}
             >
               {la("Reset")}

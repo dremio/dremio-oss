@@ -80,7 +80,8 @@ export function* handleResumeRunDataset(
   datasetVersion,
   jobId,
   forceReload,
-  paginationUrl
+  paginationUrl,
+  isRunOrPreview = true
 ) {
   invariant(datasetVersion, "dataset version must be provided");
   invariant(jobId, "jobId must be provided");
@@ -96,7 +97,13 @@ export function* handleResumeRunDataset(
   // by response in '/reducers/resources/entityReducers/table.js' reducer.
   if (forceReload || !rows) {
     yield race({
-      jobDone: call(waitForRunToComplete, datasetVersion, paginationUrl, jobId),
+      jobDone: call(
+        waitForRunToComplete,
+        datasetVersion,
+        paginationUrl,
+        jobId,
+        isRunOrPreview
+      ),
       locationChange: call(explorePageChanged),
     });
   }
@@ -118,7 +125,12 @@ export class DataLoadError {
  * @yields {void}
  * @throws DataLoadError in case if data request returns an error
  */
-export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
+export function* waitForRunToComplete(
+  datasetVersion,
+  paginationUrl,
+  jobId,
+  isRunOrPreview = true
+) {
   try {
     log("Check if socket is opened:", socket.isOpen);
     if (!socket.isOpen) {
@@ -152,7 +164,8 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
       locationChange: call(explorePageChanged),
     });
 
-    if (jobDone) {
+    // Only load table data when user executes run/preview
+    if (jobDone && isRunOrPreview) {
       const promise = yield put(loadNextRows(datasetVersion, paginationUrl, 0));
       const response = yield promise;
       const exploreState = yield select(getExploreState);

@@ -16,11 +16,13 @@
 package com.dremio.exec.store.iceberg;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.io.CompressionCodecFactory;
+import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 
@@ -37,6 +39,8 @@ import com.dremio.io.file.Path;
 public class IcebergFormatMatcher extends FormatMatcher {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergFormatMatcher.class);
   public static final String METADATA_DIR_NAME = "metadata";
+  private static final Pattern METADATA_FILE_PATTERN = Pattern.compile("v\\d*\\.metadata\\.json$");
+  private static final String VERSION_HINT_FILE_NAME = "version-hint.text";
   private final FormatPlugin plugin;
 
   public IcebergFormatMatcher(FormatPlugin plugin) {
@@ -50,7 +54,31 @@ public class IcebergFormatMatcher extends FormatMatcher {
 
   @Override
   public boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException {
-    Path rootDir = Path.of(fileSelection.getSelectionRoot());
+    return isIcebergTable(fs, fileSelection.getSelectionRoot());
+  }
+
+  public boolean isFileSystemSupportedIcebergTable(FileSystem fs, String tableRootPath) throws IOException {
+    if (!isIcebergTable(fs, tableRootPath)) {
+      return false;
+    }
+
+    Path rootDir = Path.of(tableRootPath);
+    Path metaDir = rootDir.resolve(METADATA_DIR_NAME);
+    Path versionHintPath = metaDir.resolve(VERSION_HINT_FILE_NAME);
+    if (!fs.exists(versionHintPath) || !fs.isFile(versionHintPath)) {
+      return false;
+    }
+
+    for (FileAttributes file : fs.list(metaDir)) {
+      if (METADATA_FILE_PATTERN.matcher(file.getPath().getName()).matches()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean isIcebergTable(FileSystem fs, String tableRootPath) throws IOException {
+    Path rootDir = Path.of(tableRootPath);
     Path metaDir = rootDir.resolve(METADATA_DIR_NAME);
     return fs.isDirectory(rootDir) && fs.exists(metaDir) && fs.isDirectory(metaDir);
   }

@@ -15,7 +15,6 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 
 class RightTreeTab extends Component {
   static propTypes = {
@@ -37,4 +36,4 @@ const styles = {
     padding: 10,
   },
 };
-export default Radium(RightTreeTab);
+export default RightTreeTab;

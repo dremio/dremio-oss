@@ -16,22 +16,17 @@
 package com.dremio.exec.store.deltalake;
 
 import java.io.IOException;
-import java.nio.file.AccessMode;
-import java.util.Collections;
-
-import org.apache.hadoop.security.AccessControlException;
 
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
-import com.dremio.exec.store.iceberg.IcebergFormatMatcher;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 
 public class DeltaLakeFormatMatcher extends FormatMatcher {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergFormatMatcher.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DeltaLakeFormatMatcher.class);
   private static final String METADATA_DIR_NAME = "_delta_log";
   private FormatPlugin plugin;
 
@@ -40,30 +35,15 @@ public class DeltaLakeFormatMatcher extends FormatMatcher {
   }
 
   @Override
-  public boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException{
+  public boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException {
 
-    if(!plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)) {
+    if (!plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)) {
       return false;
     }
 
     Path rootDir = Path.of(fileSelection.getSelectionRoot());
     Path metaDir = rootDir.resolve(METADATA_DIR_NAME);
-
-    try {
-
-      if (!fs.isDirectory(rootDir) || !fs.exists(metaDir) || !fs.isDirectory(metaDir)) {
-        return false;
-      }
-
-      fs.access(metaDir, Collections.singleton(AccessMode.READ));
-
-    } catch (AccessControlException e) {
-      //fail silently as the file can still be read as parquet dataset.
-      logger.error("{} not matched as a deltalake dataset as _delta_log is not readable. Exception {}", rootDir, e.getMessage());
-      return false;
-    }
-
-    return true;
+    return fs.isDirectory(rootDir) && fs.exists(metaDir) && fs.isDirectory(metaDir);
   }
 
   @Override

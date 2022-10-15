@@ -42,7 +42,7 @@ class NestedFieldFinder extends RelVisitor {
             throw new Util.FoundOne(rexCall);
           }
           if("item".equals(rexCall.getOperator().getName().toLowerCase(Locale.ROOT))){
-              return null;
+            throw new Util.FoundOne(rexCall);
           }
           return super.visitCall(rexCall);
         }

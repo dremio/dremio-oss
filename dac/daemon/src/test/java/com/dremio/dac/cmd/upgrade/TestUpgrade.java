@@ -19,10 +19,10 @@ import static com.dremio.common.util.DremioVersionInfo.VERSION;
 import static com.dremio.dac.cmd.upgrade.LegacyUpgradeTask.VERSION_203;
 import static com.dremio.dac.cmd.upgrade.LegacyUpgradeTask.VERSION_205;
 import static com.dremio.dac.cmd.upgrade.Upgrade.UPGRADE_VERSION_ORDERING;
-import static junit.framework.TestCase.assertNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.util.ArrayList;
 import java.util.Collections;

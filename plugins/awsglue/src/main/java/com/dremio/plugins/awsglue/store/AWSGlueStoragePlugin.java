@@ -15,6 +15,9 @@
  */
 package com.dremio.plugins.awsglue.store;
 
+
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,7 +29,6 @@ import java.util.function.Supplier;
 
 import javax.inject.Provider;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -46,6 +48,7 @@ import com.amazonaws.glue.catalog.util.AWSGlueConfig;
 import com.dremio.common.FSConstants;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -59,9 +62,11 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.conf.Property;
@@ -90,6 +95,7 @@ import com.dremio.exec.store.dfs.AddPrimaryKey;
 import com.dremio.exec.store.dfs.ChangeColumn;
 import com.dremio.exec.store.dfs.DropColumn;
 import com.dremio.exec.store.dfs.DropPrimaryKey;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
@@ -111,6 +117,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactoryV2;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -120,12 +127,16 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabaseResponse;
+import software.amazon.awssdk.services.glue.model.GlueException;
 
 /**
  * This plugin is a wrapper over Hive2 Storage plugin
@@ -432,24 +443,53 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
       try {
         fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
       } catch (IOException e) {
-        throw UserException.validationError(e).message("Failure creating File System instance for path ", tableProps.getTableLocation()).buildSilently();
+        throw UserException.validationError(e).message("Failure creating File System instance for path %s", tableProps.getTableLocation()).buildSilently();
       }
     }
     return new IcebergGlueModel(tableProps.getDatabaseName(), tableProps.getTableName(), fs, userName, null, this);
   }
 
+  private String resolveTableLocation(NamespaceKey tableSchemaPath, WriterOptions writerOptions) {
+    String queryLocation = writerOptions.getTableLocation();
+    if (StringUtils.isNotEmpty(queryLocation)) {
+      return PathUtils.removeTrailingSlash(queryLocation);
+    }
+
+    if (!context.getOptionManager().getOption(ExecConstants.ENABLE_HIVE_DATABASE_LOCATION)) {
+      return null;
+    }
+
+    Preconditions.checkArgument(tableSchemaPath.size() >= 2, "tableSchemaPath must be at least two parts");
+    String tableName = tableSchemaPath.getName();
+    String dbName = tableSchemaPath.getPathComponents().get(1);
+
+    try {
+      GetDatabaseResponse response = getGlueClient().getDatabase(GetDatabaseRequest.builder().name(dbName).build());
+      if (response == null || response.database() == null || StringUtils.isEmpty(response.database().locationUri())) {
+        return null;
+      }
+
+      // use database location as parent 'folder' for a new table
+      String dbLocationUri = PathUtils.removeTrailingSlash(response.database().locationUri());
+      return dbLocationUri + '/' + tableName;
+    } catch (GlueException e) {
+      logger.warn("Unable to retrieve glue database [" + dbName +"].", e);
+      return null;
+    } catch (Throwable e) {
+      logger.error("Unable to resolve location for glue database [" + dbName +"].", e);
+      return null;
+    }
+  }
+
   @Override
   public void createEmptyTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, BatchSchema batchSchema, WriterOptions writerOptions) {
 
-    String tableLocation;
-    String queryLocation = writerOptions.getTableLocation();
-    if (StringUtils.isNotEmpty(queryLocation)) {
-      tableLocation = com.dremio.common.utils.PathUtils.removeTrailingSlash(queryLocation);
-    } else {
-      String warehouseLocation = com.dremio.common.utils.PathUtils.removeTrailingSlash(glueConfTableOperations.get(CatalogProperties.WAREHOUSE_LOCATION));
+    String tableLocation = resolveTableLocation(tableSchemaPath, writerOptions);
+    if (StringUtils.isEmpty(tableLocation)) {
+      String warehouseLocation = PathUtils.removeTrailingSlash(glueConfTableOperations.get(CatalogProperties.WAREHOUSE_LOCATION));
       if (StringUtils.isEmpty(warehouseLocation) || HiveConf.ConfVars.METASTOREWAREHOUSE.getDefaultValue().equals(warehouseLocation)) {
         logger.error("Advanced Property {} not set. Please set it to have a valid location to create table.", HiveConf.ConfVars.METASTOREWAREHOUSE.varname);
-        throw UserException.unsupportedError().message("Unable to create Table for Glue. Please set the default ware house location").buildSilently();
+        throw UserException.unsupportedError().message("Unable to create table. Please set the default warehouse location").buildSilently();
       }
       tableLocation = warehouseLocation
         + tableSchemaPath.getPathComponents().stream().reduce("", (a, b) -> a + "/" + b);
@@ -541,7 +581,8 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   public void addPrimaryKey(NamespaceKey table,
                             DatasetConfig datasetConfig,
                             SchemaConfig schemaConfig,
-                            List<Field> columns) {
+                            List<Field> columns,
+                            ResolvedVersionContext versionContext) {
     SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
     String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
     AddPrimaryKey op = new AddPrimaryKey(table, context, datasetConfig, schemaConfig,
@@ -552,12 +593,52 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   @Override
   public void dropPrimaryKey(NamespaceKey table,
                              DatasetConfig datasetConfig,
-                             SchemaConfig schemaConfig) {
+                             SchemaConfig schemaConfig,
+                             ResolvedVersionContext versionContext) {
     SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
     String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
     DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig,
       getIcebergModel(metadataLocation, table, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
     op.performOperation();
+  }
+
+  @Override
+  public List<String> getPrimaryKey(NamespaceKey table,
+                                    DatasetConfig datasetConfig,
+                                    SchemaConfig schemaConfig,
+                                    ResolvedVersionContext versionContext,
+                                    boolean saveInKvStore) {
+    if (datasetConfig.getPhysicalDataset() == null || // PK only supported for physical datasets
+      datasetConfig.getPhysicalDataset().getIcebergMetadata() == null) { // Physical dataset not Iceberg format
+      return null;
+    }
+
+    return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
+  }
+
+  @Override
+  public List<String> getPrimaryKeyFromMetadata(NamespaceKey table,
+                                                DatasetConfig datasetConfig,
+                                                SchemaConfig schemaConfig,
+                                                ResolvedVersionContext versionContext,
+                                                boolean saveInKvStore) {
+    final String userName = schemaConfig.getUserName();
+    final IcebergModel icebergModel;
+    final String path;
+    if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
+      final FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+      icebergModel = metaStoragePlugin.getIcebergModel(metaStoragePlugin.getSystemUserFS());
+      String metadataTableName = datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
+      path = metaStoragePlugin.resolveTablePathToValidPath(metadataTableName).toString();
+    } else if (DatasetHelper.isIcebergDataset(datasetConfig)) {
+      SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(userName), datasetConfig);
+      path = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+      icebergModel = getIcebergModel(path, table, userName);
+    } else {
+      return null;
+    }
+
+    return IcebergUtils.getPrimaryKey(icebergModel, path, table, datasetConfig, userName, this, context, saveInKvStore);
   }
 
   @Override

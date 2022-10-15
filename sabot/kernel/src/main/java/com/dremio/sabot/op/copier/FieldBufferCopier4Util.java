@@ -178,8 +178,8 @@ public final class FieldBufferCopier4Util {
       final Reallocator realloc = this.realloc;
 
       final long maxSV4 = sv4Addr + count * STEP_SIZE;
-      final long srcOffsetAddrs[] = this.srcOffsetAddrs;
-      final long srcDataAddrs[] = this.srcDataAddrs;
+      final long[] srcOffsetAddrs = this.srcOffsetAddrs;
+      final long[] srcDataAddrs = this.srcDataAddrs;
 
       targetAlt.allocateNew(AVG_VAR_WIDTH * count, count);
       long dstOffsetAddr = target.getOffsetBufferAddress() + 4;
@@ -356,6 +356,7 @@ public final class FieldBufferCopier4Util {
       copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
       break;
 
+    case MAP:
     case LIST:
     case STRUCT:
     case UNION:

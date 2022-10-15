@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
+import com.google.errorprone.annotations.FormatMethod;
 import com.google.protobuf.ByteString;
 
 /**
@@ -663,7 +664,7 @@ public class UserException extends RuntimeException {
    * (it will ignore the message passed to the constructor) and will add any additional context information to the
    * exception's context
    */
-  public static class Builder {
+  public static final class Builder {
 
     private final Throwable cause;
     private final DremioPBError.ErrorType errorType;
@@ -714,16 +715,32 @@ public class UserException extends RuntimeException {
      * sets or replaces the error message.
      * <p>This will be ignored if this builder is wrapping a user exception
      *
+     * @param message string
+     * @return this builder
+     */
+    public Builder message(final String message) {
+      // we can't replace the message of a user exception
+      if (uex == null && !fixedMessage && message != null) {
+        this.message = message;
+      }
+      return this;
+    }
+
+    /**
+     * sets or replaces the error message.
+     * <p>This will be ignored if this builder is wrapping a user exception
+     *
      * @see String#format(String, Object...)
      *
      * @param format format string
      * @param args Arguments referenced by the format specifiers in the format string
      * @return this builder
      */
+    @FormatMethod
     public Builder message(final String format, final Object... args) {
       // we can't replace the message of a user exception
       if (uex == null && !fixedMessage && format != null) {
-        this.message = (args == null || args.length == 0) ? format : String.format(format, args);
+        this.message = String.format(format, args);
       }
       return this;
     }
@@ -754,9 +771,9 @@ public class UserException extends RuntimeException {
      * @param value string line
      * @return this builder
      */
+    @FormatMethod
     public Builder addContext(final String value, Object... args) {
-      context.add(String.format(value, args));
-      return this;
+      return addContext(String.format(value, args));
     }
 
     /**

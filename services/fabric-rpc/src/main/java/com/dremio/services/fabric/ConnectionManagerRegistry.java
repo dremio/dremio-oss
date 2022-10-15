@@ -33,7 +33,6 @@ import io.netty.channel.EventLoopGroup;
  * Manages available remote connections
  */
 final class ConnectionManagerRegistry implements AutoCloseable {
-//  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConnectionManagerRegistry.class);
 
   private final ConcurrentMap<FabricIdentity, FabricConnectionManager> registry = Maps.newConcurrentMap();
 

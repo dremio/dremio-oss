@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.catalog.CatalogOptions.SOURCE_SECRETS_RESOLUTION_ENABLED;
+
 import java.security.AccessControlException;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
@@ -87,6 +89,7 @@ import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 
 /**
@@ -131,6 +134,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private volatile MetadataPolicy metadataPolicy;
   private volatile StoragePluginId pluginId;
   private volatile ConnectionConf<?,?> conf;
+  private volatile ConnectionConf<?,?> resolvedConf;
   private volatile Stopwatch startup = Stopwatch.createUnstarted();
   private volatile SourceState state = SourceState.badState("Source not yet started.");
   private final Thread fixFailedThread;
@@ -165,11 +169,12 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.name = sourceConfig.getName();
     this.systemUserNamespaceService = systemUserNamespaceService;
     this.orphanage = orphanage;
+    this.options = options;
     this.conf = reader.getConnectionConf(sourceConfig);
-    this.plugin = conf.newPlugin(context, sourceConfig.getName(), this::getId);
+    this.resolvedConf = resolveConnectionConf(conf);
+    this.plugin = resolvedConf.newPlugin(context, sourceConfig.getName(), this::getId);
     this.metadataPolicy = sourceConfig.getMetadataPolicy() == null ? CatalogService.NEVER_REFRESH_POLICY : sourceConfig.getMetadataPolicy();
     this.permissionsCache = new PermissionCheckCache(this::getPlugin, getAuthTtlMsProvider(options, sourceConfig), 2500);
-    this.options = options;
     this.reader = reader;
     this.monitor = monitor;
 
@@ -184,6 +189,18 @@ public class ManagedStoragePlugin implements AutoCloseable {
         options,
         monitor,
         broadcasterProvider);
+  }
+
+  /**
+   * Resolve the secrets on the connection conf if secrets resolution is enabled. This should be
+   * used with caution, as secrets should not be accidentally leaked or persisted.
+   * TODO: This assumes both Coordinators and Executors can individually resolve the secrets which is not always the case
+   */
+  private ConnectionConf<?,?> resolveConnectionConf(ConnectionConf<?,?> connectionConf) {
+    if (this.options.getOption(SOURCE_SECRETS_RESOLUTION_ENABLED)) {
+      return connectionConf.resolveSecrets(context.getCredentialsServiceProvider().get());
+    }
+    return connectionConf;
   }
 
   protected PermissionCheckCache getPermissionsCache() {
@@ -582,7 +599,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
           if (config.getType() != MissingPluginConf.TYPE) {
             logger.warn("Error starting new source: {}", sourceConfig.getName(), e);
           }
-          state = SourceState.badState(e.getMessage());
+          state = SourceState.badState(e.getMessage(), e.getMessage());
 
           try {
             // failed to startup, make sure to close.
@@ -802,8 +819,17 @@ public class ManagedStoragePlugin implements AutoCloseable {
           .map(m -> m.getMessage())
           .collect(Collectors.joining(", "));
 
-        UserException.Builder builder = UserException.sourceInBadState()
-          .message("The source [%s] is currently unavailable. Info: [%s]", sourceKey, msg);
+        StringBuilder badStateMessage = new StringBuilder();
+        badStateMessage.append("The source [").append(sourceKey).append("] is currently unavailable. Metadata is not ");
+        badStateMessage.append("accessible; please check node health (or external storage) and permissions.");
+        if (!Strings.isNullOrEmpty(msg)) {
+          badStateMessage.append(" Info: [").append(msg).append("]");
+        }
+        String suggestedUserAction = this.state.getSuggestedUserAction();
+        if (!Strings.isNullOrEmpty(suggestedUserAction)) {
+          badStateMessage.append("\nAdditional actions: [").append(suggestedUserAction).append("]");
+        }
+        UserException.Builder builder = UserException.sourceInBadState().message(badStateMessage.toString());
 
         for(Message message : state.getMessages()) {
           builder.addContext(message.getLevel().name(), message.getMessage());
@@ -881,7 +907,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     } catch (StoragePluginChanging e) {
       throw UserException.validationError(e).message("Storage plugin was changing during refresh attempt.").build(logger);
     } catch (ConnectorException | NamespaceException e) {
-      throw UserException.validationError(e).message("Unable to refresh dataset.").build(logger);
+      throw UserException.validationError(e).message("Unable to refresh dataset. %s", e.getMessage()).build(logger);
     }
   }
 
@@ -948,6 +974,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.metadataPolicy = config.getMetadataPolicy() == null? CatalogService.NEVER_REFRESH_POLICY : config.getMetadataPolicy();
     this.state = plugin.getState();
     this.conf = config.getConnectionConf(reader);
+    this.resolvedConf = resolveConnectionConf(this.conf);
     this.pluginId = new StoragePluginId(sourceConfig, conf, plugin.getSourceCapabilities());
   }
 
@@ -974,7 +1001,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
                 // while waiting for write lock, someone else started things, start this loop over.
                 continue;
               }
-              plugin = conf.newPlugin(context, sourceConfig.getName(), this::getId);
+              plugin = resolvedConf.newPlugin(context, sourceConfig.getName(), this::getId);
               return newStartSupplier(sourceConfig, false).get();
             }
           }
@@ -1040,7 +1067,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
     // hold the old plugin until we successfully replace it.
     final SourceConfig oldConfig = sourceConfig;
     final StoragePlugin oldPlugin = plugin;
-    this.plugin = newConnectionConf.newPlugin(context, sourceKey.getRoot(), this::getId);
+    final ConnectionConf<?, ?> resolvedNewConnectionConf = resolveConnectionConf(newConnectionConf);
+    this.plugin = resolvedNewConnectionConf.newPlugin(context, sourceKey.getRoot(), this::getId);
     try {
       logger.trace("Starting new plugin for [{}]", config.getName());
       startAsync(config, false).get(waitMillis, TimeUnit.MILLISECONDS);

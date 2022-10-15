@@ -60,6 +60,10 @@ public class VariableLengthValidator {
 
     Preconditions.checkArgument(buffers.size() == 3, "Unexpected number of vectors.");
 
+    if (records == 0) {
+      return;
+    }
+
     // first check that the bit buffer is long enough.
     ArrowBuf bitBuf = buffers.get(0);
     Preconditions.checkArgument(bitBuf.capacity() >= (records >>> 6), "BitVector not large enough for records. Expected at least %s bytes but actual bytes were %s.", records >>> 6, bitBuf.capacity());

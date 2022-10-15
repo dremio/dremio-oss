@@ -41,13 +41,12 @@ import EditSourceViewMixin, {
   getFinalSubmit,
   ENABLE_USE_LEGACY_DIALECT_OPTION,
 } from "@inject/pages/HomePage/components/modals/EditSourceViewMixin";
-import {
-  isExternalSourceType,
-  USE_LEGACY_DIALECT_PROPERTY_NAME,
-} from "@app/constants/sourceTypes";
+import { USE_LEGACY_DIALECT_PROPERTY_NAME } from "@app/constants/sourceTypes";
 
 import { viewStateWrapper } from "uiTheme/less/forms.less";
 import { trimObjectWhitespace } from "./utils";
+import { isVersionedReflectionsEnabled } from "./AddEditSourceUtils";
+import { isVersionedSource } from "@app/utils/sourceUtils";
 
 export const VIEW_ID = "EditSourceView";
 
@@ -93,7 +92,6 @@ export class EditSourceView extends PureComponent {
     this.state = {
       isConfigLoaded: false,
       selectedFormType: {},
-      isFileSystemSource: false,
     };
   }
 
@@ -118,16 +116,24 @@ export class EditSourceView extends PureComponent {
     const { dispatchPassDataBetweenTabs } = this.props;
     return ApiUtils.fetchJson(
       `source/type/${typeCode}`,
-      (json) => {
+      async (json) => {
         const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(
           typeCode,
-          processUiConfig(json)
+          processUiConfig(json),
+          {
+            reflectionsEnabled: isVersionedSource(typeCode)
+              ? await isVersionedReflectionsEnabled()
+              : true,
+          }
         );
+
         const isFileSystemSource = combinedConfig.metadataRefresh;
         this.setState({
           isTypeSelected: true,
           isConfigLoaded: true,
           selectedFormType: combinedConfig,
+        });
+        dispatchPassDataBetweenTabs({
           isFileSystemSource: isFileSystemSource.isFileSystemSource,
           isExternalQueryAllowed: json.externalQueryAllowed,
           isHive:
@@ -139,24 +145,14 @@ export class EditSourceView extends PureComponent {
       () => {
         this.setState({ didLoadFail: true });
       }
-    ).finally(() => {
-      dispatchPassDataBetweenTabs({
-        isFileSystemSource: this.state.isFileSystemSource,
-        isExternalQueryAllowed: this.state.isExternalQueryAllowed,
-        isHive: this.state.isHive,
-        isGlue: this.state.isGlue,
-      });
-    });
+    );
   }
 
   reallySubmitEdit = (form, sourceType) => {
-    const url = isExternalSourceType(sourceType)
-      ? "/sources/external/list"
-      : "/sources/datalake/list";
     return ApiUtils.attachFormSubmitHandlers(
       getFinalSubmit(form, sourceType, this.props)
     ).then(() => {
-      this.context.router.replace(url);
+      this.context.router.replace(window.location.pathname);
       return null;
     });
   };

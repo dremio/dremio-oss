@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -46,20 +47,22 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
-import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.dremio.exec.record.VectorAccessibleComplexWriter;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.vector.complex.fn.JsonReader;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.OriginType;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetField;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
@@ -127,14 +130,14 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
 
             final RelColumnOrigin origin = origins.iterator().next();
             final RelOptTable originTable = origin.getOriginTable();
-            final DatasetConfig datasetConfig = originTable.unwrap(DremioTable.class).getDatasetConfig();
 
             final List<String> tableSchemaPath = originTable.getQualifiedName();
             final String tableFieldname = originTable.getRowType().getFieldNames().get(origin.getOriginColumnOrdinal());
             // we are using topRel to construct the newBottomProject rowType, make sure ConvertFromJson refers to that
             final String inputFieldname = topRel.getRowType().getFieldNames().get(fieldId);
               conversions.add(new ConversionColumn(
-                OriginType.RAW, tableSchemaPath, tableFieldname, inputFieldname, getRawSchema(datasetConfig, tableFieldname)));
+                OriginType.RAW, tableSchemaPath, tableFieldname, inputFieldname,
+                getRawSchema(tableSchemaPath, tableFieldname)));
 
             bottomExprs.add(inputRef);
             continue;
@@ -179,21 +182,21 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
     return UserException.validationError().message(FAILURE_MSG).build(logger);
   }
 
-  private static CompleteType getRawSchema(DatasetConfig datasetConfig, final String fieldname) {
-    List<DatasetField> datasetFields = datasetConfig.getDatasetFieldsList();
-
-    if (datasetFields != null) {
+  private CompleteType getRawSchema(final List<String> tableSchemaPath, final String fieldname) {
+    // originTable may come from materialization cache and may not contain up-to-date datasetFieldsList info.
+    // Get datasetFieldsList from query context catalog instead.
+    return Optional.ofNullable(context)
+      .map(v -> v.getCatalogService())
+      .map(v -> v.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())))
+      .map(v -> v.getTable(new NamespaceKey(tableSchemaPath)))
+      .map(v -> v.getDatasetConfig())
+      .map(v -> v.getDatasetFieldsList())
       // do we have a known schema for the converted field ?
-      final DatasetField datasetField =
-        Iterables.find(datasetFields, input -> fieldname.equals(input.getFieldName()), null);
-
-      if (datasetField != null) { // yes we do
-        return CompleteType.deserialize(datasetField.getFieldSchema().toByteArray());
-      }
-    }
-
-    // return a dummy type for now
-    return new CompleteType(ArrowType.Struct.INSTANCE, Collections.<Field>emptyList());
+      .map(v -> Iterables.find(v, input -> fieldname.equals(input.getFieldName()), null))
+      // yes we do
+      .map(v -> CompleteType.deserialize(v.getFieldSchema().toByteArray()))
+      // (no we don't) return a dummy type for now
+      .orElse(new CompleteType(ArrowType.Struct.INSTANCE, Collections.<Field>emptyList()));
   }
 
   private static CompleteType getLiteralSchema(QueryContext context, byte[] bytes) {

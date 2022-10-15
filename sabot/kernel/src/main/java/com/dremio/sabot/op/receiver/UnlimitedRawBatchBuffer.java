@@ -19,22 +19,22 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.google.common.collect.Queues;
 
 public class UnlimitedRawBatchBuffer extends BaseRawBatchBuffer<RawFragmentBatch> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnlimitedRawBatchBuffer.class);
 
+  private final int fragmentCount;
   private final int softlimit;
-  private final int startlimit;
 
-  public UnlimitedRawBatchBuffer(SharedResource resource, SabotConfig config, FragmentHandle handle, BufferAllocator allocator, int fragmentCount, int oppositeId) {
-    super(resource, config, handle, allocator, fragmentCount);
+  public UnlimitedRawBatchBuffer(SharedResource resource, OptionManager options, FragmentHandle handle, BufferAllocator allocator, int fragmentCount, int oppositeId) {
+    super(resource, options, handle, allocator, fragmentCount);
+    this.fragmentCount = fragmentCount;
     this.softlimit = bufferSizePerSocket * fragmentCount;
-    this.startlimit = Math.max(softlimit/2, 1);
-    logger.trace("softLimit: {}, startLimit: {}", softlimit, startlimit);
+    logger.trace("softLimit: {}", softlimit);
     this.bufferQueue = new UnlimitedBufferQueue();
   }
 
@@ -57,7 +57,7 @@ public class UnlimitedRawBatchBuffer extends BaseRawBatchBuffer<RawFragmentBatch
 
     @Override
     public boolean isEmpty() {
-      return buffer.size() == 0;
+      return buffer.isEmpty();
     }
 
     @Override

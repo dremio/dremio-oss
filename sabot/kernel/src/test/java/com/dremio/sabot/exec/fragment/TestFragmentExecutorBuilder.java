@@ -35,7 +35,6 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ExpressionSplitCache;
-import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.CachedFragmentReader;
@@ -78,7 +77,7 @@ public class TestFragmentExecutorBuilder extends DremioTest {
     FragmentExecutorBuilder fragmentExecutorBuilder = new FragmentExecutorBuilder(queriesClerk, mock(FragmentExecutors.class),
       CoordinationProtos.NodeEndpoint.newBuilder().build(), mock(MaestroProxy.class), mock(SabotConfig.class), mock(DremioConfig.class), mock(ClusterCoordinator.class), mock(ExecutorService.class),
       mock(OptionManager.class), mock(FragmentWorkManager.ExecConnectionCreator.class), mock(OperatorCreatorRegistry.class), mock(PhysicalPlanReader.class), mock(NamespaceService.class),
-      mock(CatalogService.class), mock(ContextInformationFactory.class), mock(FunctionImplementationRegistry.class), mock(DecimalFunctionImplementationRegistry.class),
+      mock(CatalogService.class), mock(ContextInformationFactory.class), mock(FunctionImplementationRegistry.class), mock(FunctionImplementationRegistry.class),
       bootStrapContext.getNodeDebugContextProvider(), mock(SpillService.class), mock(CodeCompiler.class), mock(Set.class), mock(Provider.class), mock(Provider.class), mock(ExpressionSplitCache.class));
 
     try {

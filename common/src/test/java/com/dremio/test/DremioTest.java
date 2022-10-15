@@ -43,7 +43,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class DremioTest {
-//  private static final Logger logger = org.slf4j.LoggerFactory.getLogger(DremioTest.class);
 
   protected static final ObjectMapper objectMapper;
   static {
@@ -75,12 +74,11 @@ public class DremioTest {
   static final Logger testReporter = org.slf4j.LoggerFactory.getLogger("com.dremio.TestReporter");
   static final TestLogReporter LOG_OUTCOME = new TestLogReporter();
 
-  static MemWatcher memWatcher;
-  static String className;
+  private static MemWatcher memWatcher;
+  private static String className;
 
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(1000, TimeUnit.SECONDS);
-
 
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
@@ -89,13 +87,14 @@ public class DremioTest {
   public final TestLogReporter logOutcome = LOG_OUTCOME;
 
   @Rule
-  public final TestRule REPEAT_RULE = TestTools.getRepeatRule(false);
+  public final TestRule repeatRule = TestTools.getRepeatRule(false);
 
-  @Rule public TestName TEST_NAME = new TestName();
+  @Rule
+  public TestName testName = new TestName();
 
   @Before
   public void printID() throws Exception {
-    System.out.printf("Running %s#%s\n", getClass().getName(), TEST_NAME.getMethodName());
+    System.out.printf("Running %s#%s\n", getClass().getName(), testName.getMethodName());
   }
 
   @BeforeClass
@@ -185,8 +184,8 @@ public class DremioTest {
 
   private static class SystemManager {
 
-    final BufferPoolMXBean directBean;
-    final MemoryMXBean memoryBean;
+    private final BufferPoolMXBean directBean;
+    private final MemoryMXBean memoryBean;
 
     public SystemManager(){
       memoryBean = ManagementFactory.getMemoryMXBean();

@@ -35,7 +35,7 @@ import io.netty.handler.ssl.util.SimpleTrustManagerFactory;
  * A factory for creating a TrustManager that checks if certificates
  * validate against multiple sources.
  */
-public class CompositeTrustManagerFactory extends SimpleTrustManagerFactory {
+public final class CompositeTrustManagerFactory extends SimpleTrustManagerFactory {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompositeTrustManagerFactory.class);
 
   private final CompositeTrustManager trustManager;
@@ -61,7 +61,7 @@ public class CompositeTrustManagerFactory extends SimpleTrustManagerFactory {
     return new Builder();
   }
 
-  public static class Builder {
+  public static final class Builder {
     private final ImmutableList.Builder<X509ExtendedTrustManager> trustManagersBuilder = ImmutableList.builder();
 
     private Builder() {

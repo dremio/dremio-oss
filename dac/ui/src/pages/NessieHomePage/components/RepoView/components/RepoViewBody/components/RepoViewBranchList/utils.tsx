@@ -14,27 +14,55 @@
  * limitations under the License.
  */
 
-import FontIcon from "@app/components/Icon/FontIcon";
-import { Reference } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 import { intl } from "@app/utils/intl";
+import SettingsBtn from "@app/components/Buttons/SettingsBtn";
+import Menu from "@app/components/Menus/Menu";
+import MenuItem from "@app/components/Menus/MenuItem";
+import moment from "@app/utils/dayjs";
+
+// @ts-ignore
+import { Tooltip } from "dremio-ui-lib";
 
 import {
   DEFAULT_FORMAT_WITH_TIME_SECONDS,
   formatDate,
   formatDateRelative,
+  formatDateSince,
 } from "@app/utils/date";
 
-export const convertISOString = (
+export const convertISOStringWithTooltip = (
   ref: Reference,
   commitTime?: string
-): string => {
+): string | JSX.Element => {
   if (
     ref.metadata &&
     ref.metadata.commitMetaOfHEAD &&
     ref.metadata.commitMetaOfHEAD.commitTime
   ) {
-    return formatDateRelative(
-      new Date(ref.metadata.commitMetaOfHEAD.commitTime).toDateString()
+    const pastSevenDays = moment().subtract(6, "days").startOf("day");
+    const commitTime = moment(ref.metadata.commitMetaOfHEAD.commitTime);
+
+    if (commitTime > pastSevenDays) {
+      return (
+        <Tooltip
+          title={formatDate(
+            ref.metadata.commitMetaOfHEAD.commitTime.toString(),
+            "MMM DD, YYYY, h:mmA"
+          )}
+        >
+          <span>
+            {formatDateRelative(
+              new Date(ref.metadata.commitMetaOfHEAD.commitTime).toString()
+            )}
+          </span>
+        </Tooltip>
+      );
+    }
+
+    return formatDateSince(
+      new Date(ref.metadata.commitMetaOfHEAD.commitTime).toString(),
+      "MMM DD, YYYY, h:mmA"
     );
   } else if (commitTime) {
     return formatDate(commitTime, DEFAULT_FORMAT_WITH_TIME_SECONDS);
@@ -43,39 +71,114 @@ export const convertISOString = (
   }
 };
 
-const iconTheme = { Icon: { width: "24px", height: "24px" } };
-
 export const renderIcons = (
   branch: Reference,
   renderIcon: boolean,
-  openCreateDialog: (arg: Reference) => void,
+  isArcticSource: boolean,
+  goToDataset: () => void,
+  openCreateDialog: (arg: Reference, isDefault?: boolean) => void,
   openDeleteDialog?: (arg: Reference) => void,
-  isDefault?: boolean
+  openMergeDialog?: (arg: Reference) => void,
+  isDefault?: boolean,
+  openTagDialog?: (arg: Reference, isDefault?: boolean) => void
 ): JSX.Element => {
-  return isDefault ? (
-    <span
-      onClick={() => openCreateDialog(branch)}
-      className="branch-list-item-right-icon"
-      title={intl.formatMessage({ id: "RepoView.CreateBranchTooltip" })}
-    >
-      <FontIcon type={"GitForkBlue"} theme={iconTheme} />
-    </span>
+  const renderMenu = () => {
+    return (
+      <Menu>
+        {openTagDialog && (
+          <MenuItem onClick={() => openTagDialog(branch, isDefault)}>
+            <span className="branch-list-menu-item">
+              {intl.formatMessage({ id: "ArcticCatalog.Tags.AddTag" })}
+            </span>
+          </MenuItem>
+        )}
+        {openDeleteDialog && (
+          <MenuItem onClick={() => openDeleteDialog(branch)}>
+            <span className="branch-list-menu-item-delete">
+              {intl.formatMessage({ id: "Common.Delete" })}
+            </span>
+          </MenuItem>
+        )}
+      </Menu>
+    );
+  };
+
+  const renderCreateProject = (defaultBranch?: boolean) => {
+    return (
+      <span
+        onClick={() => openCreateDialog(branch, defaultBranch)}
+        className="branch-list-item-icon"
+      >
+        <Tooltip
+          title={intl.formatMessage({ id: "RepoView.CreateBranch" })}
+          placement="top"
+        >
+          <dremio-icon name="vcs/create-branch" />
+        </Tooltip>
+      </span>
+    );
+  };
+
+  const renderGoToDataset = () => {
+    if (!isArcticSource) {
+      return (
+        <span onClick={goToDataset} className="branch-list-item-icon">
+          <Tooltip
+            title={intl.formatMessage({ id: "Go.To.Data" })}
+            placement="top"
+          >
+            <dremio-icon name="interface/goto-dataset" />
+          </Tooltip>
+        </span>
+      );
+    }
+  };
+
+  const renderMerge = () => {
+    return (
+      <span
+        onClick={() => openMergeDialog && openMergeDialog(branch)}
+        className="branch-list-item-icon"
+      >
+        <Tooltip
+          title={intl.formatMessage({ id: "Common.Merge" })}
+          placement="top"
+        >
+          <dremio-icon name="vcs/merge" />
+        </Tooltip>
+      </span>
+    );
+  };
+
+  const renderSettings = () => {
+    return (
+      <SettingsBtn
+        classStr="branch-list-item-settings-icon"
+        handleSettingsClose={() => {}}
+        handleSettingsOpen={() => {}}
+        menu={renderMenu()}
+        hideArrowIcon
+      >
+        <dremio-icon
+          name="interface/more"
+          alt={intl.formatMessage({ id: "Common.More" })}
+        />
+      </SettingsBtn>
+    );
+  };
+
+  return isDefault && renderIcon ? (
+    <>
+      {renderGoToDataset()}
+      {renderCreateProject(isDefault)}
+      {renderSettings()}
+    </>
   ) : renderIcon ? (
     <>
-      <span
-        onClick={() => openCreateDialog(branch)}
-        className="branch-list-item-left-icon"
-        title={intl.formatMessage({ id: "RepoView.CreateBranchTooltip" })}
-      >
-        <FontIcon type={"GitForkBlue"} theme={iconTheme} />
-      </span>
-      <span
-        onClick={() => openDeleteDialog && openDeleteDialog(branch)}
-        className="branch-list-item-right-icon"
-        title={intl.formatMessage({ id: "Common.Delete" })}
-      >
-        <FontIcon type={"TrashBlue"} theme={iconTheme} />
-      </span>
+      {renderGoToDataset()}
+      {renderMerge()}
+      {renderCreateProject()}
+      {renderSettings()}
     </>
   ) : (
     <></>

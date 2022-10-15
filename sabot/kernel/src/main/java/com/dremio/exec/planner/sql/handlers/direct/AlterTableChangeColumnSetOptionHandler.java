@@ -92,14 +92,14 @@ public class AlterTableChangeColumnSetOptionHandler extends SimpleDirectHandler 
     }
 
     boolean changed = catalog.alterColumnOption(path, column, optionName, optionValue);
-    String resultMessage;
+    String changedMessage;
     if (changed) {
-      resultMessage = "Table [%s] column [%s] options updated";
+      changedMessage = "updated";
       DataAdditionCmdHandler.refreshDataset(catalog, path, false);
     } else {
-      resultMessage = "Table [%s] column [%s] options did not change";
+      changedMessage = "did not change";
     }
-
-    return Collections.singletonList(SimpleCommandResult.successful(resultMessage, path, column));
+    return Collections.singletonList(SimpleCommandResult.successful(
+      "Table [%s] column [%s] options %s", path, column, changedMessage));
   }
 }

@@ -166,7 +166,7 @@ public class WindowPrel extends WindowRelBase implements Prel {
 
     // for count(1).
     if (args.isEmpty()) {
-      args.add(new ValueExpressions.LongExpression(1l));
+      args.add(new ValueExpressions.LongExpression(1L));
     }
 
     return new FunctionCall(call.getAggregation().getName().toLowerCase(), args);

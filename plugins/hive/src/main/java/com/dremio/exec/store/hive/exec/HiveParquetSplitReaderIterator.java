@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
 
@@ -49,6 +48,7 @@ import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 /**

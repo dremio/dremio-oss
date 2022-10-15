@@ -164,7 +164,8 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       tableModifyCrel.getSourceExpressionList(),
       tableModifyCrel.isFlattened(),
       tableModifyCrel.getCreateTableEntry(),
-      tableModifyCrel.getMergeUpdateColumnList());
+      tableModifyCrel.getMergeUpdateColumnList(),
+      tableModifyCrel.hasSource());
 
     final int fieldCount = tableModifyCrel.getRowType().getFieldCount();
     return result(newTableModifyCrel, Mappings.createIdentity(fieldCount));

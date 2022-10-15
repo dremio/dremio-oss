@@ -28,10 +28,9 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.OUTER;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.RIGHT;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.USING;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -50,7 +49,7 @@ import com.google.common.collect.ImmutableSet;
  *       ON booleanExpression
  *   |   USING '(' column [, column ]* ')'
  */
-public final class FromClause {
+public final class FromClause extends Statement {
   private static final ImmutableSet<Integer> CATALOG_PATH_SEPARATORS = new ImmutableSet.Builder<Integer>()
     .add(COMMA)
     .add(NATURAL)
@@ -74,18 +73,24 @@ public final class FromClause {
     .build();
 
   private final ImmutableList<DremioToken> tokens;
-  private final ImmutableList<CatalogPath> catalogPaths;
+  private final ImmutableList<TableReference> tableReferences;
   private final ImmutableList<JoinCondition> joinConditions;
 
   private FromClause(
     ImmutableList<DremioToken> tokens,
-    ImmutableList<CatalogPath> catalogPaths,
+    ImmutableList<TableReference> tableReferences,
     ImmutableList<JoinCondition> joinConditions) {
+    super(
+      tokens,
+      new ImmutableList.Builder<Statement>()
+        .addAll(tableReferences)
+        .addAll(joinConditions)
+        .build());
     Preconditions.checkNotNull(tokens);
-    Preconditions.checkNotNull(catalogPaths);
+    Preconditions.checkNotNull(tableReferences);
     Preconditions.checkNotNull(joinConditions);
     this.tokens = tokens;
-    this.catalogPaths = catalogPaths;
+    this.tableReferences = tableReferences;
     this.joinConditions = joinConditions;
   }
 
@@ -93,8 +98,8 @@ public final class FromClause {
     return tokens;
   }
 
-  public ImmutableList<CatalogPath> getCatalogPaths() {
-    return catalogPaths;
+  public ImmutableList<TableReference> getTableReferences() {
+    return tableReferences;
   }
 
   public ImmutableList<JoinCondition> getJoinConditions() {
@@ -107,23 +112,27 @@ public final class FromClause {
 
   public static FromClause parse(TokenBuffer tokenBuffer) {
     Preconditions.checkNotNull(tokenBuffer);
+    if (tokenBuffer.isEmpty()) {
+      return null;
+    }
+
     ImmutableList<DremioToken> tokens = tokenBuffer.toList();
     tokenBuffer.readAndCheckKind(FROM);
 
-    ImmutableList.Builder<CatalogPath> tableReferencesBuilder = new ImmutableList.Builder<>();
+    ImmutableList.Builder<TableReference> tableReferencesBuilder = new ImmutableList.Builder<>();
     ImmutableList.Builder<JoinCondition> joinConditionsBuilder = new ImmutableList.Builder<>();
-    State state = State.IN_CATALOG_PATH;
+    State state = State.IN_TABLE_REFERENCE;
     while (!tokenBuffer.isEmpty()) {
       ImmutableList<DremioToken> chunk = tokenBuffer.readUntilKinds(SEPARATORS);
       int nextKind = tokenBuffer.readKind();
       switch (state) {
-      case IN_CATALOG_PATH:
-        CatalogPath catalogPath = CatalogPath.parse(chunk);
-        tableReferencesBuilder.add(catalogPath);
+      case IN_TABLE_REFERENCE:
+        TableReference tableReference = TableReference.parse(new TokenBuffer(chunk));
+        tableReferencesBuilder.add(tableReference);
         break;
 
       case IN_JOIN_CONDITION:
-        JoinCondition joinCondition = JoinCondition.parse(chunk);
+        JoinCondition joinCondition = JoinCondition.parse(chunk, tableReferencesBuilder.build());
         joinConditionsBuilder.add(joinCondition);
         break;
 
@@ -133,7 +142,7 @@ public final class FromClause {
 
       if (nextKind != -1) {
         if (CATALOG_PATH_SEPARATORS.contains(nextKind)) {
-          state = State.IN_CATALOG_PATH;
+          state = State.IN_TABLE_REFERENCE;
         } else if (JOIN_CONDITION_SEPARATORS.contains(nextKind)) {
           state = State.IN_JOIN_CONDITION;
         } else {
@@ -148,8 +157,15 @@ public final class FromClause {
       joinConditionsBuilder.build());
   }
 
+  public static FromClause of(TableReference tableReference) {
+    return new FromClause(
+      tableReference.getTokens(),
+      ImmutableList.of(tableReference),
+      ImmutableList.of());
+  }
+
   private enum  State {
-    IN_CATALOG_PATH,
+    IN_TABLE_REFERENCE,
     IN_JOIN_CONDITION,
   }
 }

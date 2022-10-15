@@ -42,8 +42,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.exception.UnsupportedOperatorCollector;
 import com.dremio.exec.planner.StarColumnHelper;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.sql.Checker;
 import com.dremio.exec.planner.sql.OperatorTable;
-import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.util.ApproximateStringMatcher;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.google.common.collect.ImmutableList;
@@ -64,6 +65,8 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
   private final OperatorTable table;
   private final UnsupportedOperatorCollector unsupportedOperatorCollector;
   private final UnwrappingExpressionVisitor unwrappingExpressionVisitor;
+  private final ConvertItemToInnerMapFunctionVisitor.RewriteItemOperatorVisitor rewriteItemOperatorVisitor;
+
 
   public static PreProcessRel createVisitor(OperatorTable table, RexBuilder rexBuilder) {
     return new PreProcessRel(table, rexBuilder);
@@ -74,6 +77,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
     this.table = table;
     this.unsupportedOperatorCollector = new UnsupportedOperatorCollector();
     this.unwrappingExpressionVisitor = new UnwrappingExpressionVisitor(rexBuilder);
+    this.rewriteItemOperatorVisitor = new ConvertItemToInnerMapFunctionVisitor.RewriteItemOperatorVisitor(rexBuilder);
   }
 
   @Override
@@ -81,7 +85,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
     final RenameConvertToConvertFromVisitor renameVisitor = new RenameConvertToConvertFromVisitor(project.getCluster().getRexBuilder(), table);
     final List<RexNode> projExpr = Lists.newArrayList();
     for(RexNode rexNode : project.getProjects()) {
-      projExpr.add(rexNode.accept(unwrappingExpressionVisitor));
+      projExpr.add(rexNode.accept(unwrappingExpressionVisitor).accept(rewriteItemOperatorVisitor));
     }
 
     project =  project.copy(project.getTraitSet(),
@@ -116,7 +120,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
 
   @Override
   public RelNode visit(LogicalFilter filter) {
-    final RexNode condition = filter.getCondition().accept(unwrappingExpressionVisitor);
+    final RexNode condition = filter.getCondition().accept(unwrappingExpressionVisitor).accept(rewriteItemOperatorVisitor);
     filter = filter.copy(
         filter.getTraitSet(),
         filter.getInput(),
@@ -126,7 +130,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
 
   @Override
   public RelNode visit(LogicalJoin join) {
-    final RexNode conditionExpr = join.getCondition().accept(unwrappingExpressionVisitor);
+    final RexNode conditionExpr = join.getCondition().accept(unwrappingExpressionVisitor).accept(rewriteItemOperatorVisitor);
     join = join.copy(join.getTraitSet(),
         conditionExpr,
         join.getLeft(),
@@ -242,12 +246,15 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
         throw getConvertFunctionException(functionName, literal);
       }
 
-      SqlOperatorImpl sqlOperator = new SqlOperatorImpl(newFunctionName, 1, nArgs - 1, true, new SqlReturnTypeInference() {
-        @Override
-        public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-          return call.getType();
-        }
-      });
+      SqlFunction sqlOperator = SqlFunctionImpl.create(
+        newFunctionName,
+        new SqlReturnTypeInference() {
+          @Override
+          public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+            return call.getType();
+          }
+        },
+        Checker.between(1, nArgs - 1));
 
       // create the new expression to be used in the rewritten project
       if (nArgs == 2) {
@@ -312,4 +319,5 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
               clonedOperands));
     }
   }
+
 }

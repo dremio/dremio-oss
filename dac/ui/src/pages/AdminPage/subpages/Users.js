@@ -19,8 +19,10 @@ import { connect } from "react-redux";
 import { injectIntl } from "react-intl";
 import shallowEqual from "shallowequal";
 import PropTypes from "prop-types";
+
+import { openConfirmationModal } from "dremio-ui-lib";
+
 import { USERS_VIEW_ID, searchUsers, removeUser } from "actions/admin";
-import { showConfirmationDialog } from "actions/confirmation";
 import { getUsers } from "selectors/admin";
 import { getViewState } from "selectors/resources";
 
@@ -33,7 +35,6 @@ export class Users extends PureComponent {
     removeUser: PropTypes.func,
     users: PropTypes.instanceOf(Immutable.List),
     viewState: PropTypes.instanceOf(Immutable.Map),
-    showConfirmationDialog: PropTypes.func,
     intl: PropTypes.object,
   };
 
@@ -75,16 +76,16 @@ export class Users extends PureComponent {
     const name = user.get("name");
     const email = user.get("email");
     const username = name || email;
-    this.props.showConfirmationDialog({
+    openConfirmationModal({
       title: formatMessage({ id: "Admin.User.Dialog.RemoveUser" }),
-      text: formatMessage(
+      element: formatMessage(
         { id: "Admin.User.Dialog.ConfirmRemoveUserMesage" },
         { username }
       ),
-      confirmText: formatMessage({
+      primaryButtonText: formatMessage({
         id: "Admin.User.Dialog.RemoveUserConfirmText",
       }),
-      confirm: () => this.removeUser(user),
+      submitFn: () => this.removeUser(user),
     });
   };
 
@@ -115,5 +116,4 @@ function mapStateToProps(state) {
 export default connect(mapStateToProps, {
   searchUsers,
   removeUser,
-  showConfirmationDialog,
 })(injectIntl(Users));

@@ -40,6 +40,7 @@ public class LocalExecutionConfig implements OptionProvider {
   private final boolean enableOutputLimits;
   private final boolean allowPartitionPruning;
   private final boolean failIfNonEmptySent;
+  private final boolean ignoreColumnsLimits;
   private final String username;
   private final List<String> sqlContext;
   private final boolean internalSingleThreaded;
@@ -60,6 +61,7 @@ public class LocalExecutionConfig implements OptionProvider {
                        final String queryResultsStorePath,
                        final boolean allowPartitionPruning,
                        final boolean exposeInternalSources,
+                       final boolean ignoreColumnsLimits,
                        final SubstitutionSettings substitutionSettings,
                        final String engineName,
                        final String sessionId,
@@ -72,6 +74,7 @@ public class LocalExecutionConfig implements OptionProvider {
     this.sqlContext = sqlContext;
     this.internalSingleThreaded = internalSingleThreaded;
     this.queryResultsStorePath = Preconditions.checkNotNull(queryResultsStorePath);
+    this.ignoreColumnsLimits = ignoreColumnsLimits;
     this.substitutionSettings = MoreObjects.firstNonNull(substitutionSettings, SubstitutionSettings.of());
     this.allowPartitionPruning = allowPartitionPruning;
     this.exposeInternalSources = exposeInternalSources;
@@ -125,6 +128,10 @@ public class LocalExecutionConfig implements OptionProvider {
       manager.setOption(createBoolean(QUERY, PlannerSettings.ENABLE_OUTPUT_LIMITS.getOptionName(), true));
     }
 
+    if (ignoreColumnsLimits) {
+      manager.setOption(createBoolean(QUERY, PlannerSettings.IGNORE_SCANNED_COLUMNS_LIMIT.getOptionName(), true));
+    }
+
     manager.setOption(createString(QUERY, PlannerSettings.STORE_QUERY_RESULTS.getOptionName(),
         storeQueryResultsPolicy.name()));
     manager.setOption(createString(QUERY,
@@ -149,6 +156,7 @@ public class LocalExecutionConfig implements OptionProvider {
     private List<String> sqlContext;
     private Map<String, VersionContext> sourceVersionMapping = new HashMap<>();
     private boolean internalSingleThreaded;
+    private boolean ignoreColumnsLimits;
     private String queryResultsStorePath;
     private boolean allowPartitionPruning;
     private boolean exposeInternalSources;
@@ -293,6 +301,16 @@ public class LocalExecutionConfig implements OptionProvider {
     }
 
     /**
+     * set ignoreColumnsLimits.
+     * @param ignoreColumnsLimits
+     * @return
+     */
+    public Builder setIgnoreColumnsLimits(boolean ignoreColumnsLimits) {
+      this.ignoreColumnsLimits = ignoreColumnsLimits;
+      return this;
+    }
+
+    /**
      * set session ID.
      * @param sessionId
      * @return
@@ -323,6 +341,7 @@ public class LocalExecutionConfig implements OptionProvider {
         queryResultsStorePath,
         allowPartitionPruning,
         exposeInternalSources,
+        ignoreColumnsLimits,
         substitutionSettings,
         engineName,
         sessionId,

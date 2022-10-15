@@ -37,7 +37,8 @@ public class AsyncTaskWrapper implements Task {
     SLEEP,
     BLOCKED_ON_UPSTREAM,
     BLOCKED_ON_DOWNSTREAM,
-    BLOCKED_ON_SHARED_RESOURCE;
+    BLOCKED_ON_SHARED_RESOURCE,
+    BLOCKED_ON_MEMORY;
 
     private static final int Size = values().length;
   }
@@ -156,6 +157,7 @@ public class AsyncTaskWrapper implements Task {
       case BLOCKED_ON_UPSTREAM:
       case BLOCKED_ON_DOWNSTREAM:
       case BLOCKED_ON_SHARED_RESOURCE:
+      case BLOCKED_ON_MEMORY:
         return true;
       default:
         return false;
@@ -176,6 +178,8 @@ public class AsyncTaskWrapper implements Task {
         return WatchType.BLOCKED_ON_DOWNSTREAM;
       case BLOCKED_ON_SHARED_RESOURCE:
         return WatchType.BLOCKED_ON_SHARED_RESOURCE;
+      case BLOCKED_ON_MEMORY:
+        return WatchType.BLOCKED_ON_MEMORY;
       default:
         return WatchType.NONE;
     }
@@ -228,6 +232,9 @@ public class AsyncTaskWrapper implements Task {
           watches[wtype.ordinal()].reset(); // differential counter, not cumulative.
           asyncTask.addBlockedOnSharedResourceDuration(blockedOnResource, elapsed);
           blockedOnResource = null;
+          break;
+        case BLOCKED_ON_MEMORY:
+          asyncTask.updateBlockedOnMemoryDuration(elapsed);
           break;
       }
     } catch (IllegalStateException e) {

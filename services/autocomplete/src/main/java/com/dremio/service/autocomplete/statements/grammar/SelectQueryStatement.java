@@ -28,8 +28,6 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SELECT
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.WHERE;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.WINDOW;
 
-import com.dremio.service.autocomplete.statements.visitors.StatementInputOutputVisitor;
-import com.dremio.service.autocomplete.statements.visitors.StatementVisitor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
 import com.google.common.collect.ImmutableList;
@@ -47,8 +45,7 @@ import com.google.common.collect.ImmutableSet;
  * [ WINDOW windowName AS windowSpec [, windowName AS windowSpec ]* ]
  *
  */
-public final class SelectQueryStatement extends QueryStatement {
-  private static final DremioToken FROM_TOKEN = DremioToken.createFromParserKind(FROM);
+public final class SelectQueryStatement extends Statement {
   private static final ImmutableSet<Integer> CLAUSE_KEYWORDS = ImmutableSet.<Integer>builder()
     .add(WHERE)
     .add(ORDER)
@@ -64,31 +61,61 @@ public final class SelectQueryStatement extends QueryStatement {
 
   private SelectQueryStatement(
     ImmutableList<DremioToken> tokens,
-    ImmutableList<QueryStatement> children,
-    FromClause fromClause) {
-    super(tokens, children);
+    ImmutableList<? extends Statement> children,
+    SelectClause selectClause,
+    FromClause fromClause,
+    UnknownClause remainingClauses) {
+    super(tokens,
+      new ImmutableList.Builder<Statement>()
+        .addAll(children)
+        .addAll(asListIgnoringNulls(selectClause, fromClause, remainingClauses))
+        .build());
 
     this.fromClause = fromClause;
-  }
-
-  @Override
-  public void accept(StatementVisitor visitor) {
-    visitor.visit(this);
-  }
-
-  @Override
-  public <I, O> O accept(StatementInputOutputVisitor<I, O> visitor, I input) {
-    return visitor.visit(this, input);
   }
 
   public FromClause getFromClause() {
     return fromClause;
   }
 
-  public static QueryStatement parse(TokenBuffer tokenBuffer) {
+  public static SelectQueryStatement parse(TokenBuffer tokenBuffer) {
+    return parseImpl(tokenBuffer, ImmutableList.of());
+  }
+
+  private static SelectQueryStatement parseImpl(TokenBuffer tokenBuffer, ImmutableList<TableReference> outerTableReferences) {
     ImmutableList<DremioToken> tokens = tokenBuffer.toList();
-    ImmutableList.Builder<QueryStatement> subQueriesBuilder = new ImmutableList.Builder<>();
-    FromClause fromClause = null;
+
+    TokenBuffer clauseTokenBuffer = new TokenBuffer(tokens);
+
+    // Parse Clauses
+    clauseTokenBuffer.readUntilKind(SELECT);
+    ImmutableList<DremioToken> selectClauseTokens = clauseTokenBuffer.readUntilMatchKindAtSameLevel(FROM);
+    ImmutableList<DremioToken> fromClauseTokens = clauseTokenBuffer.readUntilMatchKindsAtSameLevel(CLAUSE_KEYWORDS);
+    FromClause fromClause = FromClause.parse(fromClauseTokens);
+    ImmutableList<TableReference> tableReferences;
+    if (fromClause == null) {
+      tableReferences = ImmutableList.of();
+    } else {
+      ImmutableList.Builder<TableReference> tableReferenceBuilder = new ImmutableList.Builder<>();
+      for (TableReference tableReference : fromClause.getTableReferences()) {
+        if (!tableReference.hasCursor()) {
+          tableReferenceBuilder.add(tableReference);
+        }
+      }
+
+      tableReferences = tableReferenceBuilder.build();
+    }
+
+    ImmutableList<TableReference> combinedTableReferences = ImmutableList.<TableReference>builder()
+      .addAll(outerTableReferences)
+      .addAll(tableReferences)
+      .build();
+    SelectClause selectClause = SelectClause.parse(new TokenBuffer(selectClauseTokens), combinedTableReferences);
+    ImmutableList<DremioToken> remainingClausesTokens = clauseTokenBuffer.drainRemainingTokens();
+    UnknownClause remainingClauses = UnknownClause.parse(new TokenBuffer(remainingClausesTokens), combinedTableReferences);
+
+    // Parse Subqueries
+    ImmutableList.Builder<SelectQueryStatement> subQueriesBuilder = new ImmutableList.Builder<>();
     while (!tokenBuffer.isEmpty()) {
       tokenBuffer.readUntilKind(LPAREN);
       tokenBuffer.read();
@@ -96,31 +123,17 @@ public final class SelectQueryStatement extends QueryStatement {
         // Start of a subquery
         ImmutableList<DremioToken> subqueryTokens = tokenBuffer.readUntilMatchKindAtSameLevel(RPAREN);
         tokenBuffer.read();
-        QueryStatement subqueryStatement = parse(new TokenBuffer(subqueryTokens));
+
+        SelectQueryStatement subqueryStatement = parseImpl(new TokenBuffer(subqueryTokens), combinedTableReferences);
         subQueriesBuilder.add(subqueryStatement);
       }
-    }
-
-    ImmutableList<DremioToken> fromClauseTokens = extractOutFromClauseTokens(new TokenBuffer(tokens));
-    if (fromClauseTokens != null) {
-      fromClause = FromClause.parse(new TokenBuffer(fromClauseTokens));
     }
 
     return new SelectQueryStatement(
       tokens,
       subQueriesBuilder.build(),
-      fromClause);
-  }
-
-  private static ImmutableList<DremioToken> extractOutFromClauseTokens(TokenBuffer tokenBuffer) {
-    tokenBuffer.readUntilKind(SELECT);
-    tokenBuffer.read();
-    tokenBuffer.readUntilMatchKindAtSameLevel(FROM);
-
-    if (tokenBuffer.isEmpty()) {
-      return null;
-    }
-
-    return tokenBuffer.readUntilMatchKindsAtSameLevel(CLAUSE_KEYWORDS);
+      selectClause,
+      fromClause,
+      remainingClauses);
   }
 }

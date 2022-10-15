@@ -44,6 +44,22 @@
           padding-left: -5px;
         }
       }
+
+      & > li > ul > li > ul > div {
+        display: flex;
+        justify-content: flex-end;
+        width: fit-content;
+        white-space: nowrap;
+
+        & > div {
+          padding-left: 0 !important;
+        }
+
+        &:hover {
+          background-color: var(--dremio--color--neutral--200);
+        }
+      }
+
       &::before {
         content: "{";
       }

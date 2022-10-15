@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.store.mfunctions;
 
+import static com.dremio.exec.catalog.MetadataObjectsUtils.toProtostuff;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -36,22 +40,34 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.DatasetSplitAffinity;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.MaterializedSplitsPointer;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
+import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.MFunctionCatalogMetadata;
+import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.tablefunctions.MFunctionTranslatableTable;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.namespace.proto.EntityId;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 
 /**
@@ -61,18 +77,18 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TableFilesMFunctionTranslatableTableImpl.class);
 
   /*
-   * Underlying Table config. It should provide info like metadata location, tablePath
+   * Underlying Table config. It should provide info like icebergMetadata, tablePath
    */
   private final DatasetConfig underlyingTableConfig;
-  private final DatasetHandle handle;
+  private final Supplier<Optional<DatasetHandle>> handleSupplier;
   private final StoragePlugin plugin;
   private final DatasetRetrievalOptions options;
-  private static final int DEFAULT_RECORD_COUNT = 100_000;
+  private static final long DEFAULT_RECORD_COUNT = 100_000L;
 
   public TableFilesMFunctionTranslatableTableImpl(
     MFunctionCatalogMetadata catalogMetadata,
     DatasetConfig underlyingTableConfig,
-    DatasetHandle handle,
+    Supplier<Optional<DatasetHandle>> handleSupplier,
     StoragePlugin plugin,
     DatasetRetrievalOptions options,
     String user,
@@ -80,7 +96,7 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
   ) {
     super(catalogMetadata, user, complexTypeSupport);
     this.underlyingTableConfig = underlyingTableConfig;
-    this.handle = handle;
+    this.handleSupplier = handleSupplier;
     this.plugin = plugin;
     this.options = options;
   }
@@ -108,7 +124,7 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
     final Supplier<PartitionChunkListing> partitionChunkListing = Suppliers.memoize(this::getPartitionChunkListing);
-    DatasetConfig config = createDatasetConfig(partitionChunkListing);
+    DatasetConfig config =  getDatasetConfig(partitionChunkListing);
     long splitVersion = Optional.of(config)
       .map(DatasetConfig::getReadDefinition)
       .map(ReadDefinition::getSplitVersion)
@@ -123,13 +139,51 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
       1.0d, false, false);
   }
 
+  /**
+   * It provides datasetConfig depends upon plugins.
+   * For nessie underlyingTableConfig would be null, so it construct with dataset handle and partition chunks.
+   * For Filesystemplugin it constructs with underlyingTableConfig using icebergMetadata and stats.
+   * For Hive/Glue it needs extrainfo for readerType.
+   * @param partitionChunkListing
+   * @return
+   */
+  private DatasetConfig getDatasetConfig(Supplier<PartitionChunkListing> partitionChunkListing) {
+    if (underlyingTableConfig == null) {
+      return createDatasetConfig(partitionChunkListing);
+    }
+    DatasetConfig config = createDatasetConfigUsingUnderlyingConfig();
+    if (!(plugin instanceof FileSystemPlugin)) {
+      config.getReadDefinition().setExtendedProperty(toProtostuff(getDatasetMetadata(partitionChunkListing).getExtraInfo()));
+    }
+    return config;
+  }
+
+  /**  PartitionChunks for FileSystemPlugin can throw error if it tried to load iceberg table using incorrect catalog.
+   * So constructing at raw.
+   *
+   * @return
+   */
   private PartitionChunkListing getPartitionChunkListing() {
     try {
-      return plugin.listPartitionChunks(handle, options.asListPartitionChunkOptions(underlyingTableConfig));
+      if (plugin instanceof FileSystemPlugin && underlyingTableConfig != null) {
+        String splitPath = underlyingTableConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+        List<PartitionValue> partition = Collections.emptyList();
+        IcebergProtobuf.IcebergDatasetSplitXAttr splitExtended = IcebergProtobuf.IcebergDatasetSplitXAttr.newBuilder()
+          .setPath(splitPath)
+          .build();
+        List<DatasetSplitAffinity> splitAffinities = new ArrayList<>();
+        DatasetSplit datasetSplit = DatasetSplit.of(
+          splitAffinities, 0, 0, splitExtended::writeTo);
+        PartitionChunkListingImpl partitionChunkListing = new PartitionChunkListingImpl();
+        partitionChunkListing.put(partition, datasetSplit);
+        return partitionChunkListing;
+      }
+      Preconditions.checkArgument(handleSupplier.get().isPresent());
+      return plugin.listPartitionChunks(handleSupplier.get().get(), options.asListPartitionChunkOptions(underlyingTableConfig));
     } catch (ConnectorException e) {
       throw UserException.validationError(e).buildSilently();
     }
-  }
+    }
 
   private List<PartitionProtobuf.PartitionChunk> toPartitionChunks(Supplier<PartitionChunkListing> listingSupplier) {
     final Iterator<? extends PartitionChunk> chunks = listingSupplier.get()
@@ -151,30 +205,85 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
    * @return new dataset config with existing icebergMetadata and FileConfig
    */
   private DatasetConfig createDatasetConfig(Supplier<PartitionChunkListing> listingSupplier) {
+    Preconditions.checkArgument(handleSupplier.get().isPresent());
+    final DatasetHandle handle = handleSupplier.get().get();
     final DatasetConfig toReturn = MetadataObjectsUtils.newShallowConfig(handle);
     toReturn.setName("table_files" + "(" + (handle.getDatasetPath().getName() + ")")); //eg -> table_files('table')
-    final DatasetMetadata datasetMetadata;
+    final DatasetMetadata datasetMetadata = getDatasetMetadata(listingSupplier);
+
+    MetadataObjectsUtils.overrideExtended(toReturn, datasetMetadata, Optional.empty(),
+      DEFAULT_RECORD_COUNT, options.maxMetadataLeafColumns());
+    //For iceberg, data files contents fetched from Manifest file which is of AVRO type.
+    //To understand the datasetConfig correctly, it should be set to correct fileType instead of native iceberg.
+    if (toReturn.getPhysicalDataset() == null || toReturn.getPhysicalDataset().getIcebergMetadata() == null) {
+      PhysicalDataset physicalDataset = new PhysicalDataset();
+      physicalDataset.setIcebergMetadata(underlyingTableConfig.getPhysicalDataset().getIcebergMetadata());
+      toReturn.setPhysicalDataset(physicalDataset);
+    }
+    if (toReturn.getPhysicalDataset().getFormatSettings() != null) {
+      toReturn.getPhysicalDataset().getFormatSettings().setType(FileType.AVRO);
+    }
+    //Set recordCount with DataFiles, which is present with manifestStats
+    if (datasetMetadata.getManifestStats() != null) {
+      final long datasetRecordCount = datasetMetadata.getManifestStats().getRecordCount();
+      toReturn.getReadDefinition().setScanStats(new ScanStats()
+        .setScanFactor(datasetMetadata.getManifestStats().getScanFactor())
+        .setType(datasetMetadata.getManifestStats().isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT : ScanStatsType.NO_EXACT_ROW_COUNT)
+        .setRecordCount(datasetRecordCount >= 0 ? datasetRecordCount : DEFAULT_RECORD_COUNT));
+    } else {
+      toReturn.getReadDefinition().setScanStats(new ScanStats()
+        .setScanFactor(ScanCostFactor.EASY.getFactor())
+        .setType(ScanStatsType.NO_EXACT_ROW_COUNT)
+        .setRecordCount(DEFAULT_RECORD_COUNT));
+    }
+
+    return toReturn;
+  }
+
+  private DatasetMetadata getDatasetMetadata(Supplier<PartitionChunkListing> listingSupplier) {
     try {
-      datasetMetadata = plugin.getDatasetMetadata(handle, listingSupplier.get(),
+      return plugin.getDatasetMetadata(handleSupplier.get().get(), listingSupplier.get(),
         options.asGetMetadataOptions(null));
     } catch (ConnectorException e) {
       throw UserException.validationError(e)
         .buildSilently();
     }
+  }
+  /**
+   * Here we are using the information that is already present in the underlying configuration,
+   * which in turn is present in kv store. This is being used only for internal iceberg tables.
+   * @return
+   */
+  public DatasetConfig createDatasetConfigUsingUnderlyingConfig() {
+    final DatasetConfig shallowConfig = new DatasetConfig();
 
-    MetadataObjectsUtils.overrideExtended(toReturn, datasetMetadata, Optional.empty(),
-      DEFAULT_RECORD_COUNT, options.maxMetadataLeafColumns());
-    //For iceberg, data files contents fetched from Manifest file which is of AVRO type.
-    //To understand the datasetConfig correctly it should be set to correct fileType instead of native iceberg.
-    if (toReturn.getPhysicalDataset().getFormatSettings() != null) {
-      toReturn.getPhysicalDataset().getFormatSettings().setType(FileType.AVRO);
+    shallowConfig.setId(new EntityId()
+      .setId(UUID.randomUUID().toString()));
+    shallowConfig.setCreatedAt(System.currentTimeMillis());
+    shallowConfig.setName(underlyingTableConfig.getName());
+    shallowConfig.setFullPathList(underlyingTableConfig.getFullPathList());
+    shallowConfig.setType(underlyingTableConfig.getType());
+    shallowConfig.setSchemaVersion(underlyingTableConfig.getSchemaVersion());
+    final BatchSchema batchSchema = IcebergMetadataFunctionsSchema.getTableFilesRecordSchema();
+    shallowConfig.setRecordSchema(batchSchema.toByteString());
+
+    final ReadDefinition readDefinition = new ReadDefinition();
+    readDefinition.setScanStats(underlyingTableConfig.getReadDefinition().getManifestScanStats());
+    readDefinition.setManifestScanStats(underlyingTableConfig.getReadDefinition().getManifestScanStats());
+    shallowConfig.setReadDefinition(readDefinition);
+
+    shallowConfig.setPhysicalDataset(underlyingTableConfig.getPhysicalDataset());
+
+    if (options.getTimeTravelRequest() instanceof TimeTravelOption.TimestampRequest) {
+      throw UserException.validationError()
+        .message("TIMESTAMP syntax is not supported on internal iceberg table with table_files function.")
+        .buildSilently();
     }
-    //Set recordCount with DataFiles , which is present with manifestStats
-    final long datasetRecordCount = datasetMetadata.getManifestStats().getRecordCount();
-    toReturn.getReadDefinition().setScanStats(new ScanStats()
-      .setScanFactor(datasetMetadata.getManifestStats().getScanFactor())
-      .setType(datasetMetadata.getManifestStats().isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT : ScanStatsType.NO_EXACT_ROW_COUNT)
-      .setRecordCount(datasetRecordCount >= 0 ? datasetRecordCount : DEFAULT_RECORD_COUNT));
-    return toReturn;
+
+    if (options.getTimeTravelRequest() instanceof TimeTravelOption.SnapshotIdRequest) {
+      Long snapshotId = Long.parseLong(((TimeTravelOption.SnapshotIdRequest) options.getTimeTravelRequest()).getSnapshotId());
+      shallowConfig.getPhysicalDataset().getIcebergMetadata().setSnapshotId(snapshotId);
+    }
+    return shallowConfig;
   }
 }

@@ -16,6 +16,7 @@
 .masked-input {
   margin: 2;
   background-color: transparent;
+  display: flex;
 
   &__body {
     display: inline-flex;
@@ -24,5 +25,8 @@
 
   &__sep {
     margin-right: 2px;
+  }
+  .disabled {
+    color: var(--dremio--color--text--disabled);
   }
 }

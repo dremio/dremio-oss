@@ -15,9 +15,9 @@
  */
 package com.dremio.dac.model.spaces;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.String.format;
-import static org.apache.parquet.Preconditions.checkArgument;
-import static org.apache.parquet.Strings.isNullOrEmpty;
 
 import java.util.List;
 import java.util.Map;

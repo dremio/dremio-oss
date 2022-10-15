@@ -78,6 +78,8 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.util.InvalidQueryErrorConverter;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.util.ViewFieldsHelper;
@@ -149,13 +151,29 @@ public class DatasetTool {
       DatasetVersionResourcePath tipVersion,
       Integer limit,
       String engineName,
-      String sessionId
+      String sessionId,
+      String triggerJob
       ) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
+    if (shouldTriggerJob(triggerJob)) {
+      SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId);
+      JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion(), JobStatusListener.NO_OP);
+      return createPreviewResponse(newDataset, jobData, tipVersion, allocator, limit, true);
+    } else {
+      return getInitialPreviewResponse(newDataset, null, new SessionId().setId(sessionId), tipVersion, null, null);
+    }
+  }
 
-    SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId);
-    JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion(), JobStatusListener.NO_OP);
-
-    return createPreviewResponse(newDataset, jobData, tipVersion, allocator, limit, true);
+  // Convert String to boolean, but with default as true.
+  // Only if s is exactly matching false, then it return false
+  // Otherwise it returns true.
+  // s - null or empty -> true
+  // s - true -> true
+  // s - false -> false
+  // s - falsee -> true
+  // s - truee -> true
+  // s - xyz -> true
+  private boolean shouldTriggerJob(String s) {
+    return (s == null) || !"false".equalsIgnoreCase(s);
   }
 
   private String username(){
@@ -221,6 +239,13 @@ public class DatasetTool {
       Throwables.throwIfUnchecked(ex);
       throw new RuntimeException(ex);
     }
+    return getInitialPreviewResponse(datasetUI, job.getJobId(), job.getSessionId(), tipVersion, dataLimited, error);
+  }
+
+  private InitialPreviewResponse getInitialPreviewResponse(VirtualDatasetUI datasetUI, JobId jobId, SessionId sessionId,
+                                                           DatasetVersionResourcePath tipVersion,
+                                                           JobDataFragment dataLimited,
+                                                           ApiErrorModel<?> error) throws DatasetVersionNotFoundException, NamespaceException {
     final History history = getHistory(tipVersion.getDataset(), datasetUI.getVersion(), tipVersion.getVersion());
     // VBesschetnov 2019-01-08
     // this is requires as BE generates apiLinks, that is used by UI to send requests for preview/run. In case, when history
@@ -231,8 +256,8 @@ public class DatasetTool {
     datasetUI.setFullPathList(tipVersion.getDataset().toPathList());
     return InitialPreviewResponse.of(
       newDataset(datasetUI, tipVersion.getVersion()),
-      job.getJobId(),
-      job.getSessionId(),
+      jobId,
+      sessionId,
       dataLimited,
       true,
       history,
@@ -550,7 +575,7 @@ public class DatasetTool {
     try {
       final MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
       final QueryType queryType = prepare ? QueryType.PREPARE_INTERNAL : QueryType.UI_PREVIEW;
-      final JobData jobData = executor.runQueryWithListener(query, queryType, TMP_DATASET_PATH, newDataset.getVersion(), listener, runInSameThread);
+      final JobData jobData = executor.runQueryWithListener(query, queryType, TMP_DATASET_PATH, newDataset.getVersion(), listener, runInSameThread, true);
       jobId = jobData.getJobId();
       jobDataSessionId = jobData.getSessionId();
       final QueryMetadata queryMetadata = listener.getMetadata();
@@ -812,9 +837,10 @@ public class DatasetTool {
           currentPath = new DatasetPath(previousVersion.getDatasetPath());
         }
       } while (previousVersion != null);
-    } catch (DatasetNotFoundException e) {
-      // If for some reason the history chain is broken/corrupt, we will get an DatasetNotFoundException.  If we have a
-      // partial history, we return it.  If no history items are found, rethrow the exception.
+    } catch (DatasetNotFoundException | DatasetVersionNotFoundException e) {
+      // If for some reason the history chain is broken/corrupt, we will get an DatasetNotFoundException or
+      // DatasetVersionNotFoundException.  If we have a partial history, we return it.  If no history items are found,
+      // rethrow the exception.
       if (currentDataset == null) {
         throw e;
       }
@@ -825,17 +851,25 @@ public class DatasetTool {
 
     Collections.reverse(historyItems);
 
+    final Catalog catalog = datasetService.getCatalog();
+    final NamespaceKey namespaceKey = new NamespaceKey(datasetPath.toPathList());
+    final boolean versioned =
+        CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, catalog);
+
     // isEdited
     DatasetVersion savedVersion = null;
     try {
-      savedVersion = datasetService.get(datasetPath).getVersion();
+      savedVersion =
+          versioned
+              ? datasetService.getVersion(datasetPath, tipVersion, true).getVersion()
+              : datasetService.get(datasetPath).getVersion();
     } catch (DatasetNotFoundException | NamespaceException e) {
       // do nothing
     }
 
     boolean isEdited = savedVersion == null ?
         currentDataset.getDerivation() == Derivation.SQL || historyItems.size() > 1 :
-        !tipVersion.equals(savedVersion);
+        (!versioned && !tipVersion.equals(savedVersion));
 
     return new History(historyItems, versionToMarkCurrent, currentDataset.getVersion().getValue(), isEdited);
   }
@@ -863,19 +897,19 @@ public class DatasetTool {
     NameDatasetRef previousVersion;
     VirtualDatasetUI currentDataset = versionToSave;
     boolean previousVersionRequiresRename;
-    // Rename the last history item, and all previous history items that are unnamed.
+    // Rename the last history item, and all previous history items that are unnamed or with different path.
     // The loop terminates when hitting the end of the history or a named history item, this
     // means that the history for one dataset can contain history items that are stored
     // with a name it had previously.
     do {
       previousVersion = currentDataset.getPreviousVersion();
-      // change the path in this history item to the new one, will be peristed below
-      // after possibly changing the link the the previous version if it will also be renamed
+      // change the path in this history item to the new one, will be persisted below
+      // after possibly changing the link to the previous version if it will also be renamed
       currentDataset.setFullPathList(newPath.toPathList());
       if (previousVersion != null) {
         previousPath = new DatasetPath(previousVersion.getDatasetPath());
         previousDatasetVersion = new DatasetVersion(previousVersion.getDatasetVersion());
-        previousVersionRequiresRename = previousPath.equals(TMP_DATASET_PATH);
+        previousVersionRequiresRename = !previousPath.equals(newPath);
         if (previousVersionRequiresRename) {
           // create a new link to the previous dataset with a changed dataset path
           NameDatasetRef prev = new NameDatasetRef()

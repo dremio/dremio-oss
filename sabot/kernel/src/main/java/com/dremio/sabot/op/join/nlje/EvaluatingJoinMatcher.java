@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.common.AutoCloseables;
@@ -31,6 +30,7 @@ import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
 /**

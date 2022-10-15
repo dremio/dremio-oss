@@ -105,6 +105,17 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       // Legacy data was stored only on `main`, so migrate data only on this branch.
       ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
 
+      // The upgrade is performed in two phases:
+      // 1) Scan the commit log to find ICEBERG_METADATA_POINTER entries. Those entries can only exist in
+      // on-ref state (i.e. directly in commit log "put" operations) because they were made by Nessie versions
+      // before the global state was introduced.
+      // 2) Scan the commit log again and convert ICEBERG_METADATA_POINTER entries to contemporary format.
+      // The upgrade could probably be done in one pass, but we keep the two pass approach to absolutely avoid
+      // making unnecessary changes during upgrades.
+      // Note: the previous approach of using DatabaseAdapter.values(...) to load the data in batches of N keys
+      // still showed suboptimal performance because in Nessie 0.22.0 (used in Dremio v. 20.*) the adapter did not
+      // store relevant commit IDs in key lists (cf. Nessie OSS PR#3592), which resulted in re-scanning the commit
+      // log for every values(...) call.
       Converter converter = new Converter(worker, adapter, main.getHash());
       if (!converter.upgradeRequired()) {
         AdminLogger.log("No ICEBERG_METADATA_POINTER entries found. Nessie data was not changed.");
@@ -247,15 +258,15 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       AtomicLong legacy = new AtomicLong();
       AtomicLong current = new AtomicLong();
 
-      processValues((logEntry, kb) -> {
-        ObjectTypes.Content.ObjectTypeCase refType = parseContent(kb.getValue()).getObjectTypeCase();
+      processValues((logEntry, keyWithBytes) -> {
+        ObjectTypes.Content.ObjectTypeCase refType = parseContent(keyWithBytes.getValue()).getObjectTypeCase();
 
         if (refType == ObjectTypes.Content.ObjectTypeCase.ICEBERG_METADATA_POINTER) {
           legacy.incrementAndGet();
-          AdminLogger.log("Key {} refers to a legacy entry", kb.getKey());
+          AdminLogger.log("Key {} refers to a legacy entry", keyWithBytes.getKey());
         } else {
           current.incrementAndGet();
-          AdminLogger.log("Key {} refers to an entry in current format", kb.getKey());
+          AdminLogger.log("Key {} refers to an entry in current format", keyWithBytes.getKey());
         }
       });
 

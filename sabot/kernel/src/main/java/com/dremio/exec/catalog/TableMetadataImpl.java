@@ -43,14 +43,17 @@ public class TableMetadataImpl implements TableMetadata {
   private final DatasetConfig config;
   private final SplitsPointer splits;
   private final String user;
+  private final List<String> primaryKey;
 
   private BatchSchema schema;
 
-  public TableMetadataImpl(StoragePluginId pluginId, DatasetConfig config, String user, SplitsPointer splits) {
+  public TableMetadataImpl(StoragePluginId pluginId, DatasetConfig config, String user,
+                           SplitsPointer splits, List<String> primaryKey) {
     this.pluginId = Preconditions.checkNotNull(pluginId);
     this.config = config;
     this.splits = splits;
     this.user = user;
+    this.primaryKey = primaryKey;
   }
 
   @Override
@@ -86,19 +89,19 @@ public class TableMetadataImpl implements TableMetadata {
   public TableMetadata prune(SearchQuery partitionFilterQuery) throws NamespaceException {
     SplitsPointer splits2 = splits.prune(partitionFilterQuery);
     if(splits2 != splits){
-      return new TableMetadataImpl(pluginId, config, user, splits2);
+      return new TableMetadataImpl(pluginId, config, user, splits2, primaryKey);
     }
     return this;
   }
 
   @Override
   public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) throws NamespaceException {
-    return new TableMetadataImpl(pluginId, config, user, splits.prune(partitionPredicate));
+    return new TableMetadataImpl(pluginId, config, user, splits.prune(partitionPredicate), primaryKey);
   }
 
   @Override
   public TableMetadata prune(List<PartitionChunkMetadata> newPartitionChunks) throws NamespaceException {
-    return new TableMetadataImpl(pluginId, config, user, MaterializedSplitsPointer.prune(splits, newPartitionChunks));
+    return new TableMetadataImpl(pluginId, config, user, MaterializedSplitsPointer.prune(splits, newPartitionChunks), primaryKey);
   }
 
   @Override
@@ -173,5 +176,10 @@ public class TableMetadataImpl implements TableMetadata {
   @Override
   public DatasetConfig getDatasetConfig() {
     return config;
+  }
+
+  @Override
+  public List<String> getPrimaryKey() {
+    return primaryKey;
   }
 }

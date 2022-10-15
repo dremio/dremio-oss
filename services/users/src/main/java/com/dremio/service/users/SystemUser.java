@@ -27,10 +27,11 @@ public class SystemUser {
    * System user running the Dremio service.
    */
   public static final String SYSTEM_USERNAME = UserConstants.SYSTEM_USERNAME;
+  public static final UID SYSTEM_UID = new UID(UserConstants.SYSTEM_ID);
 
   public static final User SYSTEM_USER =
       SimpleUser.newBuilder()
-          .setUID(new UID("1")) // Same UID always.
+          .setUID(SYSTEM_UID) // Same UID always.
           .setUserName(SYSTEM_USERNAME)
           .setCreatedAt(System.currentTimeMillis())
           .setEmail("dremio@dremio.net")
@@ -46,4 +47,13 @@ public class SystemUser {
     return SYSTEM_USERNAME.equals(username);
   }
 
+  /**
+   * Determines if the UID is the system UID
+   *
+   * @param uid the UID to check
+   * @return
+   */
+  public static boolean isSystemUID(UID uid) {
+    return SYSTEM_UID.equals(uid);
+  }
 }

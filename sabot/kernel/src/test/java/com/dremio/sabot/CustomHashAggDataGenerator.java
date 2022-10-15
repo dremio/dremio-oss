@@ -52,9 +52,9 @@ import com.google.common.base.Preconditions;
  * provided by the consumer.
  */
 public class CustomHashAggDataGenerator implements Generator {
-  private static final FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private static final ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
-  private static final CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
+  private static final FieldType DECIMAL_FIELD_TYPE = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal DECIMAL_ARROWTYPE = (ArrowType.Decimal) DECIMAL_FIELD_TYPE.getType();
+  private static final CompleteType DECIMAL_COMPLETE_TYPE = new CompleteType(DECIMAL_ARROWTYPE, new ArrayList<>());
 
   private static final Field INT_KEY = CompleteType.INT.toField("INT_KEY");
   private static final Field BIGINT_KEY = CompleteType.BIGINT.toField("BIGINT_KEY");
@@ -62,13 +62,13 @@ public class CustomHashAggDataGenerator implements Generator {
   private static final Field FLOAT_KEY = CompleteType.FLOAT.toField("FLOAT_KEY");
   private static final Field DOUBLE_KEY = CompleteType.DOUBLE.toField("DOUBLE_KEY");
   private static final Field BOOLEAN_KEY = CompleteType.BIT.toField("BOOLEAN_KEY");
-  private static final Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
+  private static final Field DECIMAL_KEY = DECIMAL_COMPLETE_TYPE.toField("DECIMAL_KEY");
 
   private static final Field INT_MEASURE = CompleteType.INT.toField("INT_MEASURE");
   private static final Field BIGINT_MEASURE = CompleteType.BIGINT.toField("BIGINT_MEASURE");
   private static final Field FLOAT_MEASURE = CompleteType.FLOAT.toField("FLOAT_MEASURE");
   private static final Field DOUBLE_MEASURE = CompleteType.DOUBLE.toField("DOUBLE_MEASURE");
-  private static final Field DECIMAL_MEASURE = decimalCompleteType.toField("DECIMAL_MEASURE");
+  private static final Field DECIMAL_MEASURE = DECIMAL_COMPLETE_TYPE.toField("DECIMAL_MEASURE");
 
   /* arrays on heap that will store column values as we generate data for the schema */
   private Integer[] intKeyValues;
@@ -126,11 +126,11 @@ public class CustomHashAggDataGenerator implements Generator {
   private static final int GROUP_INTERVAL_PER_BATCH = 20;
 
   private int numRows;
-  private final HashMap<Key, Value> aggregatedResults = new HashMap<>();
+  private final Map<Key, Value> aggregatedResults = new HashMap<>();
 
   private int minLargeVarCharLen = 0;
 
-  private void InternalInit(int numRows, BufferAllocator allocator, final boolean largeVarChars)
+  private void internalInit(int numRows, BufferAllocator allocator, final boolean largeVarChars)
   {
     this.numRows = numRows;
     this.batches = numRows/BATCH_SIZE;
@@ -143,7 +143,7 @@ public class CustomHashAggDataGenerator implements Generator {
                                     final boolean largeVarChars) {
     Preconditions.checkState(numRows > 0 && numRows%BATCH_SIZE == 0,
                              "ERROR: total number of rows should be greater than 0");
-    InternalInit(numRows, allocator, largeVarChars);
+    internalInit(numRows, allocator, largeVarChars);
   }
 
   public CustomHashAggDataGenerator(int numRows, BufferAllocator allocator,
@@ -152,7 +152,7 @@ public class CustomHashAggDataGenerator implements Generator {
       "ERROR: total number of rows should be greater than 0");
 
     this.minLargeVarCharLen = minVarCharLen;
-    InternalInit(numRows, allocator, true);
+    internalInit(numRows, allocator, true);
   }
 
   private void createBigSchemaAndInputContainer(final BufferAllocator allocator) {
@@ -416,14 +416,14 @@ public class CustomHashAggDataGenerator implements Generator {
              rows).orderInsensitive();
   }
 
-  private static class Key {
-    final int intKey;
-    final long bigintKey;
-    final String varKey;
-    final int floatKey;
-    final long doubleKey;
-    final boolean booleanKey;
-    final BigDecimal decimalKey;
+  private static final class Key {
+    private final int intKey;
+    private final long bigintKey;
+    private final String varKey;
+    private final int floatKey;
+    private final long doubleKey;
+    private final boolean booleanKey;
+    private final BigDecimal decimalKey;
 
     Key(final int intKey, final long bigintKey, final String varKey,
         final int floatKey, final long doubleKey, final boolean booleanKey,

@@ -41,7 +41,7 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
   protected WriteStatsListener writeStatsListener;
 
   private EventBasedRecordWriter eventBasedRecordWriter;
-  
+
   public final void setup(final VectorAccessible incoming, OutputEntryListener listener,
                           WriteStatsListener statsListener) throws IOException {
     this.incoming = incoming;
@@ -49,9 +49,9 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
     this.writeStatsListener = statsListener;
     setup();
   }
-  
+
   public abstract void setup() throws IOException;
-  
+
   @Override
   public final int writeBatch(int offset, int length) throws IOException {
     if (this.eventBasedRecordWriter == null) {
@@ -71,6 +71,7 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
   public abstract FieldConverter getNewListConverter(int fieldId, String fieldName, FieldReader reader);
   public abstract FieldConverter getNewUnionConverter(int fieldId, String fieldName, FieldReader reader);
   public abstract FieldConverter getNewNullConverter(int fieldId, String fieldName, FieldReader reader);
+  public abstract FieldConverter getNewStructConverter(int fieldId, String fieldName, FieldReader reader);
 
 <#list vv.types as type>
   <#list type.minor as minor>

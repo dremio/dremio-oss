@@ -23,21 +23,23 @@ import static com.dremio.exec.store.iceberg.model.IcebergConstants.FILE_VERSION;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.Preconditions;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
@@ -50,7 +52,6 @@ import org.apache.iceberg.StructLike;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
-import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.LegacyProtobufSerializer;
@@ -60,9 +61,10 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.SystemSchemas;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
-import com.google.protobuf.ByteString;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
@@ -79,25 +81,27 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   private final BatchSchema outputSchema;
   private final Map<String, Field> nameToFieldMap;
   private final Set<String> invalidColumnsForPruning;
-  private final HashMap<Field, ValueVector> columnStatsVectorMap = new HashMap<>();
+  private final Map<Field, ValueVector> columnStatsVectorMap = new HashMap<>();
   private final ManifestContent manifestContent;
 
   private Map<String, Integer> colToIDMap;
   private VarBinaryVector inputColIds;
   private VarCharVector outputFilePath;
   private BigIntVector outputFileSize;
-  private IntVector outputFileType;
   private BigIntVector outputSequenceNumber;
   private IntVector outputSpecId;
   private VarBinaryVector outputPartitionKey;
   private VarBinaryVector outputPartitionInfo;
   private VarBinaryVector outputColIds;
+  private StructVector outputDeleteFile;
   private PartitionSpec icebergPartitionSpec;
   private Map<String, Integer> partColToKeyMap;
+  private ArrowBuf tempBuf;
 
   private boolean doneWithCurrentEntry;
 
-  public PathGeneratingManifestEntryProcessor(ManifestScanTableFunctionContext functionContext) {
+  public PathGeneratingManifestEntryProcessor(OperatorContext context,
+      ManifestScanTableFunctionContext functionContext) {
     outputSchema = functionContext.getFullSchema();
     BatchSchema tableSchema = functionContext.getTableSchema();
     nameToFieldMap = tableSchema.getFields().stream().collect(Collectors.toMap(f -> f.getName().toLowerCase(), f -> f));
@@ -108,6 +112,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
         null;
     invalidColumnsForPruning = IcebergUtils.getInvalidColumnsForPruning(partitionSpecMap);
     manifestContent = functionContext.getManifestContent();
+    tempBuf = context.getManagedBuffer();
   }
 
   @Override
@@ -123,8 +128,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
       outputPartitionInfo = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.PARTITION_INFO);
       outputColIds = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.COL_IDS);
     } else {
-      outputFilePath = (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DELETEFILE_PATH);
-      outputFileType = (IntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.FILE_CONTENT);
+      outputDeleteFile = (StructVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DELETE_FILE);
     }
 
     for (Field field : outputSchema.getFields()) {
@@ -158,23 +162,48 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     }
     String modifiedPath = manifestEntry.file().path().toString();
     byte[] path = modifiedPath.getBytes();
-    outputFilePath.setSafe(startOutIndex, path);
+
     outputSequenceNumber.setSafe(startOutIndex, manifestEntry.sequenceNumber());
     outputSpecId.setSafe(startOutIndex, manifestEntry.file().specId());
     outputPartitionKey.setSafe(startOutIndex, serializePartitionKey(manifestEntry.file().partition()));
 
     long version = PathUtils.getQueryParam(manifestEntry.file().path().toString(), FILE_VERSION, 0L, Long::parseLong);
     if (manifestContent == ManifestContent.DATA) {
+      outputFilePath.setSafe(startOutIndex, path);
       outputFileSize.setSafe(startOutIndex, manifestEntry.file().fileSizeInBytes());
       outputColIds.setSafe(startOutIndex, inputColIds.get(0));
-      PartitionProtobuf.NormalizedPartitionInfo partitionInfo = getDataFilePartitionInfo(manifestEntry.file(), version);
+      Schema fileSchema = icebergPartitionSpec.schema();
+      PartitionProtobuf.NormalizedPartitionInfo partitionInfo = ManifestEntryProcessorHelper.getDataFilePartitionInfo(
+        icebergPartitionSpec,
+        invalidColumnsForPruning,
+        fileSchema,
+        nameToFieldMap,
+        manifestEntry.file(),
+        version);
       outputPartitionInfo.setSafe(startOutIndex, IcebergSerDe.serializeToByteArray(partitionInfo));
     } else {
-      // There are earlier checks to block queries if a table has equality deletes, checking here again just to
-      // ensure we are only passing through position delete files.
-      Preconditions.checkState(manifestEntry.file().content() == FileContent.POSITION_DELETES,
-          "Equality deletes are not supported.");
-      outputFileType.setSafe(startOutIndex, manifestEntry.file().content().id());
+      NullableStructWriter structWriter = outputDeleteFile.getWriter();
+      structWriter.setPosition(startOutIndex);
+      structWriter.start();
+      tempBuf = tempBuf.reallocIfNeeded(path.length);
+      tempBuf.setBytes(0, path);
+      structWriter.varChar(SystemSchemas.PATH).writeVarChar(0, path.length, tempBuf);
+      structWriter.integer(SystemSchemas.FILE_CONTENT).writeInt(manifestEntry.file().content().id());
+      structWriter.bigInt(SystemSchemas.RECORD_COUNT).writeBigInt(manifestEntry.file().recordCount());
+      BaseWriter.ListWriter listWriter = structWriter.list(SystemSchemas.EQUALITY_IDS);
+      if (manifestEntry.file().content() == FileContent.EQUALITY_DELETES) {
+        List<Integer> equalityIds = manifestEntry.file().equalityFieldIds();
+        Preconditions.checkState(equalityIds != null && equalityIds.size() > 0,
+            "Equality delete file %s missing required equality_ids field", manifestEntry.file().path());
+        listWriter.startList();
+        for (Integer equalityId : equalityIds) {
+          listWriter.integer().writeInt(equalityId);
+        }
+        listWriter.endList();
+      } else {
+        listWriter.writeNull();
+      }
+      structWriter.end();
     }
 
     Map<String, Object> columnStats = getColumnStats(manifestEntry.file(), version);
@@ -203,34 +232,6 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     return !doneWithCurrentEntry && maxOutputCount > 0;
   }
 
-  private PartitionProtobuf.NormalizedPartitionInfo getDataFilePartitionInfo(
-      ContentFile<? extends ContentFile<?>> currentFile, long version) {
-    PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1));
-
-    Schema fileSchema = icebergPartitionSpec.schema();
-    StructLike partitionStruct = currentFile.partition();
-    for (int partColPos = 0; partColPos < partitionStruct.size(); ++partColPos) {
-      PartitionField field = icebergPartitionSpec.fields().get(partColPos);
-      /*
-       * we can not send partition column value for 1. nonIdentity columns or 2. columns which was not partition but later added as partition columns.
-       * because in case 1. information will be partial and scan will get incorrect values
-       * in case2. initially when column was not partition we don't have value.
-       */
-      if (invalidColumnsForPruning != null && invalidColumnsForPruning.contains(fileSchema.findField(field.sourceId()).name())) {
-        continue;
-      }
-
-      PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
-      String partColName = fileSchema.findColumnName(field.sourceId());
-      partitionValueBuilder.setColumn(partColName);
-      Object value = partitionStruct.get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
-      writePartitionValue(partitionValueBuilder, value, nameToFieldMap.get(partColName.toLowerCase()));
-      partitionInfoBuilder.addValues(partitionValueBuilder.build());
-    }
-    addImplicitCols(partitionInfoBuilder, version);
-    return partitionInfoBuilder.build();
-  }
-
   private Map<String, Integer> getColToIDMap() {
     if (colToIDMap == null) {
       Preconditions.checkArgument(inputColIds.getValueCount() > 0);
@@ -246,48 +247,6 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     } else {
       return colToIDMap;
     }
-  }
-
-  private void writePartitionValue(PartitionProtobuf.PartitionValue.Builder partitionValueBuilder, Object value, Field field) {
-    if (value == null) {
-      return;
-    }
-    if (value instanceof Long) {
-      if (field.getType().equals(CompleteType.TIMESTAMP.getType())) {
-        partitionValueBuilder.setLongValue((Long) value / 1_000);
-      } else if (field.getType().equals(CompleteType.TIME.getType())) {
-        partitionValueBuilder.setIntValue((int) ((Long) value / 1_000));
-      } else {
-        partitionValueBuilder.setLongValue((Long) value);
-      }
-    } else if (value instanceof Integer) {
-      if (field.getType().equals(CompleteType.DATE.getType())) {
-        partitionValueBuilder.setLongValue(TimeUnit.DAYS.toMillis((Integer) value));
-      } else {
-        partitionValueBuilder.setIntValue((Integer) value);
-      }
-    } else if (value instanceof String) {
-      partitionValueBuilder.setStringValue((String) value);
-    } else if (value instanceof Double) {
-      partitionValueBuilder.setDoubleValue((Double) value);
-    } else if (value instanceof Float) {
-      partitionValueBuilder.setFloatValue((Float) value);
-    } else if (value instanceof Boolean) {
-      partitionValueBuilder.setBitValue((Boolean) value);
-    } else if (value instanceof BigDecimal) {
-      partitionValueBuilder.setBinaryValue(ByteString.copyFrom(((BigDecimal) value).unscaledValue().toByteArray()));
-    } else if (value instanceof ByteBuffer) {
-      partitionValueBuilder.setBinaryValue(ByteString.copyFrom(((ByteBuffer) value).array()));
-    } else {
-      throw new UnsupportedOperationException("Unexpected partition column value type: " + value.getClass());
-    }
-  }
-
-  private void addImplicitCols(PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder, long version) {
-    PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
-    partitionValueBuilder.setColumn(IncrementalUpdateUtils.UPDATE_COLUMN);
-    partitionValueBuilder.setLongValue(version);
-    partitionInfoBuilder.addValues(partitionValueBuilder.build());
   }
 
   private Map<String, Object> getColumnStats(ContentFile<? extends ContentFile<?>> currentFile, long version) {

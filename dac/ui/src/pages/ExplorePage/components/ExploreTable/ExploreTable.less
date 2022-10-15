@@ -15,6 +15,7 @@
  */
 @import "~@app/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
 //but the change is in better direction. Duplicated styles from typography are not loaded
+@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -53,9 +54,9 @@
       top: 30px;
       position: absolute;
       left: 0;
-      border: 1px solid #c2c2c2;
+      border: 1px solid @CONTAINER_BORDER;
       z-index: 3;
-      box-shadow: 1px 1px 5px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: var(--dremio--shadow--layer-1);
       background: #f4f4f4;
       border-radius: 2px;
       font-size: 15px;
@@ -231,6 +232,7 @@
     .action-menu-icon {
       height: 16px;
       width: 16px;
+      color: var(--dremio--color--neutral--600);
       cursor: pointer;
     }
   }

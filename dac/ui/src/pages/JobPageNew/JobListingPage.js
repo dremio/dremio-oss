@@ -74,13 +74,14 @@ const JobListingPage = (props) => {
 
   useEffect(() => {
     handleCluster();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!isEmpty(location.query) && !isEqual(queryState, prevQueryState)) {
       if (!isFromExplorePage)
         dispatchFetchJobsList(queryState, JOB_PAGE_NEW_VIEW_ID);
     }
-  }, [queryState]);
+  }, [queryState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isEmpty(location.query) && location.pathname === "/jobs") {
@@ -90,7 +91,7 @@ const JobListingPage = (props) => {
         );
       }
     }
-  }, [location]);
+  }, [location]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCluster = async () => {
     const clusterInfo = await getClusterInfo();

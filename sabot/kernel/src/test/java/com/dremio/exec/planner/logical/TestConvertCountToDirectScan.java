@@ -32,23 +32,19 @@ public class TestConvertCountToDirectScan extends PlanTestBase {
 
   @Test
   public void testConvertToDirectScanWithNoColStats() throws Exception {
-    try {
-      //Bug 9548
-      String sql = "select count(l_orderkey) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/dremio-no-column-stats.parquet\"";
-      testPlanMatchingPatterns(
-        sql,
-        new String[]{},
-        new String[]{"Values"});
+    //Bug 9548
+    String sql = "select count(l_orderkey) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/dremio-no-column-stats.parquet\"";
+    testPlanMatchingPatterns(
+      sql,
+      new String[]{},
+      new String[]{"Values"});
 
-      testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(60175L)
-        .go();
-    } catch (Exception e) {
-      assert (false);
-    }
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(60175L)
+      .go();
   }
 
   @Test

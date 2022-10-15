@@ -44,7 +44,6 @@ import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestDateTypes extends PopUnitTestBase {
-//    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestDateTypes.class);
 
     @Test
     public void testDate() throws Exception {
@@ -225,7 +224,7 @@ public class TestDateTypes extends PopUnitTestBase {
             QueryDataBatch batch = results.get(0);
             assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
-            String result[] = {"2008-02-27",
+            String[] result = {"2008-02-27",
                                "2008-02-27 01:02:03.000",
                                "10:11:13.999",
                                "2 years 2 months 3 days 0:1:3.89"};

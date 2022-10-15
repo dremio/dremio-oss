@@ -18,6 +18,7 @@ package com.dremio.exec.store;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -26,6 +27,7 @@ import org.apache.calcite.tools.RuleSet;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.proto.CatalogRPC;
@@ -42,20 +44,21 @@ import com.google.common.annotations.VisibleForTesting;
  */
 @ThreadSafe
 public interface CatalogService extends AutoCloseable, Service, StoragePluginResolver {
-
-  long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
-  long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(3, TimeUnit.HOURS);
+  long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(
+    Integer.getInteger("dremio.metadata.default_refresh_time_in_hours", 1), TimeUnit.HOURS);
+  long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(
+    Integer.getInteger("dremio.metadata.default_expire_time_in_hours", 3), TimeUnit.HOURS);
   long DEFAULT_AUTHTTLS_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS);
   long CENTURY_MILLIS = TimeUnit.DAYS.toMillis(365 * 100);
 
   @VisibleForTesting
   MetadataPolicy REFRESH_EVERYTHING_NOW = new MetadataPolicy()
-    .setAuthTtlMs(0l)
+    .setAuthTtlMs(0L)
     .setDeleteUnavailableDatasets(true)
     .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
     .setDatasetUpdateMode(UpdateMode.PREFETCH)
-    .setNamesRefreshMs(0l)
-    .setDatasetDefinitionRefreshAfterMs(0l)
+    .setNamesRefreshMs(0L)
+    .setDatasetDefinitionRefreshAfterMs(0L)
     .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
 
   MetadataPolicy DEFAULT_METADATA_POLICY = new MetadataPolicy()
@@ -179,5 +182,7 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
    * @return
    */
   void communicateChangeToExecutors(List<CoordinationProtos.NodeEndpoint> nodeEndpointList, SourceConfig config, CatalogRPC.RpcType rpcType);
+
+  Stream<VersionedPlugin> getAllVersionedPlugins();
 
   }

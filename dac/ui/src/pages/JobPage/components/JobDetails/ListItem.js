@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -27,7 +26,7 @@ class ListItem extends Component {
   render() {
     const { label, children, style } = this.props;
     return (
-      <li style={[styles.base, style]}>
+      <li style={{ ...styles.base, ...(style || {}) }}>
         {label && <span style={styles.label}>{label}:</span>}
         {children}
       </li>
@@ -47,4 +46,4 @@ const styles = {
     color: "#999",
   },
 };
-export default Radium(ListItem);
+export default ListItem;

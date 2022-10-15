@@ -59,7 +59,7 @@ public class UserSession {
   public static final String TRACING_ENABLED = PropertySetter.TRACING_ENABLED.toPropertyName();
 
   public static final BooleanValidator ENABLE_SESSION_IDS =
-    new BooleanValidator("user.session.enable_session_id", false);
+    new BooleanValidator("user.session.enable_session_id", true);
   public static final RangeLongValidator MAX_METADATA_COUNT =
       new RangeLongValidator("client.max_metadata_count", 0, Integer.MAX_VALUE, 0);
 
@@ -188,15 +188,15 @@ public class UserSession {
   private String routingTag;
   private String routingQueue;
   private String routingEngine;
-  private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_1_4;
+  private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_23_0;
   private boolean exposeInternalSources = false;
   private boolean tracingEnabled = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
   private int maxMetadataCount = 0;
-  private final Map<String, VersionContext> sourceVersionMapping = CaseInsensitiveMap.newConcurrentMap();
+  private final CaseInsensitiveMap<VersionContext> sourceVersionMapping = CaseInsensitiveMap.newConcurrentMap();
 
   public static class Builder {
-    UserSession userSession;
+    private UserSession userSession;
 
     public static Builder newBuilder() {
       return new Builder();
@@ -488,7 +488,7 @@ public class UserSession {
     return sourceVersionMapping.getOrDefault(sourceName, VersionContext.NOT_SPECIFIED);
   }
 
-  public Map<String, VersionContext> getSourceVersionMapping() {
+  public CaseInsensitiveMap<VersionContext> getSourceVersionMapping() {
     return CaseInsensitiveMap.newImmutableMap(sourceVersionMapping);
   }
 

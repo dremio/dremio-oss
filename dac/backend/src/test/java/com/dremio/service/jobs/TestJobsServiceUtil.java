@@ -19,7 +19,6 @@ import static com.dremio.service.jobs.JobsProtoUtil.toBuf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,12 +45,9 @@ import com.dremio.service.users.SystemUser;
 public class TestJobsServiceUtil {
   @Test
   public void convertExceptionToFailureInfo() {
-    // Fake logger to not pollute logs
-    org.slf4j.Logger logger = mock(org.slf4j.Logger.class);
-
     SqlParseException parseException = new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
     UserException userException = SqlExceptionHelper.parseError("SELECT FOO", parseException)
-        .build(logger);
+        .buildSilently();
     String verboseError = userException.getVerboseMessage(false);
 
     JobFailureInfo jobFailureInfo = JobsServiceUtil.toFailureInfo(verboseError);
@@ -69,13 +65,12 @@ public class TestJobsServiceUtil {
 
   @Test
   public void convertExceptionToFailureInfo1() {
-    org.slf4j.Logger logger = mock(org.slf4j.Logger.class);
     String errString = "Failure finding function: grouping(varchar)";
     ErrorCollectorImpl errorCollector = new ErrorCollectorImpl();
     errorCollector.addGeneralError(errString);
     SqlParseException parseException = new SqlParseException(errorCollector.toErrorString(), new SqlParserPos(7, 42, 13, 57), null, null, null);
     UserException userException = SqlExceptionHelper.planError("SELECT FOO", parseException)
-      .build(logger);
+      .buildSilently();
     String verboseError = userException.getVerboseMessage(false);
     JobFailureInfo jobFailureInfo = JobsServiceUtil.toFailureInfo(verboseError);
     assertEquals(JobFailureInfo.Type.PLAN, jobFailureInfo.getType());

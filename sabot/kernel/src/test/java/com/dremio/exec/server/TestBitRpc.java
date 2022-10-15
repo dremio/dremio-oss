@@ -32,7 +32,6 @@ import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 
 public class TestBitRpc extends ExecTest {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestBitRpc.class);
 
   @Test
   public void testSendingMonitorBackPressure() throws Exception {

@@ -21,34 +21,19 @@
   output:
     completions:
      -
-      data: "SELECT"
-      detail: "Some SQL keyword"
-      insertText: "SELECT"
       kind: "Keyword"
       label: "SELECT"
      -
-      data: "UPDATE"
-      detail: "Some SQL keyword"
-      insertText: "UPDATE"
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "PERIOD"
+     -
       kind: "Keyword"
       label: "UPDATE"
-     -
-      data: "WITH"
-      detail: "Some SQL keyword"
-      insertText: "WITH"
-      kind: "Keyword"
-      label: "WITH"
-     -
-      data: "DELETE"
-      detail: "Some SQL keyword"
-      insertText: "DELETE"
-      kind: "Keyword"
-      label: "DELETE"
-     -
-      data: "DROP"
-      detail: "Some SQL keyword"
-      insertText: "DROP"
-      kind: "Keyword"
-      label: "DROP"
     functionContext: null
     hasMoreResults: true

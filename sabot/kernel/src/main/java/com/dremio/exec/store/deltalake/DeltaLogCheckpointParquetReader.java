@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.deltalake;
 
+import static com.dremio.exec.ExecConstants.ENABLE_MAP_DATA_TYPE;
 import static com.dremio.exec.ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD_PATH;
@@ -49,7 +50,6 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.Preconditions;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
@@ -83,6 +83,7 @@ import com.dremio.sabot.exec.store.deltalake.proto.DeltaLakeProtobuf;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -160,6 +161,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
         .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
         .dateCorruptionStatus(ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
+        .mapDataTypeEnabled(operatorContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
         .build();
 
       int numRowsRead = 0;
@@ -212,7 +214,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
 
       if (!protocolVersionFound || !schemaFound) {
         UserException.invalidMetadataError()
-          .message("Metadata read Failed. Malformed checkpoint parquet {}", fileAttributes.getPath())
+          .message("Metadata read Failed. Malformed checkpoint parquet %s", fileAttributes.getPath())
           .build(logger);
       }
 
@@ -220,7 +222,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
         estimatedNetBytesAdded = Math.round((netBytesAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
         estimatedNetRecordsAdded = Math.round((netRecordsAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
 
-      logger.debug("Checkpoint parquet file {}, netFilesAdded {}, estiamteBytesAdded {}, estimatedRecordsAdded {}",
+      logger.debug("Checkpoint parquet file {}, netFilesAdded {}, estimatedNetBytesAdded {}, estimatedNetRecordsAdded {}",
         fileAttributes.getPath(), netFilesAdded, estimatedNetBytesAdded, estimatedNetRecordsAdded);
       final DeltaLogSnapshot snap = new DeltaLogSnapshot("UNKNOWN", netFilesAdded,
         estimatedNetBytesAdded, estimatedNetRecordsAdded, netFilesAdded, System.currentTimeMillis(), true);

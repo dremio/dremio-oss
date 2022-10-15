@@ -24,7 +24,7 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 
-public class HiveUDFOperatorWithoutInference extends HiveUDFOperator {
+public final class HiveUDFOperatorWithoutInference extends HiveUDFOperator {
   public HiveUDFOperatorWithoutInference(String name) {
     super(name, DynamicReturnType.INSTANCE);
   }

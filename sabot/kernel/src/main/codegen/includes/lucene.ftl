@@ -15,7 +15,6 @@
     limitations under the License.
 
 -->
-<#-- Copyright 2016 Dremio Corporation -->
 
   <#noparse>
 <LUCENE_DEFAULT, LUCENE_BOOST, LUCENE_RANGE> TOKEN : {

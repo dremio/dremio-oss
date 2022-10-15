@@ -29,14 +29,58 @@ public interface StructuredLogger<T> {
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    */
-  void info(String message, T data);
+  void info( T data, String message);
 
   /**
    * Log the give <code>data</code> at DEBUG Level.
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    */
-  void debug(String message, T data);
+  void debug(T data, String message);
+
+  /**
+   * Log the give <code>data</code> at WARN Level.
+   * @param message - A string message.
+   * @param data - the protobuf instance to be logged.
+   */
+  void warn(T data, String message);
+
+  /**
+   * Log the give <code>data</code> at ERROR Level.
+   * @param message - A string message.
+   * @param data - the protobuf instance to be logged.
+   */
+  void error(T data, String message);
+  /**
+   * Log the give <code>data</code> at INFO Level.
+   * @param message - A string message.
+   * @param data - the protobuf instance to be logged.
+   */
+  void info( T data, String message, Object... args);
+
+  /**
+   * Log the give <code>data</code> at DEBUG Level.
+   * @param message - A string message.
+   * @param data - the protobuf instance to be logged.
+   * @param args - arguments to the parameterized message.
+   */
+  void debug(T data, String message, Object... args);
+
+  /**
+   * Log the give <code>data</code> at WARN Level.
+   * @param message - A string message.
+   * @param data - the protobuf instance to be logged.
+   * @param args - arguments to the parameterized message.
+   */
+  void warn(T data, String message, Object... args);
+
+  /**
+   * Log the give <code>data</code> at ERROR Level.
+   * @param message - A string message.
+   * @param data - the protobuf instance to be logged.
+   * @param args - arguments to the parameterized message.
+   */
+  void error(T data, String message, Object... args);
 
   /**
    * Get a structured Logger instance for Protobuf Objects.
@@ -74,13 +118,43 @@ public interface StructuredLogger<T> {
     }
 
     @Override
-    public void info(String message, T data) {
-      parentLogger.info(message, mapper.apply(data));
+    public void info(T data, String message) {
+      parentLogger.info(mapper.apply(data), message);
     }
 
     @Override
-    public void debug(String message, T data) {
-      parentLogger.debug(message, mapper.apply(data));
+    public void debug(T data, String message) {
+      parentLogger.debug(mapper.apply(data), message);
+    }
+
+    @Override
+    public void warn(T data, String message) {
+      parentLogger.warn(mapper.apply(data), message);
+    }
+
+    @Override
+    public void error(T data, String message) {
+      parentLogger.debug(mapper.apply(data), message);
+    }
+
+    @Override
+    public void info(T data, String message, Object... args) {
+      parentLogger.info(mapper.apply(data), message, args);
+    }
+
+    @Override
+    public void debug(T data, String message, Object... args) {
+      parentLogger.debug(mapper.apply(data), message, args);
+    }
+
+    @Override
+    public void warn(T data, String message, Object... args) {
+      parentLogger.warn(mapper.apply(data), message, args);
+    }
+
+    @Override
+    public void error(T data, String message, Object... args) {
+      parentLogger.debug(mapper.apply(data), message, args);
     }
   }
 }

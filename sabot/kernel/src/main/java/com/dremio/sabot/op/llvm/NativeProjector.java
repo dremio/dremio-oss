@@ -45,8 +45,12 @@ public class NativeProjector implements AutoCloseable {
   private final Set<ReferencedField> referencedFields;
   private final boolean optimize;
   private final boolean targetHostCPU;
+  private final boolean secondaryCacheEnabled;
+  private double exprComplexity;
+  private final double exprComplexityThreshold;
 
-  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize, boolean targetHostCPU) {
+  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize, boolean targetHostCPU,
+                  boolean secondaryCacheEnabled, double exprComplexityThreshold) {
     this.incoming = incoming;
     this.schema = schema;
     this.functionContext = functionContext;
@@ -54,12 +58,20 @@ public class NativeProjector implements AutoCloseable {
     referencedFields =Sets.newLinkedHashSet();
     this.optimize = optimize;
     this.targetHostCPU = targetHostCPU;
+    this.secondaryCacheEnabled = secondaryCacheEnabled;
+    this.exprComplexityThreshold = exprComplexityThreshold;
+    this.exprComplexity = 0.0;
   }
 
   public void add(LogicalExpression expr, FieldVector outputVector) {
     final ExpressionTree tree = GandivaExpressionBuilder.serializeExpr(incoming, expr,
       outputVector, referencedFields, functionContext);
     columnExprList.add(tree);
+
+    // only use secondary cache if expression is sufficiently complex
+    if (secondaryCacheEnabled) {
+      exprComplexity += expr.accept(new ExpressionWorkEstimator(), null);
+    }
   }
 
   public void build() throws GandivaException {
@@ -67,6 +79,9 @@ public class NativeProjector implements AutoCloseable {
     ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
       .withOptimize(optimize)
       .withTargetCPU(targetHostCPU);
+    if (secondaryCacheEnabled && exprComplexity > exprComplexityThreshold) {
+      // enable secondary cache
+    }
     referencedFields.clear();
     projector = Projector.make(root.getSchema(), columnExprList, configOptions);
     columnExprList.clear();

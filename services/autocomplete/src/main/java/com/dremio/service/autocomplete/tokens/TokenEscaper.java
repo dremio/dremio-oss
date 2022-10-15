@@ -18,9 +18,8 @@ package com.dremio.service.autocomplete.tokens;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.common.utils.SqlUtils;
+import com.google.common.base.Preconditions;
 
 /**
  * Class that escapes tokens for sql queries.

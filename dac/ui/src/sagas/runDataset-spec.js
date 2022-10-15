@@ -40,10 +40,17 @@ describe("runDataset saga", () => {
   const jobId = "job";
   const paginationUrl = "pagination";
   const datasetVersion = "123";
+  const isRunOrPreview = true;
 
   describe("handleResumeRunDataset", () => {
     beforeEach(() => {
-      gen = handleResumeRunDataset(datasetVersion, jobId, false, paginationUrl);
+      gen = handleResumeRunDataset(
+        datasetVersion,
+        jobId,
+        false,
+        paginationUrl,
+        isRunOrPreview
+      );
     });
     const customTest = testWithHooks({
       afterFn: () => {
@@ -64,7 +71,8 @@ describe("runDataset saga", () => {
               waitForRunToComplete,
               datasetVersion,
               paginationUrl,
-              jobId
+              jobId,
+              isRunOrPreview
             ),
             locationChange: call(explorePageChanged),
           })
@@ -80,7 +88,8 @@ describe("runDataset saga", () => {
           datasetVersion,
           jobId,
           true,
-          paginationUrl
+          paginationUrl,
+          isRunOrPreview
         );
         // get table data
         next = gen.next();
@@ -92,7 +101,8 @@ describe("runDataset saga", () => {
               waitForRunToComplete,
               datasetVersion,
               paginationUrl,
-              jobId
+              jobId,
+              isRunOrPreview
             ),
             locationChange: call(explorePageChanged),
           })

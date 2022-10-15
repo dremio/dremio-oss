@@ -16,7 +16,8 @@
 import { Component } from "react";
 
 import PropTypes from "prop-types";
-
+import clsx from "clsx";
+import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import Tabs from "components/Tabs";
 import Select from "components/Fields/Select";
 
@@ -38,6 +39,7 @@ import {
   TIME,
   DATETIME,
   MAP,
+  STRUCT,
   BOOLEAN,
 } from "@app/constants/DataTypes";
 import SimpleButton from "components/Buttons/SimpleButton";
@@ -174,8 +176,8 @@ class DataTypeConverterView extends Component {
     }
     return (
       <SimpleButton
-        className={cancelButton}
         buttonStyle="secondary"
+        className={clsx(cancelButton, classes["secondaryButtonPsuedoClasses"])}
         onClick={this.props.cancel}
       >
         {la("Cancel")}
@@ -318,6 +320,9 @@ class DataTypeConverterView extends Component {
             <ConvertListToTextForm tabId={TEXT} {...formProps} />
           </Tabs>
           <Tabs tabId={MAP} activeTab={toType}>
+            <NoParamForm tabId={noParamType} {...formProps} />
+          </Tabs>
+          <Tabs tabId={STRUCT} activeTab={toType}>
             <NoParamForm tabId={noParamType} {...formProps} />
           </Tabs>
           <Tabs tabId={BOOLEAN} activeTab={toType}>

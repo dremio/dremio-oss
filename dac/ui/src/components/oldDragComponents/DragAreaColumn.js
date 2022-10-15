@@ -15,24 +15,20 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import Radium from "radium";
 import Immutable from "immutable";
+import clsx from "clsx";
 import { Popover } from "@app/components/Popover";
 
 import FontIcon from "components/Icon/FontIcon";
 
 import { formDefault, formPlaceholder } from "uiTheme/radium/typography";
 import { typeToIconType } from "@app/constants/DataTypes";
-import {
-  PALE_BLUE,
-  HISTORY_ITEM_COLOR,
-  ACTIVE_DRAG_AREA,
-  BORDER_ACTIVE_DRAG_AREA,
-} from "uiTheme/radium/colors";
-import { FLEX_ROW_START_CENTER } from "uiTheme/radium/flexStyle";
+import { HISTORY_ITEM_COLOR } from "uiTheme/radium/colors";
 import DragSource from "components/DragComponents/DragSource";
 import DragTarget from "components/DragComponents/DragTarget";
-import { NOT_SUPPORTED_TYPES } from "./DragColumnMenu";
+import * as classes from "./DragAreaColumn.module.less";
+
+const NOT_SUPPORTED_TYPES = ["MAP", "LIST"];
 
 const COUNT_ACTION = "Count (*)";
 
@@ -73,6 +69,8 @@ class DragAreaColumn extends PureComponent {
       fieldDisabled: false,
       isOpen: false,
       pattern: "",
+      isNotEmptyDragArea: false,
+      anchorEl: null,
     };
   }
 
@@ -191,12 +189,18 @@ class DragAreaColumn extends PureComponent {
           <div
             disabled={disabled}
             data-qa={columnName}
-            style={[styles.column, formDefault]}
+            style={formDefault}
+            className={clsx(classes["column"])}
             key={columnName}
             onClick={this.selectItemOnDrag.bind(this, selectedItem)}
           >
-            <FontIcon type={typeToIconType[columnType]} theme={styles.type} />
-            <span style={[{ marginLeft: 5 }, disabledStyle]}>{columnName}</span>
+            <FontIcon
+              type={typeToIconType[columnType]}
+              theme={themeStyles.type}
+            />
+            <span style={{ marginLeft: 5, ...disabledStyle }}>
+              {columnName}
+            </span>
           </div>
         );
       });
@@ -208,7 +212,11 @@ class DragAreaColumn extends PureComponent {
     if (this.checkDropPosibility()) {
       return (
         <div
-          style={[styles.content, styles.largeContent, styles.empty]}
+          className={clsx(
+            classes["content"],
+            classes["largeContent"],
+            classes["empty"]
+          )}
           key="custom-content"
           onClick={this.showPopover}
           data-qa={`join-search-field-area-${index}-${type}`}
@@ -219,22 +227,23 @@ class DragAreaColumn extends PureComponent {
     } else if (column.get("empty")) {
       return (
         <div
-          style={[
-            styles.content,
-            styles.largeContent,
-            styles.empty,
-            { borderWidth: 0 },
-          ]}
+          className={clsx(
+            classes["content"],
+            classes["largeContent"],
+            classes["empty"]
+          )}
+          style={{ borderWidth: 0 }}
           key="custom-content"
           onClick={this.showPopover}
         >
-          <div style={styles.searchWrap}>
+          <div className={clsx(classes["searchWrap"])}>
             <input
-              style={[styles.search, formPlaceholder, { fontSize: 11 }]}
+              className={clsx(classes["search"])}
+              style={{ ...formPlaceholder, fontSize: 11 }}
               onChange={this.handlePatternChange.bind(this)}
               placeholder={la("Choose field…")}
             />
-            <FontIcon type="Search" theme={styles.icon} />
+            <FontIcon type="Search" theme={themeStyles.icon} />
           </div>
           <Popover
             useLayerForClickAway={false}
@@ -242,7 +251,7 @@ class DragAreaColumn extends PureComponent {
             onClose={this.handleRequestClose}
             listWidthSameAsAnchorEl
           >
-            <div style={styles.popover} data-qa="popover">
+            <div className={clsx(classes["popover"])} data-qa="popover">
               {this.renderColumns()}
             </div>
           </Popover>
@@ -250,13 +259,16 @@ class DragAreaColumn extends PureComponent {
       );
     }
     return (
-      <div style={[styles.content, styles.largeContent]} key="custom-content">
+      <div
+        className={clsx(classes["content"], classes["largeContent"])}
+        key="custom-content"
+      >
         <FontIcon
           type={typeToIconType[item.get("type")]}
           key="custom-type"
-          theme={styles.type}
+          theme={themeStyles.type}
         />
-        <span style={styles.name} key="custom-name">
+        <span className={clsx(classes["name"])} key="custom-name">
           {column.get("name")}
         </span>
       </div>
@@ -266,18 +278,16 @@ class DragAreaColumn extends PureComponent {
   render() {
     const { item, type, index } = this.props;
     const column = item;
-    const opacity = column.get("isFake") ? styles.opacity : {};
-    const columnStyle = this.shouldHideField()
-      ? { visibility: "hidden" }
-      : null;
-    const color = this.state.isNotEmptyDragArea ? ACTIVE_DRAG_AREA : "#fff";
-    const dragStyle = this.checkDropPosibility()
-      ? { ...styles.dragStyle, backgroundColor: color }
-      : {};
+
     return (
       <div
-        className="inner-join-column"
-        style={[styles.base, opacity]}
+        className={clsx(
+          {
+            [classes["opacity"]]: column.get("isFake"),
+          },
+          classes["base"],
+          "inner-join-column"
+        )}
         onDragLeave={this.disableColor}
         onDragOver={this.enableColor}
       >
@@ -295,14 +305,19 @@ class DragAreaColumn extends PureComponent {
             index={this.props.index}
             id={column.get("name")}
           >
-            <div style={[styles.columnWrap]}>
+            <div className={clsx(classes["columnWrap"])}>
               <div
-                style={[
-                  styles.simpleColumn,
-                  styles.largeColumn,
-                  dragStyle,
-                  columnStyle,
-                ]}
+                className={clsx(
+                  {
+                    [classes["dragStyle"]]: this.checkDropPosibility(),
+                    [classes["dragstyle--empty"]]:
+                      this.checkDropPosibility() &&
+                      this.state.isNotEmptyDragArea,
+                    [classes["hidden"]]: this.shouldHideField(),
+                  },
+                  classes["simpleColumn"],
+                  classes["largeColumn"]
+                )}
                 key="custom"
               >
                 {this.renderContent()}
@@ -312,7 +327,7 @@ class DragAreaColumn extends PureComponent {
               ) : (
                 <FontIcon
                   type="CanceledGray"
-                  theme={styles.fontIcon}
+                  theme={themeStyles.fontIcon}
                   onClick={this.props.removeColumn.bind(
                     this,
                     type,
@@ -329,12 +344,17 @@ class DragAreaColumn extends PureComponent {
   }
 }
 
-const styles = {
-  base: {
-    display: "flex",
-    width: "100%",
-    justifyContent: "center",
-    opacity: 1,
+const themeStyles = {
+  icon: {
+    Container: {
+      position: "absolute",
+      right: 5,
+      top: 5,
+    },
+    Icon: {
+      width: 18,
+      height: 18,
+    },
   },
   fontIcon: {
     Container: {
@@ -347,23 +367,6 @@ const styles = {
       cursor: "pointer",
     },
   },
-  column: {
-    ...FLEX_ROW_START_CENTER,
-    height: 26,
-    padding: 5,
-    cursor: "pointer",
-    ":hover": {
-      backgroundColor: PALE_BLUE,
-    },
-  },
-  popover: {
-    maxHeight: 200,
-    marginLeft: 2,
-  },
-  name: {
-    marginLeft: 5,
-  },
-
   type: {
     Icon: {
       width: 24,
@@ -376,82 +379,6 @@ const styles = {
       top: 0,
     },
   },
-  largeContent: {
-    marginTop: 0,
-    borderRadius: 1,
-  },
-  largeColumn: {
-    width: "100%",
-    marginTop: 0,
-    backgroundColor: ACTIVE_DRAG_AREA,
-    border: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`,
-  },
-  content: {
-    display: "flex",
-    width: "100%",
-    borderLeft: "1px solid transparent",
-    borderRight: "1px solid transparent",
-    borderTop: "1px solid transparent",
-    borderBottom: "1px solid transparent",
-    alignItems: "center",
-    cursor: "move",
-  },
-  simpleColumn: {
-    display: "flex",
-    alignItems: "center",
-    width: 179,
-    minHeight: 28,
-    backgroundColor: "#f3f3f3",
-    borderRadius: 1,
-    marginLeft: 5,
-  },
-  columnWrap: {
-    display: "flex",
-    flexWrap: "nowrap",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 5,
-    minWidth: 100,
-  },
-  dragStyle: {
-    borderBottom: "1px dotted gray",
-    borderTop: "1px dotted gray",
-    borderLeft: "1px dotted gray",
-    borderRight: "1px dotted gray",
-    backgroundColor: "white",
-    height: 26,
-  },
-  empty: {
-    cursor: "default",
-  },
-  opacity: {
-    opacity: 0,
-  },
-  searchWrap: {
-    width: "100%",
-    position: "relative",
-    display: "flex",
-    flexWrap: "nowrap",
-    background: "#f3f3f3",
-    padding: "4px 4px 3px 4px",
-  },
-  search: {
-    border: "1px solid rgba(0, 0, 0, 0.1)",
-    width: "100%",
-    padding: "2px 10px",
-    outline: 0,
-  },
-  icon: {
-    Container: {
-      position: "absolute",
-      right: 5,
-      top: 5,
-    },
-    Icon: {
-      width: 18,
-      height: 18,
-    },
-  },
 };
 
-export default Radium(DragAreaColumn);
+export default DragAreaColumn;

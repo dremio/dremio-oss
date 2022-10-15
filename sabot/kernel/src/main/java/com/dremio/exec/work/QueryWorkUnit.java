@@ -21,7 +21,6 @@ import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.google.common.base.Preconditions;
 
 public class QueryWorkUnit {
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryWorkUnit.class);
   private final List<PlanFragmentFull> fragments;
 
   public QueryWorkUnit(final List<PlanFragmentFull> fragments) {

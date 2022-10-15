@@ -172,7 +172,7 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
     String dirName = "struct_struct_multiple_fields";
     copyFilesFromInternalSchemaComplex(dirName);
 
-    JsonStringHashMap<String, Object> innerStruct = longStruct("id", 2l);
+    JsonStringHashMap<String, Object> innerStruct = longStruct("id", 2L);
     innerStruct.putAll(doubleStruct("data", 2.3));
 
     JsonStringHashMap<String, JsonStringHashMap<String, Object>> outerStruct = wrapStructInStruct("f1", innerStruct);

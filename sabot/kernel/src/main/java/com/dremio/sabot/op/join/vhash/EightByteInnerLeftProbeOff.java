@@ -15,12 +15,13 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-import static org.apache.arrow.util.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
@@ -29,8 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.ValueListFilter;
 import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.google.common.base.Preconditions;
@@ -71,9 +72,10 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
   }
 
   @Override
-  public void insert(long outputAddr, int count) {
+  public void insert(ArrowBuf output, int count) {
     insertWatch.start();
 
+    output.checkBytes(0, count * FOUR_BYTE);
     long srcBitsAddr = build.getValidityBufferAddress();
     long srcDataAddr = build.getDataBufferAddress();
 
@@ -81,6 +83,7 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
     final int remainCount = count % WORD_BITS;
     final int wordCount = (count - remainCount) / WORD_BITS;
     final long finalWordAddr = srcDataAddr + (wordCount * WORD_BITS * EIGHT_BYTE);
+    long outputAddr = output.memoryAddress();
 
     try(SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
       hashValues.allocateNew(count);
@@ -183,12 +186,14 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
   }
 
   @Override
-  public void find(long outputAddr, final int count) {
+  public void find(final ArrowBuf output, final int count) {
     findWatch.start();
 
+    output.checkBytes(0, count * FOUR_BYTE);
     long srcBitsAddr = probe.getValidityBufferAddress();
     long srcDataAddr = probe.getDataBufferAddress();
     boolean isEqualForNullKey = this.isEqualForNullKey;
+    long outputAddr = output.memoryAddress();
 
     // determine number of null values to work through a word at a time.
     final int remainCount = count % WORD_BITS;
@@ -347,26 +352,36 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
   }
 
   @Override
-  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    try {
+  public void prepareBloomFilters(PartitionColFilters partitionColFilters, boolean sizeDynamically) {
+    List<RuntimeFilterProbeTarget> probeTargets = partitionColFilters.getProbeTargets();
+
+    for (int i = 0; i < probeTargets.size(); i++) {
+      List<String> fieldNames = probeTargets.get(i).getPartitionBuildTableKeys();
       if (CollectionUtils.isEmpty(fieldNames)) {
-        return Optional.empty();
-      }
-      checkArgument(fieldNames.size() == 1, "VECTORIZED_BIGINT mode supports only a single field of type bigint. Found more - {}.", fieldNames);
-      if (!fieldNames.get(0).equalsIgnoreCase(build.getName())) {
-        logger.debug("The required field name {} is not available in the build pivot fields {}. Skipping the filter.", fieldNames.get(0), build.getName());
-        return Optional.empty();
+        continue;
       }
 
-      return map.prepareBloomFilter(sizeDynamically);
-    } catch (Exception e) {
-      logger.warn("Error while creating bloomfilter for " + fieldNames, e);
-      return Optional.empty();
+      try {
+        /* Close previously created bloomFilters */
+        Optional<BloomFilter> bloomFilter = partitionColFilters.getBloomFilter(i, probeTargets.get(i));
+        AutoCloseables.closeNoChecked(bloomFilter.orElse(null));
+        partitionColFilters.setBloomFilter(i, probeTargets.get(i), Optional.empty());
+
+        checkArgument(fieldNames.size() == 1,
+          "VECTORIZED_BIGINT mode supports only a single field of type bigint. Found more - {}.", fieldNames);
+
+        if (!fieldNames.get(0).equalsIgnoreCase(build.getName())) {
+          logger.debug("The required field name {} is not available in the build pivot fields {}. Skipping the filter.", fieldNames.get(0), build.getName());
+        } else {
+          bloomFilter = map.prepareBloomFilter(sizeDynamically);
+          partitionColFilters.setBloomFilter(i, probeTargets.get(i), bloomFilter);
+        }
+      } catch (Exception e) {
+        logger.warn("Error while creating bloomfilter for " + fieldNames, e);
+      }
     }
   }
 
   @Override
-  public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    return Optional.empty();
-  }
+  public void prepareValueListFilters(NonPartitionColFilters nonPartitionColFilters) {}
 }

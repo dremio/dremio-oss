@@ -31,6 +31,8 @@ import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable;
 
 import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.expr.fn.impl.DremioArgChecker;
+import com.dremio.exec.expr.fn.listagg.ListAgg;
+import com.dremio.exec.planner.sql.parser.SqlContains;
 
 /**
  * Dremio's Sql Operator Table
@@ -49,6 +51,12 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   public static final SqlAggFunction HLL_MERGE = new HyperLogLog.SqlHllMergeAggFunction();
   public static final SqlAggFunction NDV = new HyperLogLog.SqlNdvAggFunction();
   public static final SqlFunction HLL_DECODE = new HyperLogLog.SqlHllDecodeOperator();
+
+  // ---------------------
+  // ListAgg Functions
+  // ---------------------
+  public static final SqlAggFunction LISTAGG_MERGE = new ListAgg.SqlListAggMergeFunction();
+  public static final SqlAggFunction LOCAL_LISTAGG = new ListAgg.SqlLocalListAggFunction();
 
   // ---------------
   // GEO functions
@@ -142,6 +150,9 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   public static final SqlAggFunction MEDIAN =
     SqlBasicAggFunction.create("MEDIAN", SqlKind.OTHER, ReturnTypes.DOUBLE, OperandTypes.NUMERIC)
       .withFunctionType(SqlFunctionCategory.SYSTEM);
+
+  public static final VarArgSqlOperator CONTAINS_OPERATOR =
+    new VarArgSqlOperator("contains", SqlContains.RETURN_TYPE, true);
 
   // -----------------------------
   // Dremio Hive Masking Functions

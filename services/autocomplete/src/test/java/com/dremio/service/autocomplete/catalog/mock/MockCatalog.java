@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Function;
 
@@ -31,9 +30,11 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.DremioTranslatableTable;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -132,6 +133,11 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
 
   @Override
   public MockCatalog resolveCatalog(NamespaceKey newDefaultSchema) {
+    return null;
+  }
+
+  @Override
+  public MockCatalog resolveCatalog(Map<String, VersionContext> sourceVersionMapping) {
     return null;
   }
 

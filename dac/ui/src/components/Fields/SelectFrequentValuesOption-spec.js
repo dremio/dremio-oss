@@ -94,12 +94,12 @@ describe("SelectFrequentValuesOption", () => {
     it("should render proper color and text for undefined values", () => {
       const wrapper = shallow(<SelectFrequentValuesOption {...testProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal(
-        "#aaa"
-      );
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
-        "null"
-      );
+      expect(
+        shallow(instance.renderLabelValue()).dive().props().style.color
+      ).to.equal("#aaa");
+      expect(
+        shallow(instance.renderLabelValue()).dive().props().children
+      ).to.equal("null");
     });
     it("should render proper color and text for empty text values", () => {
       const emptyProps = {
@@ -111,12 +111,12 @@ describe("SelectFrequentValuesOption", () => {
       };
       const wrapper = shallow(<SelectFrequentValuesOption {...emptyProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal(
-        "#aaa"
-      );
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
-        "empty text"
-      );
+      expect(
+        shallow(instance.renderLabelValue()).dive().props().style.color
+      ).to.equal("#aaa");
+      expect(
+        shallow(instance.renderLabelValue()).dive().props().children
+      ).to.equal("empty text");
     });
     it("should render proper color and text for null values", () => {
       const normalProps = {
@@ -128,12 +128,12 @@ describe("SelectFrequentValuesOption", () => {
       };
       const wrapper = shallow(<SelectFrequentValuesOption {...normalProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal(
-        "#aaa"
-      );
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
-        "null"
-      );
+      expect(
+        shallow(instance.renderLabelValue()).dive().props().style.color
+      ).to.equal("#aaa");
+      expect(
+        shallow(instance.renderLabelValue()).dive().props().children
+      ).to.equal("null");
     });
     it("should render correctly for normal values", () => {
       const normalProps = {
@@ -145,9 +145,9 @@ describe("SelectFrequentValuesOption", () => {
       };
       const wrapper = shallow(<SelectFrequentValuesOption {...normalProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
-        "foo"
-      );
+      expect(
+        shallow(instance.renderLabelValue()).dive().props().children
+      ).to.equal("foo");
     });
   });
 });

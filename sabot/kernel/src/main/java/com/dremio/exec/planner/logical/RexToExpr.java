@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.logical;
 
 import static com.dremio.exec.expr.fn.impl.ConcatFunctions.CONCAT_MAX_ARGS;
+import static com.dremio.exec.planner.physical.AggregatePrel.findDelimiterInListAgg;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -24,10 +25,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.IntFunction;
 
 import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
@@ -65,8 +69,10 @@ import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.InputReference;
+import com.dremio.common.expression.ListAggExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.Ordering;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
@@ -79,6 +85,7 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.StarColumnHelper;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -122,7 +129,7 @@ public class RexToExpr {
   public static List<NamedExpression> projectToExpr(ParseContext context, List<Pair<RexNode, String>> projects, RelNode input) {
     List<NamedExpression> expressions = new ArrayList<>();
 
-    HashMap<String, String> starColPrefixes = new HashMap<>();
+    Map<String, String> starColPrefixes = new HashMap<>();
 
     // T1.* will subsume T1.*0, but will not subsume any regular column/expression.
     // Select *, col1, *, col2 : the intermediate will output one set of regular columns expanded from star with prefix,
@@ -166,22 +173,49 @@ public class RexToExpr {
     for (Ord<AggregateCall> aggCall : Ord.zip(aggCalls)) {
       int aggExprOrdinal = groupSet.cardinality() + aggCall.i;
       FieldReference ref = FieldReference.getWithQuotedRef(fields.get(aggExprOrdinal));
-      LogicalExpression expr = toExpr(aggCall.e, childFields);
+      RelOptCluster cluster = input.getCluster();
+      final Visitor visitor = new Visitor(new ParseContext(PrelUtil.getPlannerSettings(cluster)), rowType, cluster.getRexBuilder(), true, (i) -> Optional.<Integer>empty());
+      LogicalExpression expr = toExpr(aggCall.e, childFields, input, visitor);
       NamedExpression ne = new NamedExpression(expr, ref);
       aggExprs.add(ne);
     }
     return aggExprs;
   }
 
-  private static LogicalExpression toExpr(AggregateCall call, List<String> fn) {
+  private static LogicalExpression toExpr(AggregateCall call, List<String> fn, RelNode input, Visitor visitor) {
     List<LogicalExpression> args = new ArrayList<>();
     for (Integer i : call.getArgList()) {
       args.add(FieldReference.getWithQuotedRef(fn.get(i)));
     }
+    if (call.getAggregation().getKind() == SqlKind.LISTAGG) {
+      List<LogicalExpression> extraExpressions = new ArrayList<>();
+      List<Ordering> orderings = new ArrayList<>();
+      boolean isDistinct;
+      isDistinct = call.isDistinct();
+      LogicalExpression delimiterExpression = null;
+      if (call.getArgList().size() == 2) {
+        RexLiteral literal = findDelimiterInListAgg(call, input);
+        if (literal != null) {
+          delimiterExpression = literal.accept(visitor);
+          if (!(delimiterExpression instanceof ValueExpressions.QuotedString)) {
+            throw new AssertionError("Delimiter argument in list_agg call should be a constant varchar value");
+          }
+          extraExpressions.add(delimiterExpression);
+        } else {
+          throw new AssertionError("Delimiter argument in list_agg call should be a constant varchar value.");
+        }
+      }
+
+      for (RelFieldCollation fc : call.getCollation().getFieldCollations()) {
+        LogicalExpression fr = new FieldReference(fn.get(fc.getFieldIndex()));
+        orderings.add(new Ordering(fr, fc.direction.toString(), fc.nullDirection.toString()));
+      }
+      return new ListAggExpression(call.getAggregation().getName(), args, isDistinct, orderings, extraExpressions);
+    }
 
     // for count(1).
     if (args.isEmpty()) {
-      args.add(new ValueExpressions.LongExpression(1l));
+      args.add(new ValueExpressions.LongExpression(1L));
     }
     LogicalExpression expr = new FunctionCall(call.getAggregation().getName().toLowerCase(), args );
     return expr;
@@ -618,7 +652,8 @@ public class RexToExpr {
         List<LogicalExpression> trimArgs = new ArrayList<>();
 
         assert args.get(0) instanceof ValueExpressions.QuotedString;
-        switch (((ValueExpressions.QuotedString)args.get(0)).value.toUpperCase()) {
+        String trimType = ((QuotedString) args.get(0)).value.toUpperCase();
+        switch (trimType) {
         case "LEADING":
           trimFunc = "ltrim";
           break;
@@ -629,7 +664,7 @@ public class RexToExpr {
           trimFunc = "btrim";
           break;
         default:
-          assert 1 == 0;
+          throw new IllegalArgumentException("Unrecognized trim: " + trimType);
         }
 
         trimArgs.add(args.get(2));

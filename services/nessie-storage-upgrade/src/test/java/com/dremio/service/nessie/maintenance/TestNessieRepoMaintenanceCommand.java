@@ -20,6 +20,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
+import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 
@@ -27,7 +28,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.service.nessie.DatastoreDatabaseAdapter;
+import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.dremio.service.nessie.maintenance.NessieRepoMaintenanceCommand.Options;
@@ -50,7 +51,10 @@ class TestNessieRepoMaintenanceCommand {
     store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(() -> storeProvider).build());
     store.initialize();
     TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-    DatastoreDatabaseAdapter adapter = new DatastoreDatabaseAdapter(adapterCfg, store, worker);
+    DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+      .withConnector(store)
+      .withConfig(adapterCfg)
+      .build(worker);
     adapter.initializeRepo("main");
   }
 

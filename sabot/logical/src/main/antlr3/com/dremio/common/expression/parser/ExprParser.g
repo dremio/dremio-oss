@@ -182,6 +182,47 @@ expression returns [LogicalExpression e]
   :  ifStatement {$e = $ifStatement.e; }
   |  caseStatement {$e = $caseStatement.e; }
   |  condExpr {$e = $condExpr.e; }
+  |  listAggExpr {$e = $listAggExpr.e; }
+  ;
+
+listAggExpr returns [LogicalExpression e]
+	@init{
+    ListAggExpression.Builder b = ListAggExpression.newBuilder();
+	  List<Ordering> orderings = null;
+	  List<LogicalExpression> extraExpressions = null;
+	}
+	@after{
+	  if (orderings == null) {
+	    b.setOrderings(new ArrayList<Ordering>());
+	  } else {
+	    b.setOrderings(orderings);
+	  }
+	  if (extraExpressions == null) {
+	    b.setExtraExpressions(new ArrayList<LogicalExpression>());
+	  } else {
+	    b.setExtraExpressions(extraExpressions);
+	  }
+    $e = b.build();
+	}
+  :  ListAggExp OParen e1=functionCall { b.addFunctionCall($e1.e); } Comma e2=String { b.setIsDistinct($e2.text); }  Comma OParen orderingList? { orderings = $orderingList.listE; } CParen Comma OParen extraExpressionsList? { extraExpressions = $extraExpressionsList.listE; } CParen CParen
+  ;
+
+extraExpressionsList returns [List<LogicalExpression> listE]
+	@init{
+	  $listE = new ArrayList<LogicalExpression>();
+	}
+  :  e1=String {$listE.add(new ValueExpressions.QuotedString($e1.text )); } (Comma e2=String {$listE.add(new ValueExpressions.QuotedString($e2.text )); } )*
+  ;
+
+orderingList returns [List<Ordering> listE]
+	@init{
+	  $listE = new ArrayList<Ordering>();
+	}
+  :  e1=ordering {$listE.add($e1.e); } (Comma e2=ordering {$listE.add($e2.e); } )*
+  ;
+
+ordering returns [Ordering e]
+  : Order OParen e1=expression Comma e2=String Comma e3=String CParen { $e = new Ordering($e1.e, $e2.text, $e3.text); }
   ;
 
 condExpr returns [LogicalExpression e]
@@ -309,7 +350,8 @@ inputReference returns [InputReference e]
   ;
 
 lookup returns [LogicalExpression e]
-  : inputReference {$e = $inputReference.e; } 
+  : inputReference {$e = $inputReference.e; }
+  | listAggExpr {$e = $listAggExpr.e ;}
   | functionCall {$e = $functionCall.e ;}
   | convertCall {$e = $convertCall.e; }
   | castCall {$e = $castCall.e; }

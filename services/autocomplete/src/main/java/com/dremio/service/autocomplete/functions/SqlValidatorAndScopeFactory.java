@@ -15,14 +15,16 @@
  */
 package com.dremio.service.autocomplete.functions;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.sql.validate.DremioEmptyScope;
+import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import com.dremio.exec.catalog.DremioCatalogReader;
@@ -30,6 +32,8 @@ import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.planner.sql.DremioSqlConformance;
 import com.dremio.exec.planner.sql.SqlValidatorImpl;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.options.OptionResolver;
+import com.google.common.base.Preconditions;
 
 /**
  * Factory for SqlValidator and Scope.
@@ -45,7 +49,7 @@ public final class SqlValidatorAndScopeFactory {
     final SqlOperatorTable chainedOperatorTable = ChainedSqlOperatorTable.of(
       operatorTable,
       catalogReader);
-    final SqlValidatorImpl validator = new com.dremio.exec.planner.sql.SqlValidatorImpl(
+    final SqlValidatorImpl validator = new MockSqlValidator(
       new SqlValidatorImpl.FlattenOpCounter(),
       chainedOperatorTable,
       catalogReader,
@@ -55,6 +59,18 @@ public final class SqlValidatorAndScopeFactory {
     final SqlValidatorScope scope = new MockScope(validator);
 
     return new Result(validator, scope);
+  }
+
+  private static final class MockSqlValidator extends com.dremio.exec.planner.sql.SqlValidatorImpl {
+
+    public MockSqlValidator(FlattenOpCounter flattenCount, SqlOperatorTable sqlOperatorTable, SqlValidatorCatalogReader catalogReader, RelDataTypeFactory typeFactory, SqlConformance conformance, OptionResolver optionResolver) {
+      super(flattenCount, sqlOperatorTable, catalogReader, typeFactory, conformance, optionResolver);
+    }
+
+    @Override
+    public Config config() {
+      return super.config().withTypeCoercionEnabled(false);
+    }
   }
 
   public static final class Result {

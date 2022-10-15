@@ -18,6 +18,7 @@ package com.dremio.parquet.reader;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -32,11 +33,9 @@ import io.netty.buffer.ByteBuf;
  * that was passed to the Parquet library.
  */
 public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetDirectByteBufferAllocator.class);
 
   private final BufferAllocator allocator;
-  private final HashMap<Key, ArrowBuf> allocatedBuffers = new HashMap<>();
-
+  private final Map<Key, ArrowBuf> allocatedBuffers = new HashMap<>();
 
   public ParquetDirectByteBufferAllocator(BufferAllocator allocator) {
     this.allocator = allocator;
@@ -79,11 +78,11 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
    * of collisions (we don't need to compare the content of {@link ByteBuffer} because the object passed to
    * {@link #release(ByteBuffer)} will be the same object returned from a previous {@link #allocate(int)}.
    */
-  private class Key {
-    final int hash;
-    final ByteBuffer buffer;
+  private static final class Key {
+    private final int hash;
+    private final ByteBuffer buffer;
 
-    Key(final ByteBuffer buffer) {
+    private Key(final ByteBuffer buffer) {
       this.buffer = buffer;
       // remember, we can't use buffer.hashCode()
       this.hash = System.identityHashCode(buffer);

@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import React from "react";
+import * as React from "react";
 import { injectIntl } from "react-intl";
+import { connect } from "react-redux";
 import Modal from "@app/components/Modals/Modal";
 import ApiUtils from "utils/apiUtils/apiUtils";
-import openPopupNotification from "@app/components/PopupNotification/PopupNotification";
+import { addNotification } from "@app/actions/notification";
 import SQLScriptForm from "./SQLScriptForm";
 
 type SQLScriptDialogProps = {
@@ -31,6 +32,7 @@ type SQLScriptDialogProps = {
   postSubmit: (payload?: any) => void;
   push?: () => void;
   hideFail: boolean;
+  addNotification: any;
 };
 
 function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
@@ -44,6 +46,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
     postSubmit,
     intl,
     hideFail,
+    addNotification,
   } = props;
   const { content, context } = script;
 
@@ -63,10 +66,10 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       }
 
       postSubmit(res.payload);
-      openPopupNotification({
-        message: intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
-        type: "success",
-      });
+      addNotification(
+        intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
+        "success"
+      );
       onCancel();
     });
   };
@@ -90,4 +93,4 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
   );
 }
 
-export default injectIntl(SQLScriptDialog);
+export default injectIntl(connect(null, { addNotification })(SQLScriptDialog));

@@ -509,7 +509,7 @@ class DremioConnectionImpl extends AvaticaConnection
 
   @Override
   public PreparedStatement prepareStatement(String sql,
-                                            int columnIndexes[]) throws SQLException {
+                                            int[] columnIndexes) throws SQLException {
     throwIfClosed();
     try {
       return super.prepareStatement(sql, columnIndexes);
@@ -521,7 +521,7 @@ class DremioConnectionImpl extends AvaticaConnection
 
   @Override
   public PreparedStatement prepareStatement(String sql,
-                                            String columnNames[]) throws SQLException {
+                                            String[] columnNames) throws SQLException {
     throwIfClosed();
     try {
       return super.prepareStatement(sql, columnNames);

@@ -48,12 +48,9 @@ public class TestRetryer {
     boolean result = retryer.call(() -> {
       if (counter.incrementAndGet() < MAX_RETRIES) {
         throw new RuntimeException("Failure");
-      } else if (counter.get() == MAX_RETRIES) {
-        return true;
-      } else {
-        // Retry triggered even after success
-        return false;
       }
+      // Retry triggered even after success
+      return counter.get() == MAX_RETRIES;
     });
     assertTrue("Retry happened even without exception", result);
   }
@@ -72,12 +69,9 @@ public class TestRetryer {
     boolean result = retryer.call(() -> {
       if (counter.incrementAndGet() < succeedAfter) {
         throw new RuntimeException("Failure");
-      } else if (counter.get() == succeedAfter) {
-        return true;
-      } else {
-        // Retry triggered even after success
-        return false;
       }
+      // Retry triggered even after success
+      return counter.get() == succeedAfter;
     });
     assertTrue("Retry happened even without exception", result);
     assertEquals(counter.get(), succeedAfter);

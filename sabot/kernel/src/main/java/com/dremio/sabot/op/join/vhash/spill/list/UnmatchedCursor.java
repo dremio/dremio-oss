@@ -25,6 +25,8 @@ import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.NEXT_OF
 
 import java.util.function.BiFunction;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
 
 import io.netty.util.internal.PlatformDependent;
@@ -33,12 +35,12 @@ public class UnmatchedCursor {
 
   private final PageListMultimap list;
   private final ProbeBuffers buffers;
-  private final BiFunction<Long, Integer, Integer> varLengthFunction;
+  private final BiFunction<ArrowBuf, Integer, Integer> varLengthFunction;
   private int currentElementIndex;
   private long unmatchedBuildKeyCount;
 
   public UnmatchedCursor(PageListMultimap list, ProbeBuffers buffers,
-                         BiFunction<Long, Integer, Integer> varLengthFunction) {
+                         BiFunction<ArrowBuf, Integer, Integer> varLengthFunction) {
     this.list = list;
     this.buffers = buffers;
     this.varLengthFunction = varLengthFunction;
@@ -47,37 +49,44 @@ public class UnmatchedCursor {
 
   public Stats next(int startOutputIndex, int maxOutputIndex) {
     final int maxOutputRecords = maxOutputIndex - startOutputIndex + 1;
-    final long outBuildProjectAddr = buffers.getOutBuildProjectOffsets6B().memoryAddress();
-    final long outBuildProjectKeyAddr = buffers.getOutBuildProjectKeyOrdinals4B().memoryAddress();
+    final ArrowBuf outBuildProjectOffsetsBuf = buffers.getOutBuildProjectOffsets6B();
+    final ArrowBuf outBuildProjectKeyBuf = buffers.getOutBuildProjectKeyOrdinals4B();
     final int elementShift = list.getElementShift();
     final int elementMask = list.getElementMask();
-    final long[] elementAddresses = list.getElementAddresses();
+    final long[] elementBufAddrs = list.getElementBufAddrs();
+
+    outBuildProjectOffsetsBuf.checkBytes(0, maxOutputRecords * BUILD_RECORD_LINK_SIZE);
+    outBuildProjectKeyBuf.checkBytes(0, maxOutputRecords * KEY_SIZE);
+    final long outBuildProjectOffsetsStartAddr = outBuildProjectOffsetsBuf.memoryAddress();
+    final long outBuildProjectKeysStartAddr = outBuildProjectKeyBuf.memoryAddress();
 
     int outputRecords = 0;
     for (;
          outputRecords < maxOutputRecords && currentElementIndex < list.getTotalListSize();
          ++currentElementIndex) {
-      final long address = elementAddresses[currentElementIndex >> elementShift] + ELEMENT_SIZE * (currentElementIndex & elementMask);
-      int next = PlatformDependent.getInt(address + NEXT_OFFSET);
+      final long elementBufAddr = elementBufAddrs[currentElementIndex >> elementShift];
+      final int offsetInBuf = ELEMENT_SIZE * (currentElementIndex & elementMask);
+      assert offsetInBuf + BUILD_RECORD_LINK_SIZE <= list.getBufSize();
+      int next = PlatformDependent.getInt(elementBufAddr + offsetInBuf + NEXT_OFFSET);
       if (next < 0) {
         // all visited entries will have their sign bit flipped to -ve value.
         continue;
       }
-      final long carryAlongId = PlatformDependent.getLong(address);
-      final int tableOrdinal = PlatformDependent.getInt(address + KEY_OFFSET);
-      final long projectBuildOffsetAddrStart = outBuildProjectAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
-      PlatformDependent.putInt(projectBuildOffsetAddrStart, PageListMultimap.getBatchIdFromLong(carryAlongId));
-      SV2UnsignedUtil.write(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE,
+      final long carryAlongId = PlatformDependent.getLong(elementBufAddr + offsetInBuf);
+      final int tableOrdinal = PlatformDependent.getInt(elementBufAddr + offsetInBuf + KEY_OFFSET);
+      final int projectBuildOffsetStart = outputRecords * BUILD_RECORD_LINK_SIZE;
+      PlatformDependent.putInt(outBuildProjectOffsetsStartAddr + projectBuildOffsetStart, PageListMultimap.getBatchIdFromLong(carryAlongId));
+      SV2UnsignedUtil.writeAtOffsetUnsafe(outBuildProjectOffsetsStartAddr, projectBuildOffsetStart + BATCH_INDEX_SIZE,
         PageListMultimap.getRecordIndexFromLong(carryAlongId));
 
       // Maintain the ordinal of the key for unpivot later
-      PlatformDependent.putInt(outBuildProjectKeyAddr + outputRecords * KEY_SIZE, tableOrdinal);
+      PlatformDependent.putInt(outBuildProjectKeysStartAddr + outputRecords * KEY_SIZE, tableOrdinal);
       unmatchedBuildKeyCount++;
       outputRecords++;
     }
 
     return new Stats(outputRecords,
-      varLengthFunction.apply(outBuildProjectKeyAddr, outputRecords),
+      varLengthFunction.apply(outBuildProjectKeyBuf, outputRecords),
       currentElementIndex < list.getTotalListSize());
   }
 

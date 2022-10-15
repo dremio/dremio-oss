@@ -114,6 +114,7 @@ message JobCancellationInfo {
 message SpillJobDetails {
   optional int64 totalBytesSpilledByHashAgg = 1;
   optional int64 totalBytesSpilledBySort = 2;
+  optional int64 totalBytesSpilledByHashJoin = 3;
 }
 
 message JobInfo {

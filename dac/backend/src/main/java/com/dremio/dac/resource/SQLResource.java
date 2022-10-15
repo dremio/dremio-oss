@@ -30,12 +30,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.advise.SqlAdvisor;
 import org.apache.calcite.sql.validate.SqlMoniker;
 import org.apache.calcite.sql.validate.SqlMonikerType;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.AnalyzeRequest;
@@ -46,7 +44,7 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.QueryError;
 import com.dremio.dac.server.BufferAllocatorFactory;
-import com.dremio.dac.service.autocomplete.AutocompleteEngineFactory;
+import com.dremio.dac.service.autocomplete.AutocompleteEngineProxy;
 import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.exec.planner.sql.SQLAnalyzer;
 import com.dremio.exec.planner.sql.SQLAnalyzerFactory;
@@ -62,6 +60,7 @@ import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 
 /**
  * run external sql
@@ -150,19 +149,13 @@ public class SQLResource extends BaseResourceWithAllocator {
   public Completions getCompletions(AutocompleteRequestImplementation request) throws NamespaceException {
     Preconditions.checkNotNull(request);
 
-    try {
-      return AutocompleteEngineFactory
-        .create(
-          this.securityContext,
-          this.sabotContext,
-          this.projectOptionManager,
-          request.getContext())
-        .generateCompletions(
-          request.getQuery(),
-          request.getCursor());
-    } catch (Exception | Error e) {
-      throw UserException.systemError(e).build();
-    }
+    return AutocompleteEngineProxy.getCompletions(
+      securityContext,
+      sabotContext,
+      projectOptionManager,
+      request.getContext(),
+      request.getQuery(),
+      request.getCursor());
   }
 
   /**

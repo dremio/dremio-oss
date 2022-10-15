@@ -184,18 +184,31 @@ public class DremioCost implements RelOptCost {
   }
 
   @Override
-  public boolean equals(org.apache.calcite.plan.RelOptCost other) {
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof DremioCost)) {
+      return false;
+    }
+
+    DremioCost castOther = (DremioCost) other;
+
     // here we compare the individual components similar to VolcanoCost, however
     // an alternative would be to add up the components and compare the total.
     // Note that VolcanoPlanner mainly uses isLe() and isLt() for cost comparisons,
     // not equals().
-    return this == other
-      || (other instanceof DremioCost
-          && (this.cpu == ((DremioCost) other).cpu)
-          && (this.io == ((DremioCost) other).io)
-          && (this.network == ((DremioCost) other).network)
-          && (this.rowCount == ((DremioCost) other).rowCount)
-          && (this.memory == ((DremioCost) other).memory));
+    return (this.cpu == castOther.cpu)
+        && (this.io == castOther.io)
+        && (this.network == castOther.network)
+        && (this.rowCount == castOther.rowCount)
+        && (this.memory == castOther.memory);
+  }
+
+  @Override
+  public boolean equals(org.apache.calcite.plan.RelOptCost other) {
+    return this.equals((Object) other);
   }
 
   @Override

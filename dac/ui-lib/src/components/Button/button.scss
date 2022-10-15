@@ -89,7 +89,7 @@
 
   &__secondary,
   &__default {
-    color: $dark-gray;
+    color: var(--dremio--color--text--faded);
     border: 1px solid $FIGMA_NEUTRAL_200;
 
     &.--contained {
@@ -136,5 +136,26 @@
     gap: 4px;
     line-height: 28px;
     position: relative;
+  }
+
+  .spinner {
+    animation-name: spin;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+
+    .icon {
+      block-size: 24px;
+      inline-size: 24px;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }

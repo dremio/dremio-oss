@@ -359,7 +359,7 @@ public class TestIcebergUtils {
     3. When a column ("x") has identity transform in some partition specs, but not all -> column included in o/p
     4. When a column ("w") has only identity transform, but not in all the partition specs -> column included in o/p
     */
-    SchemaConverter schemaConverter = new SchemaConverter();
+    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     Schema schema = schemaConverter.toIcebergSchema(TEST_SCHEMA);
 
     PartitionSpec.Builder builder = PartitionSpec.builderFor(schema);

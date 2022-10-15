@@ -15,86 +15,89 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.partition;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.ValueListFilter;
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
+import com.dremio.sabot.op.join.vhash.PartitionColFilters;
 
 public interface JoinTable extends AutoCloseable {
   /**
    * Compute hash for given records
    *
    * @param records number of records
-   * @param keyFixedVectorAddr start addr of fixed vector addr
-   * @param keyVarVectorAddr start addr of variable vector addr
+   * @param keyFixed pivoted fixed buffer
+   * @param keyVar pivoted variable buffer
    * @param seed seed to use when computing the hash
-   * @param hashoutAddr8B start addr of hash vector for computed hash values
+   * @param hashOut8B buffer for computed hash values
    */
-  void hashPivoted(int records, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashoutAddr8B);
+  void hashPivoted(int records, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashOut8B);
 
   /**
    * Insert pivoted keys into the hash-table.
    *
-   * @param sv2Addr ordinals of the records to insert
+   * @param sv2 ordinals of the records to insert
+   * @param shift to be decremented to get to the corresponding record in the pivoted block
    * @param records number of records
-   * @param tableHashAddr4B hash-values of the records
+   * @param tableHash4B hash-values of the records
    * @param fixed fixed block
    * @param variable var block
-   * @param outputAddr ordinals for the inserted records in the hash table
+   * @param output ordinals for the inserted records in the hash table
    */
-  public int insertPivoted(long sv2Addr, int records,
-                            long tableHashAddr4B, FixedBlockVector fixed, VariableBlockVector variable,
-                            long outputAddr);
+  public int insertPivoted(ArrowBuf sv2, int pivotShift, int records,
+                           ArrowBuf tableHash4B, FixedBlockVector fixed, VariableBlockVector variable,
+                           ArrowBuf output);
 
   /**
    * Find records corresponding to the pivoted keys in the hash-table.
    *
-   * @param sv2Addr ordinals of the records to insert
+   * @param sv2 ordinals of the records to insert
    * @param records number of records
-   * @param tableHashAddr4B hash-values of the records
+   * @param tableHash4B hash-values of the records
    * @param fixed fixed block
    * @param variable var block
-   * @param outputAddr ordinals for the inserted records in the hash table
+   * @param output ordinals for the inserted records in the hash table
    */
-  public void findPivoted(long sv2Addr, int records,
-                          long tableHashAddr4B, FixedBlockVector fixed, VariableBlockVector variable,
-                          final long outputAddr);
-  public int size();
-  public int capacity();
-  public int getRehashCount();
-  public long getRehashTime(TimeUnit unit);
-  public long getProbeFindTime(TimeUnit unit);
-  public long getInsertTime(TimeUnit unit);
+  public void findPivoted(ArrowBuf sv2, int pivotShift, int records,
+                          ArrowBuf tableHash4B, FixedBlockVector fixed, VariableBlockVector variable,
+                          ArrowBuf output);
+
+  int getMaxOrdinal();
+  int size();
+  int capacity();
+  int getRehashCount();
+  long getRehashTime(TimeUnit unit);
+  long getProbeFindTime(TimeUnit unit);
+  long getInsertTime(TimeUnit unit);
 
   /**
    * Copies the referenced keys to the provided output.
-   * @param keyOffsetAddr
+   * @param keyOffsetBuf
    * @param count
-   * @param keyFixedAddr
-   * @param keyVarAddr
+   * @param keyFixed
+   * @param keyVar
    */
-  public void copyKeysToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr);
+  public void copyKeysToBuffer(final ArrowBuf keyOffsetBuf, final int count, final ArrowBuf keyFixed, final ArrowBuf keyVar);
 
   /**
    * Provides the total var key length for the referenced keys
-   * @param keyOffsetAddr
+   * @param keyOffsetBuf
    * @param count
    * @return
    */
-  public int getCumulativeVarKeyLength(final long keyOffsetAddr, final int count);
+  public int getCumulativeVarKeyLength(final ArrowBuf keyOffsetBuf, final int count);
 
   /**
    * Get the var lengths for the referenced keys
-   * @param keyOffsetAddr
+   * @param keyOffsetBuf
    * @param count
-   * @param outAddr
+   * @param outBuf
    * @return
    */
-  public void getVarKeyLengths(final long keyOffsetAddr, final int count, final long outAddr);
+  public void getVarKeyLengths(final ArrowBuf keyOffsetBuf, final int count, final ArrowBuf outBuf);
 
   // Debugging methods
 
@@ -103,37 +106,28 @@ public interface JoinTable extends AutoCloseable {
    * @param numRecords number of records in the current data batch
    * @return an autocloseable that, when closed, will release the resources held by the trace
    */
-  public AutoCloseable traceStart(int numRecords);
+  AutoCloseable traceStart(int numRecords);
 
   /**
    * Report the details of the trace
    */
-  public String traceReport();
+  String traceReport();
 
   /**
-   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
-   * the consumer. Instead, they get an empty optional.
-   * @param fieldNames
-   * @param sizeDynamically Size the filter according to the number of entries in table.
-   * @param maxKeySize Max key width
-   * @return
+   * Prepares bloomfilters for each probe target (field keys) in PartitionColFilters.
+   * Since this is an optimisation, errors are not propagated to the consumer,
+   * instead, they marked as an empty optional.
+   *
+   * @param partitionColFilters Previously created bloomfilters, one per probe target.
    */
-  default Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    return Optional.empty();
-  }
+  void prepareBloomFilters(PartitionColFilters partitionColFilters);
 
   /**
-   * Returns distinct keys for a given field. In case of composite keys, this method can be used to get distinct values
-   * for a given join field. Returns empty if number of distinct keys are more than max elements or if there is an
-   * error while processing keys.
+   * Prepares ValueListFilters for each probe target (and for each field for composite keys).
+   * Since this is an optimisation, errors are not propagated to the consumer, instead they
+   * are ignored.
    *
-   * Primarily used for Runtime Filtering at Joins
-   *
-   * @param fieldName
-   * @param maxElements
-   * @return
+   * @param nonPartitionColFilters Previously created value list builders, one list per probe target.
    */
-  default Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    return Optional.empty();
-  }
+  void prepareValueListFilters(NonPartitionColFilters nonPartitionColFilters);
 }

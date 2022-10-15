@@ -18,6 +18,7 @@ package com.dremio.service.reflection;
 import static com.dremio.service.reflection.DependencyUtils.filterDatasetDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterReflectionDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterTableFunctionDependencies;
+import static com.dremio.service.reflection.ReflectionUtils.getId;
 import static com.google.common.base.Predicates.not;
 import static com.google.common.base.Predicates.notNull;
 
@@ -43,7 +44,6 @@ import com.dremio.service.reflection.proto.RefreshRequest;
 import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
-import com.dremio.service.reflection.store.RefreshRequestsStore;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -51,9 +51,8 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
-
 /**
- * Reflection dependencies manager
+ * Reflection dependencies manager.  This is a singleton.  Only one per coordinator.
  */
 public class DependencyManager {
   protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DependencyManager.class);
@@ -78,27 +77,22 @@ public class DependencyManager {
     }
   };
 
-  private final ReflectionSettings reflectionSettings;
   private final MaterializationStore materializationStore;
-  private final RefreshRequestsStore requestsStore;
   private final ReflectionEntriesStore entriesStore;
 
   private final DependencyGraph graph;
-
-  DependencyManager(ReflectionSettings reflectionSettings, MaterializationStore materializationStore,
-      ReflectionEntriesStore entriesStore, RefreshRequestsStore requestsStore, DependenciesStore dependenciesStore) {
-    this.reflectionSettings = Preconditions.checkNotNull(reflectionSettings, "reflection settings required");
+  DependencyManager(MaterializationStore materializationStore, ReflectionEntriesStore entriesStore,
+                    DependenciesStore dependenciesStore) {
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
-    this.requestsStore = Preconditions.checkNotNull(requestsStore, "refresh requests store required");
     this.entriesStore = Preconditions.checkNotNull(entriesStore, "reflection entry store required");
     this.graph = new DependencyGraph(dependenciesStore);
   }
 
-  public void start() {
+  void start() {
     graph.loadFromStore();
   }
 
-  public ExcludedReflectionsProvider getExcludedReflectionsProvider() {
+  ExcludedReflectionsProvider getExcludedReflectionsProvider() {
     return new ExcludedReflectionsProvider() {
       @Override
       public List<String> getExcludedReflections(String rId) {
@@ -107,61 +101,73 @@ public class DependencyManager {
       }};
   }
 
-  public boolean dontGiveUp(final ReflectionId reflectionId) {
+  /**
+   * dontGiveUp is used to identify a PDS or VDS reflection whose PDS dependencies all have a "never refresh"
+   * policy.  These reflections will never enter the FAILED state and be removed from the dependency graph.
+   * This is so that users can always manually refresh this reflection from a PDS.  When manual reflections
+   * fail to refresh, they are never automatically retried by the reflection manager by design.
+   *
+   * dontGiveUp should be kept up-to-date on a reflection entry because the UI depends on this flag to let the user
+   * know whether his reflection is scheduled to refresh or configured to never refresh.
+   *
+   * A reflection may not have any dependencies such as when the initial refresh fails before planning or the
+   * reflection selects from values.  In this case, we can't figure out the refresh policy on the failed reflection
+   * and keep retrying until it permanently fails.
+   *
+   * @param entry
+   * @param dependencyResolutionContext
+   */
+  public void updateDontGiveUp(final ReflectionEntry entry, final DependencyResolutionContext dependencyResolutionContext) {
+    boolean dontGiveUp = dontGiveUpHelper(entry.getId(), dependencyResolutionContext);
+    if (entry.getDontGiveUp() != dontGiveUp) {
+      entry.setDontGiveUp(dontGiveUp);
+      entriesStore.save(entry);
+      logger.debug("Updated dontGiveUp to {} for {}", dontGiveUp, getId(entry));
+    }
+  }
+
+  private boolean dontGiveUpHelper(final ReflectionId reflectionId, final DependencyResolutionContext dependencyResolutionContext) {
     final Iterable<DependencyEntry> dependencies = graph.getPredecessors(reflectionId);
-    return filterReflectionDependencies(dependencies).allMatch(new Predicate<ReflectionDependency>() {
-      @Override
-      public boolean apply(ReflectionDependency dependency) {
-        final ReflectionEntry entry = entriesStore.get(dependency.getReflectionId());
-        return entry != null && entry.getDontGiveUp();
-      }
-    }) && filterDatasetDependencies(dependencies).allMatch(new Predicate<DatasetDependency>() {
-      @Override
-      public boolean apply(DatasetDependency dependency) {
-        final AccelerationSettings settings = reflectionSettings.getReflectionSettings(dependency.getNamespaceKey());
-        return Boolean.TRUE.equals(settings.getNeverRefresh());
-      }
-    }) && filterTableFunctionDependencies(dependencies).allMatch(new Predicate<TableFunctionDependency>() {
-      @Override
-      public boolean apply( TableFunctionDependency dependency) {
-        final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(dependency.getSourceName()));
-        return Boolean.TRUE.equals(settings.getNeverRefresh());
-      }
+    if (Iterables.isEmpty(dependencies)) {
+      return false;
+    }
+    return filterReflectionDependencies(dependencies).allMatch(dependency -> {
+      return dontGiveUpHelper(dependency.getReflectionId(), dependencyResolutionContext);
+    }) && filterDatasetDependencies(dependencies).allMatch(dependency -> {
+      final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(dependency.getNamespaceKey());
+      return Boolean.TRUE.equals(settings.getNeverRefresh());
+    }) && filterTableFunctionDependencies(dependencies).allMatch(dependency -> {
+      final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(new NamespaceKey(dependency.getSourceName()));
+      return Boolean.TRUE.equals(settings.getNeverRefresh());
     });
   }
 
   /**
+   * Returns reflections that should be excluded for substitution when planning a refresh
+   * for the input reflection.
+   *
+   * This method is not called from ReflectinManager.sync so it should not use the
+   * HandleEntriesSyncCache cache.
+   *
    * @return FAILED and cyclic dependencies
    */
   private List<String> getExclusions(ReflectionId rId) {
     return filterReflectionDependencies(graph.getPredecessors(rId))
-      .filter(new Predicate<ReflectionDependency>() {
-        @Override
-        public boolean apply(ReflectionDependency dependency) {
-          final ReflectionEntry entry = entriesStore.get(dependency.getReflectionId());
-          return entry != null && entry.getState() == ReflectionState.FAILED;
-        }
+      .filter(dependency -> {
+        final ReflectionEntry entry = entriesStore.get(dependency.getReflectionId());
+        return entry != null && entry.getState() == ReflectionState.FAILED;
       })
-      .transform(new Function<ReflectionDependency, ReflectionId>() {
-        @Override
-        public ReflectionId apply(ReflectionDependency dependency) {
-          return dependency.getReflectionId();
-        }
-      })
+      .transform(dependency -> dependency.getReflectionId())
       .append(graph.getSubGraph(rId))
-      .transform(new Function<ReflectionId, String>() {
-        @Override
-        public String apply(ReflectionId id) {
-          return id.getId();
-        }
-      }).toList();
+      .transform(id -> id.getId()).toList();
   }
 
   boolean reflectionHasKnownDependencies(ReflectionId id) {
     return !graph.getPredecessors(id).isEmpty();
   }
 
-  boolean shouldRefresh(final ReflectionEntry entry, final long noDependencyRefreshPeriodMs) {
+  boolean shouldRefresh(final ReflectionEntry entry, final long noDependencyRefreshPeriodMs,
+                        final DependencyResolutionContext dependencyResolutionContext) {
     final long currentTime = System.currentTimeMillis();
     final ReflectionId id = entry.getId();
     final long lastSubmitted = Preconditions.checkNotNull(entry.getLastSubmittedRefresh(),
@@ -178,9 +184,9 @@ public class DependencyManager {
         @Nullable
         @Override
         public Long apply(ReflectionDependency dependency) {
-          final ReflectionEntry entry = Preconditions.checkNotNull(entriesStore.get(dependency.getReflectionId()),
+          final Optional<Long> lastSuccessfulRefresh = Preconditions.checkNotNull(dependencyResolutionContext.getLastSuccessfulRefresh(dependency.getReflectionId()),
             "Reflection %s depends on a non-existing reflection %s", id.getId(), dependency.getReflectionId().getId());
-          return entry.getLastSuccessfulRefresh();
+          return lastSuccessfulRefresh.orNull();
         }
       }).filter(notNull())
       .toList(); // we need to apply the transform so that refreshNow gets computed
@@ -202,11 +208,11 @@ public class DependencyManager {
         @Override
         public Long apply(DatasetDependency dependency) {
           // first account for the dataset's refresh period
-          final AccelerationSettings settings = reflectionSettings.getReflectionSettings(dependency.getNamespaceKey());
+          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(dependency.getNamespaceKey());
           final long refreshStart = Boolean.TRUE.equals(settings.getNeverRefresh()) || settings.getRefreshPeriod() == 0 ? 0 : currentTime - settings.getRefreshPeriod();
 
           // then account for any refresh request against the dataset
-          final RefreshRequest request = requestsStore.get(dependency.getId());
+          final RefreshRequest request = dependencyResolutionContext.getRefreshRequest(dependency.getId());
           if (request != null) {
             return Math.max(refreshStart, request.getRequestedAt());
           }
@@ -219,7 +225,7 @@ public class DependencyManager {
           @Nullable
           @Override
           public Long apply(TableFunctionDependency entry) {
-            final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
+            final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
             final long refreshStart = Boolean.TRUE.equals(settings.getNeverRefresh()) || settings.getRefreshPeriod() == 0 ? 0 : currentTime -  settings.getRefreshPeriod();
             return refreshStart;
           }
@@ -270,14 +276,14 @@ public class DependencyManager {
    * If no physical datasets
    * @return the minimum ttl value
    */
-  public Optional<Long> getGracePeriod(final ReflectionId reflectionId) {
+  public Optional<Long> getGracePeriod(final ReflectionId reflectionId, final DependencyResolutionContext dependencyResolutionContext) {
     // extract the gracePeriod from all dataset entries
     final Iterable<Long> gracePeriods = filterDatasetDependencies(graph.getPredecessors(reflectionId))
       .transform(new Function<DatasetDependency, Long>() {
         @Nullable
         @Override
         public Long apply(DatasetDependency entry) {
-          final AccelerationSettings settings = reflectionSettings.getReflectionSettings(entry.getNamespaceKey());
+          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(entry.getNamespaceKey());
           // for reflections that never expire, use a grace period of 1000 years from now
           return Boolean.TRUE.equals(settings.getNeverExpire()) ? (TimeUnit.DAYS.toMillis(365)*1000) : settings.getGracePeriod();
         }
@@ -287,7 +293,7 @@ public class DependencyManager {
         @Nullable
         @Override
         public Long apply(TableFunctionDependency entry) {
-          final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
+          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
           return Boolean.TRUE.equals(settings.getNeverExpire()) ? (TimeUnit.DAYS.toMillis(365)*1000) : settings.getGracePeriod();
         }
       }))
@@ -328,13 +334,14 @@ public class DependencyManager {
     return Optional.of(Ordering.natural().min(expirationTimes));
   }
 
-  public List<DependencyEntry> getDependencies(final ReflectionId reflectionId) {
+  List<DependencyEntry> getDependencies(final ReflectionId reflectionId) {
     return graph.getPredecessors(reflectionId);
   }
 
   public void setDependencies(final ReflectionId reflectionId, ExtractedDependencies extracted) throws DependencyException {
     Preconditions.checkState(!extracted.isEmpty(), "expected non empty dependencies");
 
+    // Plan dependencies can include reflections.... decision dependencies cannot
     Set<DependencyEntry> dependencies = extracted.getPlanDependencies();
 
     if (Iterables.isEmpty(dependencies)) {
@@ -343,10 +350,12 @@ public class DependencyManager {
       return;
     }
 
-    // if P > R1 > R2 and R2 is either FAILED or DEPRECATED we should exclude it from the dependencies and include
-    // all datasets instead. We do this to avoid never refreshing R2 again if R1 is never refreshed
+    // When updating the dependencies for R2,
+    // if P > R1 > R2 and R1 is either FAILED or DEPRECATED we should exclude it from the dependencies and include
+    // all datasets instead. We do this to avoid never refreshing R2 again if R1 is never refreshed.
     // Note that even though delete(R1) will also update R2 dependencies, it may not be enough if R2 was refreshing
-    // while the update happens as setDependencies(R2, ...) would overwrite the update, that's why we include all the datasets
+    // while delete(R1) happens as setDependencies(R2, ...) would overwrite the delete(R1).
+    // That is why we need to exclude R1 below and include all the physical dataset dependencies.
     if (Iterables.any(dependencies, isDeletedReflection)) {
       // filter out deleted reflections, and include all dataset dependencies
       dependencies = FluentIterable.from(dependencies)
@@ -358,7 +367,8 @@ public class DependencyManager {
     graph.setDependencies(reflectionId, dependencies);
   }
 
-  public synchronized void delete(ReflectionId id) {
+  synchronized void delete(ReflectionId id) {
     graph.delete(id);
   }
+
 }

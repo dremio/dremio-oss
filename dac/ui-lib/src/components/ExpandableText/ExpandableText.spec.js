@@ -42,24 +42,24 @@ const getShallowWrapper = (
 describe("Expandable Text", () => {
   it("has the required components and collapses text by default", () => {
     const wrapper = getShallowWrapper();
-    expect(wrapper.find("div.expandable-text-root").exists()).toBe(true);
-    expect(wrapper.find("div.expandable-text-label-container").exists()).toBe(
+    expect(wrapper.find("ExpandableTextRoot").exists()).toBe(true);
+    expect(wrapper.find(".expandable-text-label-container").exists()).toBe(
       true
     );
-    expect(wrapper.find("div.expandable-text-label").exists()).toBe(true);
-    expect(wrapper.find("div.collapsable-container").exists()).toBe(false);
+    expect(wrapper.find(".expandable-text-label").exists()).toBe(true);
+    expect(wrapper.find(".collapsable-container").exists()).toBe(false);
     expect(wrapper.find("#children").exists()).toBe(false);
   });
 
   it("adds the classes passed as props to respective elements", () => {
     const wrapper = getShallowWrapper();
-    expect(wrapper.find("div.expandable-text-root").props().className).toEqual(
+    expect(wrapper.find("ExpandableTextRoot").props().className).toEqual(
       expect.stringContaining("sample-root-class")
     );
     expect(
-      wrapper.find("div.expandable-text-label-container").props().className
+      wrapper.find(".expandable-text-label-container").props().className
     ).toEqual(expect.stringContaining("sample-label-container-class"));
-    expect(wrapper.find("div.expandable-text-label").props().className).toEqual(
+    expect(wrapper.find(".expandable-text-label").props().className).toEqual(
       expect.stringContaining("sample-label-class")
     );
   });
@@ -67,10 +67,10 @@ describe("Expandable Text", () => {
   it("toggles visibility of collable content on click of label", () => {
     const wrapper = getShallowWrapper();
     wrapper.find(".expandable-text-label-container").at(0).simulate("click");
-    expect(wrapper.find("div.collapsable-container").exists()).toBe(true);
+    expect(wrapper.find(".collapsable-container").exists()).toBe(true);
     expect(wrapper.find("#children").exists()).toBe(true);
     wrapper.find(".expandable-text-label-container").at(0).simulate("click");
-    expect(wrapper.find("div.collapsable-container").exists()).toBe(false);
+    expect(wrapper.find(".collapsable-container").exists()).toBe(false);
     expect(wrapper.find("#children").exists()).toBe(false);
   });
 
@@ -89,7 +89,7 @@ describe("Expandable Text", () => {
       ...defaultProps,
       defaultExpanded: true,
     });
-    expect(wrapper.find("div.collapsable-container").exists()).toBe(true);
+    expect(wrapper.find(".collapsable-container").exists()).toBe(true);
     expect(wrapper.find("#children").exists()).toBe(true);
   });
 });

@@ -18,7 +18,6 @@ package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,7 +47,7 @@ import com.google.common.collect.Range;
 import com.google.common.net.HostAndPort;
 
 public class BlockMapBuilder {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BlockMapBuilder.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BlockMapBuilder.class);
   private static final Timer BLOCK_MAP_BUILD_TIMER = Metrics.newTimer(Metrics.join(BlockMapBuilder.class.getName(), "blockMapBuilderTimer"), ResetType.NEVER);
 
   private final Map<Path,ImmutableRangeMap<Long,FileBlockLocation>> blockMapMap = Maps.newConcurrentMap();
@@ -82,17 +81,17 @@ public class BlockMapBuilder {
 
   }
 
-  private class BlockMapReader extends TimedRunnable<List<CompleteFileWork>> {
-    final FileAttributes attributes;
+  private final class BlockMapReader extends TimedRunnable<List<CompleteFileWork>> {
+    private final FileAttributes attributes;
 
     // This variable blockify indicates if a single file can be read by multiple threads
     // For examples, for CSV, it is set as true
     // because each row in a CSV file can be considered as an independent record;
     // for json, it is set as false
     // because each row in a json file cannot be determined as a record or not simply by that row alone
-    final boolean blockify;
+    private final boolean blockify;
 
-    public BlockMapReader(FileAttributes attributes, boolean blockify) {
+    private BlockMapReader(FileAttributes attributes, boolean blockify) {
       super();
       this.attributes = attributes;
       this.blockify = blockify;
@@ -140,10 +139,10 @@ public class BlockMapBuilder {
 
   }
 
-  private static class FileAttributesWork implements FileWork {
-    private FileAttributes status;
-    private long start;
-    private long length;
+  private static final class FileAttributesWork implements FileWork {
+    private final FileAttributes status;
+    private final long start;
+    private final long length;
 
     public FileAttributesWork(FileAttributes status) {
       this(status, 0, status.size());
@@ -170,9 +169,6 @@ public class BlockMapBuilder {
     public long getLength() {
       return length;
     }
-
-
-
   }
 
   /**
@@ -213,8 +209,6 @@ public class BlockMapBuilder {
    */
   public EndpointByteMap getEndpointByteMap(FileWork work) throws IOException {
     Stopwatch watch = Stopwatch.createStarted();
-
-
 
     ImmutableRangeMap<Long,FileBlockLocation> blockMap = getBlockMap(work.getFileAttributes());
     EndpointByteMapImpl endpointByteMap = new EndpointByteMapImpl();
@@ -258,7 +252,7 @@ public class BlockMapBuilder {
    */
   private static ImmutableMap<String, NodeEndpoint> buildEndpointMap(Collection<NodeEndpoint> endpoints) {
     Stopwatch watch = Stopwatch.createStarted();
-    HashMap<String, NodeEndpoint> endpointMap = Maps.newHashMap();
+    Map<String, NodeEndpoint> endpointMap = Maps.newHashMap();
     for (NodeEndpoint d : endpoints) {
       String hostName = d.getAddress();
       endpointMap.put(hostName, d);

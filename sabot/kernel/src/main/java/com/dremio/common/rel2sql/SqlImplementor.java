@@ -1086,7 +1086,7 @@ public abstract class SqlImplementor {
 
     protected boolean hasNestedAggregations(LogicalAggregate rel) {
       List<AggregateCall> aggCallList = rel.getAggCallList();
-      HashSet<Integer> aggregatesArgs = new HashSet<>();
+      Set<Integer> aggregatesArgs = new HashSet<>();
       for (AggregateCall aggregateCall : aggCallList) {
         aggregatesArgs.addAll(aggregateCall.getArgList());
       }

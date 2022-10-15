@@ -22,23 +22,25 @@ import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.LOCALS
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.PARTITION;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.STRIPED;
 
-import org.apache.arrow.util.Preconditions;
-
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Stores the fields that are common to both an aggregate and raw reflection create statement.
  */
-public final class FieldLists {
+public final class FieldLists extends Statement {
   private final FieldList distributeFields;
   private final FieldList partitionFields;
   private final FieldList localSortFields;
 
   public FieldLists(
+    ImmutableList<DremioToken> tokens,
     FieldList distributeFields,
     FieldList partitionFields,
     FieldList localSortFields) {
+    super(tokens, asListIgnoringNulls(distributeFields, partitionFields, localSortFields));
     this.distributeFields = distributeFields;
     this.partitionFields = partitionFields;
     this.localSortFields = localSortFields;
@@ -56,25 +58,27 @@ public final class FieldLists {
     return localSortFields;
   }
 
-  public static FieldLists parse(TokenBuffer tokenBuffer) {
+  public static FieldLists parse(TokenBuffer tokenBuffer, TableReference tableReference) {
     Preconditions.checkNotNull(tokenBuffer);
     if (tokenBuffer.isEmpty()) {
       return null;
     }
 
-    return new Builder()
-      .addDistributeFields(parseDistributeFields(tokenBuffer))
-      .addPartitionFields(parsePartitionFields(tokenBuffer))
-      .addLocalSortFields(parseLocalSortFields(tokenBuffer))
+    return new Builder(tokenBuffer.toList())
+      .addDistributeFields(parseDistributeFields(tokenBuffer, tableReference))
+      .addPartitionFields(parsePartitionFields(tokenBuffer, tableReference))
+      .addLocalSortFields(parseLocalSortFields(tokenBuffer, tableReference))
       .build();
   }
 
   private static final class Builder {
+    private final ImmutableList<DremioToken> tokens;
     private FieldList distributeFields;
     private FieldList partitionFields;
     private FieldList localSortFields;
 
-    public Builder () {
+    public Builder (ImmutableList<DremioToken> tokens) {
+      this.tokens = tokens;
     }
 
     public FieldLists.Builder addDistributeFields(FieldList distributeFields) {
@@ -94,26 +98,27 @@ public final class FieldLists {
 
     public FieldLists build() {
       return new FieldLists(
+        tokens,
         distributeFields,
         partitionFields,
         localSortFields);
     }
   }
 
-  private static FieldList parseDistributeFields(TokenBuffer tokenBuffer) {
-    return parseFields(DISTRIBUTE, tokenBuffer);
+  private static FieldList parseDistributeFields(TokenBuffer tokenBuffer, TableReference tableReference) {
+    return parseFieldList(DISTRIBUTE, tokenBuffer, tableReference);
   }
 
-  private static FieldList parsePartitionFields(TokenBuffer tokenBuffer) {
+  private static FieldList parsePartitionFields(TokenBuffer tokenBuffer, TableReference tableReference) {
     tokenBuffer.readIf(token -> (token.getKind() == STRIPED) || (token.getKind() == CONSOLIDATED));
-    return parseFields(PARTITION, tokenBuffer);
+    return parseFieldList(PARTITION, tokenBuffer, tableReference);
   }
 
-  private static FieldList parseLocalSortFields(TokenBuffer tokenBuffer) {
-    return parseFields(LOCALSORT, tokenBuffer);
+  private static FieldList parseLocalSortFields(TokenBuffer tokenBuffer, TableReference tableReference) {
+    return parseFieldList(LOCALSORT, tokenBuffer, tableReference);
   }
 
-  private static FieldList parseFields(int kind, TokenBuffer tokenBuffer) {
+  private static FieldList parseFieldList(int kind, TokenBuffer tokenBuffer, TableReference tableReference) {
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -128,6 +133,6 @@ public final class FieldLists {
       return null;
     }
 
-    return FieldList.parse(tokenBuffer);
+    return FieldList.parse(tokenBuffer, tableReference);
   }
 }

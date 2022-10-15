@@ -290,6 +290,11 @@ public class ValueExpressions {
     }
 
     @Override
+    public int hashCode() {
+      return Objects.hashCode(f);
+    }
+
+    @Override
     public String toString() {
       return "ValueExpression[float=" + f + "]";
     }
@@ -394,6 +399,11 @@ public class ValueExpressions {
     }
 
     @Override
+    public int hashCode() {
+      return Objects.hashCode(decimal, precision);
+    }
+
+    @Override
     public String toString() {
       return "ValueExpression[decimal=" + decimal + ", precision " + getPrecision() + "]";
     }
@@ -435,6 +445,11 @@ public class ValueExpressions {
     }
 
     @Override
+    public int hashCode() {
+      return Objects.hashCode(d);
+    }
+
+    @Override
     public String toString() {
       return "ValueExpression[double=" + d + "]";
     }
@@ -469,6 +484,11 @@ public class ValueExpressions {
       }
       LongExpression castOther = (LongExpression) other;
       return Objects.equal(l, castOther.l);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(l);
     }
 
     @Override
@@ -509,6 +529,10 @@ public class ValueExpressions {
       return Objects.equal(dateInMillis, castOther.dateInMillis);
     }
 
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(dateInMillis);
+    }
 
     @Override
     public String toString() {
@@ -550,6 +574,11 @@ public class ValueExpressions {
     }
 
     @Override
+    public int hashCode() {
+      return Objects.hashCode(timeInMillis);
+    }
+
+    @Override
     public String toString() {
       return "ValueExpression[time=" + timeInMillis + "]";
     }
@@ -584,6 +613,11 @@ public class ValueExpressions {
       }
       TimeStampExpression castOther = (TimeStampExpression) other;
       return Objects.equal(timeInMillis, castOther.timeInMillis);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(timeInMillis);
     }
 
     @Override
@@ -622,6 +656,11 @@ public class ValueExpressions {
       }
       IntervalYearExpression castOther = (IntervalYearExpression) other;
       return Objects.equal(months, castOther.months);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(months);
     }
 
     @Override
@@ -672,6 +711,11 @@ public class ValueExpressions {
       }
       IntervalDayExpression castOther = (IntervalDayExpression) other;
       return Objects.equal(days, castOther.days) && Objects.equal(millis, castOther.millis);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(days, millis);
     }
 
     @Override

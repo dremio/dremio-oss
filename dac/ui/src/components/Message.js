@@ -26,10 +26,11 @@ import { fixedWidthDefault } from "uiTheme/radium/typography";
 import Modal from "components/Modals/Modal";
 import ModalForm from "components/Forms/ModalForm";
 import FormBody from "components/Forms/FormBody";
-import Art from "@app/components/Art";
 
 import jobsUtils from "utils/jobsUtils";
 import { haveLocKey } from "utils/locale";
+
+import "./Message.less";
 
 export const RENDER_NO_DETAILS = Symbol("RENDER_NO_DETAILS");
 
@@ -148,24 +149,27 @@ class Message extends PureComponent {
   };
 
   renderIcon(messageType) {
-    switch (messageType) {
-      case "error":
-        return (
-          <Art src="CloseCircleError.svg" alt="Error" style={styles.icon} />
-        );
-      case "warning":
-        return (
-          <Art src="WarningCircleNotf.svg" alt="Warning" style={styles.icon} />
-        );
-      case "info":
-        return <Art src="CircleInfo.svg" alt="Info" style={styles.icon} />;
-      case "success":
-        return (
-          <Art src="SuccessCircle.svg" alt="Success" style={styles.icon} />
-        );
-      default:
-        return null;
-    }
+    const iconNameMap = {
+      error: "interface/close-circle-error",
+      warning: "interface/warning-circle-notf",
+      info: "interface/circle-info",
+      success: "interface/success-circle",
+    };
+
+    const altMap = {
+      error: "Error",
+      warning: "Warning",
+      info: "Info",
+      success: "Success",
+    };
+    return (
+      <dremio-icon
+        name={iconNameMap[messageType]}
+        class="message-icon"
+        alt={altMap[messageType]}
+        data-qa={iconNameMap[messageType]}
+      />
+    );
   }
 
   renderDetails() {
@@ -406,11 +410,11 @@ class Message extends PureComponent {
           </span>
           {isDismissable && (
             <div style={styles.rightButton}>
-              <Art
-                src="CloseSmall.svg"
+              <dremio-icon
+                name="interface/close-small"
                 alt="Dismiss"
                 onClick={this.onDismiss}
-                style={styles.dismissBtn}
+                class="dismiss-btn"
               />
             </div>
           )}
@@ -509,11 +513,6 @@ const styles = {
 
   error: {
     backgroundColor: "#FDEDED",
-  },
-  dismissBtn: {
-    width: "24px",
-    height: "24px",
-    cursor: "pointer",
   },
 };
 export default Message;

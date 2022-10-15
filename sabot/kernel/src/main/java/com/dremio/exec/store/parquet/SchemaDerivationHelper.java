@@ -41,15 +41,16 @@ public class SchemaDerivationHelper {
   private final boolean allowMixedDecimals;
   private final boolean limitListItems;
 
-  private SchemaDerivationHelper(final boolean readInt96AsTimeStamp, final DateCorruptionStatus dateCorruptionStatus,
-      final boolean noSchemaLearning, final boolean allowMixedDecimals,
-      final BatchSchema schemaFromTableMetadata, final boolean limitListItems) {
-    this.readInt96AsTimeStamp = readInt96AsTimeStamp;
-    this.dateCorruptionStatus = dateCorruptionStatus;
-    this.noSchemaLearning = noSchemaLearning;
-    this.schemaFromTableMetadata = schemaFromTableMetadata;
-    this.allowMixedDecimals = allowMixedDecimals;
-    this.limitListItems = limitListItems;
+  private final boolean mapDataTypeEnabled;
+
+  private SchemaDerivationHelper(Builder b) {
+    this.readInt96AsTimeStamp = b.readInt96AsTimeStamp;
+    this.dateCorruptionStatus = b.dateCorruptionStatus;
+    this.noSchemaLearning = b.noSchemaLearning;
+    this.schemaFromTableMetadata = b.schemaFromTableMetadata;
+    this.allowMixedDecimals = b.allowMixedDecimals;
+    this.limitListItems = b.limitListItems;
+    this.mapDataTypeEnabled = b.mapDataTypeEnabled;
   }
 
   /**
@@ -100,6 +101,15 @@ public class SchemaDerivationHelper {
   public boolean isLimitListItems() {
     return limitListItems;
   }
+
+  /**
+   * If enabled Map data types are read as Map<Struct<key,value>>, else will be read as struct<list<struct<key,value>>>
+   * @return true if support key for map data type is enabled
+   */
+  public boolean isMapDataTypeEnabled() {
+    return mapDataTypeEnabled;
+  }
+
   /**
    * Get builder class
    * @return
@@ -127,6 +137,7 @@ public class SchemaDerivationHelper {
     private BatchSchema schemaFromTableMetadata;
     private boolean allowMixedDecimals = false;
     private boolean limitListItems = false;
+    private boolean mapDataTypeEnabled;
 
     private Builder() { }
 
@@ -157,9 +168,13 @@ public class SchemaDerivationHelper {
       return this;
     }
 
+    public Builder mapDataTypeEnabled(boolean mapDataTypeEnabled) {
+      this.mapDataTypeEnabled = mapDataTypeEnabled;
+      return this;
+    }
+
     public SchemaDerivationHelper build() {
-      return new SchemaDerivationHelper(readInt96AsTimeStamp, dateCorruptionStatus, noSchemaLearning,
-          allowMixedDecimals, schemaFromTableMetadata, limitListItems);
+      return new SchemaDerivationHelper(this);
     }
   }
 }

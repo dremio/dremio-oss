@@ -19,6 +19,7 @@ package org.apache.arrow.vector;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -32,6 +33,7 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
@@ -51,10 +53,11 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
   private UInt2Vector fwdIndex;
   private int head; //the index at which a new value may be appended
-  private int numCompactions = 0;
   private Stopwatch compactionTimer = Stopwatch.createUnstarted();
   private static int DEFAULT_MAX_VECTOR_USAGE_PERCENT = 95;
   private int maxVarWidthVecUsagePercent;
+  private int valueCapacity;
+  private Accumulator.AccumStats accumStats;
 
   /**
    * Instantiate a MutableVarcharVector. This doesn't allocate any memory for
@@ -67,7 +70,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    */
   public MutableVarcharVector(String name, BufferAllocator allocator, double compactionThreshold) {
     this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator,
-      compactionThreshold, DEFAULT_MAX_VECTOR_USAGE_PERCENT);
+      compactionThreshold, DEFAULT_MAX_VECTOR_USAGE_PERCENT, null);
   }
 
   /**
@@ -79,9 +82,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the buffer. If the ratio
    *                            is more than the threshold, then compaction gets triggered on next update.
    */
-  public MutableVarcharVector(String name, BufferAllocator allocator, double compactionThreshold, int maxVarWidthVecUsagePercent) {
+  public MutableVarcharVector(String name, BufferAllocator allocator, double compactionThreshold,
+                              int maxVarWidthVecUsagePercent, Accumulator.AccumStats accumStats) {
     this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator,
-      compactionThreshold, maxVarWidthVecUsagePercent);
+      compactionThreshold, maxVarWidthVecUsagePercent, accumStats);
   }
 
   /**
@@ -95,7 +99,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    *                            is more than the threshold, then compaction gets triggered on next update.
    */
   public MutableVarcharVector(String name, FieldType fieldType, BufferAllocator allocator,
-                              double compactionThreshold, int maxVarWidthVecUsagePercent) {
+                              double compactionThreshold, int maxVarWidthVecUsagePercent, Accumulator.AccumStats accumStats) {
     super(new Field(name, fieldType, null), allocator);
 
     assert compactionThreshold <= 1.0;
@@ -103,6 +107,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     Preconditions.checkArgument(maxVarWidthVecUsagePercent <= 100);
     this.maxVarWidthVecUsagePercent = maxVarWidthVecUsagePercent;
     fwdIndex = new UInt2Vector(name, allocator);
+    this.accumStats = accumStats;
   }
 
   public final void setCompactionThreshold(double in) {
@@ -204,20 +209,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * zero out the vector and the data in associated buffers.
-   */
-  public void zeroVector() {
-    super.zeroVector();
-
-    fwdIndex.zeroVector();
-    head = 0;
-    garbageSizeInBytes = 0;
-  }
-
-  /**
    * Reset the vector to initial state. Same as {@link #zeroVector()}.
    * Note that this method doesn't release any memory.
    */
+  @Override
   public void reset() {
     super.reset();
 
@@ -374,27 +369,43 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     throw new UnsupportedOperationException("not supported");
   }
 
-  private int getFreeSpace() {
-    return getByteCapacity() - getCurrentOffset();
+  /**
+   * If 'numOfRecords' number of records could fit in this vector, return free space left.
+   * If these records don't fit (no space in offset buffer/validity buffer), return -1.
+   * @param numOfRecords
+   * @return
+   */
+  private int returnFreeSpaceIfRecordsFit(final int numOfRecords) {
+    if (head + numOfRecords  <= this.valueCapacity) {
+      return super.getByteCapacity() - getCurrentOffset();
+    } else {
+      /* Return -1 instead 0 so that the caller cannot even insert a null value */
+      return -1;
+    }
   }
 
-  public boolean checkHasAvailableSpace(final int space) {
-    final int freeSpace = getFreeSpace();
+  public boolean checkHasAvailableSpace(final int space, final int numOfRecords) {
+    final int freeSpace = returnFreeSpaceIfRecordsFit(numOfRecords);
 
     /* Check if free space, without compacting, is sufficient. */
     if (freeSpace >= space) {
       return true;
     }
 
-    /* If the total free space is less 5%, avoid force compacting. */
-    if ((freeSpace + garbageSizeInBytes) < space ||
-      (((freeSpace + garbageSizeInBytes) * 1.0D) / getDataBuffer().capacity()) <
-        (((100 - maxVarWidthVecUsagePercent) * 1.0D) / 100)) {
-      return false;
-    }
 
-    /* While inserting, will do force compaction */
-    return true;
+    /*
+        If freeSpace is -1 - we are out of offsets/validity bits. return false
+        if freeSpace + garbageSizeInBytes is less than required space, we don't have space even after accounting for garbage values. - return false
+        freeSpace + garbageSizeInBytes > required space but this available free space is less than 5% (default value of maxVarWidthVecUsagePercent) of total space, return false
+        if all above conditions are false, return true.
+     */
+    return freeSpace != -1 && (freeSpace + garbageSizeInBytes) >= space && !isFreeSpaceLessThanGivenPercentage(freeSpace + garbageSizeInBytes);
+
+  }
+
+  private boolean isFreeSpaceLessThanGivenPercentage(int freeSpace) {
+    return (((freeSpace) * 1.0D) / getDataBuffer().capacity()) <
+      (((100 - maxVarWidthVecUsagePercent) * 1.0D) / 100);
   }
 
   /**
@@ -407,7 +418,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    */
   private final void updateGarbageAndCompact(final int index, final int newLength) {
     final boolean isUpdate = (fwdIndex.isSafe(index) && !fwdIndex.isNull(index));
-    final boolean compact = newLength > 0 ? (getFreeSpace() < newLength) : false;
+    final boolean compact = (returnFreeSpaceIfRecordsFit(1) < newLength);
 
     if (isUpdate) {
       final int actualIndex = fwdIndex.get(index);
@@ -435,21 +446,12 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     compactInternal();
   }
 
-  public long getCompactionTime(TimeUnit unit) {
-    return compactionTimer.elapsed(unit);
-  }
-
-  public int getNumCompactions() {
-    return numCompactions;
-  }
-
   /* Actual api that does compaction */
   private final void compactInternal() {
-    ++numCompactions;
     compactionTimer.start();
 
     //maps valid offset to its corresponding index
-    final HashMap<Integer, Integer> validOffsetMap = new HashMap<> ();
+    final Map<Integer, Integer> validOffsetMap = new HashMap<>();
 
     //populate the mapping
     final int idxCapacity = fwdIndex.getValueCapacity();
@@ -495,6 +497,11 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     //only valid data remains in the buffer now.
     garbageSizeInBytes = 0;
     compactionTimer.stop();
+    if (accumStats != null) {
+      accumStats.incNumCompactions();
+      accumStats.updateTotalCompactionTimeBy(compactionTimer.elapsed(TimeUnit.NANOSECONDS));
+    }
+    compactionTimer.reset();
   }
 
   /**
@@ -914,6 +921,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     super.valueBuffer.getReferenceManager().retain(1);
 
     fwdIndex.refreshValueCapacity();
+
+    reset();
+
+    this.valueCapacity = super.getValueCapacity();
   }
 
   /**
@@ -983,7 +994,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
   /* Use this function to verify the consistency of the mutable vector */
   public void checkMV() {
-    final HashMap<Integer, Integer> validOffsetMap = new HashMap<> ();
+    final Map<Integer, Integer> validOffsetMap = new HashMap<>();
     final int idxCapacity = fwdIndex.getValueCapacity();
     for (int i = 0; i < idxCapacity; ++i) {
       if (!fwdIndex.isNull(i)) {

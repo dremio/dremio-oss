@@ -389,7 +389,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
       throw new UnsupportedOperationException();
     }
     case NONE: {
-      g.getBlock("getVectorIndex")._return(JExpr.direct("recordIndex"));;
+      g.getBlock("getVectorIndex")._return(JExpr.direct("recordIndex"));
       return;
     }
     case TWO_BYTE: {

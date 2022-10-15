@@ -15,9 +15,9 @@
  */
 package com.dremio.dac.service.support;
 
-import static junit.framework.TestCase.assertFalse;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;

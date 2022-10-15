@@ -35,7 +35,6 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.modelmapper.internal.util.Assert;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.FamilyExpectation;
@@ -266,8 +265,8 @@ public class TestReflectionJob extends BaseTestReflection {
     ReflectionId reflectionId = reflectionEntry.getId();
 
     Iterable<JobSummary> jobSummaries = searchJobs(reflectionId.getId(), DEFAULT_USERNAME);
-    jobSummaries.forEach(jobSummary -> Assert.isTrue(jobSummary.getDescription().contains(reflectionId.getId())));
-    Assert.isTrue(Iterables.size(jobSummaries) == 2);
+    jobSummaries.forEach(jobSummary -> assertTrue(jobSummary.getDescription().contains(reflectionId.getId())));
+    assertEquals(2, Iterables.size(jobSummaries));
   }
 
   @Test
@@ -276,7 +275,7 @@ public class TestReflectionJob extends BaseTestReflection {
     ReflectionId reflectionId = reflectionEntry.getId();
 
     JobDetails jobDetails = getJobDetails(reflectionEntry.getRefreshJobId(), reflectionId.getId(), DEFAULT_USERNAME);
-    Assert.isTrue(jobDetails.getAttempts(0).getInfo().getMaterializationFor().getReflectionId().equals(reflectionId.getId()));
+    assertEquals(jobDetails.getAttempts(0).getInfo().getMaterializationFor().getReflectionId(), reflectionId.getId());
   }
 
   @Test

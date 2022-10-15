@@ -109,11 +109,8 @@ export class TableControlsView extends PureComponent {
     const { dataset } = this.props;
 
     const version = dataset && dataset.get("datasetVersion");
-    const copyStyles = { margin: "0 10px" };
 
-    return version ? (
-      <ExploreCopyTableButton version={version} style={copyStyles} />
-    ) : null;
+    return version ? <ExploreCopyTableButton version={version} /> : null;
   };
 
   isTransformNeeded() {
@@ -329,7 +326,7 @@ export class TableControlsView extends PureComponent {
                       }
                     />
                   </Tooltip>
-                  {intl.formatMessage({ id: "Dataset.AddField" })}
+                  {intl.formatMessage({ id: "Dataset.AddColumn" })}
                 </Button>
                 <Button
                   className="controls-groupBy"

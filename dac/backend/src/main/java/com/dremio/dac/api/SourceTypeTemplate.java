@@ -54,6 +54,7 @@ public class SourceTypeTemplate {
   private final boolean externalQueryAllowed;
   private final List<SourcePropertyTemplate> elements;
   private final String uiConfig;
+  private final boolean previewEngineRequired;
 
   public SourceTypeTemplate(
       String name,
@@ -61,13 +62,15 @@ public class SourceTypeTemplate {
       String icon,
       boolean externalQueryAllowed,
       List<SourcePropertyTemplate> elements,
-      String uiConfig) {
+      String uiConfig,
+      boolean previewEngineRequired){
     this.sourceType = name;
     this.label = label;
     this.icon = icon;
     this.externalQueryAllowed = externalQueryAllowed;
     this.elements = elements;
     this.uiConfig = uiConfig;
+    this.previewEngineRequired = previewEngineRequired;
   }
 
   @JsonCreator
@@ -76,12 +79,14 @@ public class SourceTypeTemplate {
     @JsonProperty("label") String label,
     @JsonProperty("icon") String icon,
     @JsonProperty("arpSource") boolean externalQueryAllowed,
-    @JsonProperty("elements") List<SourcePropertyTemplate> elements) {
+    @JsonProperty("elements") List<SourcePropertyTemplate> elements,
+    @JsonProperty("previewEngineRequired") boolean previewEngineRequired) {
     this.sourceType = name;
     this.label = label;
     this.icon = icon;
     this.externalQueryAllowed = externalQueryAllowed;
     this.elements = elements;
+    this.previewEngineRequired = previewEngineRequired;
     this.uiConfig = null;
   }
 
@@ -105,6 +110,10 @@ public class SourceTypeTemplate {
     return elements;
   }
 
+  public boolean isPreviewEngineRequired() {
+    return previewEngineRequired;
+  }
+
   @JsonRawValue
   @JsonProperty("uiConfig")
   public String getUIConfig() {
@@ -114,6 +123,8 @@ public class SourceTypeTemplate {
   public static SourceTypeTemplate fromSourceClass(Class<?> sourceClass, boolean includeProperties) {
     final SourceType type = sourceClass.getAnnotation(SourceType.class);
     final boolean supportsExternalQuery = type != null && type.externalQuerySupported();
+    final boolean previewEngineRequired = type != null && type.previewEngineRequired();
+
 
     // source icon has to be SourceTypeTemplate.svg and provided as a resource
     String icon = null;
@@ -148,7 +159,7 @@ public class SourceTypeTemplate {
         icon,
         supportsExternalQuery,
         null,
-        null);
+        null,previewEngineRequired);
     }
 
     final Object newClassInstance;
@@ -161,7 +172,7 @@ public class SourceTypeTemplate {
         icon,
         supportsExternalQuery,
         null,
-        null);
+        null,previewEngineRequired);
     }
 
     final List<SourcePropertyTemplate> properties = new ArrayList<>();
@@ -223,7 +234,7 @@ public class SourceTypeTemplate {
       icon,
       supportsExternalQuery,
       properties,
-      uiLayoutConfig);
+      uiLayoutConfig,previewEngineRequired);
   }
 
   private static Iterable<Field> getAllFields(Class<?> clazz) {

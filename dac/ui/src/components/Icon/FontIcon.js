@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent, Component } from "react";
+import { createElement, PureComponent, Component } from "react";
 import Immutable from "immutable";
 import classNames from "classnames";
 
@@ -376,6 +376,6 @@ export default class FontIcon extends Component {
         defaultTheme.Container
       );
     }
-    return React.createElement(component, { theme, tooltip, dataQa });
+    return createElement(component, { theme, tooltip, dataQa });
   }
 }

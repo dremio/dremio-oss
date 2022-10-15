@@ -15,7 +15,6 @@
  */
 import { Component } from "react";
 import Immutable from "immutable";
-import Radium from "radium";
 import PropTypes from "prop-types";
 import Cards from "@app/pages/ExplorePage/components/Transform/components/Cards";
 import ReplacePatternCard from "./ReplacePatternCard";
@@ -73,4 +72,4 @@ class ReplacePatternCards extends Component {
     );
   }
 }
-export default Radium(ReplacePatternCards);
+export default ReplacePatternCards;

@@ -1771,7 +1771,7 @@ public class NamespaceServiceImpl implements NamespaceService {
    * @param entityPath
    * @return
    */
-  protected List<NameSpaceContainer> getEntitiesOnPath(NamespaceKey entityPath) throws NamespaceNotFoundException {
+  public List<NameSpaceContainer> getEntitiesOnPath(NamespaceKey entityPath) throws NamespaceNotFoundException {
 
     final List<String> keys = Lists.newArrayListWithExpectedSize(entityPath.getPathComponents().size());
 

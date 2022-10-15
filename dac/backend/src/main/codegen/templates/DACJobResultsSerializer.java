@@ -132,7 +132,7 @@ public class DACJobResultsSerializer extends AbstractRowBasedRecordWriter {
 
   <#list vv.types as dremioType>
   <#assign finalType = "Nullable" + dremioType >
-  <#if dremioType == "Union" || dremioType == "Map" || dremioType == "List" >
+  <#if dremioType == "Union" || dremioType == "Map" || dremioType == "List" || dremioType == "Struct" >
   <#assign finalType = dremioType>
   </#if>
   @Override

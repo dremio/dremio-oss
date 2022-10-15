@@ -15,7 +15,6 @@
  */
 package com.dremio.service.autocomplete.parsing;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.hep.HepPlanner;
@@ -24,14 +23,11 @@ import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.context.AdditionalContext;
@@ -39,18 +35,17 @@ import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.cost.DremioRelMetadataQuery;
 import com.dremio.exec.planner.sql.ConvertletTable;
 import com.dremio.exec.planner.sql.DremioSqlConformance;
-import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.SqlValidatorImpl;
 import com.dremio.exec.planner.sql.VersionedTableExpressionResolver;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.exec.context.ContextInformation;
+import com.google.common.base.Preconditions;
 
 /**
  * A parser that can convert to both SqlNode, which also performs node validation to ensure that converted SQL is correct.
  */
-public final class ValidatingParser implements SqlNodeParser {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValidatingParser.class);
+public final class ValidatingParser extends SqlNodeParser {
   // Mocks required for validator and expression resolver
   private static final RexBuilder REX_BUILDER = new DremioRexBuilder(JavaTypeFactoryImpl.INSTANCE);
   private static final RelOptTable.ViewExpander VIEW_EXPANDER = (a, b, c, d) -> {throw new RuntimeException("View Expansion not supported.");};
@@ -84,18 +79,11 @@ public final class ValidatingParser implements SqlNodeParser {
   }
 
   @Override
-  public SqlNode toSqlNode(String sql) {
-    try {
-      SqlParser parser = ParserFactory.create(sql);
-      SqlNode node = parser.parseStmt();
-      // Resolve version context expressions to literals
-      resolver.resolve(sqlToRelConverter, node);
-      return validator.validate(node);
-    } catch (SqlParseException e) {
-      UserException.Builder builder = SqlExceptionHelper.parseError(sql, e);
-      builder.message(SqlExceptionHelper.QUERY_PARSING_ERROR);
-      throw builder.build(logger);
-    }
+  public SqlNode parseWithException(String sql) {
+    SqlNode node = BaseSqlNodeParser.INSTANCE.parse(sql);
+    // Resolve version context expressions to literals
+    resolver.resolve(sqlToRelConverter, node);
+    return validator.validate(node);
   }
 
   public static ValidatingParser create(

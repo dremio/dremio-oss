@@ -28,7 +28,7 @@ public class TenantContext {
   public static final String DEFAULT_SERVICE_PROJECT_ID = "77a89f85-c936-4f42-ab21-2ee90e9609b9";
   public static final String DEFAULT_SERVICE_ORG_ID = "77a89f85-c936-4f42-ab21-2ee90e96099b";
 
-  public static TenantContext DEFAULT_SERVICE_CONTEXT =
+  public static final TenantContext DEFAULT_SERVICE_CONTEXT =
     new TenantContext(DEFAULT_SERVICE_PROJECT_ID, DEFAULT_SERVICE_ORG_ID);
 
   private final UUID projectId;

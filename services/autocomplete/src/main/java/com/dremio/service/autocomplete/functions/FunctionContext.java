@@ -15,35 +15,42 @@
  */
 package com.dremio.service.autocomplete.functions;
 
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * The context for what function we are in and how far we are in it.
  */
 public final class FunctionContext {
   private final Function function;
-  private final ImmutableList<SqlTypeName> typesUsedSoFar;
+  private final ParameterTypeExtractor.Result suppliedParameterTypes;
   private final ImmutableList<FunctionSignature> signaturesMatched;
+  private final ImmutableSet<ParameterType> missingTypes;
 
   public FunctionContext(
     Function function,
-    ImmutableList<SqlTypeName> typesUsedSoFar,
-    ImmutableList<FunctionSignature> signaturesMatched) {
+    ParameterTypeExtractor.Result suppliedParameterTypes,
+    ImmutableList<FunctionSignature> signaturesMatched,
+    ImmutableSet<ParameterType> missingTypes) {
     this.function = function;
-    this.typesUsedSoFar = typesUsedSoFar;
+    this.suppliedParameterTypes = suppliedParameterTypes;
     this.signaturesMatched = signaturesMatched;
+    this.missingTypes = missingTypes;
   }
 
   public Function getFunction() {
     return function;
   }
 
-  public ImmutableList<SqlTypeName> getTypesUsedSoFar() {
-    return typesUsedSoFar;
+  public ParameterTypeExtractor.Result getSuppliedParameterTypes() {
+    return suppliedParameterTypes;
   }
+
   public ImmutableList<FunctionSignature> getSignaturesMatched() {
     return signaturesMatched;
+  }
+
+  public ImmutableSet<ParameterType> getMissingTypes() {
+    return missingTypes;
   }
 }

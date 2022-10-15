@@ -38,6 +38,7 @@ export function formatDateSince(
 ) {
   const limit = moment().subtract(daysAgo, "days").startOf("day");
   const wrappedDate = moment(date);
+
   return wrappedDate > limit
     ? formatDateRelative(date)
     : formatDate(date, format);

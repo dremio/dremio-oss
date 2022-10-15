@@ -36,12 +36,10 @@
     &-header {
       border-bottom: 1px solid @SECONDARY_200;
       padding: 0 !important;
-
-      .MuiTypography-h6 {
-        display: flex;
-        height: 55px;
-        align-items: center;
-      }
+      display: flex;
+      height: 55px;
+      align-items: center;
+      justify-content: space-between;
 
       &-title {
         display: flex;
@@ -49,12 +47,6 @@
         margin-left: 16px;
         font-size: 16px;
         font-weight: 600;
-      }
-
-      .MuiButtonBase-root {
-        margin-left: auto;
-        margin-right: 10px;
-        height: fit-content;
       }
     }
 
@@ -96,37 +88,6 @@
 
     &-actions {
       border-top: 1px solid @SECONDARY_200;
-
-      .cancel-button,
-      .add-button {
-        width: 120px;
-        height: 32px;
-        font-size: 14px;
-        font-weight: 500;
-        text-transform: capitalize;
-        padding: 0;
-
-        .MuiButton-label {
-          height: 32px;
-        }
-      }
-
-      .cancel-button {
-        .MuiButton-label {
-          color: @TROUT;
-          border: 1px solid @DISABLED_COLUMN_INDEX_TEXT_COLOR;
-          border-radius: 4px;
-        }
-      }
-
-      .add-button {
-        .MuiButton-label {
-          color: @WHITE;
-          background-color: @PRIMARY_600;
-          border: 1px solid @PRIMARY_600;
-          border-radius: 4px;
-        }
-      }
     }
   }
 }

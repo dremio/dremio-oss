@@ -27,4 +27,9 @@
       }
     }
   }
+  &__content {
+    display: flex;
+    align-items: center;
+    background-color: var(--dremio--color--neutral--700) !important;
+  }
 }

@@ -74,7 +74,7 @@ export class WikiModalView extends PureComponent {
 
     const wrapperStylesFix = {
       flex: 1,
-      height: "auto", // need reset a height from 100% to auto, as we need to fit wrapper to it's content
+      height: "100%",
       display: "flex",
       alignItems: "stretch",
     };

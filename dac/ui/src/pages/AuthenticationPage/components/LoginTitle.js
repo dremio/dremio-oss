@@ -18,8 +18,6 @@ import { injectIntl } from "react-intl";
 
 import PropTypes from "prop-types";
 
-import Art from "components/Art";
-
 const isBeta = process.env.DREMIO_BETA === "true";
 
 class LoginTitle extends PureComponent {
@@ -35,15 +33,15 @@ class LoginTitle extends PureComponent {
       <div id="login-title" style={{ ...styles.base, ...(style || {}) }}>
         <div style={styles.mainTitle}>
           <span className={"dremioLogoWithTextContainer"}>
-            <Art
-              src={
+            <dremio-icon
+              name={
                 isBeta
-                  ? "Narwhal-Logo-With-Name-Light-Beta.svg"
-                  : "NarwhalLogoWithNameLight.svg"
+                  ? "corporate/dremio-beta-light"
+                  : "narwhal/logo-with-name-light"
               }
               alt={this.props.intl.formatMessage({ id: "App.NarwhalLogo" })}
               style={styles.icon}
-              className={"dremioLogoWithText"}
+              class={"dremioLogoWithText"}
             />
           </span>
         </div>

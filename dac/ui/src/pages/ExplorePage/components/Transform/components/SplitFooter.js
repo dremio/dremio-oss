@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import Radium from "radium";
 
 import PropTypes from "prop-types";
 
@@ -138,4 +137,4 @@ const styles = {
     background: "white",
   },
 };
-export default Radium(SplitFooter);
+export default SplitFooter;

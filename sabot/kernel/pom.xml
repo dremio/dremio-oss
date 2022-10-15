@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>22.1.1-202208230402290397-a7010f28</version>
+    <version>23.0.1-202210141019030815-c1de8bcc</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -201,7 +201,6 @@
     <dependency>
       <groupId>io.protostuff</groupId>
       <artifactId>protostuff-collectionschema</artifactId>
-      <version>${protostuff.version}</version>
     </dependency>
 
     <dependency>
@@ -762,13 +761,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-junit4</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito2</artifactId>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -784,11 +778,6 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-datastore</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -972,7 +961,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
-          <suppressionsLocation>src/main/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
+          <configLocation>src/main/checkstyle/sabot-checkstyle-config.xml</configLocation>
         </configuration>
       </plugin>
       <plugin>

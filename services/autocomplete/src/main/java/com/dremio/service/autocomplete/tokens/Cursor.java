@@ -15,6 +15,8 @@
  */
 package com.dremio.service.autocomplete.tokens;
 
+import com.dremio.service.autocomplete.statements.grammar.LeafStatement;
+import com.dremio.service.autocomplete.statements.grammar.Statement;
 import com.google.common.collect.ImmutableList;
 
 public final class Cursor {
@@ -27,6 +29,10 @@ public final class Cursor {
 
   public static ImmutableList<DremioToken> getTokensUntilCursor(ImmutableList<DremioToken> tokens) {
     int cursorIndex = indexOfTokenWithCursor(tokens);
+    if (cursorIndex < 0) {
+      return tokens;
+    }
+
     return tokens.subList(0, cursorIndex);
   }
 
@@ -53,5 +59,26 @@ public final class Cursor {
 
     ImmutableList<DremioToken> tokens = SqlQueryTokenizer.tokenize(corpusWithCursor);
     return tokens;
+  }
+
+  public static LeafStatement extractElementWithCursor(Statement root) {
+    // Look for the element that has the token marked as the cursor token
+    // And that does not have any children with the same property.
+    if (root instanceof LeafStatement) {
+      if (!root.hasCursor()) {
+        return null;
+      }
+
+      return (LeafStatement) root;
+    }
+
+    Statement childWithCursor = root
+      .getChildren()
+      .stream()
+      .filter(child -> child.hasCursor())
+      .findFirst()
+      .get();
+
+    return extractElementWithCursor(childWithCursor);
   }
 }

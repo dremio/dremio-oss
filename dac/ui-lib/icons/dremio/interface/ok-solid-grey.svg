@@ -1,0 +1,11 @@
+<svg id='interface/ok-solid-grey' viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g id="Icon/-Engine-/-Online" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <g id="Icon/HealthStatus" transform="translate(4.000000, 4.000000)" fill="#cccccc">
+      <circle id="Oval" cx="8" cy="8" r="8"></circle>
+    </g>
+    <path
+      d="M9.6967846,11.3541527 C9.30064254,10.9693293 8.6675447,10.9785046 8.28272099,11.3746464 C7.89789728,11.7707881 7.90707261,12.4038855 8.30321466,12.7887089 L10.8032121,15.217276 C11.2100667,15.6125059 11.8638409,15.5905718 12.2432904,15.1689614 L16.7432858,10.1689704 C17.1127444,9.75846107 17.0794661,9.12617236 16.6689565,8.756714 C16.2584469,8.38725564 15.6261577,8.42053399 15.256699,8.83104328 L11.4516474,13.0588753 L9.6967846,11.3541527 Z"
+      id="Stroke-3564" fill="#FFFFFF"></path>
+  </g>
+</svg>

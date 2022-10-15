@@ -31,4 +31,10 @@ public interface ElectionListener {
    */
   void onCancelled();
 
+  /**
+   * Callback for on a new leader election. Listeners can use this information
+   * to identify the current leader.
+   * @param leaderId
+   */
+  default void onNewLeader(String leaderId) {}
 }

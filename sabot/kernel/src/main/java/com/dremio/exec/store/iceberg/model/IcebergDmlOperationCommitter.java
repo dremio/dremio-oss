@@ -95,26 +95,11 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
       logger.error(CONCURRENT_DML_OPERATION_ERROR + metadataFiles);
       throw UserException.concurrentModificationError().message(CONCURRENT_DML_OPERATION_ERROR).buildSilently();
     }
-
-    if (hasAnythingChanged()) {
-      Snapshot currentSnapshot = icebergCommand.getCurrentSnapshot();
-      Preconditions.checkArgument(currentSnapshot != null, "Iceberg metadata does not have a snapshot");
-      long currentSnapshotId = currentSnapshot.snapshotId();
-      // Mark the transaction as a read-modify-write transaction. When performing DML (DELETE, UPDATE, MERGE) operations
-      // to update an iceberg table, the version of the table while updating should be the same as the version that was read.
-      Snapshot snapshot = icebergCommand.setIsReadModifyWriteTransaction(currentSnapshotId);
-      if (snapshot.snapshotId() != currentSnapshotId) {
-        snapshotsToExpire.add(snapshot.snapshotId());
-      }
-    }
   }
 
   @VisibleForTesting
   public Table endDmlOperationTransaction() {
     try {
-      if (!snapshotsToExpire.isEmpty()) {
-        icebergCommand.expireSnapshots(snapshotsToExpire);
-      }
       return icebergCommand.endTransaction();
     } catch (ValidationException e) {
       logger.error(CONCURRENT_DML_OPERATION_ERROR, e);
@@ -129,27 +114,26 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
 
   @VisibleForTesting
   public void performUpdates() {
-    long finalSnapshotId = -1;
-    if (deletedDataFilePathList.size() > 0) {
-      icebergCommand.beginDelete();
-      logger.debug("Committing delete data files, file count: {} ", deletedDataFilePathList.size());
-      icebergCommand.consumeDeleteDataFilesByPaths(deletedDataFilePathList);
-      finalSnapshotId = icebergCommand.finishDelete().snapshotId();
-      snapshotsToExpire.add(finalSnapshotId);
-    }
-
-    if (manifestFileList.size() > 0) {
-      icebergCommand.beginInsert();
-      if (logger.isDebugEnabled()) {
-        logger.debug("Committing {} manifest files.", manifestFileList.size());
-        manifestFileList.stream().forEach(l -> logger.debug("Committing manifest file: {}, with {} added files.",
-          l.path(), l.addedFilesCount()));
+    if (hasAnythingChanged()) {
+      Snapshot currentSnapshot = icebergCommand.getCurrentSnapshot();
+      Preconditions.checkArgument(currentSnapshot != null, "Iceberg metadata does not have a snapshot");
+      long currentSnapshotId = currentSnapshot.snapshotId();
+      icebergCommand.beginOverwrite(currentSnapshotId);
+      if (deletedDataFilePathList.size() > 0) {
+        logger.debug("Committing delete data files, file count: {} ", deletedDataFilePathList.size());
+        icebergCommand.consumeDeleteDataFilesWithOverwriteByPaths(deletedDataFilePathList);
       }
-      icebergCommand.consumeManifestFiles(manifestFileList);
-      finalSnapshotId = icebergCommand.finishInsert().snapshotId();
-      snapshotsToExpire.add(finalSnapshotId);
+
+      if (manifestFileList.size() > 0) {
+        if (logger.isDebugEnabled()) {
+          logger.debug("Committing {} manifest files.", manifestFileList.size());
+          manifestFileList.stream().forEach(l -> logger.debug("Committing manifest file: {}, with {} added files.",
+            l.path(), l.addedFilesCount()));
+        }
+        icebergCommand.consumeManifestFilesWithOverwrite(manifestFileList);
+      }
+      icebergCommand.finishOverwrite();
     }
-    snapshotsToExpire.remove(finalSnapshotId);
   }
 
   @Override

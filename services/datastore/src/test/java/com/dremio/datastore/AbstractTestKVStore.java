@@ -39,6 +39,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.parameterized.ParametersRunnerFactory;
 
 import com.dremio.datastore.api.Document;
@@ -85,14 +86,11 @@ public abstract class AbstractTestKVStore<K, V> {
    * write a custom {@link ParametersRunnerFactory} to style-soundly inject our parameters. That would however
    * be a non-trivial amount of development.
    */
-  // CHECKSTYLE:OFF VisibilityModifier
-  @Parameterized.Parameter
+  @Parameter
   public Class<TestStoreCreationFunction<K, V>> storeCreationFunction;
 
-  @Parameterized.Parameter(1)
+  @Parameter(1)
   public DataGenerator<K, V> gen;
-
-  // CHECKSTYLE:ON VisibilityModifier
 
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {

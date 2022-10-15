@@ -20,12 +20,11 @@ import Immutable from "immutable";
 //@ts-ignore
 import invariant from "invariant";
 import { intl } from "@app/utils/intl";
-import Menu from "@material-ui/core/Menu";
-import MenuItem from "@material-ui/core/MenuItem";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 //@ts-ignore
-import { Tooltip } from "dremio-ui-lib";
+import { IconButton, Tooltip } from "dremio-ui-lib";
 import { splitFullPath } from "utils/pathUtils";
-import Art from "./Art";
 import CopyButton from "@app/components/Buttons/CopyButton";
 
 import "./BreadCrumbs.less";
@@ -105,12 +104,13 @@ const BreadCrumbs = ({
           {longCrumbs ? (
             <div className="icon-container">
               <span className="spacing">.</span>
-              <Art
-                alt=""
-                src="Breadcrumbs.svg"
-                style={{ width: "15.5px", height: "20px" }}
+              <IconButton
+                aria-label="Nested folders"
                 onClick={handleOpen}
-              />
+                className="icon-container-breadcrumb-more"
+              >
+                <dremio-icon name="interface/more" />
+              </IconButton>
               <span className="spacing">.</span>
             </div>
           ) : (
@@ -133,13 +133,11 @@ const BreadCrumbs = ({
                   : fullPath.join(".")
               }
               title={intl.formatMessage({ id: "Path.Copy" })}
-              style={{ transform: "translateY(3px)", paddingLeft: "6px" }}
             />
           )}
           <Menu
             disableAutoFocusItem
             elevation={0}
-            getContentAnchorEl={null}
             anchorOrigin={{
               vertical: "bottom",
               horizontal: "right",
@@ -195,7 +193,6 @@ const BreadCrumbs = ({
                 : fullPath.join(".")
             }
             title={intl.formatMessage({ id: "Path.Copy" })}
-            style={{ transform: "translateY(3px)", paddingLeft: "6px" }}
           />
         )}
       </>

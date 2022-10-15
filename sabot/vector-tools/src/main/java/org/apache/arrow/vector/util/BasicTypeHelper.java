@@ -46,6 +46,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.impl.BigIntWriterImpl;
@@ -88,9 +89,11 @@ import org.apache.arrow.vector.complex.impl.UInt2WriterImpl;
 import org.apache.arrow.vector.complex.impl.UInt4WriterImpl;
 import org.apache.arrow.vector.complex.impl.UInt8WriterImpl;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.complex.impl.UnionMapWriter;
 import org.apache.arrow.vector.complex.impl.UnionWriter;
 import org.apache.arrow.vector.complex.impl.VarBinaryWriterImpl;
 import org.apache.arrow.vector.complex.impl.VarCharWriterImpl;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
@@ -169,7 +172,6 @@ import com.dremio.exec.vector.ObjectVector;
  * generated from BasicTypeHelper.java
  */
 public class BasicTypeHelper {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BasicTypeHelper.class);
 
   private static final int WIDTH_ESTIMATE = 50;
 
@@ -224,8 +226,9 @@ public class BasicTypeHelper {
       return 4 + WIDTH_ESTIMATE;
     case BIT:
       return 1;
+    default:
+      throw new UnsupportedOperationException(buildErrorMessage("get size", type));
     }
-    throw new UnsupportedOperationException(buildErrorMessage("get size", type));
   }
 
   public static Class<?> getValueVectorClass(MinorType type) {
@@ -234,6 +237,8 @@ public class BasicTypeHelper {
       return UnionVector.class;
     case STRUCT:
       return StructVector.class;
+    case MAP:
+      return MapVector.class;
     case LIST:
       return ListVector.class;
     case NULL:
@@ -292,6 +297,8 @@ public class BasicTypeHelper {
       return StructWriter.class;
     case LIST:
       return ListWriter.class;
+    case MAP:
+      return BaseWriter.MapWriter.class;
     case TINYINT:
       return TinyIntWriter.class;
     case UINT1:
@@ -346,6 +353,8 @@ public class BasicTypeHelper {
       return NullableStructWriter.class;
     case LIST:
       return UnionListWriter.class;
+    case MAP:
+      return UnionMapWriter.class;
     case TINYINT:
       return TinyIntWriterImpl.class;
     case UINT1:
@@ -474,7 +483,12 @@ public class BasicTypeHelper {
         structVector.initializeChildrenFromFields(children);
       }
       return structVector;
-
+    case MAP:
+      MapVector mapVector = new MapVector(field.getName(), allocator, new FieldType(true, new ArrowType.Map(false), null), callBack);
+      if (!children.isEmpty()) {
+        mapVector.initializeChildrenFromFields(children);
+      }
+      return mapVector;
     case NULL:
       return new ZeroVector(field);
     case TINYINT:
@@ -524,6 +538,7 @@ public class BasicTypeHelper {
     throw new UnsupportedOperationException(buildErrorMessage("get new vector", type));
   }
 
+  @SuppressWarnings("checkstyle:RightCurly")
   public static com.dremio.common.types.TypeProtos.MajorType getValueHolderMajorType(
       Class<? extends ValueHolder> holderClass) {
 
@@ -635,7 +650,6 @@ public class BasicTypeHelper {
   }
 
   public static ValueHolder getValueHolderForType(MinorType type) {
-
     switch (type) {
     case TINYINT:
       return new NullableTinyIntHolder();
@@ -677,17 +691,14 @@ public class BasicTypeHelper {
       return new NullableVarCharHolder();
     case BIT:
       return new NullableBitHolder();
-    }
-    throw new UnsupportedOperationException(
+    default:
+      throw new UnsupportedOperationException(
         String.format("%s is not supported for 'getValueHolderForType' method.", type));
-
+    }
   }
 
   public static MinorType getValueHolderType(ValueHolder holder) {
-
-    if (0 == 1) {
-      return null;
-    } else if (holder instanceof TinyIntHolder) {
+    if (holder instanceof TinyIntHolder) {
       return MinorType.TINYINT;
     } else if (holder instanceof NullableTinyIntHolder) {
       return MinorType.TINYINT;
@@ -768,9 +779,7 @@ public class BasicTypeHelper {
     } else if (holder instanceof NullableBitHolder) {
       return MinorType.BIT;
     }
-
     throw new UnsupportedOperationException("ValueHolder is not supported for 'getValueHolderType' method.");
-
   }
 
   public static void setNotNull(ValueHolder holder) {
@@ -1011,6 +1020,7 @@ public class BasicTypeHelper {
     }
   }
 
+  @SuppressWarnings("checkstyle:MissingSwitchDefault")
   public static void setValueSafe(ValueVector vector, int index, ValueHolder holder) {
     MajorType type = getMajorTypeForField(vector.getField());
 
@@ -1566,11 +1576,12 @@ public class BasicTypeHelper {
         ((NullableBitHolder) holder).value = ((BitVector) vector).get(index);
       }
       return holder;
+    default:
+      throw new UnsupportedOperationException(buildErrorMessage("get value", type));
     }
-
-    throw new UnsupportedOperationException(buildErrorMessage("get value", type));
   }
 
+  @SuppressWarnings("checkstyle:MissingSwitchDefault")
   public static ValueHolder deNullify(ValueHolder holder) {
     MajorType type = getValueHolderMajorType(holder.getClass());
 
@@ -1961,6 +1972,7 @@ public class BasicTypeHelper {
     }
   }
 
+  @SuppressWarnings("checkstyle:MissingSwitchDefault")
   public static ValueHolder nullify(ValueHolder holder) {
     MajorType type = getValueHolderMajorType(holder.getClass());
 

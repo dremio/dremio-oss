@@ -26,14 +26,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -64,6 +65,7 @@ import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
@@ -75,12 +77,15 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.FilterableScan;
+import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 /**
  * Iceberg dataset prel
  */
-public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizable {
+public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizable, FilterableScan {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergScanPrel.class);
 
   private final ScanFilter filter;
@@ -92,12 +97,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   private final long survivingFileCount;
   private final boolean isConvertedIcebergDataset;
   private final boolean isPruneConditionOnImplicitCol;
+  private final boolean canUsePartitionStats;
 
   public IcebergScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                          TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
                          ScanFilter filter, boolean arrowCachingEnabled, PruneFilterCondition pruneCondition,
                          OptimizerRulesContext context, boolean isConvertedIcebergDataset,
-                         Long survivingRowCount, Long survivingFileCount) {
+                         Long survivingRowCount, Long survivingFileCount, boolean canUsePartitionStats) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
     this.filter = filter;
     this.arrowCachingEnabled = arrowCachingEnabled;
@@ -108,22 +114,23 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     this.isPruneConditionOnImplicitCol = pruneCondition != null && isConditionOnImplicitCol();
     this.survivingRowCount = survivingRowCount == null ? tableMetadata.getApproximateRecordCount() : survivingRowCount;
     this.survivingFileCount = survivingFileCount == null ? tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount() : survivingFileCount;
+    this.canUsePartitionStats = canUsePartitionStats;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new IcebergScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-      observedRowcountAdjustment, this.filter, this.arrowCachingEnabled, this.pruneCondition, context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount);
+      observedRowcountAdjustment, this.filter, this.arrowCachingEnabled, this.pruneCondition, context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats);
   }
 
   @Override
-  public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
+  public IcebergScanPrel cloneWithProject(List<SchemaPath> projection) {
     ScanFilter newFilter = (filter != null && filter instanceof ParquetScanFilter) ?
       ((ParquetScanFilter) filter).applyProjection(projection, rowType, getCluster(), getBatchSchema()) : filter;
     PruneFilterCondition pruneFilterCondition = pruneCondition == null ? null :
       pruneCondition.applyProjection(projection, rowType, getCluster(), getBatchSchema());
     return new IcebergScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection,
-      observedRowcountAdjustment, newFilter, this.arrowCachingEnabled, pruneFilterCondition, context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount);
+      observedRowcountAdjustment, newFilter, this.arrowCachingEnabled, pruneFilterCondition, context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats);
   }
 
   @Override
@@ -134,6 +141,70 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   @Override
   public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
     return logicalVisitor.visitPrel(this, value);
+  }
+
+  @Override
+  public ScanFilter getFilter() {
+    return filter;
+  }
+
+  @Override
+  public PruneFilterCondition getPartitionFilter() {
+    return pruneCondition;
+  }
+
+  @Override
+  public FilterableScan applyFilter(ScanFilter scanFilter) {
+    return new IcebergScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
+      getProjectedColumns(), getObservedRowcountAdjustment(), scanFilter, arrowCachingEnabled, getPartitionFilter(),
+      context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats);
+  }
+
+  @Override
+  public FilterableScan applyPartitionFilter(PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
+    return new IcebergScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
+      getProjectedColumns(), getObservedRowcountAdjustment(), getFilter(), arrowCachingEnabled, partitionFilter,
+      context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats);
+  }
+
+  @Override
+  public IcebergScanPrel cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns) {
+    if (filter != null && filter instanceof ParquetScanFilter && preserveFilterColumns) {
+      ParquetScanFilter parquetScanFilter = (ParquetScanFilter) filter;
+      final List<SchemaPath> newProjection = new ArrayList<>(projection);
+      final Set<SchemaPath> projectionSet = new HashSet<>(projection);
+      if (parquetScanFilter.getConditions() != null) {
+        for (ParquetFilterCondition f : parquetScanFilter.getConditions()) {
+          final SchemaPath col = f.getPath();
+          if (!projectionSet.contains(col)) {
+            newProjection.add(col);
+          }
+        }
+        return cloneWithProject(newProjection);
+      }
+    }
+    return cloneWithProject(projection);
+  }
+
+  @Override
+  public double getFilterReduction(){
+    if(filter != null){
+      double selectivity = 0.15d;
+
+      double max = PrelUtil.getPlannerSettings(getCluster()).getFilterMaxSelectivityEstimateFactor();
+      double min = PrelUtil.getPlannerSettings(getCluster()).getFilterMinSelectivityEstimateFactor();
+
+      if(selectivity < min) {
+        selectivity = min;
+      }
+      if(selectivity > max) {
+        selectivity = max;
+      }
+
+      return selectivity;
+    }else {
+      return 1d;
+    }
   }
 
   @Override
@@ -338,12 +409,24 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return isImplicit.get();
   }
 
-  public long getSurvivingRowCount() {
+  @Override
+  public Long getSurvivingRowCount() {
     return survivingRowCount;
   }
 
-  public long getSurvivingFileCount() {
+  @Override
+  public StoragePluginId getIcebergStatisticsPluginId(OptimizerRulesContext context) {
+    return pluginId;
+  }
+
+  @Override
+  public Long getSurvivingFileCount() {
     return survivingFileCount;
+  }
+
+  @Override
+  public boolean canUsePartitionStats() {
+    return false;
   }
 
   private RexNode getFilterWithIsNullCond(RexNode cond, RexBuilder builder, RelNode input) {

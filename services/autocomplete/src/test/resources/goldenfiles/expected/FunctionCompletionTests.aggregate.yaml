@@ -1,0 +1,5236 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "ANY_VALUE AGGREGATE PARTIAL NAME"
+  input: "SELECT ANY_VALU^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "ANY_VALUE AGGREGATE ONLY NAME"
+  input: "SELECT ANY_VALUE( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "ANY_VALUE AGGREGATE WITH ALL"
+  input: "SELECT ANY_VALUE( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "ANY_VALUE AGGREGATE WITH DISTINCT"
+  input: "SELECT ANY_VALUE( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "ANY_VALUE AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT ANY_VALUE( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "AVG AGGREGATE PARTIAL NAME"
+  input: "SELECT AV^"
+  output:
+    completions:
+     -
+      detail: "Computes the average of a set of values."
+      insertText: "AVG(${1:NUMERIC})"
+      kind: "Function"
+      label: "AVG(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "AVG AGGREGATE ONLY NAME"
+  input: "SELECT AVG( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Computes the average of a set of values."
+        name: "AVG"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "AVG AGGREGATE WITH ALL"
+  input: "SELECT AVG( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Computes the average of a set of values."
+        name: "AVG"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "AVG AGGREGATE WITH DISTINCT"
+  input: "SELECT AVG( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Computes the average of a set of values."
+        name: "AVG"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "AVG AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT AVG( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "BIT_AND AGGREGATE PARTIAL NAME"
+  input: "SELECT BIT_AN^"
+  output:
+    completions:
+     -
+      insertText: "BIT_AND(${1:BOOLEAN})"
+      kind: "Function"
+      label: "BIT_AND(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "BIT_AND AGGREGATE ONLY NAME"
+  input: "SELECT BIT_AND( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "BIT_AND"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "BIT_AND AGGREGATE WITH ALL"
+  input: "SELECT BIT_AND( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "BIT_AND"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "BIT_AND AGGREGATE WITH DISTINCT"
+  input: "SELECT BIT_AND( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "BIT_AND"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "BIT_AND AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT BIT_AND( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "BIT_OR AGGREGATE PARTIAL NAME"
+  input: "SELECT BIT_O^"
+  output:
+    completions:
+     -
+      insertText: "BIT_OR(${1:BOOLEAN})"
+      kind: "Function"
+      label: "BIT_OR(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "BIT_OR AGGREGATE ONLY NAME"
+  input: "SELECT BIT_OR( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "BIT_OR"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "BIT_OR AGGREGATE WITH ALL"
+  input: "SELECT BIT_OR( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "BIT_OR"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "BIT_OR AGGREGATE WITH DISTINCT"
+  input: "SELECT BIT_OR( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "BIT_OR"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "BIT_OR AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT BIT_OR( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "BIT_XOR AGGREGATE PARTIAL NAME"
+  input: "SELECT BIT_XO^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "BIT_XOR AGGREGATE ONLY NAME"
+  input: "SELECT BIT_XOR( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "BIT_XOR AGGREGATE WITH ALL"
+  input: "SELECT BIT_XOR( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "BIT_XOR AGGREGATE WITH DISTINCT"
+  input: "SELECT BIT_XOR( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "BIT_XOR AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT BIT_XOR( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COUNT AGGREGATE PARTIAL NAME"
+  input: "SELECT COUN^"
+  output:
+    completions:
+     -
+      detail: "Returns the total number of records for the specified expression."
+      insertText: "COUNT(*)"
+      kind: "Function"
+      label: "COUNT(*)"
+     -
+      detail: "Returns the total number of records for the specified expression."
+      insertText: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
+      kind: "Function"
+      label: "COUNT({ALL,DISTINCT} ???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COUNT AGGREGATE ONLY NAME"
+  input: "SELECT COUNT( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the total number of records for the specified expression."
+        name: "COUNT"
+        signatures:
+         - "() -> BIGINT\n\tCOUNT(*)"
+         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COUNT AGGREGATE WITH ALL"
+  input: "SELECT COUNT( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the total number of records for the specified expression."
+        name: "COUNT"
+        signatures:
+         - "() -> BIGINT\n\tCOUNT(*)"
+         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COUNT AGGREGATE WITH DISTINCT"
+  input: "SELECT COUNT( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the total number of records for the specified expression."
+        name: "COUNT"
+        signatures:
+         - "() -> BIGINT\n\tCOUNT(*)"
+         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COUNT AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT COUNT( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COLLECT AGGREGATE PARTIAL NAME"
+  input: "SELECT COLLEC^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COLLECT AGGREGATE ONLY NAME"
+  input: "SELECT COLLECT( ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "SELECT"
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "VALUES"
+     -
+      kind: "Keyword"
+      label: "*"
+     -
+      kind: "Keyword"
+      label: "CASE"
+    functionContext:
+      function:
+        name: "COLLECT"
+        signatures: []
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COLLECT AGGREGATE WITH ALL"
+  input: "SELECT COLLECT( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "SELECT"
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "+"
+     -
+      kind: "Keyword"
+      label: "-"
+    functionContext:
+      function:
+        name: "COLLECT"
+        signatures: []
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COLLECT AGGREGATE WITH DISTINCT"
+  input: "SELECT COLLECT( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "+"
+     -
+      kind: "Keyword"
+      label: "-"
+     -
+      kind: "Keyword"
+      label: "?"
+    functionContext:
+      function:
+        name: "COLLECT"
+        signatures: []
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COLLECT AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT COLLECT( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "MAX AGGREGATE PARTIAL NAME"
+  input: "SELECT MA^"
+  output:
+    completions:
+     -
+      insertText: "MAPPIFY(${1:ANY})"
+      kind: "Function"
+      label: "MAPPIFY(???)"
+     -
+      insertText: "MASK(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MASK(???)"
+     -
+      insertText: "MASK(${1:BOOLEAN}, ${2:ANY})"
+      kind: "Function"
+      label: "MASK(???, ???)"
+     -
+      insertText: "MASK_FIRST_N(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MASK_FIRST_N(???)"
+     -
+      insertText: "MASK_FIRST_N(${1:BOOLEAN}, ${2:ANY})"
+      kind: "Function"
+      label: "MASK_FIRST_N(???, ???)"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "MAX AGGREGATE ONLY NAME"
+  input: "SELECT MAX( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the maximum value among the non-NULL input expressions."
+        name: "MAX"
+        signatures:
+         - "(BOOLEAN) -> BOOLEAN"
+         - "(BYTES) -> BYTES"
+         - "(CHARACTERS) -> CHARACTERS"
+         - "(FLOAT) -> FLOAT"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+         - "(DATE) -> DATE"
+         - "(TIME) -> TIME"
+         - "(TIMESTAMP) -> TIMESTAMP"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       - "(BOOLEAN) -> BOOLEAN"
+       - "(BYTES) -> BYTES"
+       - "(CHARACTERS) -> CHARACTERS"
+       - "(FLOAT) -> FLOAT"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+       - "(DATE) -> DATE"
+       - "(TIME) -> TIME"
+       - "(TIMESTAMP) -> TIMESTAMP"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "MAX AGGREGATE WITH ALL"
+  input: "SELECT MAX( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the maximum value among the non-NULL input expressions."
+        name: "MAX"
+        signatures:
+         - "(BOOLEAN) -> BOOLEAN"
+         - "(BYTES) -> BYTES"
+         - "(CHARACTERS) -> CHARACTERS"
+         - "(FLOAT) -> FLOAT"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+         - "(DATE) -> DATE"
+         - "(TIME) -> TIME"
+         - "(TIMESTAMP) -> TIMESTAMP"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       - "(BOOLEAN) -> BOOLEAN"
+       - "(BYTES) -> BYTES"
+       - "(CHARACTERS) -> CHARACTERS"
+       - "(FLOAT) -> FLOAT"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+       - "(DATE) -> DATE"
+       - "(TIME) -> TIME"
+       - "(TIMESTAMP) -> TIMESTAMP"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "MAX AGGREGATE WITH DISTINCT"
+  input: "SELECT MAX( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the maximum value among the non-NULL input expressions."
+        name: "MAX"
+        signatures:
+         - "(BOOLEAN) -> BOOLEAN"
+         - "(BYTES) -> BYTES"
+         - "(CHARACTERS) -> CHARACTERS"
+         - "(FLOAT) -> FLOAT"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+         - "(DATE) -> DATE"
+         - "(TIME) -> TIME"
+         - "(TIMESTAMP) -> TIMESTAMP"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       - "(BOOLEAN) -> BOOLEAN"
+       - "(BYTES) -> BYTES"
+       - "(CHARACTERS) -> CHARACTERS"
+       - "(FLOAT) -> FLOAT"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+       - "(DATE) -> DATE"
+       - "(TIME) -> TIME"
+       - "(TIMESTAMP) -> TIMESTAMP"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "MAX AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT MAX( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "MIN AGGREGATE PARTIAL NAME"
+  input: "SELECT MI^"
+  output:
+    completions:
+     -
+      detail: "Returns the minimum value among the non-NULL input expressions."
+      insertText: "MIN(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MIN(???)"
+     -
+      insertText: "MINDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+      kind: "Function"
+      label: "MINDIR(???, ???)"
+     -
+      insertText: "MINUTE(${1:DATEANDTIME})"
+      kind: "Function"
+      label: "MINUTE(???)"
+     -
+      insertText: "MIN_V2(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MIN_V2(???)"
+     -
+      kind: "Keyword"
+      label: "MINUS"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "MIN AGGREGATE ONLY NAME"
+  input: "SELECT MIN( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the minimum value among the non-NULL input expressions."
+        name: "MIN"
+        signatures:
+         - "(BOOLEAN) -> BOOLEAN"
+         - "(BYTES) -> BYTES"
+         - "(CHARACTERS) -> CHARACTERS"
+         - "(FLOAT) -> FLOAT"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+         - "(DATE) -> DATE"
+         - "(TIME) -> TIME"
+         - "(TIMESTAMP) -> TIMESTAMP"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       - "(BOOLEAN) -> BOOLEAN"
+       - "(BYTES) -> BYTES"
+       - "(CHARACTERS) -> CHARACTERS"
+       - "(FLOAT) -> FLOAT"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+       - "(DATE) -> DATE"
+       - "(TIME) -> TIME"
+       - "(TIMESTAMP) -> TIMESTAMP"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "MIN AGGREGATE WITH ALL"
+  input: "SELECT MIN( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the minimum value among the non-NULL input expressions."
+        name: "MIN"
+        signatures:
+         - "(BOOLEAN) -> BOOLEAN"
+         - "(BYTES) -> BYTES"
+         - "(CHARACTERS) -> CHARACTERS"
+         - "(FLOAT) -> FLOAT"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+         - "(DATE) -> DATE"
+         - "(TIME) -> TIME"
+         - "(TIMESTAMP) -> TIMESTAMP"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       - "(BOOLEAN) -> BOOLEAN"
+       - "(BYTES) -> BYTES"
+       - "(CHARACTERS) -> CHARACTERS"
+       - "(FLOAT) -> FLOAT"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+       - "(DATE) -> DATE"
+       - "(TIME) -> TIME"
+       - "(TIMESTAMP) -> TIMESTAMP"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "MIN AGGREGATE WITH DISTINCT"
+  input: "SELECT MIN( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the minimum value among the non-NULL input expressions."
+        name: "MIN"
+        signatures:
+         - "(BOOLEAN) -> BOOLEAN"
+         - "(BYTES) -> BYTES"
+         - "(CHARACTERS) -> CHARACTERS"
+         - "(FLOAT) -> FLOAT"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+         - "(DATE) -> DATE"
+         - "(TIME) -> TIME"
+         - "(TIMESTAMP) -> TIMESTAMP"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       - "(BOOLEAN) -> BOOLEAN"
+       - "(BYTES) -> BYTES"
+       - "(CHARACTERS) -> CHARACTERS"
+       - "(FLOAT) -> FLOAT"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+       - "(DATE) -> DATE"
+       - "(TIME) -> TIME"
+       - "(TIMESTAMP) -> TIMESTAMP"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "MIN AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT MIN( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "STDDEV AGGREGATE PARTIAL NAME"
+  input: "SELECT STDDE^"
+  output:
+    completions:
+     -
+      insertText: "STDDEV(${1:NUMERIC})"
+      kind: "Function"
+      label: "STDDEV(???)"
+     -
+      insertText: "STDDEV_POP(${1:NUMERIC})"
+      kind: "Function"
+      label: "STDDEV_POP(???)"
+     -
+      insertText: "STDDEV_SAMP(${1:NUMERIC})"
+      kind: "Function"
+      label: "STDDEV_SAMP(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "STDDEV AGGREGATE ONLY NAME"
+  input: "SELECT STDDEV( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV AGGREGATE WITH ALL"
+  input: "SELECT STDDEV( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV AGGREGATE WITH DISTINCT"
+  input: "SELECT STDDEV( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT STDDEV( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "STDDEV_POP AGGREGATE PARTIAL NAME"
+  input: "SELECT STDDEV_PO^"
+  output:
+    completions:
+     -
+      insertText: "STDDEV_POP(${1:NUMERIC})"
+      kind: "Function"
+      label: "STDDEV_POP(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "STDDEV_POP AGGREGATE ONLY NAME"
+  input: "SELECT STDDEV_POP( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV_POP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV_POP AGGREGATE WITH ALL"
+  input: "SELECT STDDEV_POP( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV_POP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV_POP AGGREGATE WITH DISTINCT"
+  input: "SELECT STDDEV_POP( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV_POP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV_POP AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT STDDEV_POP( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "STDDEV_SAMP AGGREGATE PARTIAL NAME"
+  input: "SELECT STDDEV_SAM^"
+  output:
+    completions:
+     -
+      insertText: "STDDEV_SAMP(${1:NUMERIC})"
+      kind: "Function"
+      label: "STDDEV_SAMP(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "STDDEV_SAMP AGGREGATE ONLY NAME"
+  input: "SELECT STDDEV_SAMP( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV_SAMP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV_SAMP AGGREGATE WITH ALL"
+  input: "SELECT STDDEV_SAMP( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV_SAMP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV_SAMP AGGREGATE WITH DISTINCT"
+  input: "SELECT STDDEV_SAMP( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        name: "STDDEV_SAMP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "STDDEV_SAMP AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT STDDEV_SAMP( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "SUM AGGREGATE PARTIAL NAME"
+  input: "SELECT SU^"
+  output:
+    completions:
+     -
+      insertText: "SUBSTR(${1:CHARACTERS}, ${2:CHARACTERS})"
+      kind: "Function"
+      label: "SUBSTR(???, ???)"
+     -
+      insertText: "SUBSTR(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+      kind: "Function"
+      label: "SUBSTR(???, ???, ???)"
+     -
+      insertText: "SUBSTR2(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
+      kind: "Function"
+      label: "SUBSTR2(???, ???, ???)"
+     -
+      detail: "Returns the part of a string."
+      insertText: "SUBSTRING(${1:string} FROM ${2:fromIndex})"
+      kind: "Function"
+      label: "SUBSTRING(??? FROM ???)"
+     -
+      detail: "Returns the part of a string."
+      insertText: "SUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+      kind: "Function"
+      label: "SUBSTRING(??? FROM ??? FOR ???)"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "SUM AGGREGATE ONLY NAME"
+  input: "SELECT SUM( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the sum of non-NULL input expressions."
+        name: "SUM"
+        signatures:
+         - "(FLOAT) -> DOUBLE"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> BIGINT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(FLOAT) -> DOUBLE"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> BIGINT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "SUM AGGREGATE WITH ALL"
+  input: "SELECT SUM( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the sum of non-NULL input expressions."
+        name: "SUM"
+        signatures:
+         - "(FLOAT) -> DOUBLE"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> BIGINT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(FLOAT) -> DOUBLE"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> BIGINT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "SUM AGGREGATE WITH DISTINCT"
+  input: "SELECT SUM( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the sum of non-NULL input expressions."
+        name: "SUM"
+        signatures:
+         - "(FLOAT) -> DOUBLE"
+         - "(DECIMAL) -> DECIMAL"
+         - "(DOUBLE) -> DOUBLE"
+         - "(INT) -> BIGINT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(FLOAT) -> DOUBLE"
+       - "(DECIMAL) -> DECIMAL"
+       - "(DOUBLE) -> DOUBLE"
+       - "(INT) -> BIGINT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "SUM AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT SUM( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "VAR_POP AGGREGATE PARTIAL NAME"
+  input: "SELECT VAR_PO^"
+  output:
+    completions:
+     -
+      detail: "Returns the population variance of non-NULL records."
+      insertText: "VAR_POP(${1:NUMERIC})"
+      kind: "Function"
+      label: "VAR_POP(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "VAR_POP AGGREGATE ONLY NAME"
+  input: "SELECT VAR_POP( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the population variance of non-NULL records."
+        name: "VAR_POP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "VAR_POP AGGREGATE WITH ALL"
+  input: "SELECT VAR_POP( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the population variance of non-NULL records."
+        name: "VAR_POP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "VAR_POP AGGREGATE WITH DISTINCT"
+  input: "SELECT VAR_POP( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the population variance of non-NULL records."
+        name: "VAR_POP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "VAR_POP AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT VAR_POP( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "VAR_SAMP AGGREGATE PARTIAL NAME"
+  input: "SELECT VAR_SAM^"
+  output:
+    completions:
+     -
+      detail: "Returns the sample variance of non-NULL records."
+      insertText: "VAR_SAMP(${1:NUMERIC})"
+      kind: "Function"
+      label: "VAR_SAMP(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "VAR_SAMP AGGREGATE ONLY NAME"
+  input: "SELECT VAR_SAMP( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the sample variance of non-NULL records."
+        name: "VAR_SAMP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "VAR_SAMP AGGREGATE WITH ALL"
+  input: "SELECT VAR_SAMP( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the sample variance of non-NULL records."
+        name: "VAR_SAMP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "VAR_SAMP AGGREGATE WITH DISTINCT"
+  input: "SELECT VAR_SAMP( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
+        description: "Returns the sample variance of non-NULL records."
+        name: "VAR_SAMP"
+        signatures:
+         - "(NUMERIC) -> DOUBLE"
+      missingTypes:
+       - "NUMERIC"
+      signaturesMatched:
+       - "(NUMERIC) -> DOUBLE"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "VAR_SAMP AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT VAR_SAMP( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "LISTAGG AGGREGATE PARTIAL NAME"
+  input: "SELECT LISTAG^"
+  output:
+    completions:
+     -
+      insertText: "LISTAGG(${1:BYTES}, ${2:STRING})"
+      kind: "Function"
+      label: "LISTAGG(???, ???)"
+     -
+      insertText: "LISTAGG_MERGE(${1:STRING}, ${2:STRING})"
+      kind: "Function"
+      label: "LISTAGG_MERGE(???, ???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "LISTAGG AGGREGATE ONLY NAME"
+  input: "SELECT LISTAGG( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+     -
+      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      kind: "Function"
+      label: "$HISTOGRAM(???)"
+     -
+      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      kind: "Function"
+      label: "$HISTOGRAM_FIRST_VALUE(???)"
+     -
+      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      kind: "Function"
+      label: "$HISTOGRAM_LAST_VALUE(???)"
+    functionContext:
+      function:
+        name: "LISTAGG"
+        signatures:
+         - "(BYTES, STRING?) -> BYTES"
+         - "(CHARACTERS, STRING?) -> CHARACTERS"
+      missingTypes:
+       - "BYTES"
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(BYTES, STRING?) -> BYTES"
+       - "(CHARACTERS, STRING?) -> CHARACTERS"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "LISTAGG AGGREGATE WITH ALL"
+  input: "SELECT LISTAGG( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+     -
+      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      kind: "Function"
+      label: "$HISTOGRAM(???)"
+     -
+      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      kind: "Function"
+      label: "$HISTOGRAM_FIRST_VALUE(???)"
+     -
+      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      kind: "Function"
+      label: "$HISTOGRAM_LAST_VALUE(???)"
+    functionContext:
+      function:
+        name: "LISTAGG"
+        signatures:
+         - "(BYTES, STRING?) -> BYTES"
+         - "(CHARACTERS, STRING?) -> CHARACTERS"
+      missingTypes:
+       - "BYTES"
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(BYTES, STRING?) -> BYTES"
+       - "(CHARACTERS, STRING?) -> CHARACTERS"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "LISTAGG AGGREGATE WITH DISTINCT"
+  input: "SELECT LISTAGG( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+     -
+      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      kind: "Function"
+      label: "$HISTOGRAM(???)"
+     -
+      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      kind: "Function"
+      label: "$HISTOGRAM_FIRST_VALUE(???)"
+     -
+      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      kind: "Function"
+      label: "$HISTOGRAM_LAST_VALUE(???)"
+    functionContext:
+      function:
+        name: "LISTAGG"
+        signatures:
+         - "(BYTES, STRING?) -> BYTES"
+         - "(CHARACTERS, STRING?) -> CHARACTERS"
+      missingTypes:
+       - "BYTES"
+       - "CHARACTERS"
+      signaturesMatched:
+       - "(BYTES, STRING?) -> BYTES"
+       - "(CHARACTERS, STRING?) -> CHARACTERS"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "LISTAGG AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT LISTAGG( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED PARTIAL NAME"
+  input: "SELECT COVAR_PO^"
+  output:
+    completions:
+     -
+      insertText: "COVAR_POP(${1:NUMERIC}, ${2:NUMERIC})"
+      kind: "Function"
+      label: "COVAR_POP(???, ???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER"
+  input: "SELECT COVAR_POP(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER COMMA"
+  input: "SELECT COVAR_POP(EMP.ENAME, ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "+"
+     -
+      kind: "Keyword"
+      label: "-"
+     -
+      kind: "Keyword"
+      label: "?"
+    functionContext:
+      function:
+        name: "COVAR_POP"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED WITH SECOND PARAMETER"
+  input: "SELECT COVAR_POP(^ , EMP.ENAME) FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "SELECT"
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "VALUES"
+     -
+      kind: "Keyword"
+      label: "*"
+     -
+      kind: "Keyword"
+      label: "CASE"
+    functionContext:
+      function:
+        name: "COVAR_POP"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor:
+         - "CHARACTERS"
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED PARTIAL NAME"
+  input: "SELECT COVAR_SAM^"
+  output:
+    completions:
+     -
+      insertText: "COVAR_SAMP(${1:NUMERIC}, ${2:NUMERIC})"
+      kind: "Function"
+      label: "COVAR_SAMP(???, ???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER"
+  input: "SELECT COVAR_SAMP(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER COMMA"
+  input: "SELECT COVAR_SAMP(EMP.ENAME, ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "+"
+     -
+      kind: "Keyword"
+      label: "-"
+     -
+      kind: "Keyword"
+      label: "?"
+    functionContext:
+      function:
+        name: "COVAR_SAMP"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED WITH SECOND PARAMETER"
+  input: "SELECT COVAR_SAMP(^ , EMP.ENAME) FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "SELECT"
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "VALUES"
+     -
+      kind: "Keyword"
+      label: "*"
+     -
+      kind: "Keyword"
+      label: "CASE"
+    functionContext:
+      function:
+        name: "COVAR_SAMP"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor:
+         - "CHARACTERS"
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED PARTIAL NAME"
+  input: "SELECT REGR_COUN^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER"
+  input: "SELECT REGR_COUNT(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER COMMA"
+  input: "SELECT REGR_COUNT(EMP.ENAME, ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED WITH SECOND PARAMETER"
+  input: "SELECT REGR_COUNT(^ , EMP.ENAME) FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED PARTIAL NAME"
+  input: "SELECT REGR_SX^"
+  output:
+    completions:
+     -
+      insertText: "REGR_SXX(${1:NUMERIC}, ${2:NUMERIC})"
+      kind: "Function"
+      label: "REGR_SXX(???, ???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER"
+  input: "SELECT REGR_SXX(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER COMMA"
+  input: "SELECT REGR_SXX(EMP.ENAME, ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "+"
+     -
+      kind: "Keyword"
+      label: "-"
+     -
+      kind: "Keyword"
+      label: "?"
+    functionContext:
+      function:
+        name: "REGR_SXX"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED WITH SECOND PARAMETER"
+  input: "SELECT REGR_SXX(^ , EMP.ENAME) FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "SELECT"
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "VALUES"
+     -
+      kind: "Keyword"
+      label: "*"
+     -
+      kind: "Keyword"
+      label: "CASE"
+    functionContext:
+      function:
+        name: "REGR_SXX"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor:
+         - "CHARACTERS"
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED PARTIAL NAME"
+  input: "SELECT REGR_SY^"
+  output:
+    completions:
+     -
+      insertText: "REGR_SYY(${1:NUMERIC}, ${2:NUMERIC})"
+      kind: "Function"
+      label: "REGR_SYY(???, ???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER"
+  input: "SELECT REGR_SYY(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER COMMA"
+  input: "SELECT REGR_SYY(EMP.ENAME, ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "+"
+     -
+      kind: "Keyword"
+      label: "-"
+     -
+      kind: "Keyword"
+      label: "?"
+    functionContext:
+      function:
+        name: "REGR_SYY"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED WITH SECOND PARAMETER"
+  input: "SELECT REGR_SYY(^ , EMP.ENAME) FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "SELECT"
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "VALUES"
+     -
+      kind: "Keyword"
+      label: "*"
+     -
+      kind: "Keyword"
+      label: "CASE"
+    functionContext:
+      function:
+        name: "REGR_SYY"
+        signatures:
+         - "(NUMERIC, NUMERIC) -> DOUBLE"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor:
+         - "CHARACTERS"
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED PARTIAL NAME"
+  input: "SELECT APPROX_COUNT_DISTINC^"
+  output:
+    completions:
+     -
+      detail: "Returns the approximate number of rows that contain distinct values in a column. Ignores rows that contain a null value for the column."
+      insertText: "APPROX_COUNT_DISTINCT(${1:ANY})"
+      kind: "Function"
+      label: "APPROX_COUNT_DISTINCT(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER"
+  input: "SELECT APPROX_COUNT_DISTINCT(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED NAME WITH ONE PARAMETER COMMA"
+  input: "SELECT APPROX_COUNT_DISTINCT(EMP.ENAME, ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the approximate number of rows that contain distinct values in a column. Ignores rows that contain a null value for the column."
+        name: "APPROX_COUNT_DISTINCT"
+        signatures:
+         - "(ANY...) -> BIGINT"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       - "(ANY...) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    hasMoreResults: true
+ -
+  description: "COMMA SEPARATED WITH SECOND PARAMETER"
+  input: "SELECT APPROX_COUNT_DISTINCT(^ , EMP.ENAME) FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "SELECT"
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "VALUES"
+     -
+      kind: "Keyword"
+      label: "*"
+     -
+      kind: "Keyword"
+      label: "CASE"
+    functionContext:
+      function:
+        description: "Returns the approximate number of rows that contain distinct values in a column. Ignores rows that contain a null value for the column."
+        name: "APPROX_COUNT_DISTINCT"
+        signatures:
+         - "(ANY...) -> BIGINT"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor:
+         - "CHARACTERS"
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "EVERY CONDITIONED PARTIAL NAME"
+  input: "SELECT EVER^"
+  output:
+    completions:
+     -
+      insertText: "EVERY(${1:BOOLEAN})"
+      kind: "Function"
+      label: "EVERY(???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "EVERY CONDITIONED INCOMPLETE CONDITION"
+  input: "SELECT EVERY(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "EVERY"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "EVERY CONDITIONED WITH CONDITION"
+  input: "SELECT EVERY(EMP.ENAME < 0 ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "JOB"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.JOB"
+      kind: "Column"
+      label: "JOB"
+    functionContext:
+      function:
+        name: "EVERY"
+        signatures:
+         - "(BOOLEAN) -> INT"
+         - "(STRING) -> INT"
+         - "(INT) -> INT"
+         - "(BIGINT) -> BIGINT"
+      missingTypes:
+       - "BOOLEAN"
+       - "STRING"
+       - "INT"
+       - "BIGINT"
+      signaturesMatched:
+       - "(BOOLEAN) -> INT"
+       - "(STRING) -> INT"
+       - "(INT) -> INT"
+       - "(BIGINT) -> BIGINT"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "SOME CONDITIONED PARTIAL NAME"
+  input: "SELECT SOM^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "SOME CONDITIONED INCOMPLETE CONDITION"
+  input: "SELECT SOME(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "SOME CONDITIONED WITH CONDITION"
+  input: "SELECT SOME(EMP.ENAME < 0 ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "FUSION PARTIAL NAME"
+  input: "SELECT FUSIO^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "FUSION WITH INCOMPLETE PARAMETER"
+  input: "SELECT FUSION(MULTISET(\"A\", \"B\") ^ FROM EMP"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "INTERSECTION PARTIAL NAME"
+  input: "SELECT INTERSECTIO^"
+  output:
+    completions: []
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "INTERSECTION WITH INCOMPLETE PARAMETER"
+  input: "SELECT INTERSECTION(MULTISET(\"A\", \"B\") ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COUNT PARTIAL NAME"
+  input: "SELECT COUN^"
+  output:
+    completions:
+     -
+      detail: "Returns the total number of records for the specified expression."
+      insertText: "COUNT(*)"
+      kind: "Function"
+      label: "COUNT(*)"
+     -
+      detail: "Returns the total number of records for the specified expression."
+      insertText: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
+      kind: "Function"
+      label: "COUNT({ALL,DISTINCT} ???)"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COUNT NAME ONLY"
+  input: "SELECT COUNT(^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns the total number of records for the specified expression."
+        name: "COUNT"
+        signatures:
+         - "() -> BIGINT\n\tCOUNT(*)"
+         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COMPLETE COUNT WITH STAR"
+  input: "SELECT COUNT( * ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "COUNT WITH ALL ONE PARAMETER"
+  input: "SELECT COUNT( ALL EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COUNT WITH DISTINCT ONE PARAMETER COMMA"
+  input: "SELECT COUNT( DISTINCT EMP.ENAME, ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "MULTISET"
+     -
+      kind: "Keyword"
+      label: "+"
+     -
+      kind: "Keyword"
+      label: "-"
+     -
+      kind: "Keyword"
+      label: "?"
+    functionContext:
+      function:
+        description: "Returns the total number of records for the specified expression."
+        name: "COUNT"
+        signatures:
+         - "() -> BIGINT\n\tCOUNT(*)"
+         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+      missingTypes: []
+      signaturesMatched: []
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor:
+         - "CHARACTERS"
+    hasMoreResults: true
+ -
+  description: "MODE NAME ONLY"
+  input: "SELECT  MODE(^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "MODE WITH ONE PARAMETER"
+  input: "SELECT  MODE(EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true

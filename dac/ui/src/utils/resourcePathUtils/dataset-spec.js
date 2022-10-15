@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 import dataset from "./dataset";
+import Immutable from "immutable";
 
 const resourcePath = "/dataset/myspace.folder.ds1";
 const homeResourcePath = '/dataset/"@test_user".folder.ds1';
+const datasetFullPath = Immutable.fromJS([
+  "test_space",
+  "folder1",
+  "folder2",
+  "vds",
+]);
 
 describe("dataset resourcePath util", () => {
   it("should convert to fullPath", () => {
@@ -30,6 +37,14 @@ describe("dataset resourcePath util", () => {
     expect(dataset.toHref(resourcePath)).to.eql("/space/myspace.folder/ds1");
     expect(dataset.toHref(homeResourcePath)).to.eql(
       '/space/"@test_user".folder/ds1'
+    );
+  });
+
+  it("should convert to href v2", () => {
+    expect(dataset.toHrefV2(datasetFullPath)).to.eql(
+      `/space/${datasetFullPath.get(0)}/${datasetFullPath.get(
+        1
+      )}.${datasetFullPath.get(2)}.${datasetFullPath.get(3)}`
     );
   });
 });

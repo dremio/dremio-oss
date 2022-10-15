@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot;
 
+import org.apache.arrow.memory.BufferAllocator;
+
 import com.dremio.exec.record.VectorAccessible;
 
 public interface Generator extends AutoCloseable {
@@ -24,5 +26,9 @@ public interface Generator extends AutoCloseable {
 
   default Fixtures.Table toTable(int batchSize) throws Exception {
     return Fixtures.Table.fromGenerator(this, batchSize);
+  }
+
+  interface Creator {
+    Generator toGenerator(BufferAllocator allocator);
   }
 }

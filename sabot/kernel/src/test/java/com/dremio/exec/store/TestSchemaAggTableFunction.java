@@ -23,7 +23,7 @@ import static com.dremio.common.expression.CompleteType.INT;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
 import java.util.Collections;

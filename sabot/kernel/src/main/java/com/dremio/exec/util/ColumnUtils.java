@@ -19,9 +19,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-
 import com.dremio.common.expression.SchemaPath;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -62,15 +59,6 @@ public final class ColumnUtils {
         return Preconditions.checkNotNull(path, "path is required").equals(STAR_COLUMN);
       }
     }).isPresent();
-  }
-
-  public static boolean isStarQuery(RelDataType rowType){
-    for(RelDataTypeField field : rowType.getFieldList()){
-      if(STAR_COLUMN.equals(field.getName())){
-        return true;
-      }
-    }
-    return false;
   }
 
   public static boolean isSystemColumn(String fieldName) {

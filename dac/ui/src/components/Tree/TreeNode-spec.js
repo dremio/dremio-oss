@@ -118,10 +118,10 @@ describe("TreeNode", () => {
     beforeEach(() => {
       commonProps.isNodeExpandable.returns(true);
     });
-    it("show exapandable node with arrow and no statuses", () => {
+    it("show expandable node with arrow and no statuses", () => {
       const wrapper = shallow(<TreeNode {...commonProps} />);
       expect(
-        wrapper.find("Art").first().hasClass("TreeNode__arrowIcon")
+        wrapper.find(".TreeNode").first().hasClass("TreeNode__arrowIcon")
       ).to.equal(true);
     });
     // Fix test so it works with a setTimeout

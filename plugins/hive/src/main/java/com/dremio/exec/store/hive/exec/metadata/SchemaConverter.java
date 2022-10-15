@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeVisitor;
 import org.apache.arrow.vector.types.pojo.ArrowType.Binary;
@@ -49,6 +50,7 @@ import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Type.NestedType;
 import org.apache.iceberg.types.Type.PrimitiveType;
 import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.BinaryType;
 import org.apache.iceberg.types.Types.BooleanType;
 import org.apache.iceberg.types.Types.DateType;
@@ -77,24 +79,26 @@ import com.google.common.collect.Lists;
 /**
  * Converter for iceberg schema to BatchSchema, and vice-versa.
  */
-public class SchemaConverter {
+public final class SchemaConverter {
 
-    private final String tableName;
+  private final String tableName;
+  private final boolean isMapTypeEnabled;
 
-    public SchemaConverter(String tableName) {
-        this.tableName = tableName;
+    private SchemaConverter (Builder b) {
+      this.tableName = b.tableName;
+      this.isMapTypeEnabled = b.isMapTypeEnabled;
     }
 
-    public SchemaConverter() {
-        this(null);
-    }
+  public static SchemaConverter.Builder getBuilder() {
+    return new Builder();
+  }
 
     public BatchSchema fromIceberg(Schema icebergSchema) {
 
         return new BatchSchema(icebergSchema
                 .columns()
                 .stream()
-                .map(x -> this.fromIcebergColumn(x))
+                .map(this::fromIcebergColumn)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList()));
     }
@@ -125,6 +129,22 @@ public class SchemaConverter {
         }
     }
 
+  public Field fromIcebergColumnRetainNullable(NestedField field) {
+    // Currently nullability retention is only used for Map Fields. Every field should be retaining nullability.
+    try {
+      CompleteType fieldType = fromIcebergType(field.type());
+      return fieldType == null ? null : fieldType.toField(field.name(), field.isOptional());
+    } catch (UnsupportedOperationException | UserException e) {
+      String msg = "Type conversion error for column " + field.name();
+      if (tableName != null) {
+        msg = msg + " in table " + tableName;
+      }
+      throw UserException.unsupportedError(e)
+        .message(msg)
+        .buildSilently();
+    }
+  }
+
     public CompleteType fromIcebergType(Type type) {
         if (type.isPrimitiveType()) {
             return fromIcebergPrimitiveType(type.asPrimitiveType());
@@ -147,12 +167,28 @@ public class SchemaConverter {
                     innerFields.add(field);
                 }
                 return CompleteType.struct(innerFields);
+            } else if (isEligibleForMapVector(nestedType)) {
+              MapType mapType = (MapType) nestedType;
+              List<Field> keyValueFields = Lists.newArrayList();
+              for (Types.NestedField nestedField : mapType.fields()) {
+                Field field = fromIcebergColumnRetainNullable(nestedField);
+                if (field == null) {
+                  return null;
+                }
+                keyValueFields.add(field);
+              }
+              return new CompleteType(CompleteType.MAP.getType(), CompleteType.struct(keyValueFields).toField(MapVector.DATA_VECTOR_NAME, false));
             } else {
                 // drop map type and all other unknown iceberg column types
                 return null;
             }
         }
     }
+
+  private boolean isEligibleForMapVector(NestedType nestedType) {
+    return isMapTypeEnabled && nestedType.isMapType() && nestedType.asMapType().keyType().isPrimitiveType()
+      && nestedType.asMapType().keyType().typeId() == Type.TypeID.STRING && nestedType.asMapType().valueType().isPrimitiveType();
+  }
 
     public CompleteType fromIcebergPrimitiveType(PrimitiveType type) {
         switch (type.typeId()) {
@@ -285,9 +321,12 @@ public class SchemaConverter {
 
             @Override
             public Type visit(Map map) {
-                NestedField key = toIcebergColumn(completeType.getChildren().get(0), fieldIdBroker, fullName + ".key");
-                NestedField value = toIcebergColumn(completeType.getChildren().get(1), fieldIdBroker, fullName + ".value");
-                return MapType.ofOptional(key.fieldId(), value.fieldId(), key.type(), value.type());
+              Field struct = completeType.getChildren().get(0);
+              Field keyField = struct.getChildren().get(0);
+              NestedField key = toIcebergColumn(keyField, fieldIdBroker, fullName + "." + keyField.getName());
+              Field valueField = struct.getChildren().get(1);
+              NestedField value = toIcebergColumn(valueField, fieldIdBroker, fullName + "." + valueField.getName());
+              return MapType.ofOptional(key.fieldId(), value.fieldId(), key.type(), value.type());
             }
 
             @Override
@@ -373,4 +412,26 @@ public class SchemaConverter {
             }
         });
     }
+
+  public static final class Builder {
+    private String tableName;
+    private boolean isMapTypeEnabled;
+
+    private Builder() {
+    }
+
+    public Builder setTableName(String tableName) {
+      this.tableName = tableName;
+      return this;
+    }
+
+    public Builder setMapTypeEnabled(boolean isMapTypeEnabled) {
+      this.isMapTypeEnabled = isMapTypeEnabled;
+      return this;
+    }
+
+    public SchemaConverter build() {
+      return new SchemaConverter(this);
+    }
+  }
 }

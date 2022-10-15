@@ -33,7 +33,6 @@ import io.netty.channel.EventLoopGroup;
  * Maintains connection between two particular daemons/sockets.
  */
 final class FabricConnectionManager extends ReconnectingConnection<FabricConnection, FabricHandshake> {
-//  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricConnectionManager.class);
 
   private final FabricIdentity remoteIdentity;
   private final FabricIdentity localIdentity;

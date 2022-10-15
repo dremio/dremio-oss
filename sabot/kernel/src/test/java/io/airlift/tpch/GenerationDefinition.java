@@ -82,6 +82,9 @@ public class GenerationDefinition {
 
   public static enum TpchTable {
     CUSTOMER(150_000),
+    TEMPERATURE(150_000),
+    WORD_GROUPS(150_000),
+    MIXED_GROUPS(150_000),
     CUSTOMER_LIMITED(1, true),
     SUPPLIER(10_000),
     NATION(Distributions.getDefaultDistributions().getNations().size(), true),

@@ -22,7 +22,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.iceberg.PartitionSpec;
@@ -54,6 +53,8 @@ import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 import io.protostuff.ByteString;
@@ -109,7 +110,19 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     return false;
   }
 
-  protected List<SimpleCommandResult> createEmptyTable(NamespaceKey key, String sql, SqlCreateEmptyTable sqlCreateEmptyTable) {
+  @VisibleForTesting
+  public void callCatalogCreateEmptyTableWithCleanup(NamespaceKey key, BatchSchema batchSchema, WriterOptions options) {
+    try {
+      catalog.createEmptyTable(key, batchSchema, options);
+    } catch (Exception ex) {
+      cleanUpFromCatalogAndMetaStore(key);
+      throw UserException.validationError(ex)
+        .message("Error while trying to create table [%s]", key)
+        .buildSilently();
+    }
+  }
+
+  protected List<SimpleCommandResult> createEmptyTable(NamespaceKey key, String sql, SqlCreateEmptyTable sqlCreateEmptyTable) throws Exception{
     SqlValidatorImpl.checkForFeatureSpecificSyntax(sqlCreateEmptyTable, optionManager);
 
     if (!IcebergUtils.isIcebergDMLFeatureEnabled(catalog, key, optionManager, null)) {
@@ -157,7 +170,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
     BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
     PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
-    IcebergTableProps icebergTableProps = new IcebergTableProps(ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)), serializedSchemaAsJson(new SchemaConverter().toIcebergSchema(batchSchema)));
+    IcebergTableProps icebergTableProps = new IcebergTableProps(ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)), serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)));
 
     final WriterOptions options = new WriterOptions(
       (int) ringCount,
@@ -189,12 +202,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     if (columnDeclarations.size() > maxColumnCount) {
       throw new ColumnCountTooLargeException((int) maxColumnCount);
     }
-    try {
-      catalog.createEmptyTable(key, batchSchema, options);
-    }catch(RuntimeException e){
-      cleanUpFromCatalogAndMetaStore(key);
-      throw new RuntimeException(e);
-    }
+    callCatalogCreateEmptyTableWithCleanup(key, batchSchema, options);
+
       // do a refresh on the dataset to populate the kvstore.
       //Will the orphanage cleanup logic remove files and folders if query fails during refreshDataset() function?
     DataAdditionCmdHandler.refreshDataset(catalog, key, true);
@@ -237,17 +246,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     }
 
     SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
-    try {
-      catalog.createEmptyTable(key, SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql), writerOptions);
-    } catch (UserException ux) {
-      cleanUpFromCatalogAndMetaStore(key);
-      throw ux;
-    } catch (Exception ex) {
-      cleanUpFromCatalogAndMetaStore(key);
-      throw UserException.validationError(ex)
-        .message("Error while trying to create table [%s]", key)
-        .buildSilently();
-    }
+    callCatalogCreateEmptyTableWithCleanup(key, SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql), writerOptions);
 
     return Collections.singletonList(SimpleCommandResult.successful("Table created"));
   }

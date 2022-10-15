@@ -13,15 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {
-  BLUE,
-  WHITE,
-  PRIMARY_600,
-  PRIMARY_700,
-  NETURAL_150,
-  NETURAL_200,
-  RIBBON,
-} from "./colors";
+import { BLUE, WHITE, NETURAL_150, NETURAL_200 } from "./colors";
 import { bodySmall } from "./typography";
 
 export const button = {
@@ -41,20 +33,12 @@ export const button = {
   fontSize: 13,
   cursor: "pointer",
   display: "flex",
-  ":hover": {
-    outline: `1px solid ${PRIMARY_700}`,
-    outlineOffset: 2,
-  },
 };
 
 export const primary = {
   ...button,
   color: "#fff",
   backgroundColor: BLUE,
-  ":hover": {
-    borderColor: PRIMARY_600,
-    backgroundColor: PRIMARY_600,
-  },
   borderColor: BLUE,
 };
 
@@ -104,9 +88,6 @@ export const secondary = {
   color: "#333",
   backgroundColor: WHITE,
   border: `1px solid ${NETURAL_200}`,
-  ":hover": {
-    backgroundColor: RIBBON,
-  },
 };
 
 export const inline = {

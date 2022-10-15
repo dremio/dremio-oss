@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Art from "@app/components/Art";
 import { CLIENT_TOOL_ID } from "@app/constants/Constants";
 import { useIntl } from "react-intl";
+// @ts-ignore
+import { Tooltip } from "dremio-ui-lib";
+import { getIconPath } from "@app/utils/getIconPath";
 import "./BiApplicationTools.less";
 
 export const RESERVED = [
@@ -32,12 +34,18 @@ type RenderToolProps = {
   renderSettings: any;
 };
 
-const iconStyle = { width: "26.7px", height: "26.7px" };
-const generalInfoIconStyle = {
-  width: "24px",
-  height: "24px",
-  paddingLeft: "5px",
-  paddingTop: "2px",
+const iconStyle = { width: "32px", height: "32px" };
+
+const renderIcon = (
+  name: string,
+  alt: string,
+  style: Record<string, unknown>
+) => {
+  return name === "corporate/tableau" ? (
+    <dremio-icon name={name} alt={alt} style={style} />
+  ) : (
+    <img src={getIconPath(name)} alt={alt} style={style} />
+  );
 };
 
 const RenderTool = ({
@@ -49,16 +57,11 @@ const RenderTool = ({
 }: RenderToolProps) => {
   return (
     <div className="tool-wrap">
-      <div className="icon-cell">
-        <Art src={icon} alt={name} style={iconStyle} />
-      </div>
+      <div className="icon-cell">{renderIcon(icon, name, iconStyle)}</div>
       <div className="tool-name">{name}</div>
-      <Art
-        src="GeneralInfo.svg"
-        style={generalInfoIconStyle}
-        alt={alt}
-        title={alt}
-      />
+      <Tooltip title={alt}>
+        <dremio-icon name="interface/information" class="help-icon" />
+      </Tooltip>
       <div className="action-cell">
         {renderSettings(id, { showLabel: false })}
       </div>
@@ -87,14 +90,14 @@ const BiApplicationTools = ({ renderSettings }: BiApplicationToolsProps) => {
         <RenderTool
           id={CLIENT_TOOL_ID.tableau}
           name="Tableau Desktop"
-          icon="Tableau.svg"
+          icon="corporate/tableau"
           alt="Enable this option to allow users to click a button to download the connection metadata for a dataset as a TDS file. The button displays the Tableau logo."
           renderSettings={renderSettings}
         />
         <RenderTool
           id={CLIENT_TOOL_ID.powerbi}
           name="Microsoft Power BI Desktop"
-          icon="PowerBi.svg"
+          icon="corporate/power-bi"
           alt="Enable this option to allow users to click a button to download the connection metadata for a dataset as a PBIDS file. The button displays the Power BI logo."
           renderSettings={renderSettings}
         />

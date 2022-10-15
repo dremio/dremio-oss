@@ -17,11 +17,18 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { Popover } from "@app/components/Popover";
 import Immutable from "immutable";
-import { MAP, TEXT, LIST, MIXED, BINARY } from "@app/constants/DataTypes";
+import {
+  MAP,
+  TEXT,
+  LIST,
+  MIXED,
+  BINARY,
+  STRUCT,
+} from "@app/constants/DataTypes";
 import Menu from "components/Menus/Menu";
 import MenuItemLink from "components/Menus/MenuItemLink";
 import MenuItem from "components/Menus/MenuItem";
-import Divider from "@material-ui/core/Divider";
+import Divider from "@mui/material/Divider";
 import { withLocation } from "containers/dremioLocation";
 
 import "./SelectedTextPopover.less";
@@ -92,7 +99,7 @@ export class SelectedTextPopoverView extends Component {
       return Immutable.List();
     }
 
-    return type !== TEXT && type !== LIST && type !== MAP
+    return type !== TEXT && type !== LIST && type !== MAP && type !== STRUCT
       ? this.items.filter(
           (item) =>
             item.get("transform") !== "extract" &&
