@@ -21,9 +21,15 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Locale;
 
+import org.junit.Before;
 import org.junit.Test;
 
 public class DayOfWeekFromSundayDateTimeFieldTest {
+
+  @Before
+  public void setup() {
+    Locale.setDefault(Locale.US);
+  }
 
   private static final DayOfWeekFromSundayDateTimeField instance =
       new DayOfWeekFromSundayDateTimeField(
