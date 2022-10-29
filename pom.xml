@@ -123,7 +123,7 @@
 
     <hsqldb.version>2.3.1</hsqldb.version>
     <immutables.version>2.9.1</immutables.version>
-    <jackson.version>2.13.2.20220328</jackson.version>
+    <jackson.version>2.13.4.20221013</jackson.version>
     <jersey.version>2.35</jersey.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
