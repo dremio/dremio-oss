@@ -32,6 +32,7 @@ import { getActiveScript } from "@app/selectors/scripts";
 import SqlAutoComplete from "./SqlAutoComplete";
 import FunctionsHelpPanel from "./FunctionsHelpPanel";
 import { extractSqlErrorFromResponse } from "./utils/errorUtils";
+import { extractQueries } from "@app/utils/statements/statementParser";
 
 const toolbarHeight = 42;
 
@@ -154,6 +155,7 @@ export class SqlEditorController extends PureComponent {
     ) {
       this.sqlEditorControllerRef.resetValue();
     }
+
     if (
       (dataset && constructFullPath(dataset.get("context"))) !==
       constructFullPath(nextDataset.get("context"))
@@ -164,6 +166,19 @@ export class SqlEditorController extends PureComponent {
       if (this.sqlEditorControllerRef) {
         this.sqlEditorControllerRef.focus();
       }
+    }
+
+    const controller = this.getMonacoEditor();
+    const currentSqlQueries =
+      controller && extractQueries(controller.getValue());
+    if (
+      (dataset && dataset.get("sql")) !== nextDataset.get("sql") &&
+      nextDataset.get("sql") !== oldProps.currentSql &&
+      controller &&
+      nextProps.queryStatuses.length < 2 &&
+      currentSqlQueries.length < 2
+    ) {
+      controller.setValue(nextDataset.get("sql"));
     }
   }
 

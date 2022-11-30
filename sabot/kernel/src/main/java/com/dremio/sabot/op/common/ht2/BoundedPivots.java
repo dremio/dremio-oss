@@ -154,8 +154,10 @@ public class BoundedPivots {
   private static void resetPivotStructures(PivotDef pivotDef, int count, FixedBlockVector fixedBlock, VariableBlockVector variable) {
     fixedBlock.getBuf().readerIndex(0);
     fixedBlock.getBuf().writerIndex(0);
-    variable.getBuf().readerIndex(0);
-    variable.getBuf().writerIndex(0);
+    if (variable != null) {
+      variable.getBuf().readerIndex(0);
+      variable.getBuf().writerIndex(0);
+    }
 
     // Zero-out the fixed block for the impacted entries only - this is typically much smaller than the fixedBlock
     // capacity. The zero-out is required for two reasons :
@@ -177,6 +179,7 @@ public class BoundedPivots {
     // We are constrained by the capacity of variable block vector and count.
     // First fill the variable width vectors to find how many records we can fit in.
     if (pivot.getVariableCount() > 0) {
+      Preconditions.checkState(variable != null);
       int updatedCount = pivotVariableLengths(pivot.getVariablePivots(), fixedBlock, variable, start, count);
       Preconditions.checkState(updatedCount <= count);
       count = updatedCount;

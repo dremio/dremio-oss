@@ -112,8 +112,11 @@ public final class LocalAdmin {
     }
     final FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDir);
-    BackupRestoreUtil.BackupOptions options = new BackupRestoreUtil.BackupOptions(path, Boolean.parseBoolean(binaryStr), Boolean.parseBoolean(includeProfilesStr));
-    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, options, getKVStoreProvider().unwrap(LocalKVStoreProvider.class), LocalAdmin.getInstance().getHomeFileTool().getConf());
+    BackupRestoreUtil.BackupOptions options = new BackupRestoreUtil.BackupOptions(path,
+      Boolean.parseBoolean(binaryStr), Boolean.parseBoolean(includeProfilesStr));
+    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, options,
+      getKVStoreProvider().unwrap(LocalKVStoreProvider.class), LocalAdmin.getInstance().getHomeFileTool().getConf(),
+      null);
     System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
     backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
   }

@@ -146,13 +146,14 @@ public class WriterOptions {
     List<String> sortColumns,
     List<String> distributionColumns,
     PartitionDistributionStrategy partitionDistributionStrategy,
+    String tableLocation,
     boolean singleWriter,
     long recordLimit,
     IcebergWriterOperation icebergWriterOperation,
     ByteString extendedProperty,
     ResolvedVersionContext version
   ) {
-    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, null,
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, tableLocation,
       singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE,
       null, true, version);
   }

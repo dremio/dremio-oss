@@ -57,6 +57,7 @@ import io.netty.util.concurrent.GlobalEventExecutor;
  */
 public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection> extends RpcBus<T, C> {
 
+
   protected static final String TIMEOUT_HANDLER = "timeout-handler";
   protected static final String MESSAGE_DECODER = "message-decoder";
 
@@ -75,8 +76,8 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, (int) TimeUnit.SECONDS.toMillis(30))
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_REUSEADDR, true)
-        .option(ChannelOption.SO_RCVBUF, 1 << 17)
-        .option(ChannelOption.SO_SNDBUF, 1 << 17)
+        .option(ChannelOption.SO_RCVBUF, SO_BUF_SZ)
+        .option(ChannelOption.SO_SNDBUF, SO_BUF_SZ)
         .group(eventLoopGroup)
         .childOption(ChannelOption.ALLOCATOR, alloc)
         .childHandler(new ChannelInitializer<SocketChannel>() {

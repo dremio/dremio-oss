@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
@@ -32,6 +33,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -126,6 +128,24 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
         filter.getInput(),
         condition);
     return visitChild(filter, 0, filter.getInput());
+  }
+
+  @Override
+  public RelNode visit(LogicalAggregate aggregate) {
+    if (aggregate.getAggCallList().stream().anyMatch(call -> {
+      if (call.getAggregation().getKind() == SqlKind.LISTAGG) {
+        int inputArg = call.getArgList().get(0);
+        return call.getCollation().getFieldCollations().size() > 1 ||
+          (call.getCollation().getFieldCollations().size() == 1 &&
+            call.getCollation().getFieldCollations().get(0).getFieldIndex() != inputArg);
+      }
+      return false;
+    })) {
+      unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+        "ORDER BY columns must be subset LISTAGG columns");
+      throw new UnsupportedOperationException();
+    }
+    return super.visit(aggregate);
   }
 
   @Override

@@ -19,7 +19,9 @@ import static com.dremio.sabot.op.join.vhash.PartitionColFilters.BLOOMFILTER_MAX
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -49,6 +51,10 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.util.RuntimeFilterManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
@@ -61,7 +67,6 @@ import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
-import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.HashJoinStats.Metric;
@@ -80,8 +85,10 @@ import com.dremio.sabot.op.spi.Operator.ShrinkableOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
+@Options
 public class VectorizedSpillingHashJoinOperator implements DualInputOperator, ShrinkableOperator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedSpillingHashJoinOperator.class);
+
   /*
    * The computation is as follows :
    * 1. spillPagePool (9 pages) = 9*256K = 2.2M
@@ -89,11 +96,10 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
    *    2a. hash table 1M
    *    2b. linked list & slicer (2 pages), 512K
    *    2c. misc buffers 1M
-   * 3. hasher (dummy hash table) = 1M
-   * 4. ProbeBuffers = 1.25M
+   * 3. ProbeBuffers = 1.25M
    */
   public static final int MIN_RESERVE = 28 * 1024 * 1024;
-
+  private final String OOM_SPILL = "OOM_SPILL";
   private final OperatorContext context;
   private final HashJoinPOP config;
 
@@ -111,6 +117,8 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
   private final Stopwatch pivotProbeWatch = Stopwatch.createUnstarted();
   // We use BoundedPivots and hence, may be only pivot part of the batch in each iteration.
   private final ProbePivotCursor probePivotCursor = new ProbePivotCursor();
+
+  private final Map<String, String> build2ProbeKeyMap = new HashMap<>();
 
   private State state = State.NEEDS_SETUP;
   private boolean debugInsertion = false;
@@ -135,6 +143,15 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
   private PartitionColFilters partitionColFilters = null;
   private NonPartitionColFilters nonPartitionColFilters = null;
   private final Stopwatch filterBuildTime = Stopwatch.createUnstarted();
+  private int oobDropUnderThreshold;
+  private int oobDropNoVictim;
+  private int oobDropLocal;
+  private int oobDropWrongState;
+  private int oobSpills;
+
+  public static final BooleanValidator OOB_SPILL_TRIGGER_ENABLED = new BooleanValidator("exec.op.join.spill.oob_trigger_enabled", true);
+  public static final DoubleValidator OOB_SPILL_TRIGGER_FACTOR = new RangeDoubleValidator("exec.op.join.spill.oob_trigger_factor", 0.0d, 10.0d, .75d);
+  public static final DoubleValidator OOB_SPILL_TRIGGER_HEADROOM_FACTOR = new RangeDoubleValidator("exec.op.join.spill.oob_trigger_headroom_factor", 0.0d, 10.0d, .2d);
 
   public VectorizedSpillingHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
     this.context = context;
@@ -191,6 +208,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       buildFields.add(new FieldVectorPair(build, build));
       final FieldVector probe = getField(left, c.getLeft());
       probeFields.add(new FieldVectorPair(probe, probe));
+      build2ProbeKeyMap.put(build.getField().getName(), probe.getField().getName());
 
       /* Collect the corresponding probe side field vectors for build side keys
        */
@@ -292,7 +310,9 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       int preAllocBufSz = PagePool.DEFAULT_PAGE_SIZE;
       int numBlocks = preAllocBufSz / buildKeyPivot.getBlockWidth();
       pivotFixedBlock = rc.add(new FixedBlockVector(allocator, buildKeyPivot.getBlockWidth(), numBlocks, false));
-      pivotVarBlock = rc.add(new VariableBlockVector(allocator, buildKeyPivot.getVariableCount(), preAllocBufSz, false));
+      if (buildKeyPivot.getVariableCount() > 0) {
+        pivotVarBlock = rc.add(new VariableBlockVector(allocator, buildKeyPivot.getVariableCount(), preAllocBufSz, false));
+      }
 
       int maxInputBatchSize = (int)context.getOptions().getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
       ProbeBuffers probeBuffers = rc.add(new ProbeBuffers(maxInputBatchSize, context.getAllocator()));
@@ -311,11 +331,13 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       // - 4 pages required for merging
       PagePool spillPool = rc.add(new PagePool(allocator, PagePool.DEFAULT_PAGE_SIZE, 9));
 
+      final OOBInfo oobInfo = new OOBInfo(context.getAssignments(), context.getFragmentHandle().getQueryId(),
+        context.getFragmentHandle().getMajorFragmentId(), config.getProps().getOperatorId(), context.getFragmentHandle().getMinorFragmentId(),
+        context.getEndpointsIndex(), context.getTunnelProvider(), context.getOptions().getOption(OOB_SPILL_TRIGGER_ENABLED),
+        OOM_SPILL);
+
       joinSetupParams = new JoinSetupParams(
-        context.getOptions(),
-        context.getConfig(),
-        context.getAllocator(),
-        context.getFragmentOutputAllocator(),
+        context,
         pivotFixedBlock,
         pivotVarBlock,
         config.getJoinType(),
@@ -332,11 +354,14 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
         probeIncomingKeys,
         probeOutputs,
         probeBuffers,
+        config.getExtraCondition(),
+        build2ProbeKeyMap,
         spillManager,
         spillPool,
+        oobInfo,
         runtimeFilterEnabled);
 
-      partition = rc.add(new MultiPartition(joinSetupParams, CopierFactory.getInstance(context.getConfig(), context.getOptions())));
+      partition = rc.add(new MultiPartition(joinSetupParams));
 
       joinReplayer = rc.add(new JoinRecursiveReplayer(joinSetupParams, partition, outgoing, targetOutputBatchSize));
 
@@ -501,7 +526,63 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
 
   @Override
   public void workOnOOB(OutOfBandMessage message) {
-    if (runtimeFilterEnabled && !runtimeFiltersDropped()) {
+    /*
+     * There are two types of OOB messages that can arrive.
+     * 1. RuntimeFilter
+     * 2. OOM Spill
+     *
+     * For RuntimeFilter, the filter itself is directly pushed as payload,
+     * with a single additional buffer. The payload type is RuntimeFilter.
+     *
+     * For OOM Spill, the payload is of type HashJoinSpill, which has the current
+     * memory usage. It has no buffers associated.
+     *
+     * Since the payload type is different, the getPayload() interface cannot be used
+     * directly as it checks against the type.
+     *
+     * For now, the getBuffers() is used to differentiate the message/payload types.
+     * We are not anticipating any new OOB types in the near future. If it ever happen,
+     * need to revisit the logic however it is foolproof till then.
+     */
+    if (message.getBuffers() == null) {
+      ExecProtos.HashJoinSpill joinSpill = message.getPayload(ExecProtos.HashJoinSpill.parser());
+      Preconditions.checkState(joinSpill.getMessageType().equals(OOM_SPILL));
+
+      if (message.getSendingMinorFragmentId() == context.getFragmentHandle().getMinorFragmentId()) {
+        oobDropLocal++;
+        logger.debug("Ignoring the OOB spill trigger self notification");
+        return;
+      }
+
+      if (internalState != InternalState.BUILD) {
+        oobDropWrongState++;
+        logger.debug("Ignoring OOB spill trigger as fragment is outputting data.");
+        return;
+      }
+
+      // check to see if we're at the point where we want to spill.
+      final ExecProtos.HashJoinSpill spill = message.getPayload(ExecProtos.HashJoinSpill.parser());
+      final long allocatedMemoryBeforeSpilling = context.getAllocator().getAllocatedMemory();
+      final double triggerFactor = context.getOptions().getOption(OOB_SPILL_TRIGGER_FACTOR);
+      final double headroomRemaining = context.getAllocator().getHeadroom() * 1.0d / (context.getAllocator().getHeadroom() + context.getAllocator().getAllocatedMemory());
+      if (allocatedMemoryBeforeSpilling < (spill.getMemoryUse() * triggerFactor) &&
+        headroomRemaining > context.getOptions().getOption(OOB_SPILL_TRIGGER_HEADROOM_FACTOR)) {
+        logger.debug("Skipping OOB spill trigger, current allocation is {}, which is not within the current factor of " +
+            "the spilling operator ({}) which has memory use of {}. Headroom is at {} which is greater than trigger headroom of {}",
+          allocatedMemoryBeforeSpilling, triggerFactor, spill.getMemoryUse(), headroomRemaining,
+          context.getOptions().getOption(OOB_SPILL_TRIGGER_HEADROOM_FACTOR));
+        oobDropUnderThreshold++;
+        return;
+      }
+
+      final CanSwitchToSpilling.SwitchResult switchResult = ((CanSwitchToSpilling) partition).switchToSpilling(false);
+      if (!switchResult.isSwitchDone()) {
+        ++oobDropNoVictim;
+        logger.debug("Ignoring OOB spill trigger as no victim partitions found.");
+        return;
+      }
+      ++oobSpills;
+    } else if (runtimeFilterEnabled && !runtimeFiltersDropped()) {
       RuntimeFilterUtil.workOnOOB(message, filterManager, context, config);
     }
   }
@@ -752,6 +833,12 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       stats.setLongStat(Metric.SPILL_RD_PROBE_BATCHES_MERGED, spillStats.getReadProbeBatchesMerged());
       stats.setLongStat(Metric.SPILL_WR_NANOS, spillStats.getWriteNanos());
       stats.setLongStat(Metric.SPILL_RD_NANOS, spillStats.getReadNanos());
+      stats.setLongStat(Metric.OOB_SENDS, spillStats.getOOBSends());
+      stats.setLongStat(Metric.OOB_DROP_UNDER_THRESHOLD, oobDropUnderThreshold);
+      stats.setLongStat(Metric.OOB_DROP_NO_VICTIM, oobDropNoVictim);
+      stats.setLongStat(Metric.OOB_DROP_LOCAL, oobDropLocal);
+      stats.setLongStat(Metric.OOB_DROP_LOCAL, oobDropWrongState);
+      stats.setLongStat(Metric.OOB_SPILL, oobSpills);
     }
   }
 

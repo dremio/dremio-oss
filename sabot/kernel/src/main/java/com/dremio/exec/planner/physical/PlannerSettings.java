@@ -129,8 +129,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_PARTITION_PRUNING = new BooleanValidator("planner.enable_partition_pruning", true);
   public static final String UNIONALL_DISTRIBUTE_KEY = "planner.enable_unionall_distribute";
   public static final BooleanValidator UNIONALL_DISTRIBUTE = new BooleanValidator(UNIONALL_DISTRIBUTE_KEY, true);
-  public static final LongValidator UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_VALUE = new LongValidator("planner.input_round_robin_threshold_value", 1L);
-  public static final DoubleValidator UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_RATIO = new DoubleValidator("planner.input_round_robin_threshold_ratio", 0.1);
+  public static final DoubleValidator UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_RATIO = new DoubleValidator("planner.input_round_robin_threshold_ratio", 0.5);
+  public static final BooleanValidator UNIONALL_DISTRIBUTE_ALL_CHILDREN = new BooleanValidator("planner.unionall_distribute_all_children", false);
   public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
   public static final BooleanValidator RELATIONAL_PLANNING = new BooleanValidator("planner.enable_relational_planning", true);
   public static final BooleanValidator NESTED_SCHEMA_PROJECT_PUSHDOWN = new BooleanValidator("planner.enable_nested_schema_project_pushdown", true);
@@ -303,6 +303,7 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator ENABLE_JOIN_BOOLEAN_REWRITE = new BooleanValidator("planner.enable_join_boolean_rewrite", true);
 
+  public static final BooleanValidator ENABLE_JOIN_PROJECT_PUSHDOWN = new BooleanValidator("planner.join.project_pushdown", true);
   public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", true);
   public static final BooleanValidator JOIN_USE_KEY_FOR_NEXT_FACTOR = new BooleanValidator("planner.join.use_key_for_next_factor", false);
   public static final BooleanValidator JOIN_ROTATE_FACTORS = new BooleanValidator("planner.join.rotate_factors", true);
@@ -353,6 +354,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator LEGACY_SERIALIZER_ENABLED = new BooleanValidator("planner.legacy_serializer_enabled", false);
   public static final BooleanValidator PLAN_SERIALIZATION = new BooleanValidator("planner.plan_serialization", true);
   public static final LongValidator PLAN_SERIALIZATION_LENGTH_LIMIT = new PositiveLongValidator("planner.plan_serialization_length_limit", Long.MAX_VALUE, 100000);
+  public static final BooleanValidator EXTENDED_ALIAS = new BooleanValidator("planner.extended_alias", true);
 
   private static final Set<String> SOURCES_WITH_MIN_COST = ImmutableSet.of(
     "adl",
@@ -842,6 +844,10 @@ public class PlannerSettings implements Context{
 
   public boolean isJoinBooleanRewriteEnabled() {
     return options.getOption(ENABLE_JOIN_BOOLEAN_REWRITE);
+  }
+
+  public boolean isJoinPlanningProjectPushdownEnabled() {
+    return options.getOption(ENABLE_JOIN_PROJECT_PUSHDOWN);
   }
 
   public boolean isExperimentalBushyJoinOptimizerEnabled() {

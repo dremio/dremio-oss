@@ -26,14 +26,18 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.CoordExecRPC;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
 import com.dremio.sabot.op.join.vhash.PartitionColFilters;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.MemoryReleaser;
+import com.dremio.sabot.op.join.vhash.spill.OOBInfo;
 import com.dremio.sabot.op.join.vhash.spill.io.SpillFileDescriptor;
 import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
@@ -77,7 +81,6 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
     this.sv2 = sv2;
     this.tableHash4B = tableHash4B;
     this.partitionID = String.format("p_gen_%08d_idx_%08d", setupParams.getGeneration(), partitionIdx);
-
   /*
    * build side structures
    */
@@ -90,9 +93,12 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
       this.slicer = new PageBatchSlicer(pool, sv2, setupParams.getRight(), setupParams.getBuildNonKeyFieldsBitset());
       // container for all the sliced record batches.
       this.hyperContainer = rc.add(new ExpandableHyperContainer(allocator, setupParams.getCarryAlongSchema()));
-      this.table = rc.add(new BlockJoinTable(setupParams.getBuildKeyPivot(), allocator, setupParams.getComparator(),
-          (int) setupParams.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE,
-          setupParams.getSabotConfig(), setupParams.getOptions(), setupParams.isRuntimeFilterEnabled()));
+      /*
+       * Minimum hashtable size is set to 8K. This reduce the burden of unnecessarly allocating 1MB worth of control blocks
+       * (for each partition) to 128K. This help batch workloads where total number of entries in the hashtable is very less.
+       */
+      this.table = rc.add(new BlockJoinTable(setupParams.getBuildKeyPivot(), allocator, setupParams.getComparator(), 8192,
+        INITIAL_VAR_FIELD_AVERAGE_SIZE, setupParams.getSabotConfig(), setupParams.getOptions(), setupParams.isRuntimeFilterEnabled()));
 
       // temp buffer to hold hash table ordinals, post-insertion into the table
       this.hashTableOrdinals4B = rc.add(allocator.buffer(setupParams.getMaxInputBatchSize() * ORDINAL_SIZE));
@@ -166,6 +172,11 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
   @Override
   public boolean isBuildSideEmpty() {
     return table.size() == 0;
+  }
+
+  @Override
+  public int hashTableSize() {
+    return table.size();
   }
 
   private void checkAndCreateProbe() {
@@ -314,9 +325,9 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
     List<AutoCloseable> autoCloseables = new ArrayList<>();
     autoCloseables.add(hashTableOrdinals4B);
     autoCloseables.add(probe);
+    autoCloseables.add(hyperContainer);
     if (!switchedToSpilling) {
       // these will be freed up by the MemoryReleaser
-      autoCloseables.add(hyperContainer);
       autoCloseables.add(linkedList);
       autoCloseables.add(table);
       autoCloseables.addAll(slicedBatchPages);
@@ -339,15 +350,49 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
 
     // create a releaser to free up the in-memory hash-table & the hyper-container.
     SpillFileDescriptor spillFile = new SpillFileDescriptor(setupParams.getSpillManager().getSpillFile(partitionID + "_preSpillBuild.arrow"));
-    MemoryReleaser releaser = new BuildMemoryReleaser(setupParams, spillFile,
-      linkedList, table, hyperContainer, slicedBatchPages, allocator, ImmutableList.of(pool));
+    MemoryReleaser releaser = new BuildMemoryReleaser(setupParams, spillFile, linkedList,
+      table, hyperContainer, slicedBatchPages, allocator, ImmutableList.of(pool));
     setupParams.getMultiMemoryReleaser().addReleaser(releaser);
 
     // Create a disk-partition to use in-place of this partition.
-    Partition newPartition = new DiskPartition(setupParams, partitionIdx, sv2, ImmutableList.of(spillFile), new RecordedStats(getStats()));
+    Partition newPartition = new DiskPartition(setupParams, partitionIdx, sv2, ImmutableList.of(spillFile),
+      new RecordedStats(getStats()), table.size());
 
     // clean-up this partition
     AutoCloseables.closeNoChecked(this);
+
+    notifyOthersOfSpill();
+
     return new SwitchResult(true, newPartition);
+  }
+
+  /**
+   * Notify other fragments of this spill by sending an Out-of-Band message
+   */
+  public void notifyOthersOfSpill() {
+    OOBInfo oobInfo = setupParams.getOobInfo();
+    if (!oobInfo.isOobSpillEnabled()) {
+      return;
+    }
+
+    try {
+      final OutOfBandMessage.Payload payload = new OutOfBandMessage.Payload(
+        ExecProtos.HashJoinSpill.newBuilder().setMemoryUse(allocator.getAllocatedMemory()).setMessageType(oobInfo.getMessage_type()).build());
+      for (CoordExecRPC.FragmentAssignment a : oobInfo.getAssignments()) {
+        final OutOfBandMessage message = new OutOfBandMessage(
+          oobInfo.getQueryId(),
+          oobInfo.getMajorFragmentId(),
+          a.getMinorFragmentIdList(),
+          oobInfo.getOperatorId(),
+          oobInfo.getMinorFragmentId(),
+          payload, true);
+
+        final CoordinationProtos.NodeEndpoint endpoint = oobInfo.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
+        oobInfo.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
+      }
+      setupParams.getSpillStats().incrementOOBSends();
+    } catch(final Exception ex) {
+      logger.warn("Failure while attempting to notify others of spilling.", ex);
+    }
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.util;
 
+import static com.dremio.datastore.BackupSupport.backupDestinationDirName;
 import static java.lang.String.format;
 
 import java.io.BufferedReader;
@@ -29,11 +30,12 @@ import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.file.AccessMode;
 import java.nio.file.DirectoryStream;
+import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.AccessControlException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -50,12 +52,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
 import javax.ws.rs.core.UriBuilder;
 
 import org.apache.commons.io.IOUtils;
 
+import com.dremio.common.VM;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.CloseableThreadPool;
+import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.ProtostuffUtil;
@@ -63,6 +68,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.proto.model.backup.BackupFileInfo;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.datastore.CheckpointInfo;
 import com.dremio.datastore.CoreKVStore;
 import com.dremio.datastore.KVStoreInfo;
 import com.dremio.datastore.KVStoreTuple;
@@ -100,8 +106,6 @@ public final class BackupRestoreUtil {
       PosixFilePermission.OWNER_EXECUTE
       );
 
-  private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH.mm");
-  private static final String BACKUP_DIR_PREFIX = "dremio_backup_";
   private static final String BACKUP_FILE_SUFFIX_JSON = "_backup.json";
   private static final String BACKUP_FILE_SUFFIX_BINARY = "_backup.pb";
   private static final String BACKUP_INFO_FILE_SUFFIX = "_info.json";
@@ -135,16 +139,35 @@ public final class BackupRestoreUtil {
     }
   }
 
-  private static <K, V> void dumpTable(FileSystem fs, Path backupRootDir, BackupFileInfo backupFileInfo, CoreKVStore<K, V> coreKVStore, boolean binary) throws IOException {
-    final Path backupFile = backupRootDir.resolve(format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(), binary ? BACKUP_FILE_SUFFIX_BINARY : BACKUP_FILE_SUFFIX_JSON));
+  public static CheckpointInfo createCheckpoint(final BackupOptions options, FileSystem fs,
+    final LocalKVStoreProvider localKVStoreProvider) throws IOException {
+    logger.info("Backup Checkpoint has started");
+
+    try {
+      final LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
+      final String backupDirName = backupDestinationDirName(now);
+      final Path backupDestinationDir = options.getBackupDirAsPath().resolve(backupDirName);
+      fs.mkdirs(backupDestinationDir, DEFAULT_PERMISSIONS);
+
+      return localKVStoreProvider
+        .newCheckpoint(Paths.get(backupDestinationDir.toURI()));
+    } finally {
+      logger.info("Backup Checkpoint has finished");
+    }
+  }
+
+  private static <K, V> void dumpTable(FileSystem fs, Path backupRootDir, BackupFileInfo backupFileInfo,
+    CoreKVStore<K, V> coreKVStore, boolean binary) throws IOException {
+    final Path backupFile = backupRootDir.resolve(format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(),
+      binary ? BACKUP_FILE_SUFFIX_BINARY : BACKUP_FILE_SUFFIX_JSON));
     final Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> iterator = coreKVStore.find().iterator();
     long records = 0;
 
-    if(binary) {
+    if (binary) {
       try (
-          final OutputStream fsout = fs.create(backupFile, true);
-          final DataOutputStream bos = new DataOutputStream(fsout);
-          ){
+        final OutputStream fsout = fs.create(backupFile, true);
+        final DataOutputStream bos = new DataOutputStream(fsout);
+      ) {
         while (iterator.hasNext()) {
           Document<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
           {
@@ -166,11 +189,12 @@ public final class BackupRestoreUtil {
     } else {
       final ObjectMapper objectMapper = new ObjectMapper();
       try (
-          final OutputStream fsout = fs.create(backupFile, true);
-          final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fsout));){
+        final OutputStream fsout = fs.create(backupFile, true);
+        final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fsout))) {
         while (iterator.hasNext()) {
           Document<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
-          writer.write(objectMapper.writeValueAsString(new BackupRecord(keyval.getKey().toJson(), keyval.getValue().toJson())));
+          writer.write(objectMapper.writeValueAsString(new BackupRecord(keyval.getKey().toJson(),
+            keyval.getValue().toJson())));
           writer.newLine();
           ++records;
         }
@@ -329,17 +353,21 @@ public final class BackupRestoreUtil {
     }
   }
 
-
   /**
    * Options for doing backup/restore.
    */
   public static class BackupOptions {
+    /**
+     * Backup root dir. Backup subdirectories (with timestamp names) are stored
+     * inside the backup root dir.
+     */
     private final String backupDir;
     private final boolean binary;
     private final boolean includeProfiles;
 
     @JsonCreator
-    public BackupOptions(@JsonProperty("backupDir") String backupDir, @JsonProperty("binary") boolean binary, @JsonProperty("includeProfiles") boolean includeProfiles) {
+    public BackupOptions(@JsonProperty("backupDir") String backupDir, @JsonProperty("binary") boolean binary,
+      @JsonProperty("includeProfiles") boolean includeProfiles) {
       super();
       this.backupDir = backupDir;
       this.binary = binary;
@@ -364,38 +392,55 @@ public final class BackupRestoreUtil {
     }
   }
 
-  public static BackupStats createBackup(FileSystem fs, BackupOptions options, LocalKVStoreProvider localKVStoreProvider, HomeFileConf homeFileStore) throws IOException, NamespaceException {
-    final Date now = new Date();
+  public static BackupStats createBackup(FileSystem fs, BackupOptions options,
+    LocalKVStoreProvider localKVStoreProvider, HomeFileConf homeFileStore,
+    @Nullable CheckpointInfo checkpointInfo) throws IOException, NamespaceException {
+    String msg = checkpointInfo == null ? "Tables and uploads" : "Tables";
+    logger.info("{} Backup started", msg);
     final BackupStats backupStats = new BackupStats();
 
-    final Path backupDir = options.getBackupDirAsPath().resolve(format("%s%s", BACKUP_DIR_PREFIX, DATE_FORMAT.format(now)));
+    final LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
+    final Path backupDir = checkpointInfo == null
+      ? options.getBackupDirAsPath().resolve(backupDestinationDirName(now))
+      : Path.of(checkpointInfo.getBackupDestinationDir());
     fs.mkdirs(backupDir, DEFAULT_PERMISSIONS);
     backupStats.backupPath = backupDir.toURI().getPath();
-    ExecutorService svc = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors()/2));
-    try {
 
+    final String backupThreadsString = System.getProperty("dremio.backup.threads");
+    final int backupThreads = backupThreadsString != null ? Integer.parseInt(backupThreadsString.trim()) :
+      VM.availableProcessors() / 2;
+    final ExecutorService svc = Executors.newFixedThreadPool(Math.max(1, backupThreads), new NamedThreadFactory(
+      "Backup-"));
+
+    try {
       List<CompletableFuture<Void>> futures = new ArrayList<>();
-      futures.addAll(localKVStoreProvider.getStores().entrySet().stream().map((entry) -> asFuture(svc, entry, fs, backupDir, options, backupStats)).collect(Collectors.toList()));
-      futures.add(CompletableFuture.runAsync(() -> {
-        try {
-          backupUploadedFiles(fs, backupDir, homeFileStore, backupStats);
-        } catch (IOException | NamespaceException ex) {
-          throw new CompletionException(ex);
-        }
-      }, svc));
+      localKVStoreProvider.getStores().entrySet().stream().map((entry) -> asFuture(svc, entry, fs,
+        backupDir, options, backupStats)).forEach(futures::add);
+      if (homeFileStore != null) {
+        futures.add(CompletableFuture.runAsync(() -> {
+          try {
+            backupUploadedFiles(fs, backupDir, homeFileStore, backupStats);
+          } catch (IOException | NamespaceException ex) {
+            throw new CompletionException(ex);
+          }
+        }, svc));
+      }
       checkFutures(futures);
     } finally {
       CloseableSchedulerThreadPool.close(svc, logger);
+      logger.info("{} Backup finished. Backup of {} tables and {} uploads", msg, backupStats.getTables(),
+        backupStats.getFiles());
     }
+
     return backupStats;
   }
 
   private static void checkFutures(List<CompletableFuture<Void>> futures) throws IOException, NamespaceException {
     try {
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).get();
+      CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
-    } catch (ExecutionException e) {
+    } catch (CompletionException | ExecutionException e) {
       Throwables.propagateIfPossible(e.getCause(), IOException.class, NamespaceException.class);
       throw new RuntimeException(e.getCause());
     }
@@ -579,6 +624,7 @@ public final class BackupRestoreUtil {
     public void incrementTables() {
       tables.incrementAndGet();
     }
+
     public long getFiles() {
       return files.get();
     }

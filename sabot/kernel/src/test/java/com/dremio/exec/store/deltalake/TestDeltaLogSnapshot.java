@@ -20,15 +20,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.List;
 
-import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 
-import com.dremio.common.util.FileUtils;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -36,23 +31,36 @@ import com.google.common.collect.ImmutableList;
  */
 public class TestDeltaLogSnapshot {
 
+    private DeltaLogSnapshot parseSnapshot(String fileName, long version) throws IOException {
+        DeltaLogSnapshot snapshot = TestDeltaLogCommitJsonReader.parseCommitJson(fileName);
+        snapshot.setVersionId(version);
+        return snapshot;
+    }
+
+    private DeltaLogSnapshot createSnapshot(boolean isCheckpoint, long version) {
+        DeltaLogSnapshot snapshot = new DeltaLogSnapshot(DeltaConstants.OPERATION_WRITE, 1, 1, 1, 1, System.currentTimeMillis(), isCheckpoint);
+        snapshot.setVersionId(version);
+        return snapshot;
+    }
+
+    private DeltaLogSnapshot createSnapshot(boolean isCheckpoint, long version, String schema, List<String> partitionColumns) {
+        DeltaLogSnapshot snapshot = createSnapshot(isCheckpoint, version);
+        snapshot.setSchema(schema, partitionColumns);
+        return snapshot;
+    }
+
+
     @Test
     public void testMerge() throws IOException {
-        Configuration conf = new Configuration();
-        final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
-        DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI())))), -1);
-        snapshot0.setVersionId(0);
-        DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI())))), -1);
-        snapshot1.setVersionId(1);
-        DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI())))), -1);
-        snapshot2.setVersionId(2);
+        DeltaLogSnapshot snapshot0 = parseSnapshot("/deltalake/test2_init.json", 0);
+        DeltaLogSnapshot snapshot1 = parseSnapshot("/deltalake/test1_3.json", 1);
+        DeltaLogSnapshot snapshot2 = parseSnapshot("/deltalake/test1_4.json", 2);
 
         DeltaLogSnapshot snapshot00 = snapshot0.clone();
         snapshot00.merge(snapshot1);
         snapshot00.merge(snapshot2);
 
-        assertEquals("COMBINED", snapshot00.getOperationType());
+        assertEquals(DeltaConstants.OPERATION_COMBINED, snapshot00.getOperationType());
         assertEquals((snapshot0.getNetFilesAdded() + snapshot1.getNetFilesAdded() + snapshot2.getNetFilesAdded()), snapshot00.getNetFilesAdded());
         assertEquals(snapshot0.getNetOutputRows() + snapshot1.getNetOutputRows() + snapshot2.getNetOutputRows(), snapshot00.getNetOutputRows());
         assertEquals(snapshot0.getNetBytesAdded() + snapshot1.getNetBytesAdded() + snapshot2.getNetBytesAdded(), snapshot00.getNetBytesAdded());
@@ -70,15 +78,9 @@ public class TestDeltaLogSnapshot {
 
     @Test
     public void testCompare() throws IOException {
-        Configuration conf = new Configuration();
-        final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
-        DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI())))), -1);
-        snapshot0.setVersionId(0);
-        DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI())))), -1);
-        snapshot1.setVersionId(1);
-        DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI())))), -1);
-        snapshot2.setVersionId(2);
+        DeltaLogSnapshot snapshot0 = parseSnapshot("/deltalake/test2_init.json", 0);
+        DeltaLogSnapshot snapshot1 = parseSnapshot("/deltalake/test1_3.json", 1);
+        DeltaLogSnapshot snapshot2 = parseSnapshot("/deltalake/test1_4.json", 2);
 
         assertTrue(snapshot0.compareTo(snapshot2) < 0);
         assertTrue(snapshot1.compareTo(snapshot2) < 0);
@@ -88,13 +90,8 @@ public class TestDeltaLogSnapshot {
 
     @Test
     public void testMergeOnVersion() {
-        DeltaLogSnapshot snapshot1 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), false);
-        snapshot1.setSchema("schema1", new ArrayList<>());
-        snapshot1.setVersionId(11);
-
-        DeltaLogSnapshot snapshot2 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), true);
-        snapshot2.setSchema("schema2", new ArrayList<>());
-        snapshot2.setVersionId(10);
+        DeltaLogSnapshot snapshot1 = createSnapshot(false, 11, "schema1", new ArrayList<>());
+        DeltaLogSnapshot snapshot2 = createSnapshot(true, 10, "schema2", new ArrayList<>());
 
         snapshot1.merge(snapshot2);
         assertEquals("schema1", snapshot1.getSchema());
@@ -102,64 +99,41 @@ public class TestDeltaLogSnapshot {
 
     @Test(expected = IllegalStateException.class)
     public void testMergeRepartition() {
-        DeltaLogSnapshot snapshot1 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), false);
-        snapshot1.setSchema("schema1", ImmutableList.of("colA"));
-        snapshot1.setVersionId(11);
-
-        DeltaLogSnapshot snapshot2 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), true);
-        snapshot2.setSchema("schema2", ImmutableList.of("colB"));
-        snapshot2.setVersionId(10);
+        DeltaLogSnapshot snapshot1 = createSnapshot(false, 11, "schema1", ImmutableList.of("colA"));
+        DeltaLogSnapshot snapshot2 = createSnapshot(true, 10, "schema2", ImmutableList.of("colB"));
 
         snapshot1.merge(snapshot2);
     }
 
     @Test(expected = IllegalStateException.class)
     public void testMergePartitionIntroduced() {
-        DeltaLogSnapshot snapshot1 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), false);
-        snapshot1.setSchema("schema1", ImmutableList.of("colA"));
-        snapshot1.setVersionId(11);
-
-        DeltaLogSnapshot snapshot2 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), true);
-        snapshot2.setSchema("schema2", new ArrayList<>());
-        snapshot2.setVersionId(10);
+        DeltaLogSnapshot snapshot1 = createSnapshot(false, 11, "schema1", ImmutableList.of("colA"));
+        DeltaLogSnapshot snapshot2 = createSnapshot(true, 10, "schema2", new ArrayList<>());
 
         snapshot1.merge(snapshot2);
     }
 
     @Test
     public void testMergeRepartitionNoMetadata() {
-        DeltaLogSnapshot snapshot1 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), false);
-        snapshot1.setSchema("schema1", ImmutableList.of("colA"));
-        snapshot1.setVersionId(11);
-
-        DeltaLogSnapshot snapshot2 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), true);
-        snapshot2.setVersionId(10);
+        DeltaLogSnapshot snapshot1 = createSnapshot(false, 11, "schema1", ImmutableList.of("colA"));
+        DeltaLogSnapshot snapshot2 = createSnapshot(true, 10);
 
         snapshot1.merge(snapshot2);
     }
 
     @Test
     public void testMergeRepartitionNoMetadataBothSides() {
-        DeltaLogSnapshot snapshot1 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), false);
-        snapshot1.setVersionId(11);
-
-        DeltaLogSnapshot snapshot2 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), true);
-        snapshot2.setVersionId(10);
+        DeltaLogSnapshot snapshot1 = createSnapshot(false, 11);
+        DeltaLogSnapshot snapshot2 = createSnapshot(true, 10);
 
         snapshot1.merge(snapshot2);
     }
 
     @Test
     public void testMergeWithPartitions() {
-        DeltaLogSnapshot snapshot1 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), false);
-        snapshot1.setSchema("schema1", ImmutableList.of("colA"));
-        snapshot1.setVersionId(11);
-
-        DeltaLogSnapshot snapshot2 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), true);
-        snapshot2.setSchema("schema2", ImmutableList.of("colA"));
-        snapshot2.setVersionId(10);
+        DeltaLogSnapshot snapshot1 = createSnapshot(false, 11, "schema1", ImmutableList.of("colA"));
+        DeltaLogSnapshot snapshot2 = createSnapshot(true, 10, "schema2", ImmutableList.of("colA"));
 
         snapshot1.merge(snapshot2);
     }
-
 }

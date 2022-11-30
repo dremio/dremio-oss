@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { compose } from "redux";
@@ -89,6 +89,10 @@ const JobDetailsPage = (props) => {
     location,
   };
 
+  //Effect should use latest query string when polling runs
+  const loc = useRef();
+  loc.current = location;
+
   // TODO: Revisit this to fetch the info from socket instead of making multiple calls to get job details
   useEffect(() => {
     if (GetIsSocketForSingleJob()) {
@@ -103,6 +107,7 @@ const JobDetailsPage = (props) => {
       router.replace({
         ...location,
         query: {
+          ...loc.current.query,
           attempts: jobAttempt,
         },
       });
@@ -118,7 +123,7 @@ const JobDetailsPage = (props) => {
         jobsUtils.isJobRunning(firstResponse && firstResponse.jobStatus)
       ) {
         const id = setInterval(async () => {
-          const { query: { attempts = 1 } = {} } = location || {};
+          const { query: { attempts = 1 } = {} } = loc.current || {};
           let jobAttempts = attempts;
           const response = await fetchJobDetails(true);
           if (
@@ -135,8 +140,9 @@ const JobDetailsPage = (props) => {
             jobAttempts = response.attemptDetails.length;
           }
           router.replace({
-            ...location,
+            ...loc.current,
             query: {
+              ...loc.current.query,
               attempts: jobAttempts,
             },
           });

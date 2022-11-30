@@ -232,6 +232,7 @@ public class CommandCreator {
                 final boolean queryMatches = plan.getQuery().equals(preparedStatement.getSqlQuery());
                 final boolean usernameMatches = plan.getUsername() == null || plan.getUsername().equals(context.getSession().getCredentials().getUserName());
                 if (queryMatches && usernameMatches) {
+                  context.setQueryRequiresGroupsInfo(plan.getQueryRequiresGroupsInfo());
                   return new PrepareToExecution(plan, observer);
                 }
               }

@@ -240,7 +240,7 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
         + "SELECT *\n"
         + "FROM nations_regions_nlj \n"
         + "JOIN regions ON nations_regions_nlj.N_REGIONKEY = regions.R_REGIONKEY", NATION, REGION);
-      String[] includes = { "runtimeFilters=.*:R_REGIONKEY0->N_REGIONKEY" };
+      String[] includes = { "runtimeFilters=.*:R_REGIONKEY->N_REGIONKEY" };
       testPlanMatchingPatterns(sql, includes);
       test(sql);
     }

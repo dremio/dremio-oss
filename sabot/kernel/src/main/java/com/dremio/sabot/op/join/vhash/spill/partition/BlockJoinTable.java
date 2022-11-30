@@ -115,7 +115,7 @@ public class BlockJoinTable implements JoinTable {
     }
 
     insertWatch.start();
-    int recordsAdded = table.addSv2(sv2, pivotShift, records, fixed.getBuf(), variable.getBuf(), tableHash4B, output);
+    int recordsAdded = table.addSv2(sv2, pivotShift, records, fixed.getBuf(), variable == null ? null : variable.getBuf(), tableHash4B, output);
     insertWatch.stop();
 
     if (tableTracing) {
@@ -140,7 +140,7 @@ public class BlockJoinTable implements JoinTable {
     final HashTable table = this.table;
 
     probeFindWatch.start();
-    table.findSv2(sv2, pivotShift, records, fixed.getBuf(), variable.getBuf(), tableHash4B, output);
+    table.findSv2(sv2, pivotShift, records, fixed.getBuf(), variable == null ? null : variable.getBuf(), tableHash4B, output);
     probeFindWatch.stop();
   }
 

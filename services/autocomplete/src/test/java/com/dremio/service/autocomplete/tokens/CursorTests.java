@@ -16,6 +16,7 @@
 package com.dremio.service.autocomplete.tokens;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.test.GoldenFileTestBuilder;
@@ -55,6 +56,7 @@ public final class CursorTests {
   }
 
   @Test
+  @Ignore
   public void testTokenizeWithCursor() {
     new GoldenFileTestBuilder<>(CursorTests::testTokenizeWithCursorImplementation)
       .add("EMPTY STRING", new Input("", 0))

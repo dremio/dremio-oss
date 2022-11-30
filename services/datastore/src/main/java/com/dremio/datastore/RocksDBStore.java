@@ -97,7 +97,7 @@ class RocksDBStore implements ByteStore {
   private static final String BLOB_MINIMUM_SYS_PROP = "dremio.rocksdb.minimum_blob_filter_bytes";
   //  0x06 and 0x07 are unused by proto so we use 0x07 to denote that the entry is a blob pointer
   static final byte META_MARKER = 7;
-  private static final String BLOB_PATH = "blob";
+  static final String BLOB_PATH = "blob";
   static final long FILTER_SIZE_IN_BYTES;
 
   static {
@@ -182,13 +182,21 @@ class RocksDBStore implements ByteStore {
   private final AtomicLong closedIterators = new AtomicLong(0);
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
+  private final boolean readOnly;
 
-  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes) {
-    this(name, family, handle, db, stripes, INLINE_BLOB_MANAGER);
+
+  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
+    boolean readOnly) {
+    this(name, family, handle, db, stripes, INLINE_BLOB_MANAGER, readOnly);
   }
 
   public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
-                      MetaManager metaManager) {
+    MetaManager metaManager) {
+    this(name, family, handle, db, stripes, metaManager, false);
+  }
+
+  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
+    MetaManager metaManager, boolean readOnly) {
     super();
     this.family = family;
     this.name = name;
@@ -198,6 +206,7 @@ class RocksDBStore implements ByteStore {
     this.sharedLocks = new AutoCloseableLock[stripes];
     this.exclusiveLocks = new AutoCloseableLock[stripes];
     this.metaManager = metaManager;
+    this.readOnly = readOnly;
 
     for (int i = 0; i < stripes; i++) {
       ReadWriteLock core = new ReentrantReadWriteLock();
@@ -238,6 +247,10 @@ class RocksDBStore implements ByteStore {
       final String metricName = Metrics.join(METRICS_PREFIX, name, property);
       consumer.accept(metricName, property);
     }
+  }
+
+  MetaManager getMetaManager() {
+    return metaManager;
   }
 
   private void compact() throws RocksDBException {
@@ -414,11 +427,13 @@ class RocksDBStore implements ByteStore {
     unregisterMetrics();
     exclusively((deferred) -> {
       deleteAllIterators(deferred);
-      try(FlushOptions options = new FlushOptions()){
-        options.setWaitForFlush(true);
-        db.flush(options, handle);
-      } catch (RocksDBException ex) {
-        deferred.addException(ex);
+      if (!readOnly) {
+        try (FlushOptions options = new FlushOptions()) {
+          options.setWaitForFlush(true);
+          db.flush(options, handle);
+        } catch (RocksDBException ex) {
+          deferred.addException(ex);
+        }
       }
       deferred.suppressingClose(handle);
     });

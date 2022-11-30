@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>23.0.1-202210141019030815-c1de8bcc</version>
+    <version>23.1.0-202211250121140756-a79618c7</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -35,8 +35,9 @@
     <dremio.distribution.resources.directory>${project.build.directory}/distribution-resources</dremio.distribution.resources.directory>
     <dremio.hive.plugin-group-id>com.dremio.plugins</dremio.hive.plugin-group-id>
     <dremio.hive.plugin-artifact-id-prefix>dremio</dremio.hive.plugin-artifact-id-prefix>
-    <dremio.distribution.tar.maxSize>750000000</dremio.distribution.tar.maxSize>
-    <dremio.distribution.rpm.maxSize>750000000</dremio.distribution.rpm.maxSize>
+    <!-- You will also need to increase the maxSize for the MapR version, under a profile in this file  -->
+    <dremio.distribution.tar.maxSize>780000000</dremio.distribution.tar.maxSize>
+    <dremio.distribution.rpm.maxSize>760000000</dremio.distribution.rpm.maxSize>
   </properties>
 
   <dependencies>
@@ -563,8 +564,8 @@ exit 0
         </property>
       </activation>
       <properties>
-        <dremio.distribution.tar.maxSize>880000000</dremio.distribution.tar.maxSize>
-        <dremio.distribution.rpm.maxSize>870000000</dremio.distribution.rpm.maxSize>
+        <dremio.distribution.tar.maxSize>910000000</dremio.distribution.tar.maxSize>
+        <dremio.distribution.rpm.maxSize>900000000</dremio.distribution.rpm.maxSize>
       </properties>
       <dependencies>
         <dependency>

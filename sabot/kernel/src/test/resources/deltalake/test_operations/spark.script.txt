@@ -1,0 +1,15 @@
+sql("DROP TABLE IF EXISTS test")
+
+sql("CREATE TABLE test (col0 INT, col1 INT) USING delta TBLPROPERTIES (delta.minWriterVersion = 3, delta.minReaderVersion = 1)") // 0 rows
+sql("INSERT INTO test VALUES (1, 2), (3, 4)") // 2 rows
+sql("INSERT INTO test VALUES (5, 6), (7, 8)") // 4 rows
+sql("OPTIMIZE test") // 4 rows
+sql("INSERT INTO test VALUES (9, 10), (11, 12)") // 6 rows
+sql("DELETE FROM test WHERE col0 > 5 and col0 < 11") // 4 rows
+
+sql("CREATE TABLE other (c0 INT, c1 INT) USING delta TBLPROPERTIES (delta.minWriterVersion = 3, delta.minReaderVersion = 1)")
+sql("INSERT INTO other VALUES (1, 11), (2, 12), (3,13), (4, 14)") // 4 rows
+
+sql("CREATE OR REPLACE TABLE test USING delta TBLPROPERTIES (delta.minWriterVersion = 3, delta.minReaderVersion = 1) AS SELECT * FROM VALUES (1, 2), (3, 4)") // 2 rows
+sql("MERGE INTO test USING other ON col1 = other.c0 WHEN MATCHED THEN DELETE WHEN NOT MATCHED THEN INSERT (col1, col2) VALUES(other.c0, other.c1)") // 2 rows
+sql("DELETE FROM test") // 0 rows

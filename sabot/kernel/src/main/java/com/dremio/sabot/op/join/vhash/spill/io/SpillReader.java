@@ -65,7 +65,7 @@ public class SpillReader implements CloseableIterator<SpillChunk> {
   }
 
   public SpillChunk peek() {
-    Preconditions.checkState(hasNext());
+    Preconditions.checkState(prefetchedChunk != null);
     return prefetchedChunk;
   }
 

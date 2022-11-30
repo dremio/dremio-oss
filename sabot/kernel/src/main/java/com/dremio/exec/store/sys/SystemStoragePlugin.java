@@ -60,7 +60,6 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
           .collect(Collectors.toMap(systemTable -> canonicalize(systemTable.getDatasetPath()),
               Function.identity())));
 
-  private static final String JOB_RESULTS = "job_results";
   private static final String JOBS_STORAGE_PLUGIN_NAME = "__jobResultsStore";
 
   private final SabotContext context;
@@ -88,7 +87,7 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
 
   @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
-    if (tableSchemaPath.size() != 3 || !JOB_RESULTS.equalsIgnoreCase(tableSchemaPath.get(1))) {
+    if (!JobResultInfoProvider.isJobResultsTable(tableSchemaPath)) {
       return null;
     }
 

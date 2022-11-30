@@ -55,6 +55,9 @@ public class SqlCreateView extends SqlCall {
 
   public SqlCreateView(SqlParserPos pos, SqlIdentifier viewName, SqlNodeList fieldList,
                        SqlNode query, boolean replaceView, SqlPolicy policy) {
+    // For "CREATE VIEW ... AS ..." statement, pos is set to be the position of the `AS` token in the parser.
+    // This would help us to get the row or query expression, i.e. the definition of the view.
+    // Note for other SQL statements, pos is usually set to be the beginning of the statement.
     super(pos);
     this.viewName = viewName;
     this.query = query;

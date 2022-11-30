@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import clsx from "clsx";
 import { useState, useEffect } from "react";
 import { connect } from "react-redux";
 import { compose } from "redux";
@@ -40,6 +41,8 @@ import { isEqual, isEmpty } from "lodash";
 import { parseQueryState } from "utils/jobsQueryState";
 
 import JobsContent from "./components/JobsContent";
+import * as PATHS from "@app/exports/paths";
+
 import "./JobPageNew.less";
 
 const JobListingPage = (props) => {
@@ -59,13 +62,13 @@ const JobListingPage = (props) => {
     dispatchUpdateQueryState,
     dispatchLoadItemsForFilter,
     dispatchSetClusterType,
-    showSideNavAndTopNav,
     jobsColumns,
     isFromExplorePage,
     renderButtons,
     handleTabChange,
     jobIdList,
     queryFilter,
+    children,
   } = props;
   const { state: { isFromJobListing } = {} } = location || {};
   const [lastLoaded, setLastLoaded] = useState("");
@@ -78,13 +81,18 @@ const JobListingPage = (props) => {
 
   useEffect(() => {
     if (!isEmpty(location.query) && !isEqual(queryState, prevQueryState)) {
+      setLastLoaded("");
       if (!isFromExplorePage)
         dispatchFetchJobsList(queryState, JOB_PAGE_NEW_VIEW_ID);
     }
   }, [queryState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (isEmpty(location.query) && location.pathname === "/jobs") {
+    if (
+      isEmpty(location.query?.filters) &&
+      (location.pathname === "/jobs" ||
+        location.pathname.startsWith("/jobs/job"))
+    ) {
       if (!queryState.equals(prevQueryState)) {
         dispatchUpdateQueryState(
           queryState.setIn(["filters", "qt"], ["UI", "EXTERNAL"])
@@ -111,12 +119,14 @@ const JobListingPage = (props) => {
     const currentJobId = data && data.rowData.data.job.value;
     const selectedJob = jobList.find((job) => job.get("id") === currentJobId);
     const attempts = selectedJob ? selectedJob.get("totalAttempts") : 1;
-    if (data !== null && location.pathname !== `/job/${currentJobId}`) {
+    const currentJobURL = PATHS.job({ jobId: currentJobId });
+    if (data !== null && location.pathname !== currentJobURL) {
       router.push({
         ...location,
-        pathname: `/job/${currentJobId}`,
+        pathname: currentJobURL,
         search: null,
         query: {
+          ...location.query,
           attempts,
         },
         hash: null,
@@ -168,31 +178,34 @@ const JobListingPage = (props) => {
 
   return (
     <div className={"jobPageNew"}>
-      <JobsContent
-        className={flexElementAuto} // Page object adds flex in style
-        loadNextJobs={tableRowRenderer}
-        // todo: update to react-router v3 so don't have to deep pass `location` anymore
-        location={location}
-        jobId={previousJobId}
-        jobs={jobList}
-        queryState={queryState}
-        next={next}
-        isNextJobsInProgress={isNextJobsInProgress}
-        viewState={viewState}
-        onUpdateQueryState={dispatchUpdateQueryState}
-        loadItemsForFilter={dispatchLoadItemsForFilter}
-        dataFromUserFilter={dataFromUserFilter}
-        dataWithItemsForFilters={dataWithItemsForFilters}
-        changePages={changePages}
-        showSideNavAndTopNav={showSideNavAndTopNav}
-        jobsColumns={jobsColumns}
-        isFromExplorePage={isFromExplorePage}
-        renderButtons={renderButtons}
-        handleTabChange={handleTabChange}
-        router={router}
-        exploreJobIdList={jobIdList}
-        queryFilter={queryFilter}
-      />
+      <span className={clsx("content-wrapper", { hasChildren: !!children })}>
+        <JobsContent
+          className={flexElementAuto} // Page object adds flex in style
+          loadNextJobs={tableRowRenderer}
+          // todo: update to react-router v3 so don't have to deep pass `location` anymore
+          location={location}
+          jobId={previousJobId}
+          jobs={jobList}
+          queryState={queryState}
+          next={next}
+          isNextJobsInProgress={isNextJobsInProgress}
+          viewState={viewState}
+          onUpdateQueryState={dispatchUpdateQueryState}
+          loadItemsForFilter={dispatchLoadItemsForFilter}
+          dataFromUserFilter={dataFromUserFilter}
+          dataWithItemsForFilters={dataWithItemsForFilters}
+          changePages={changePages}
+          showSideNav={isFromExplorePage ? false : !children}
+          jobsColumns={jobsColumns}
+          isFromExplorePage={isFromExplorePage}
+          renderButtons={renderButtons}
+          handleTabChange={handleTabChange}
+          router={router}
+          exploreJobIdList={jobIdList}
+          queryFilter={queryFilter}
+        />
+      </span>
+      {children}
     </div>
   );
 };
@@ -226,7 +239,7 @@ JobListingPage.propTypes = {
   renderButtons: PropTypes.func,
   isFromExplorePage: PropTypes.bool,
   jobsColumns: PropTypes.array,
-  showSideNavAndTopNav: PropTypes.bool,
+  children: PropTypes.any,
 };
 
 function mapStateToProps(state, ownProps) {

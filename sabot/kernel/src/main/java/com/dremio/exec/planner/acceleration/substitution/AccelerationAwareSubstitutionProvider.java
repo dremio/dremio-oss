@@ -53,6 +53,11 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
     this.enabled = enabled;
   }
 
+  @Override
+  public void setCurrentPlan(RelNode currentPlan) {
+    delegate.setCurrentPlan(currentPlan);
+  }
+
   public boolean isEnabled() {
     return enabled;
   }
@@ -68,8 +73,8 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
   }
 
   @Override
-  public void setPostSubstitutionTransformer(RelTransformer transformer) {
-    delegate.setPostSubstitutionTransformer(transformer);
+  public void setPostSubstitutionTransformers(List<RelTransformer> transformers) {
+    delegate.setPostSubstitutionTransformers(transformers);
   }
 
   @Override

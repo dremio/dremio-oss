@@ -197,4 +197,12 @@ public class TestDateTimeFunctions extends BaseTestFunction {
 
     });
   }
+
+  @Test
+  public void testDateDiff() throws Exception {
+    testFunctions(new Object[][]{
+      {"date_diff(c0, 1)", ts("2020-10-09T02:02:02.123"), ts("2020-10-08T02:02:02.123")},
+      {"date_add(c0, 1)", ts("2020-10-09T02:02:02.123"), ts("2020-10-10T02:02:02.123")},
+    });
+  }
 }

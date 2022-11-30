@@ -44,6 +44,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.test.TemporarySystemProperties;
@@ -429,7 +430,8 @@ public class TestExampleQueries extends PlanTestBase {
   @Test
   public void leftJoinInequality() throws Exception {
     try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false);
-        AutoCloseable c2 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false)) {
+        AutoCloseable c2 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false);
+        AutoCloseable c3 = withOption(HashJoinOperator.NUM_PARTITIONS, 1)) {
       String q = "SELECT l_orderkey "
           + "FROM "
           + "cp.\"tpch/orders.parquet\" left join cp.\"tpch/lineitem.parquet\"  on (L_orderkey = O_orderkey) and TO_DATE(o_orderdate, 'yyyy-mm-dd') between o_orderdate and l_shipdate "
@@ -453,7 +455,8 @@ public class TestExampleQueries extends PlanTestBase {
   @Test
   public void rightJoinInequality() throws Exception {
     try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false);
-        AutoCloseable c2 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false)) {
+        AutoCloseable c2 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false);
+        AutoCloseable c3 = withOption(HashJoinOperator.NUM_PARTITIONS, 1)) {
 
       String q = "SELECT l_orderkey "
           + "FROM "

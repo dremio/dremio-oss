@@ -16,6 +16,7 @@
 package com.dremio.datastore;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -82,12 +83,12 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
 
   @VisibleForTesting
   public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
-    this(scan, null, null, null, baseDirectory, inMemory, timed);
+    this(scan, null, null, null, baseDirectory, inMemory, timed, false);
   }
 
-  @VisibleForTesting
-  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry, boolean noDBLogMessages) {
-    this(scan, null, null, null, baseDirectory, inMemory, timed, noDBOpenRetry, noDBLogMessages);
+  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed,
+    boolean noDBOpenRetry, boolean noDBLogMessages, boolean readOnly) {
+    this(scan, null, null, null, baseDirectory, inMemory, timed, noDBOpenRetry, noDBLogMessages, readOnly);
   }
 
   public LocalKVStoreProvider(
@@ -97,8 +98,9 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     String hostName,
     String baseDirectory,
     boolean inMemory,
-    boolean timed) {
-    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, false, false);
+    boolean timed,
+    boolean readOnly) {
+    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, false, false, readOnly);
   }
 
   public LocalKVStoreProvider(
@@ -110,10 +112,11 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     boolean inMemory,
     boolean timed,
     boolean noDBOpenRetry,
-    boolean noDBLogMessages
-  ) {
+    boolean noDBLogMessages,
+    boolean readOnly) {
 
-    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false, noDBLogMessages);
+    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false,
+      noDBLogMessages, readOnly);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
@@ -139,11 +142,12 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       fabricService,
       allocator,
       String.valueOf(Preconditions.checkNotNull(config.get(CONFIG_HOSTNAME), String.format(ERR_FMT, CONFIG_HOSTNAME))),
-      String.valueOf(Preconditions.checkNotNull(config.get(CONFIG_BASEDIRECTORY), String.format(ERR_FMT, CONFIG_BASEDIRECTORY))),
+      String.valueOf(Preconditions.checkNotNull(config.get(CONFIG_BASEDIRECTORY), String.format(ERR_FMT,
+        CONFIG_BASEDIRECTORY))),
       Boolean.valueOf(Preconditions.checkNotNull(config.get(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
         String.format("Missing %s in dremio.conf", DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL)).toString()),
       Boolean.valueOf(Preconditions.checkNotNull(config.get(CONFIG_TIMED), String.format(ERR_FMT, CONFIG_TIMED)).toString()),
-      false, false
+      false, false, false
     );
 
     this.remoteRpcTimeout = (Long)config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
@@ -264,8 +268,13 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     return legacyProvider;
   }
 
+  public CheckpointInfo newCheckpoint(Path backupDir) {
+    return this.coreStoreProvider.newCheckpoint(backupDir);
+  }
+
   /**
    * Store builder for master/Raas store provider.
+   *
    * @param <K>
    * @param <V>
    */

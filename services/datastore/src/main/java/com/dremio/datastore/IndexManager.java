@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.indexed.CommitWrapper;
 import com.dremio.datastore.indexed.LuceneSearchIndex;
+import com.dremio.datastore.indexed.ReadOnlyLuceneSearchIndex;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -54,20 +55,25 @@ class IndexManager implements AutoCloseable {
       .build(new CacheLoader<String, LuceneSearchIndex>() {
         @Override
         public LuceneSearchIndex load(String name) throws IOException {
+          if (readOnly) {
+            return new ReadOnlyLuceneSearchIndex(indexDirectory, name, inMemory);
+          }
           return new LuceneSearchIndex(indexDirectory, name, inMemory, commitWrapper);
         }
       });
 
   private final String baseDirectory;
   private final boolean inMemory;
+  private final boolean readOnly;
   private final CommitWrapper commitWrapper;
 
   private File indexDirectory;
 
-  IndexManager(String baseDirectory, boolean inMemory, CommitWrapper commitWrapper) {
+  IndexManager(String baseDirectory, boolean inMemory, boolean readOnly, CommitWrapper commitWrapper) {
     this.baseDirectory = baseDirectory;
     this.inMemory = inMemory;
     this.commitWrapper = commitWrapper;
+    this.readOnly = readOnly;
   }
 
   public void start() throws Exception {
@@ -120,4 +126,5 @@ class IndexManager implements AutoCloseable {
     indexes.cleanUp();
     closeException.close();
   }
+
 }

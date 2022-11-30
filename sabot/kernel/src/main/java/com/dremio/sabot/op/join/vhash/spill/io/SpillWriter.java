@@ -107,7 +107,7 @@ public class SpillWriter implements AutoCloseable {
 
   private int pickMaxPivotedRecordsForPage(int availableSize, int pivotShift, int startIdx, int endIdx) {
     int maxRecords = endIdx - startIdx + 1;
-    if (var.getVariableFieldCount() == 0) {
+    if (var == null || var.getVariableFieldCount() == 0) {
       // fast-path
       return Integer.min(maxRecords, availableSize / fixed.getBlockWidth());
     }
@@ -154,7 +154,7 @@ public class SpillWriter implements AutoCloseable {
       curSrcFixedOffset += fixed.getBlockWidth();
       curDstFixedOffset += fixed.getBlockWidth();
 
-      if (var.getVariableFieldCount() > 0) {
+      if (var != null && var.getVariableFieldCount() > 0) {
         final int curSrcVarOffset = fixed.getBuf().getInt(curSrcFixedOffset - VAR_OFFSET_SIZE);
         final int recordVarLen = var.getBuf().getInt(curSrcVarOffset);
 

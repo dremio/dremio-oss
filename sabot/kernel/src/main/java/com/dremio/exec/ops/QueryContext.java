@@ -584,7 +584,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return null;
   }
 
-  public boolean isQueryRequiresGroupsInfo() {
+  public boolean getQueryRequiresGroupsInfo() {
     return queryRequiresGroupsInfo;
   }
 

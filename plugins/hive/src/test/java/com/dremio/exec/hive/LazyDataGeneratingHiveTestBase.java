@@ -127,6 +127,11 @@ public class LazyDataGeneratingHiveTestBase extends PlanTestBase {
     return String.format("create table %s as select * from %s", newTableNameWithCatalog, fromTableNameWithCatalog);
   }
 
+  protected String getCTASQueryWithLocation(String fromTableNameWithCatalog, String newTableNameWithCatalog, String newTableLocation) {
+    return String.format("create table %s location '%s' as select * from %s",
+      newTableNameWithCatalog, newTableLocation, fromTableNameWithCatalog);
+  }
+
   protected String getDropTableQuery(String tableName) {
     return String.format("DROP TABLE IF EXISTS %s", tableName);
   }

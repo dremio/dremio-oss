@@ -500,7 +500,7 @@ export class ExploreTableController extends PureComponent {
           tooltip="Job.Open.External"
           onClick={() => {
             const jobTabPath = jobsUtils.isNewJobsPage()
-              ? `/job/${jobId}`
+              ? PATHS.job({ jobId })
               : `/jobs#${jobId}`;
             window.open(jobTabPath, "_blank");
           }}
@@ -571,7 +571,6 @@ export class ExploreTableController extends PureComponent {
           location={location}
           queryState={queryState}
           updateQueryState={updateQueryState}
-          showSideNavAndTopNav={false}
           jobsColumns={sqlEditorTableColumns}
           renderButtons={this.renderButtonsForJobsList}
           handleTabChange={handleTabChange}

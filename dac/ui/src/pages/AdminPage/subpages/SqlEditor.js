@@ -48,7 +48,9 @@ const SqlEditor = (props) => {
   const [isEnabled, setIsEnabled] = useState(isAutoCompleteEnabled);
 
   useEffect(() => {
-    dispatchFetchSupportFlags("ui.autocomplete.allow");
+    dispatchFetchSupportFlags("ui.autocomplete.allow").then((res) => {
+      setIsEnabled(res.payload.value);
+    });
   }, [dispatchFetchSupportFlags]);
 
   useEffect(() => {

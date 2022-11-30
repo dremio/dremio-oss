@@ -756,6 +756,7 @@
 |SnakeYAML                                                   |1.15                |Apache 2.0          |
 |SnakeYAML                                                   |1.26                |Apache 2.0          |
 |Snappy for Java                                             |1.1.4               |Apache 2.0          |
+|Snowflake JDBC                                              |3.13.24             |Apache 2.0          |
 |software.amazon.ion:ion-java                                |1.0.2               |Apache 2.0          |
 |source-map                                                  |0.5.6               |BSD-3-Clause        |
 |sourcemapped-stacktrace                                     |1.1.7               |BSD-3-Clause        |

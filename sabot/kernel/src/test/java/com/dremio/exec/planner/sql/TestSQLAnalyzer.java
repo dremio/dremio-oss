@@ -203,7 +203,7 @@ public class TestSQLAnalyzer {
       // Cursor after 'TEST_CATALOG.TEST_SCHEMA'
       Arguments.of(
         "select * from dummy join TEST_CATALOG.TEST_SCHEMA ^",
-        29,
+        30,
         false)
     );
   }

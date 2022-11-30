@@ -94,6 +94,8 @@ public class OperatorStats {
   // misc operator details that are saved in the profile.
   private OperatorProfileDetails profileDetails;
   private List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetailsInScan = new ArrayList<>();
+  private List<SlowIOInfo> slowIoInfos = new ArrayList<>();
+  private List<SlowIOInfo> slowMetadataIoInfos = new ArrayList<>();
 
 
   // Need this wrapper so that the caller don't have to handle exception from close().
@@ -509,6 +511,14 @@ public class OperatorStats {
     runtimeFilterDetailsInScan.addAll(runtimeFilterDetails);
   }
 
+  public void addSlowIoInfos(List<SlowIOInfo> slowIoInfos) {
+    this.slowIoInfos.addAll(slowIoInfos);
+  }
+
+  public void addSlowMetadataIoInfos(List<SlowIOInfo> slowMetadataIoInfos) {
+    this.slowMetadataIoInfos.addAll(slowMetadataIoInfos);
+  }
+
   @Override
   public String toString(){
     String[] names = OperatorMetricRegistry.getMetricNames(operatorType);
@@ -647,6 +657,15 @@ public class OperatorStats {
     OperatorProfileDetails.Builder profileDetailsBuilder = getProfileDetails().toBuilder();
     profileDetailsBuilder.clearRuntimefilterDetailsInfosInScan();
     profileDetailsBuilder.addAllRuntimefilterDetailsInfosInScan(runtimeFilterDetailsInScan);
+    setProfileDetails(profileDetailsBuilder.build());
+  }
+
+  public void setSlowIoInfosInProfile(){
+    OperatorProfileDetails.Builder profileDetailsBuilder = getProfileDetails().toBuilder();
+    profileDetailsBuilder.clearSlowIoInfos();
+    profileDetailsBuilder.addAllSlowIoInfos(slowIoInfos);
+    profileDetailsBuilder.clearSlowMetadataIoInfos();
+    profileDetailsBuilder.addAllSlowMetadataIoInfos(slowMetadataIoInfos);
     setProfileDetails(profileDetailsBuilder.build());
   }
 

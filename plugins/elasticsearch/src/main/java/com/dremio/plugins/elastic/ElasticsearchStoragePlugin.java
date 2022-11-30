@@ -345,24 +345,19 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     final ElasticConnection connection = this.connectionPool.getRandomConnection();
     final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata(), false);
     final ImmutableList.Builder<DatasetHandle> builder = ImmutableList.builder();
-    boolean failures = false;
 
     final ArrayListMultimap<ElasticAliasMappingName, ElasticIndex> aliases = ArrayListMultimap.create();
     final boolean includeHiddenSchemas = config.isShowHiddenIndices();
 
     for (ElasticIndex index : clusterMetadata.getIndices()) {
       for (ElasticMapping mapping : index.getMappings()) {
-        try {
-          if (includeHiddenSchemas || !index.getName().startsWith(".")) {
-            final EntityPath key = new EntityPath(ImmutableList.of(name, index.getName(), mapping.getName()));
-            builder.add(new ElasticDatasetHandle(key, connection, context, config, mapping, ImmutableList.<String>of(), false));
-          }
-          for (String alias : index.getAliases()) {
-            aliases.put(new ElasticAliasMappingName(alias, mapping.getName()), new ElasticIndex(index.getName(),
-                mapping));
-          }
-        } catch (Exception ex) {
-          logger.info("Failure to read information for {}.{}", index.getName(), mapping.getName(), ex);
+        if (includeHiddenSchemas || !index.getName().startsWith(".")) {
+          final EntityPath key = new EntityPath(ImmutableList.of(name, index.getName(), mapping.getName()));
+          builder.add(new ElasticDatasetHandle(key, connection, context, config, mapping, ImmutableList.<String>of(), false));
+        }
+        for (String alias : index.getAliases()) {
+          aliases.put(new ElasticAliasMappingName(alias, mapping.getName()), new ElasticIndex(index.getName(),
+              mapping));
         }
       }
     }
@@ -371,23 +366,14 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
       final List<ElasticIndex> indices = aliases.get(alias);
       final List<String> indicesList = indices.stream().map(ElasticIndex::getName).collect(Collectors.toList());
       final ElasticMappingSet mappingSet = new ElasticMappingSet(indices);
-
-      try {
-        final ElasticMapping mapping = mappingSet.getMergedMapping();
-        final EntityPath key = new EntityPath(ImmutableList.of(name, alias.getAlias(), mapping.getName()));
-        builder.add(new ElasticDatasetHandle(key, connection, context, config, mapping, indicesList, true));
-      } catch (Exception ex) {
-        logger.info("Failure to read schema information for alias {}", alias, ex);
-      }
+      final ElasticMapping mapping = mappingSet.getMergedMapping();
+      final EntityPath key = new EntityPath(ImmutableList.of(name, alias.getAlias(), mapping.getName()));
+      builder.add(new ElasticDatasetHandle(key, connection, context, config, mapping, indicesList, true));
     }
 
     final List<DatasetHandle> datasets = builder.build();
     if (datasets.isEmpty()) {
       logger.debug("No indices/types available. Please make sure to populate the cluster");
-      if (failures) { // TODO: never true
-        throw UserException.dataReadError().message("Could not find any accessible indices/types querying Elasticsearch metadata. "
-            + "Please make sure that the user has [indices:admin/get] privilege.").build(logger);
-      }
     }
     return datasets::iterator;
   }

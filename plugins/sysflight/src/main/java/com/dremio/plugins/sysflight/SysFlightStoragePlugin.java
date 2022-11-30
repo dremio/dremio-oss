@@ -75,8 +75,6 @@ import io.grpc.ManagedChannel;
 public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDatasets {
   static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SysFlightStoragePlugin.class);
 
-  private static final String JOB_RESULTS = "job_results";
-
   private final Map<EntityPath, SystemTable> legacyTableMap =
     Stream.of(SystemTable.values())
       .collect(Collectors.toMap(systemTable -> canonicalize(systemTable.getDatasetPath()), Function.identity()));
@@ -164,7 +162,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
 
   @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
-    if (tableSchemaPath.size() != 3 || !JOB_RESULTS.equalsIgnoreCase(tableSchemaPath.get(1))) {
+    if (!JobResultInfoProvider.isJobResultsTable(tableSchemaPath)) {
       return null;
     }
 

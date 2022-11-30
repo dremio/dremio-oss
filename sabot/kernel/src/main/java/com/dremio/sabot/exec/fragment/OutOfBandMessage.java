@@ -163,9 +163,7 @@ public class OutOfBandMessage {
    */
   public OutOfBandMessage(QueryId queryId, int sendingMajorFragmentId, int sendingMinorFragmentId, int operatorId, Payload payload) {
     this(queryId, sendingMajorFragmentId, createMinorFragmentList(sendingMinorFragmentId), operatorId,
-      sendingMajorFragmentId, sendingMinorFragmentId, -1,
-      payload, null,
-      false, true);
+      sendingMajorFragmentId, sendingMinorFragmentId, -1, payload, null, false, true);
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,

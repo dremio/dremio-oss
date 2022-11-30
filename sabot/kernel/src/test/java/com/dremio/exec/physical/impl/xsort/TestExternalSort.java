@@ -134,4 +134,43 @@ public class TestExternalSort extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void testSortWithNaNValues() throws Exception {
+    testBuilder()
+      .sqlQuery("select * from cp.\"sort/sort_with_nan_values.parquet\" order by y2 asc")
+      .ordered()
+      .baselineColumns("y2")
+      .baselineValues(Double.NEGATIVE_INFINITY)
+      .baselineValues(Double.NEGATIVE_INFINITY)
+      .baselineValues(0.0)
+      .baselineValues(0.0)
+      .baselineValues(3.141592653589793)
+      .baselineValues(3.141592653589793)
+      .baselineValues(Double.POSITIVE_INFINITY)
+      .baselineValues(Double.POSITIVE_INFINITY)
+      .baselineValues(Double.NaN)
+      .baselineValues(Double.NaN)
+      .baselineValues(null)
+      .baselineValues(null)
+      .go();
+
+    testBuilder()
+      .sqlQuery("select * from cp.\"sort/sort_with_nan_values.parquet\" order by y2 desc")
+      .ordered()
+      .baselineColumns("y2")
+      .baselineValues(null)
+      .baselineValues(null)
+      .baselineValues(Double.NaN)
+      .baselineValues(Double.NaN)
+      .baselineValues(Double.POSITIVE_INFINITY)
+      .baselineValues(Double.POSITIVE_INFINITY)
+      .baselineValues(3.141592653589793)
+      .baselineValues(3.141592653589793)
+      .baselineValues(0.0)
+      .baselineValues(0.0)
+      .baselineValues(Double.NEGATIVE_INFINITY)
+      .baselineValues(Double.NEGATIVE_INFINITY)
+      .go();
+  }
+
 }

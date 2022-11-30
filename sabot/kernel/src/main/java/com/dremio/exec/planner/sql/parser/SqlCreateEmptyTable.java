@@ -263,8 +263,12 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     return formatOptions;
   }
 
-  public SqlNode getLocation() {
-    return location;
+  @Override
+  public String getLocation() {
+    if (location != null && location instanceof SqlLiteral) {
+      return ((SqlLiteral)location).toValue();
+    }
+    return null;
   }
 
   public boolean getIfNotExists(){

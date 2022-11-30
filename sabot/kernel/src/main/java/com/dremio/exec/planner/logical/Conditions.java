@@ -19,8 +19,11 @@ import static com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils.STRUCTURE
 
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import org.apache.calcite.rel.rules.PushProjector;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.PredicateImpl;
 import org.apache.calcite.sql.SqlOperator;
@@ -48,6 +51,14 @@ public final class Conditions {
   public static final PushProjector.ExprCondition PRESERVE_ITEM_CASE = new PushProjectorExprCondition();
 
   public static final PushProjector.ExprCondition PRESERVE_CASE_NESTED_FIELDS = new PushProjectorExprConditionForNestedFields();
+
+  public static final PushProjector.ExprCondition PUSH_REX_INPUT_REF = new PushRexInputRef();
+  private static class PushRexInputRef extends PredicateImpl<RexNode> implements PushProjector.ExprCondition {
+    @Override
+    public boolean test(@Nullable RexNode rexNode) {
+      return rexNode instanceof RexInputRef;
+    }
+  }
 
   private static class PushProjectorExprCondition extends PredicateImpl<RexNode>
     implements PushProjector.ExprCondition {

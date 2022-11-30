@@ -125,6 +125,105 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
   }
 
   @Test
+  public void testIncrementalRefreshWithChangesThenNoChanges() throws Exception {
+    final String tableName = "incrrefresh_v2_test_" + getFileFormatLowerCase();
+    try {
+      createTable(tableName, "(col1 INT, col2 STRING)");
+      final String insertCmd = "INSERT INTO " + tableName + " VALUES(1, 'a')";
+      dataGenerator.executeDDL(insertCmd);
+      runFullRefresh(tableName);
+
+      Table icebergTable = getIcebergTable();
+      long oldSnapshotId = icebergTable.currentSnapshot().snapshotId();
+
+      final String insertCmd2 = "INSERT INTO " + tableName + " VALUES(2, 'b')";
+      dataGenerator.executeDDL(insertCmd2);
+      runFullRefresh(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      //New snapshot created
+      Assert.assertNotEquals(oldSnapshotId, icebergTable.currentSnapshot().snapshotId());
+
+      Schema expectedSchema = new Schema(Arrays.asList(
+        Types.NestedField.optional(1, "col1", new Types.IntegerType()),
+        Types.NestedField.optional(2, "col2", new Types.StringType())));
+
+      verifyMetadata(expectedSchema, 2);
+
+      long nextSnapshotId = icebergTable.currentSnapshot().snapshotId();
+      runFullRefreshExpectingNoChange(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      //No change in snapshot Id
+      assertEquals(nextSnapshotId, icebergTable.currentSnapshot().snapshotId());
+    }
+    finally {
+      forgetMetadata(tableName);
+      dropTable(tableName);
+    }
+  }
+
+  @Test
+  public void testMultipleIncrementalRefreshWithAndWithoutChanges() throws Exception {
+    final String tableName = "incrrefresh_v2_test_repeat_complex_" + getFileFormatLowerCase();
+    try {
+      createTable(tableName, "(a INT, b STRUCT<a:INT>, c INT)");
+      final String insertCmd = "INSERT INTO " + tableName + " SELECT 1, named_struct('a', 1), 1";
+      dataGenerator.executeDDL(insertCmd);
+      runFullRefresh(tableName);
+
+      Table icebergTable = getIcebergTable();
+      long oldSnapshotId = icebergTable.currentSnapshot().snapshotId();
+
+      final String insertCmd2 = "INSERT INTO " + tableName + " SELECT 2, named_struct('a', 2), 2";
+      dataGenerator.executeDDL(insertCmd2);
+      runFullRefresh(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      //New snapshot created
+      Assert.assertNotEquals(oldSnapshotId, icebergTable.currentSnapshot().snapshotId());
+
+      long nextSnapshotId = icebergTable.currentSnapshot().snapshotId();
+      runFullRefreshExpectingNoChange(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      //No change in snapshot Id
+      assertEquals(nextSnapshotId, icebergTable.currentSnapshot().snapshotId());
+
+      dataGenerator.executeDDL(insertCmd2);
+      runFullRefresh(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      //New snapshot created
+      Assert.assertNotEquals(oldSnapshotId, icebergTable.currentSnapshot().snapshotId());
+
+      nextSnapshotId = icebergTable.currentSnapshot().snapshotId();
+      runFullRefreshExpectingNoChange(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      //No change in snapshot Id
+      assertEquals(nextSnapshotId, icebergTable.currentSnapshot().snapshotId());
+    }
+    finally {
+      forgetMetadata(tableName);
+      dropTable(tableName);
+    }
+  }
+
+
+  @Test
   public void testIncrementalRefreshFileAddition() throws Exception {
     final String tableName = "incrrefresh_v2_test_file_add_" + getFileFormatLowerCase();
     try {

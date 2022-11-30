@@ -527,7 +527,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES = new BooleanValidator("dremio.iceberg.dml.use_hash_distribution_for_writes.enabled", true);
   BooleanValidator ENABLE_ICEBERG_DML_WITH_NATIVE_ROW_COLUMN_POLICIES = new BooleanValidator("dremio.iceberg.dml.native_row_column_policies.enabled", false);
 
-  BooleanValidator ENABLE_HIVE_DATABASE_LOCATION = new BooleanValidator("dremio.hive.database.location", false);
+  BooleanValidator ENABLE_HIVE_DATABASE_LOCATION = new BooleanValidator("dremio.hive.database.location", true);
 
   BooleanValidator ENABLE_USE_VERSION_SYNTAX = new TypeValidators.BooleanValidator("dremio.sql.use_version.enabled", true);
   BooleanValidator VERSIONED_VIEW_ENABLED = new TypeValidators.BooleanValidator("plugins.dataplane.view", false);
@@ -535,6 +535,7 @@ public interface ExecConstants {
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
   BooleanValidator SLICING_THREAD_MONITOR = new BooleanValidator("dremio.sliced.enable_monitor", true);
+  BooleanValidator SLICING_OFFLOAD_ENQUEUE = new BooleanValidator("dremio.sliced.offload_enqueue", true);
   PositiveLongValidator SLICING_THREAD_MIGRATION_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.migration_multiple", Long.MAX_VALUE, 50);
   PositiveLongValidator SLICING_THREAD_SPINDOWN_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.spindown_multiple", Long.MAX_VALUE, 100);
 

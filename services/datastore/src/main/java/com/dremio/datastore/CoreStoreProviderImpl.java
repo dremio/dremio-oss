@@ -69,17 +69,20 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
       logger.warn("Failure parsing value of [{}] for property {}. Valid values include 'DEFAULT', 'DISK' and 'MEMORY'.", value, MEMORY_MODE_OPTION);
     }
     MODE = mode;
-    if(mode != ForcedMemoryMode.DEFAULT){
-      logger.info(String.format("Persistence mode overridden. Setting resolved: -D%s=%s", MEMORY_MODE_OPTION, mode.name()));
+    if (mode != ForcedMemoryMode.DEFAULT) {
+      logger.info(String.format("Persistence mode overridden. Setting resolved: -D%s=%s", MEMORY_MODE_OPTION,
+        mode.name()));
       System.out.println("===============================================================================");
-      System.out.println(String.format("Persistence mode overridden. Setting resolved: -D%s=%s", MEMORY_MODE_OPTION, mode.name()));
+      System.out.println(String.format("Persistence mode overridden. Setting resolved: -D%s=%s", MEMORY_MODE_OPTION,
+        mode.name()));
       System.out.println("===============================================================================");
     }
   }
 
   private static final String METADATA_FILE_SUFFIX = "_metadata.json";
   private static final String METADATA_FILES_DIR = "metadata";
-  private static final DirectoryStream.Filter<Path> METADATA_FILES_GLOB = p -> p.toString().endsWith(METADATA_FILE_SUFFIX);
+  private static final DirectoryStream.Filter<Path> METADATA_FILES_GLOB =
+    p -> p.toString().endsWith(METADATA_FILE_SUFFIX);
   private static final String ALARM = ".indexing";
 
   private final ConcurrentMap<String, StoreWithId<?, ?>> idToStore = new ConcurrentHashMap<>();
@@ -101,40 +104,47 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     this(baseDirectory, inMemory, timed, false, false, false);
   }
 
-  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry, boolean indicesViaPutOption, boolean noDBLogMessages) {
+  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry,
+    boolean indicesViaPutOption, boolean noDBLogMessages) {
+    this(baseDirectory, inMemory, timed, noDBOpenRetry, indicesViaPutOption, noDBLogMessages, false);
+  }
+
+  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry,
+    boolean indicesViaPutOption, boolean noDBLogMessages, boolean readOnly) {
     super();
-    switch(MODE){
-    case DISK:
-      inMemory = false;
-      break;
-    case MEMORY:
-      inMemory = true;
-    default:
-      // noop
+    switch (MODE) {
+      case DISK:
+        inMemory = false;
+        break;
+      case MEMORY:
+        inMemory = true;
+      default:
+        // noop
     }
 
     this.timed = timed;
     this.inMemory = inMemory;
     this.indicesViaPutOption = indicesViaPutOption;
 
-    this.byteManager = new ByteStoreManager(baseDirectory, inMemory, noDBOpenRetry, noDBLogMessages);
+    this.byteManager = new ByteStoreManager(baseDirectory, inMemory, noDBOpenRetry, noDBLogMessages, readOnly);
     this.indexManager = new IndexManager(
-        baseDirectory,
-        inMemory,
-        storeName -> {
-          // 1. get the transaction number on #open
-          final long transactionNumber = byteManager.getMetadataManager()
-              .getLatestTransactionNumber();
-          // 2. then the op (commit) goes here
-          return new CommitWrapper.CommitCloser() {
-            @Override
-            protected void onClose() {
-              // 3. set the transaction number on #close
-              byteManager.getMetadataManager()
-                  .setLatestTransactionNumber(storeName, transactionNumber);
-            }
-          };
-        }
+      baseDirectory,
+      inMemory,
+      readOnly,
+      storeName -> {
+        // 1. get the transaction number on #open
+        final long transactionNumber = byteManager.getMetadataManager()
+          .getLatestTransactionNumber();
+        // 2. then the op (commit) goes here
+        return new CommitWrapper.CommitCloser() {
+          @Override
+          protected void onClose() {
+            // 3. set the transaction number on #close
+            byteManager.getMetadataManager()
+              .setLatestTransactionNumber(storeName, transactionNumber);
+          }
+        };
+      }
     );
 
     this.baseDirectory = baseDirectory;
@@ -438,5 +448,9 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   public LuceneSearchIndex getIndex(String name) {
     return indexManager.getIndex(name);
+  }
+
+  public CheckpointInfo newCheckpoint(Path backupDir) {
+    return byteManager.newCheckpoint(backupDir);
   }
 }

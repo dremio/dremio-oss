@@ -24,6 +24,7 @@ import SQL from "@app/pages/JobDetailsPageNew/components/SQLTab/SQLTab.js";
 import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
 import Profile from "@app/pages/JobDetailsPageNew/components/Profile/Profile.js";
 import timeUtils from "./timeUtils";
+import * as PATHS from "@app/exports/paths";
 
 // see AttemptEvent.State
 export const JobState = {
@@ -334,7 +335,7 @@ export class JobsUtils {
   }
 
   navigationURLForJobId({ id, createFullUrl, windowLocationSearch }) {
-    const url = `/job/${encodeURIComponent(id)}${windowLocationSearch}`;
+    const url = `${PATHS.job(encodeURIComponent(id))}${windowLocationSearch}`;
     return createFullUrl ? window.location.origin + url : url;
   }
 
@@ -357,7 +358,9 @@ export class JobsUtils {
     const parseForNewJobs = window.location.href.split("#");
     const isUrlForNewJobsPage = parseForNewJobs.length > parseForOldJobs.length;
     const result = {
-      pathname: isUrlForNewJobsPage ? `/job/${parseForNewJobs[1]}` : "/jobs",
+      pathname: isUrlForNewJobsPage
+        ? PATHS.job({ jobId: parseForNewJobs[1] })
+        : "/jobs",
       search: isUrlForNewJobsPage
         ? null
         : '?filters=%7B"qt"%3A%5B"UI"%2C"EXTERNAL"%5D%7D&order=DESCENDING&sort=st',

@@ -18,6 +18,7 @@ import PropTypes from "prop-types";
 import { Link } from "react-router";
 
 import jobsUtils from "@app/utils/jobsUtils.js";
+import * as PATHS from "@app/exports/paths";
 
 import Menu from "./Menu";
 import MenuItem from "./MenuItem";
@@ -43,7 +44,7 @@ export class JobStatusMenu extends PureComponent {
         <MenuItem key="job-details">
           <Link
             to={{
-              pathname: isNewJobsPage ? `/job/${jobId}` : "/jobs",
+              pathname: isNewJobsPage ? PATHS.job({ jobId }) : "/jobs",
               hash: isNewJobsPage ? null : `#${jobId}`,
               state: {
                 selectedJobId: jobId,

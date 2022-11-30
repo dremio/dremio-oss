@@ -29,6 +29,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
@@ -81,7 +82,7 @@ public class TestNamespaceListing {
   }
 
   @Test
-  public void emptyNamespace() throws NamespaceException {
+  public void emptyNamespace() throws NamespaceException, ConnectorException {
     SampleSourceMetadata sourceMetadata = new SampleSourceMetadata();
 
     sourceMetadata.addNDatasets(10, 2, 2);
@@ -104,7 +105,7 @@ public class TestNamespaceListing {
   }
 
   @Test
-  public void typicalFlow() throws NamespaceException {
+  public void typicalFlow() throws NamespaceException, ConnectorException {
     SampleSourceMetadata sourceMetadata = new SampleSourceMetadata() {
       @Override
       public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {

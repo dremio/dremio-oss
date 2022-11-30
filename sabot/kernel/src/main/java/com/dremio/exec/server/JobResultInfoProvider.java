@@ -26,6 +26,10 @@ import com.google.common.base.Preconditions;
  */
 public interface JobResultInfoProvider {
 
+  String JOB_RESULTS = "job_results";
+
+  JobResultInfoProvider NOOP = (jobId, username) -> Optional.empty();
+
   /**
    * Get Job Result info for given job id if job is complete.
    *
@@ -35,7 +39,30 @@ public interface JobResultInfoProvider {
    */
   Optional<JobResultInfo> getJobResultInfo(String jobId, String username);
 
-  JobResultInfoProvider NOOP = (jobId, username) -> Optional.empty();
+  /**
+   * Check if a table is job results table.
+   *
+   * @param tableSchemaPath    path components of the table
+   * @return ture if the table is a job results table
+   */
+  static boolean isJobResultsTable(List<String> tableSchemaPath) {
+    return tableSchemaPath.size() == 3 &&
+      "sys".equalsIgnoreCase(tableSchemaPath.get(0)) &&
+      JOB_RESULTS.equalsIgnoreCase(tableSchemaPath.get(1));
+  }
+
+  /**
+   * Check if a user with username is the owner of a job results table.
+   *
+   * @param tableSchemaPath    path components of the table
+   * @param username username
+   * @return ture if the user is the owner of the job
+   */
+  default boolean isJobResultsTableOwner(List<String> tableSchemaPath, String username) {
+    Preconditions.checkArgument(tableSchemaPath.size() == 3, "Job results table path must have 3 components");
+    Optional<JobResultInfo> jobResultInfo = getJobResultInfo(tableSchemaPath.get(2), username);
+    return jobResultInfo.isPresent();
+  }
 
   class JobResultInfo {
     private final List<String> resultDatasetPath;

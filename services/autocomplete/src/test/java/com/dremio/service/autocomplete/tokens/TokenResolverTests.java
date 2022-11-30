@@ -17,6 +17,7 @@ package com.dremio.service.autocomplete.tokens;
 
 import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.parser.StringAndPos;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.test.GoldenFileTestBuilder;
@@ -109,6 +110,7 @@ public final class TokenResolverTests {
   }
 
   @Test
+  @Ignore
   public void comparisonOperators() {
     new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
       .add("Equals", "SELECT * FROM EMP WHERE EMP.age = ")

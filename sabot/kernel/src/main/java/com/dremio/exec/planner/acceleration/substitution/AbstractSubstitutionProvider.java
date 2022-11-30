@@ -19,6 +19,8 @@ package com.dremio.exec.planner.acceleration.substitution;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.calcite.rel.RelNode;
+
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.service.namespace.NamespaceKey;
@@ -29,7 +31,8 @@ import com.google.common.base.Preconditions;
  */
 public abstract class AbstractSubstitutionProvider implements SubstitutionProvider {
   private final MaterializationProvider provider;
-  protected RelTransformer postSubstitutionTransformer;
+  protected List<RelTransformer> postSubstitutionTransformers;
+  protected RelNode currentPlan;
 
   protected AbstractSubstitutionProvider(
     final MaterializationProvider materializations) {
@@ -50,8 +53,14 @@ public abstract class AbstractSubstitutionProvider implements SubstitutionProvid
   }
 
   @Override
-  public void setPostSubstitutionTransformer(RelTransformer transformer) {
-    this.postSubstitutionTransformer = transformer;
+  public void setPostSubstitutionTransformers(List<RelTransformer> transformers) {
+    this.postSubstitutionTransformers = transformers;
   }
+
+  @Override
+  public void setCurrentPlan(RelNode currentPlan) {
+    this.currentPlan = currentPlan;
+  }
+
 
 }

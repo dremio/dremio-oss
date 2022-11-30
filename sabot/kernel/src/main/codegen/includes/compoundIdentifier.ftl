@@ -21,20 +21,20 @@
 SqlIdentifier CompoundIdentifier() :
 {
     CompoundIdentifier.Builder builder = CompoundIdentifier.newBuilder();
-    String p;
+    SqlIdentifier id;
     int index;
 }
 {
-    p = Identifier()
+    id = SimpleIdentifier()
     {
-        builder.addString(p, false, getPos());
+        builder.addString(id.names.get(0), false, id.getComponentParserPosition(0));
     }
     (
         (
         <DOT>
         (
-            p = Identifier() {
-                builder.addString(p, false, getPos());
+            id = SimpleIdentifier() {
+                builder.addString(id.names.get(0), false, id.getComponentParserPosition(0));
             }
         |
             <STAR> {

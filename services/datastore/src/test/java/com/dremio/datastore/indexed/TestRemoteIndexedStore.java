@@ -74,7 +74,7 @@ public class TestRemoteIndexedStore extends AbstractTestIndexedStore {
     final Provider<FabricService> rfab = () -> remoteFabricService;
 
     localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, fab, allocator,
-        HOSTNAME, null, true, true);
+      HOSTNAME, null, true, true, false);
     localKVStoreProvider.start();
     remoteKVStoreProvider = new RemoteKVStoreProvider(
         DremioTest.CLASSPATH_SCAN_RESULT,

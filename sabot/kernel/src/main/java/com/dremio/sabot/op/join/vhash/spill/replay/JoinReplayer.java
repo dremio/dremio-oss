@@ -102,9 +102,8 @@ public class JoinReplayer implements YieldingRunnable {
       }
       ++index;
     }
-    this.buildChunkIterator = new SpillChunkIterator(setupParams.getSpillSerializable(true),
-      setupParams.getSpillPagePool(), replayEntry.getBuildFiles(),
-      setupParams.getBuildKeyPivot(), new BatchSchema(unpivotedBuildFields), setupParams.getMaxInputBatchSize());
+    this.buildChunkIterator = new SpillChunkIterator(setupParams.getSpillSerializable(true), setupParams.getSpillPagePool(),
+      replayEntry.getBuildFiles(), setupParams.getBuildKeyPivot(), new BatchSchema(unpivotedBuildFields), setupParams.getMaxInputBatchSize());
 
     // for probe side, the spill has
     // - key columns in both pivoted and unpivoted format
@@ -113,8 +112,7 @@ public class JoinReplayer implements YieldingRunnable {
       unpivotedProbeVectorsMap.put(vector.getField().getName(), vector);
     }
     this.probeChunkIterator = new SpillChunkIterator(setupParams.getSpillSerializable(false), setupParams.getSpillPagePool(),
-      replayEntry.getProbeFiles(), setupParams.getBuildKeyPivot(), setupParams.getLeft().getSchema(),
-      setupParams.getMaxInputBatchSize());
+      replayEntry.getProbeFiles(), setupParams.getBuildKeyPivot(), setupParams.getLeft().getSchema(), setupParams.getMaxInputBatchSize());
   }
 
   public int run() throws Exception {
@@ -277,7 +275,9 @@ public class JoinReplayer implements YieldingRunnable {
                                               Map<String, VectorWrapper<?>> nameToVectorMap) {
     // The fixed/variable parts are copied from spill chunk to the vector expected by the partition
     fixed.getBuf().setBytes(0, chunk.getFixed(), 0, chunk.getFixed().capacity());
-    variable.getBuf().setBytes(0, chunk.getVariable(), 0, chunk.getVariable().capacity());
+    if (variable != null) {
+      variable.getBuf().setBytes(0, chunk.getVariable(), 0, chunk.getVariable().capacity());
+    }
 
     // The rest of the data is transferred to either left/right containers.
     for (VectorWrapper<?> src : chunk.getContainer()) {

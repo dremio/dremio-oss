@@ -28,6 +28,7 @@ import static com.dremio.sabot.op.join.vhash.spill.partition.VectorizedProbe.SKI
 import org.apache.arrow.memory.ArrowBuf;
 
 import com.dremio.exec.record.selection.SelectionVector2;
+import com.dremio.sabot.op.join.vhash.HashJoinExtraMatcher;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
 
 import io.netty.util.internal.PlatformDependent;
@@ -69,7 +70,7 @@ public class ProbeCursor {
     this.location = new Location(0, PageListMultimap.TERMINAL);
   }
 
-  public Stats next(int inRecords, int startOutputIdx, int maxOutputIdx) {
+  public Stats next(HashJoinExtraMatcher extraMatcher, int inRecords, int startOutputIdx, int maxOutputIdx) {
     final Location prev = this.location;
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;
     final int headShift = list.getHeadShift();
@@ -101,83 +102,100 @@ public class ProbeCursor {
     final long projectNullKeyOffsetStartAddr = projectNullKeyOffsetBuf.memoryAddress();
 
     int nullKeyCount = 0;
+    boolean someMismatched = false;
     while (outputRecords < maxOutRecords && currentProbeSV2Index < inRecords) {
       // we're starting a new probe match
       final int indexInBuild = PlatformDependent.getInt(inTableMatchOrdinalStartAddr + currentProbeSV2Index * ORDINAL_SIZE);
-      if (indexInBuild == -1) { // not a matching key.
-        if (projectUnmatchedProbe) {
+      int unMatchedProbeIndex = -1;
+      if (indexInBuild != -1) { // a matching key.
+        // we're starting a new probe match
+        if (currentElementIndex == TERMINAL) {
+          /*
+           * The current probe record has a key that matches. Get the index
+           * of the first row in the build side that matches the current key
+           */
+          assert ((indexInBuild & headMask) * HEAD_SIZE + 4 <= list.getBufSize());
+          currentElementIndex =
+            PlatformDependent.getInt(headBufAddrs[indexInBuild >> headShift] + (indexInBuild & headMask) * HEAD_SIZE);
+        }
 
-          // probe doesn't match but we need to project anyways.
+        while ((currentElementIndex != TERMINAL) && (outputRecords < maxOutRecords)) {
+          final long elementBufStartAddr = elementBufAddrs[currentElementIndex >> elementShift];
+          final int offsetInPage = ELEMENT_SIZE * (currentElementIndex & elementMask);
+          assert (offsetInPage + ELEMENT_SIZE <= list.getBufSize());
+
           int idxInProbeBatch = SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, currentProbeSV2Index);
-          SV2UnsignedUtil.writeAtOffsetUnsafe(outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
 
-          // mark the build as not matching.
-          PlatformDependent.putInt(outBuildProjectStartAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
+          final long buildItem = PlatformDependent.getLong(elementBufStartAddr + offsetInPage);
+          final int batchId = PageListMultimap.getBatchIdFromLong(buildItem);
+          final int recordIndexInBatch = PageListMultimap.getRecordIndexFromLong(buildItem);
+          if (extraMatcher.checkCurrentMatch(idxInProbeBatch, batchId, recordIndexInBatch)) {
+            // project probe side
 
-          // add this build location to the list of build keys we'll invalidate after copying.
-          SV2UnsignedUtil.writeAtOffsetUnsafe(projectNullKeyOffsetStartAddr, nullKeyCount * BATCH_OFFSET_SIZE, startOutputIdx + outputRecords);
+            SV2UnsignedUtil.writeAtOffsetUnsafe(outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
 
-          nullKeyCount++;
-          outputRecords++;
-          unmatchedProbeCount++;
+            // project matched build item
+            final int projectBuildOffsetStart = outputRecords * BUILD_RECORD_LINK_SIZE;
+            PlatformDependent.putInt(outBuildProjectStartAddr + projectBuildOffsetStart, batchId);
+            SV2UnsignedUtil.writeAtOffsetUnsafe(outBuildProjectStartAddr, projectBuildOffsetStart + BATCH_INDEX_SIZE,
+              recordIndexInBatch);
+            outputRecords++;
+          } else {
+            someMismatched = true;
+          }
+          currentElementIndex = PlatformDependent.getInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET);
+
+          if (currentElementIndex == TERMINAL) {
+            if (someMismatched) {
+              unMatchedProbeIndex = currentProbeSV2Index;
+              unmatchedProbeCount++;
+            }
+          }
+          if (projectUnmatchedBuild) {
+            if (currentElementIndex > 0) {
+              if (!someMismatched) {
+                // first visit, mark as visited by flipping the sign.
+                PlatformDependent.putInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET, -currentElementIndex);
+              }
+            } else {
+              // not the first visit, flip the sign of what we just read.
+              currentElementIndex = -currentElementIndex;
+            }
+          }
+          someMismatched = false;
+        }
+        if (currentElementIndex != TERMINAL) {
+          /*
+           * Output batch is full, we should exit now,
+           * but more records for current key should be processed.
+           */
+          break;
         }
 
         currentProbeSV2Index++;
-        continue;
+      } else {
+        unMatchedProbeIndex = currentProbeSV2Index;
+        unmatchedProbeCount++;
+        currentProbeSV2Index++;
       }
 
-      // we're starting a new probe match
-      if (currentElementIndex == TERMINAL) {
-        /*
-         * The current probe record has a key that matches. Get the index
-         * of the first row in the build side that matches the current key
-         */
-        assert((indexInBuild & headMask) * HEAD_SIZE + 4 <= list.getBufSize());
-        currentElementIndex =
-          PlatformDependent.getInt(headBufAddrs[indexInBuild >> headShift] + (indexInBuild & headMask) * HEAD_SIZE);
-      }
+      if (unMatchedProbeIndex >= 0 && projectUnmatchedProbe) {
 
-      while ((currentElementIndex != TERMINAL) && (outputRecords < maxOutRecords)) {
-
-        // project probe side
-        int idxInProbeBatch = SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, currentProbeSV2Index);
+        // probe doesn't match but we need to project anyways.
+        int idxInProbeBatch = SV2UnsignedUtil.readAtIndexUnsafe(inProbeSV2StartAddr, unMatchedProbeIndex);
         SV2UnsignedUtil.writeAtOffsetUnsafe(outProbeProjectStartAddr, outputRecords * BATCH_OFFSET_SIZE, idxInProbeBatch);
 
-        final long elementBufStartAddr = elementBufAddrs[currentElementIndex >> elementShift];
-        final int offsetInPage = ELEMENT_SIZE * (currentElementIndex & elementMask);
-        assert(offsetInPage + ELEMENT_SIZE <= list.getBufSize());
-        final long buildItem = PlatformDependent.getLong(elementBufStartAddr + offsetInPage);
+        // mark the build as not matching.
+        PlatformDependent.putInt(outBuildProjectStartAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
 
-        // project matched build item
-        final int projectBuildOffsetStart = outputRecords * BUILD_RECORD_LINK_SIZE;
-        PlatformDependent.putInt(outBuildProjectStartAddr + projectBuildOffsetStart, PageListMultimap.getBatchIdFromLong(buildItem));
-        SV2UnsignedUtil.writeAtOffsetUnsafe(outBuildProjectStartAddr, projectBuildOffsetStart + BATCH_INDEX_SIZE,
-          PageListMultimap.getRecordIndexFromLong(buildItem));
+        // add this build location to the list of build keys we'll invalidate after copying.
+        SV2UnsignedUtil.writeAtOffsetUnsafe(projectNullKeyOffsetStartAddr, nullKeyCount * BATCH_OFFSET_SIZE, startOutputIdx + outputRecords);
 
-        currentElementIndex = PlatformDependent.getInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET);
-        if (projectUnmatchedBuild) {
-          if (currentElementIndex > 0) {
-            // first visit, mark as visited by flipping the sign.
-            PlatformDependent.putInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET, -currentElementIndex);
-          } else {
-            // not the first visit, flip the sign of what we just read.
-            currentElementIndex = -currentElementIndex;
-          }
-        }
+        nullKeyCount++;
         outputRecords++;
-      }
 
-      if (currentElementIndex != TERMINAL) {
-        /*
-         * Output batch is full, we should exit now,
-         * but more records for current key should be processed.
-         */
-        break;
       }
-
-      currentProbeSV2Index++;
     }
-
     boolean isPartial;
     if (outputRecords == maxOutRecords && currentProbeSV2Index < inRecords) {
       // batch was full but we have remaining records to process, need to save our position for when we return.

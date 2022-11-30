@@ -39,8 +39,25 @@ class IcebergNessieCommand extends IcebergBaseCommand {
   }
 
   public void deleteTable() {
-    super.deleteTable();
-    nessieTableOperations.deleteKey();
+    RuntimeException ex = null;
+    try {
+      nessieTableOperations.deleteKey();
+    } catch (RuntimeException e) {
+      ex = e;
+    } finally {
+      try {
+        super.deleteTable();
+      } catch (RuntimeException e) {
+        if (ex != null) {
+          e.addSuppressed(ex);
+        }
+        ex = e;
+      }
+    }
+
+    if (ex != null) {
+      throw ex;
+    }
   }
 
 

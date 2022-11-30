@@ -112,7 +112,7 @@ public class TestCreateTableQueryCleanup {
 
     assertThatThrownBy(() -> handler.callCatalogCreateEmptyTableWithCleanup(key, batchSchema, options))
       .isInstanceOf(UserException.class)
-      .hasMessageContaining("Error while trying to create table")
+      .hasMessageContaining("createEmptyTable_error")   // Message that should be checked for: createEmptyTable_error
       .hasRootCauseInstanceOf(RuntimeException.class)
       .hasRootCauseMessage("createEmptyTable_error");
     verify(catalog, times(1)).forgetTable(key);

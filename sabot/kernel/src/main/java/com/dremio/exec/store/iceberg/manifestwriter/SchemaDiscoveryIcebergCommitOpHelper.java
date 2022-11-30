@@ -28,6 +28,8 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.types.Types;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
@@ -47,6 +49,7 @@ import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.VectorUtil;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 
@@ -55,6 +58,8 @@ import com.dremio.sabot.exec.context.OperatorStats;
  * the icebergCommitterOp is lazily initialized only at the commit time.
  */
 public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper implements SupportsTypeCoercionsAndUpPromotions {
+    private static final Logger logger = LoggerFactory.getLogger(SchemaDiscoveryIcebergCommitOpHelper.class);
+
     private VarBinaryVector schemaVector;
     private BatchSchema currentSchema;
     private List<DataFile> deletedDataFiles = new ArrayList<>();
@@ -116,6 +121,7 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
 
     @Override
     protected void consumeManifestFile(ManifestFile manifestFile) {
+      logger.debug("Adding manifest file: {}", manifestFile.path());
       icebergManifestFiles.add(manifestFile);
 
       int existingPartitionDepth = partitionColumns.size() - implicitColSize;
@@ -128,6 +134,7 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
 
     @Override
     protected void consumeDeletedDataFile(DataFile deletedDataFile) {
+        logger.debug("Removing data file: {}", deletedDataFile.path());
         deletedDataFiles.add(deletedDataFile);
     }
 
@@ -194,4 +201,19 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
           deletedDataFiles.forEach(icebergOpCommitter::consumeDeleteDataFile);
         }
     }
+
+  protected void createPartitionExistsPredicate(WriterCommitterPOP config, boolean isFullRefresh) {
+    // SchemaDiscoveryIcebergCommitOpHelper is used for non-Hive sources where partition paths won't be
+    // provided via IcebergTableProps.getPartitionPaths.  Partition existence will be done only for paths
+    // that map to deleted partitions in IncrementalRefreshReadSignatureProvider.handleDeletedPartitions, so
+    // no need to optimize them out here.
+    partitionExistsPredicate = (path) ->
+    {
+      try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
+        return getFS(path, config).exists(Path.of(path));
+      } catch (Exception e) {
+        throw UserException.ioExceptionError(e).buildSilently();
+      }
+    };
+  }
 }

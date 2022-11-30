@@ -39,8 +39,7 @@ import com.google.common.collect.ImmutableList;
  * Arrow vector layout types including struct vector documented at -
  * https://arrow.apache.org/docs/format/Columnar.html
  *
- * JIRA ticket for this change -
- * https://dremio.atlassian.net/browse/DX-48490
+ * JIRA ticket for this change - DX-48490
  *
  */
 public class StructSizer implements Sizer {

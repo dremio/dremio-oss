@@ -17,6 +17,8 @@ package com.dremio.connector.metadata;
 
 import java.util.Iterator;
 
+import com.dremio.connector.ConnectorException;
+
 /**
  * Listing of {@link DatasetHandle dataset handles}. Implementations typically hold onto resources and state to be able
  * to provide the next {@link DatasetHandle}. When the listing is no longer used, the callers will invoke {@link #close}.
@@ -29,7 +31,7 @@ public interface DatasetHandleListing extends AutoCloseable {
    *
    * @return iterator of dataset handles
    */
-  Iterator<? extends DatasetHandle> iterator();
+  Iterator<? extends DatasetHandle> iterator() throws ConnectorException;
 
   /**
    * Release any resources; this listing will not be used after this call.

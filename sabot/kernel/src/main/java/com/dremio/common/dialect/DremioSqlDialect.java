@@ -57,6 +57,7 @@ import com.dremio.common.dialect.arp.transformer.NoOpTransformer;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.rel2sql.DremioRelToSqlConverter;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
+import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
 
 /**
@@ -74,6 +75,12 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     DatabaseProduct.HIVE.name(),
     "`",
     NullCollation.HIGH);
+
+  public static final DremioSqlDialect DEFAULT = new DremioSqlDialect(
+    DatabaseProduct.CALCITE.name(),
+    ParserConfig.QUOTING.string,
+    NullCollation.HIGH
+  );
 
   // Custom functions
   private static final SqlFunction PI_FUNCTION =

@@ -18,10 +18,11 @@ import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 //@ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import * as classes from "./BreadcrumbLink.module.less";
+import { type LocationDescriptor } from "history";
 
 const BreadcrumbLink = (props: {
   text: string;
-  to: string;
+  to: LocationDescriptor;
   iconName?: string;
   containerClass?: string;
 }) => {

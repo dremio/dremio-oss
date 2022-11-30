@@ -130,7 +130,8 @@ export class ExploreTableCellView extends Component {
   }
 
   onMouseUp() {
-    if (this.props.isDumbTable) {
+    const curTarget = this.state.curSelectedCell;
+    if (this.props.isDumbTable || curTarget?.className?.includes("Ellipsis")) {
       return null;
     }
     const state = this.props.location.state || {};

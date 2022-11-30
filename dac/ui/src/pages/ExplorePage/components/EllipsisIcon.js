@@ -36,6 +36,7 @@ export default class EllipsisIcon extends PureComponent {
   }
   onClick(e) {
     e.preventDefault();
+    e.stopPropagation();
     const anchor = this.ellipsis;
     this.props.onClick(anchor);
   }

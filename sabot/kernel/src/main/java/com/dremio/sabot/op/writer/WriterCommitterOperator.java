@@ -18,6 +18,7 @@ package com.dremio.sabot.op.writer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.apache.arrow.vector.ValueVector;
@@ -47,10 +48,12 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 
 
@@ -64,8 +67,26 @@ public class WriterCommitterOperator implements SingleInputOperator {
   public enum Metric implements MetricDef {
     ICEBERG_METADATA_WRITE_TIME,
     ICEBERG_CATALOG_UPDATE_TIME,
-    ICEBERG_COMMIT_TIME;
-
+    ICEBERG_COMMIT_TIME,
+    ICEBERG_COMMIT_SETUP_TIME,
+    ICEBERG_COMMAND_CREATE_TIME,
+    COMMITTER_CLOSE_TIME,
+    FILE_SYSTEM_CREATE_TIME,
+    READ_SIGNATURE_COMPUTE_TIME,
+    TABLE_RENAME_TIME,
+    MIN_IO_READ_TIME_NS,   // Minimum IO read time
+    MAX_IO_READ_TIME_NS,   // Maximum IO read time
+    AVG_IO_READ_TIME_NS,   // Average IO read time
+    NUM_IO_READ,        // Total Number of IO reads
+    MIN_METADATA_IO_READ_TIME_NS,  // Minimum IO read time for metadata operations
+    MAX_METADATA_IO_READ_TIME_NS,   // Maximum IO read time for metadata operations
+    AVG_METADATA_IO_READ_TIME_NS,  // Average IO read time for metadata operations
+    NUM_METADATA_IO_READ,
+    MIN_IO_WRITE_TIME, // Minimum IO write time
+    MAX_IO_WRITE_TIME, // Maximum IO write time
+    AVG_IO_WRITE_TIME, // Avg IO write time
+    NUM_IO_WRITE,      // Total Number of IO writes
+    ;
     @Override
     public int metricId() {
       return ordinal();
@@ -112,8 +133,11 @@ public class WriterCommitterOperator implements SingleInputOperator {
       throw new IllegalStateException(String.format("Incoming record writer schema doesn't match intended. Expected %s, received %s", RecordWriter.SCHEMA, schema));
     }
 
+    Stopwatch stopwatch = Stopwatch.createStarted();
     fs = config.getPlugin().createFS(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()),
       config.getProps().getUserName(), context);
+    addMetricStat(Metric.FILE_SYSTEM_CREATE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
     icebergCommitHelper.setup(accessible);
 
     // replacement expression.
@@ -158,13 +182,47 @@ public class WriterCommitterOperator implements SingleInputOperator {
 
   @Override
   public void close() throws Exception {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       cleanUpFiles();
     } catch (Exception e) {
       logger.warn("Cleanup of files in writer committer failed.", e);
     }
     finally {
+      final OperatorStats operatorStats = context.getStats();
       AutoCloseables.close(project, fs, icebergCommitHelper);
+
+      OperatorStats.IOStats readIOStats = operatorStats.getReadIOStats();
+      if (readIOStats != null) {
+        long minIOReadTime = readIOStats.minIOTime.longValue() <= readIOStats.maxIOTime.longValue() ? readIOStats.minIOTime.longValue() : 0;
+        operatorStats.setLongStat(Metric.MIN_IO_READ_TIME_NS, minIOReadTime);
+        operatorStats.setLongStat(Metric.MAX_IO_READ_TIME_NS, readIOStats.maxIOTime.longValue());
+        operatorStats.setLongStat(Metric.AVG_IO_READ_TIME_NS, readIOStats.numIO.get() == 0 ? 0 : readIOStats.totalIOTime.longValue() / readIOStats.numIO.get());
+        operatorStats.addLongStat(Metric.NUM_IO_READ, readIOStats.numIO.longValue());
+        operatorStats.addSlowIoInfos(readIOStats.slowIOInfoList);
+      }
+
+      OperatorStats.IOStats  metadataIoStats = operatorStats.getMetadataReadIOStats();
+      if (metadataIoStats != null) {
+        long minMetadataIOReadTime = metadataIoStats.minIOTime.longValue() <= metadataIoStats.maxIOTime.longValue() ? metadataIoStats.minIOTime.longValue() : 0;
+        operatorStats.setLongStat(Metric.MIN_METADATA_IO_READ_TIME_NS, minMetadataIOReadTime);
+        operatorStats.setLongStat(Metric.MAX_METADATA_IO_READ_TIME_NS, metadataIoStats.maxIOTime.longValue());
+        operatorStats.setLongStat(Metric.AVG_METADATA_IO_READ_TIME_NS, metadataIoStats.numIO.get() == 0 ? 0 : metadataIoStats.totalIOTime.longValue() / metadataIoStats.numIO.get());
+        operatorStats.addLongStat(Metric.NUM_METADATA_IO_READ, metadataIoStats.numIO.longValue());
+        operatorStats.addSlowMetadataIoInfos(metadataIoStats.slowIOInfoList);
+      }
+
+      OperatorStats.IOStats writeIOStats = operatorStats.getWriteIOStats();
+      if (writeIOStats != null) {
+        long minIOWriteTime = writeIOStats.minIOTime.longValue() <= writeIOStats.maxIOTime.longValue() ? writeIOStats.minIOTime.longValue() : 0;
+        operatorStats.setLongStat(Metric.MIN_IO_WRITE_TIME, minIOWriteTime);
+        operatorStats.setLongStat(Metric.MAX_IO_WRITE_TIME, writeIOStats.maxIOTime.longValue());
+        operatorStats.setLongStat(Metric.AVG_IO_WRITE_TIME, writeIOStats.numIO.get() == 0 ? 0 : writeIOStats.totalIOTime.longValue() / writeIOStats.numIO.get());
+        operatorStats.addLongStat(Metric.NUM_IO_WRITE, writeIOStats.numIO.longValue());
+        operatorStats.addSlowIoInfos(writeIOStats.slowIOInfoList);
+      }
+      operatorStats.setSlowIoInfosInProfile();
+      addMetricStat(Metric.COMMITTER_CLOSE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
   }
 
@@ -172,9 +230,11 @@ public class WriterCommitterOperator implements SingleInputOperator {
   public void noMoreToConsume() throws Exception {
     if (config.getTempLocation() != null) {
       Path temp = Path.of(config.getTempLocation());
+      Stopwatch stopwatch = Stopwatch.createStarted();
       if (fs.exists(temp)) {
         fs.rename(temp, Path.of(config.getFinalLocation()));
       }
+      addMetricStat(Metric.TABLE_RENAME_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
     project.noMoreToConsume();
     injector.injectChecked(executionControls, INJECTOR_AFTER_NO_MORETO_CONSUME_ERROR, UnsupportedOperationException.class);
@@ -228,6 +288,12 @@ public class WriterCommitterOperator implements SingleInputOperator {
 
     if(!success && config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH){
       cleanUpIcebergTables();
+    }
+  }
+
+  private void addMetricStat(Metric metric, long time) {
+    if (context.getStats() != null) {
+      context.getStats().addLongStat(metric, time);
     }
   }
 }

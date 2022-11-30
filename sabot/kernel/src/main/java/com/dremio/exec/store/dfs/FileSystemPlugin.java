@@ -1697,7 +1697,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     Optional<DatasetHandle> handle = Optional.empty();
 
     try {
-      handle = getDatasetHandleForNewRefresh(MetadataObjectsUtils.toNamespaceKey(datasetPath), fileConfig);
+      handle = getDatasetHandleForNewRefresh(
+        MetadataObjectsUtils.toNamespaceKey(datasetPath),
+        fileConfig,
+        DatasetRetrievalOptions.of(options));
     } catch (AccessControlException e) {
       if (!DatasetRetrievalOptions.of(options).ignoreAuthzErrors()) {
         logger.debug(e.getMessage());
@@ -1819,13 +1822,13 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return new FooterReadTableFunction(fec, context, props, functionConfig);
   }
 
-  public Optional<DatasetHandle> getDatasetHandleForNewRefresh(NamespaceKey datasetPath, FileConfig fileConfig) throws IOException {
+  public Optional<DatasetHandle> getDatasetHandleForNewRefresh(NamespaceKey datasetPath, FileConfig fileConfig, DatasetRetrievalOptions retrievalOptions) throws IOException {
     if (!MetadataRefreshUtils.unlimitedSplitsSupportEnabled(context.getOptionManager()) || !metadataSourceAvailable(context.getCatalogService())) {
       return Optional.empty();
     }
 
     Optional<FileSelection> selection = generateFileSelectionForPathComponents(datasetPath, SystemUser.SYSTEM_USERNAME);
-    if(!selection.isPresent()) {
+    if(!retrievalOptions.autoPromote() || !selection.isPresent()) {
       return Optional.empty();
     }
 

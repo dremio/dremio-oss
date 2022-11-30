@@ -305,7 +305,7 @@ public class LuceneSearchIndex implements AutoCloseable {
     }
   }
 
-  private void commit() throws IOException {
+  protected void commit() throws IOException {
     try (CommitCloser committer = commitWrapper.open(name)) {
       writer.commit();
       committer.succeeded();

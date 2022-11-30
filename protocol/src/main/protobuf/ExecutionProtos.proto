@@ -45,6 +45,11 @@ message HashAggSpill {
   optional int64 memory_use = 1;
 }
 
+message HashJoinSpill {
+  optional int64 memory_use = 1;
+  optional string message_type = 2;
+}
+
 message ExtSortSpillNotificationMessage {
   optional int64 memory_use = 1;
 }

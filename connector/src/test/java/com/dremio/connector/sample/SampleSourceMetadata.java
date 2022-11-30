@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
@@ -122,7 +123,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param options options for the dataset
    * @return a list of dataset handles
    */
-  List<DatasetHandle> getAllDatasetHandles(GetDatasetOption options) {
+  List<DatasetHandle> getAllDatasetHandles(GetDatasetOption options) throws ConnectorException {
     Iterator<? extends DatasetHandle> handleListingIterator = listDatasetHandles(options).iterator();
     List<DatasetHandle> datasetHandles = new ArrayList<>();
 

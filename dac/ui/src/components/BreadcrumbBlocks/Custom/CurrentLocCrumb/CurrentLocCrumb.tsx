@@ -70,8 +70,14 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
 
   // Jobs paths
   if (pathname === "/jobs" || pathname.indexOf("/job") === 0) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { attempts: _, ...query } = props.location.query || {};
     text = formatMessage({ id: "Job.Jobs" });
-    to = PATHS.jobs();
+    to = {
+      pathname: PATHS.jobs(),
+      hash: props.location.hash,
+      query,
+    };
     iconName = "navigation-bar/jobs";
   }
 

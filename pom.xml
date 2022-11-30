@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>23.0.1-202210141019030815-c1de8bcc</version>
+  <version>23.1.0-202211250121140756-a79618c7</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -39,7 +39,7 @@
     -->
     <arrow.version>9.0.0-20220922165652-3a8c29faef-dremio</arrow.version>
     <avatica.version>1.18.0</avatica.version>
-    <calcite.version>1.16.0-202208240106140505-1a728e5</calcite.version>
+    <calcite.version>1.16.0-202211100005370014-af6dec43</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -53,7 +53,7 @@
 
     <hadoop.version>3.3.2-dremio-202207041927090255-61c2bd1</hadoop.version>
     <avro.version>1.10.1</avro.version>
-    <iceberg.version>0.14-9ab94f87d-202209010034370342-049dcd8b</iceberg.version>
+    <iceberg.version>0.14-9ab94f8-20221101211614-8921649</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.3-202107080930050113-179a837</plugin.hive2.azure-datalake.version>
@@ -70,7 +70,7 @@
     <plugin.hive2.mapr.hadoop.version>2.7.6.200-eep-810</plugin.hive2.mapr.hadoop.version>
     <plugin.hive2.mapr.hive.version>2.3.9.0-eep-810-dremio-202209201008370278-fccf6db</plugin.hive2.mapr.hive.version>
     <plugin.hive2.mapr.maprfs.version>6.2.0.20-mapr</plugin.hive2.mapr.maprfs.version>
-    <plugin.hive2.aws.glue.version>1.10.0-202202240321510927-4ec4bff</plugin.hive2.aws.glue.version>
+    <plugin.hive2.aws.glue.version>1.10.0-202211080432360347-3b40cc3</plugin.hive2.aws.glue.version>
 
     <!-- [DX-18063] HBase versions older than 1.1.7 get version info using package-info.class
     metadata. However it is unreliable to get this when both the parent and child classloaders
@@ -142,13 +142,14 @@
     <netty.tcnative.version>2.0.46.Final</netty.tcnative.version>
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
     <netty.boringssl.version>2.0.43.Final</netty.boringssl.version>
-    <parquet.version>1.12.0-202205191717350594-a60d369</parquet.version>
+    <parquet.version>1.12.0-202210150148350243-15cbcc2</parquet.version>
     <pf4j.version>3.6.0</pf4j.version>
     <postgresql.version>42.4.1</postgresql.version>
     <protobuf.version>3.19.4</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
     <slf4j.version>1.7.28</slf4j.version>
+    <snowflake-jdbc.version>3.13.24-dremio-0</snowflake-jdbc.version>
     <twill.version>0.14.0-202111020547020344-41637331</twill.version>
     <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.14</zookeeper.version>
@@ -2285,6 +2286,11 @@ limitations under the License.
         <groupId>net.logstash.logback</groupId>
         <artifactId>logstash-logback-encoder</artifactId>
         <version>6.2</version>
+      </dependency>
+      <dependency>
+        <groupId>net.snowflake</groupId>
+        <artifactId>snowflake-jdbc</artifactId>
+        <version>${snowflake-jdbc.version}</version>
       </dependency>
       <dependency>
         <groupId>org.antlr</groupId>

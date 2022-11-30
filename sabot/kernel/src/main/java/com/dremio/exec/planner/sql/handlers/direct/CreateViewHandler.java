@@ -20,7 +20,9 @@ import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
@@ -28,14 +30,18 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.util.SqlVisitor;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
+import com.dremio.common.dialect.DremioSqlDialect;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -85,19 +91,19 @@ public class CreateViewHandler extends SimpleDirectHandler {
     final NamespaceKey path = catalog.resolveSingle(createView.getPath());
 
     if (isVersioned(path)) {
-      return createVersionedView(createView);
+      return createVersionedView(createView, sql);
     } else {
-      return createView(createView);
+      return createView(createView, sql);
     }
   }
 
-  private List<SimpleCommandResult> createVersionedView(SqlCreateView createView) throws IOException, ValidationException {
+  private List<SimpleCommandResult> createVersionedView(SqlCreateView createView, String sql) throws IOException, ValidationException {
     if(!config.getContext().getOptions().getOption(VERSIONED_VIEW_ENABLED)){
       throw UserException.unsupportedError().message("Currently do not support create versioned view").buildSilently();
     }
 
     final String newViewName = createView.getFullName();
-    View view = getView(createView);
+    View view = getView(createView, sql);
 
     boolean isUpdate = createView.getReplace();
     NamespaceKey viewPath = catalog.resolveSingle(createView.getPath());
@@ -114,13 +120,13 @@ public class CreateViewHandler extends SimpleDirectHandler {
       viewPath, isUpdate ? "replaced" : "created"));
   }
 
-  private List<SimpleCommandResult> createView(SqlCreateView createView) throws ValidationException, RelConversionException, ForemanSetupException, IOException, NamespaceException {
+  private List<SimpleCommandResult> createView(SqlCreateView createView, String sql) throws ValidationException, RelConversionException, ForemanSetupException, IOException, NamespaceException {
     final String newViewName = createView.getName();
     boolean isUpdate = createView.getReplace();
     NamespaceKey viewPath = catalog.resolveSingle(createView.getPath());
     boolean exists = checkViewExistence(viewPath, newViewName, isUpdate);
     isUpdate &= exists;
-    final View view = getView(createView, exists);
+    final View view = getView(createView, sql, exists);
 
     if (isUpdate) {
       catalog.updateView(viewPath, view, null);
@@ -143,13 +149,13 @@ public class CreateViewHandler extends SimpleDirectHandler {
     return CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog);
   }
 
-  protected View getView(SqlCreateView createView) throws ValidationException {
-    return getView(createView, false);
+  protected View getView(SqlCreateView createView, String sql) throws ValidationException {
+    return getView(createView, sql, false);
   }
 
-  protected View getView(SqlCreateView createView, boolean allowRenaming) throws ValidationException {
+  protected View getView(SqlCreateView createView, String sql, boolean allowRenaming) throws ValidationException {
     final String newViewName = createView.getName();
-    final String viewSql = createView.getQuery().toSqlString(CalciteSqlDialect.DEFAULT, true).getSql();
+    final String viewSql = getViewSql(createView, sql);
     final RelNode newViewRelNode = getViewRelNode(createView, allowRenaming);
 
     NamespaceKey defaultSchema = catalog.getDefaultSchema();
@@ -165,6 +171,140 @@ public class CreateViewHandler extends SimpleDirectHandler {
         createView.getFieldNames()
         : createView.getFieldNamesWithoutColumnMasking(),
       viewContext);
+  }
+
+  private List<SqlIdentifier> getIdentifiers(SqlNode query, Comparator<SqlParserPos> comparator) {
+    List<SqlIdentifier> identifiers = new ArrayList<>();
+    SqlVisitor<Void> createViewVisitor = new SqlBasicVisitor<Void>() {
+      @Override
+      public Void visit(SqlIdentifier id) {
+        identifiers.add(id);
+        return null;
+      }
+
+      @Override
+      public Void visit(SqlNodeList nodeList) {
+        for (int i = 0; i < nodeList.size(); i++) {
+          SqlNode node = nodeList.get(i);
+          if (node != null) {
+            node.accept(this);
+          }
+        }
+        return null;
+      }
+    };
+
+    query.accept(createViewVisitor);
+
+    // Sort identifiers by their positions
+    Collections.sort(identifiers, (SqlIdentifier left, SqlIdentifier right) -> {
+      SqlParserPos lp = left.getParserPosition();
+      SqlParserPos rp = right.getParserPosition();
+      return comparator.compare(lp, rp);
+    });
+
+    // Remove duplicated identifiers
+    List<SqlIdentifier> uniqueIdentifiers = new ArrayList<>();
+    for (int i = 0; i < identifiers.size(); i++) {
+      if (!uniqueIdentifiers.isEmpty() && comparator.compare(uniqueIdentifiers.get(uniqueIdentifiers.size()-1).getParserPosition(), identifiers.get(i).getParserPosition()) == 0) {
+        continue;
+      }
+      uniqueIdentifiers.add(identifiers.get(i));
+    }
+
+    return uniqueIdentifiers;
+  }
+
+  /*
+   * Convert ParserPos row and col number to the index in the sql string. Note ParserPos is 1-base indexed.
+   * For instance, given sql = "CREATE VIEW test AS\nSELECT *\nFROM table" and row = 3, col = 6, it should return 34.
+   * Because row 3 is "FROM table" and col 6 is letter `t`, whose index in the original sql string is 34 (0-base indexed).
+   * The returned value should be in range [0, sql.length()).
+   */
+  private int convertParserPosToStringPos(String sql, int row, int col) {
+    // fromIndex is the index of the 1st letter after a new line
+    int fromIndex = 0;
+    while (row > 1 && fromIndex < sql.length()) {
+      fromIndex = sql.indexOf('\n', fromIndex)+1;
+      row--;
+    }
+    // At this point, fromIndex is the index of the 1st letter in row #row.
+    // The index of #col letter in this row would be added by col-1.
+    return fromIndex+col-1;
+  }
+
+  private int appendIdentifierAndSql(SqlIdentifier identifier, String sql, StringBuilder viewSql, int beginIndex)
+    throws IndexOutOfBoundsException {
+    SqlDialect dialect = DremioSqlDialect.DEFAULT;
+    int nonStarComponentSize = identifier.names.size();
+    if (identifier.isStar()) {
+      // The last component is *
+      nonStarComponentSize--;
+    }
+    // Process non-star identifier components
+    for (int j = 0; j < nonStarComponentSize; j++) {
+      SqlParserPos pos = identifier.getComponentParserPosition(j);
+      int endIndex = convertParserPosToStringPos(sql, pos.getLineNum(), pos.getColumnNum());
+      viewSql.append(sql, beginIndex, endIndex);
+      String componentName = identifier.names.get(j);
+      if (pos.isQuoted()) {
+        viewSql.append(dialect.quoteIdentifier(componentName));
+      } else {
+        viewSql.append(componentName);
+      }
+      beginIndex = 1+convertParserPosToStringPos(sql, pos.getEndLineNum(),pos.getEndColumnNum());
+    }
+    // Process the star component, i.e. the last component
+    if (identifier.isStar()) {
+      SqlParserPos pos = identifier.getComponentParserPosition(nonStarComponentSize);
+      int endIndex = convertParserPosToStringPos(sql, pos.getLineNum(), pos.getColumnNum());
+      viewSql.append(sql, beginIndex, endIndex);
+      viewSql.append('*');
+      beginIndex = 1+endIndex;
+    }
+
+    return beginIndex;
+  }
+  private String getViewSql(String sql, SqlParserPos asTokenPos, List<SqlIdentifier> identifiers)
+    throws IndexOutOfBoundsException {
+    // Start from the index one position past the `AS` token
+    int beginIndex = 1+convertParserPosToStringPos(sql, asTokenPos.getEndLineNum(), asTokenPos.getEndColumnNum());
+    // Skip any whitespaces after the `AS` token
+    while (Character.isWhitespace(sql.charAt(beginIndex)) && beginIndex < sql.length()) {
+      beginIndex++;
+    }
+
+    StringBuilder viewSql = new StringBuilder();
+    for (int i = 0; i < identifiers.size(); i++) {
+      beginIndex = appendIdentifierAndSql(identifiers.get(i), sql, viewSql, beginIndex);
+    }
+    viewSql.append(sql.substring(beginIndex));
+
+    return viewSql.toString();
+  }
+
+  protected String getViewSql(SqlCreateView createView, String sql) throws UserException {
+    // Get the list of identifiers in the view definition query in ascending order of their positions
+    Comparator<SqlParserPos> comparator = (lp, rp) -> {
+      if (lp.getLineNum() != rp.getLineNum()) {
+        return lp.getLineNum() - rp.getLineNum();
+      } else if (lp.getColumnNum() != rp.getColumnNum()) {
+        return lp.getColumnNum() - rp.getColumnNum();
+      } else if (lp.getEndLineNum() != rp.getEndLineNum()) {
+        return lp.getEndLineNum() - rp.getEndLineNum();
+      } else {
+        return lp.getEndColumnNum() - rp.getEndColumnNum();
+      }
+    };
+    List<SqlIdentifier> identifiers = getIdentifiers(createView.getQuery(), comparator);
+
+    // The `AS` token must be BEFORE any identifier in the view definition query. The exception should never be thrown.
+    SqlParserPos asTokenPos = createView.getParserPosition();
+    if (identifiers.size() > 0 && comparator.compare(asTokenPos, identifiers.get(0).getParserPosition()) >= 0) {
+      throw UserException.validationError().message("Invalid create view statement. AS token after view definition").buildSilently();
+    }
+
+    return getViewSql(sql, asTokenPos, identifiers);
   }
 
   protected RelNode getViewRelNode(SqlCreateView createView, boolean allowRenaming) throws ValidationException {

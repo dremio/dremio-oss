@@ -99,7 +99,9 @@ public interface SubstitutionProvider {
 
   default void resetDefaultRawReflection() {}
 
-  void setPostSubstitutionTransformer(RelTransformer transformer);
+  default void setCurrentPlan(RelNode relNode) {}
+
+  void setPostSubstitutionTransformers(List<RelTransformer> transformers);
 
   /**
    * A class that represents a substitution. This indicates that the {@link RelNode} replacement is equivalent to equivalent

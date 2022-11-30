@@ -127,6 +127,25 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
   }
 
   @Test
+  public void testCTASCreateNewIcebergTableWithLocation() throws Exception {
+    // TODO: DX-46976 - Enable these for MapR
+    assumeNonMaprProfile();
+
+    final String tableName = "iceberg_test_ctas1";
+    final String tableNameWithCatalog = HIVE_TEST_PLUGIN_NAME + "." + tableName;
+    final String tableLocationFolder = "default/location";
+
+    try {
+      runSQL(getCTASQueryWithLocation("(values (1), (2), (3))", tableNameWithCatalog, tableLocationFolder));
+      File tableFolder = new File(tableLocationFolder);
+      assertTrue("Error in checking if the " + tableFolder.toString() + " exists", tableFolder.exists());
+    }
+    finally {
+      dataGenerator.executeDDL(getDropTableQuery(tableName));
+    }
+  }
+
+  @Test
   public void testCreateEmptyIcebergTableWithIdentityTransform() throws Exception {
     final String tableName = "iceberg_test_identity_transform";
 

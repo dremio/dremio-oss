@@ -1108,6 +1108,22 @@ public class NamespaceServiceImpl implements NamespaceService {
     );
   }
 
+  public List<DatasetConfig> getDatasets() {
+    final Iterable<Map.Entry<String, NameSpaceContainer>> containerEntries;
+
+    containerEntries = namespace.find();
+
+    final List<DatasetConfig> containers = Lists.newArrayList();
+    for (final Map.Entry<String, NameSpaceContainer> entry : containerEntries) {
+      final NameSpaceContainer container = entry.getValue();
+      if (container.getType() == DATASET) {
+        containers.add(container.getDataset());
+      }
+    }
+
+    return containers;
+  }
+
   // returns the child containers of the given rootKey as a list
   private List<NameSpaceContainer> listEntity(final NamespaceKey rootKey) throws NamespaceException {
     return FluentIterable.from(iterateEntity(rootKey)).toList();

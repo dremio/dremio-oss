@@ -30,6 +30,7 @@ import {
 } from "@app/selectors/explore";
 import { getCurrentSessionJobList, getJobList } from "selectors/jobs";
 import { intl } from "@app/utils/intl";
+import * as PATHS from "@app/exports/paths";
 
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
@@ -174,7 +175,7 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
             <Tooltip title={`Jobs Detail Page for #${jobId}`}>
               <LinkWithRef
                 to={{
-                  pathname: `/job/${jobId}`,
+                  pathname: PATHS.job({ jobId }),
                   query: {
                     attempts: jobAttempts,
                   },

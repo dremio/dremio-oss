@@ -122,8 +122,9 @@ const JobsRouting = () => {
           path="/jobs/reflection/:reflectionId"
           component={ReflectionJobsPage}
         />
-        <Route path="/jobs" component={JobPage} />
-        <Route path="/job/:jobId" component={SingleJobPage}></Route>
+        <Route path="/jobs" component={JobPage}>
+          <Route path="job/:jobId" component={SingleJobPage}></Route>
+        </Route>
       </Route>
     );
   } else {

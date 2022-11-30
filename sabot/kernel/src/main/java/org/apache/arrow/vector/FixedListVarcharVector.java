@@ -82,10 +82,10 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
    * During listAggMerge after accumulating and during compact we will know that there is an overflow due to the
    * extra value and set the overflow flag for the rowgroup.
    */
-  private final boolean allowOneOverflow;
   private final String delimiter;
   private final int delimiterLength;
   private int maxListAggSize;
+  private int actualMaxListAggSize;
   private final boolean distinct;
   private final boolean orderby;
   /* Valid only with orderby */
@@ -96,17 +96,15 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
 
 
   public FixedListVarcharVector(String name, BufferAllocator allocator, int maxValuesPerBatch, String delimiter, int maxListAggSize,
-                                boolean distinct, boolean orderby, boolean asc, boolean allowOneOverflow, ListVector tempSpace) {
+                                boolean distinct, boolean orderby, boolean asc, ListVector tempSpace) {
     this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator, maxValuesPerBatch,
-      delimiter, maxListAggSize, distinct, orderby, asc, null,
-      allowOneOverflow, tempSpace);
+      delimiter, maxListAggSize, distinct, orderby, asc, null, tempSpace);
   }
 
   public FixedListVarcharVector(String name, BufferAllocator allocator, int maxValuesPerBatch, String delimiter, int maxListAggSize,
-                                boolean distinct, boolean orderby, boolean asc, Accumulator.AccumStats accumStats, boolean allowOneOverflow, ListVector tempSpace) {
+                                boolean distinct, boolean orderby, boolean asc, Accumulator.AccumStats accumStats, ListVector tempSpace) {
     this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator, maxValuesPerBatch,
-      delimiter, maxListAggSize, distinct, orderby, asc, accumStats,
-      allowOneOverflow, tempSpace);
+      delimiter, maxListAggSize, distinct, orderby, asc, accumStats, tempSpace);
   }
 
   /**
@@ -123,22 +121,21 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
    * @param orderby             keep values sorted
    * @param asc                 sorted values in ascending order or in descending order
    * @param accumStats          Accumulator statistics to be collected
-   * @param allowOneOverflow    allow overflow once
    * @param tempSpace           temporary vector to store the output to spill
    */
   private FixedListVarcharVector(String name, FieldType fieldType, BufferAllocator allocator,
                                  int maxValuesPerBatch, String delimiter, int maxListAggSize,
                                  boolean distinct, boolean orderby, boolean asc, Accumulator.AccumStats accumStats,
-                                 boolean allowOneOverflow, ListVector tempSpace) {
+                                 ListVector tempSpace) {
     super(new Field(name, fieldType, null), allocator);
     this.maxValuesPerBatch = maxValuesPerBatch;
     this.delimiter = delimiter;
     this.delimiterLength = delimiter.length();
     this.maxListAggSize = maxListAggSize;
+    this.actualMaxListAggSize = this.maxListAggSize;
     this.distinct = distinct;
     this.orderby = orderby;
     this.asc = asc;
-    this.allowOneOverflow = allowOneOverflow;
     this.tempSpace = tempSpace;
     this.accumStats = accumStats;
   }
@@ -450,11 +447,11 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   }
 
   @VisibleForTesting
-  public void compact(final boolean physicallyRearrangeValues) {
-    compact(physicallyRearrangeValues, 0);
+  public void compact() {
+    compact(0);
   }
 
-  public void compact(final boolean physicallyRearrangeValues, final int nextRecSize) {
+  public void compact(final int nextRecSize) {
     compactionTimer.start();
 
     final IntArrayList[] rowGroups = extractRowGroups();
@@ -468,9 +465,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
 
     limitSize(rowGroups, nextRecSize);
 
-    if (physicallyRearrangeValues) {
-      physicallyRearrangeValues(rowGroups);
-    }
+    physicallyRearrangeValues(rowGroups);
 
     calculateDelimiterAndOverflowSize(rowGroups);
 
@@ -592,23 +587,31 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   /**
    * outputToVector() will concat individual entries, with given delimiter, for each rowgroup
    * and create final BaseVariableWidthVector as output.
-   * Before calling outputToVector compact has to be invoked, this makes sure that only the
-   * elements that fit are retained.
    */
   @VisibleForTesting
   public void outputToVector(BaseVariableWidthVector outVector, final int targetStartIndex, final int numRecords) {
     final IntArrayList[] rowGroups = extractRowGroups();
 
+    final ContentLengthChecker contentLengthChecker = new DelimitedContentLengthChecker(delimiterLength,
+      actualMaxListAggSize - getOverflowReserveSpace(), false);
     for (int rowGroup = 0; rowGroup < rowGroups.length; ++rowGroup) {
       if (rowGroups[rowGroup] == null) {
         continue;
       }
 
+      contentLengthChecker.reset();
       Text t = new Text();
       boolean addDelimiter = false;
-      for (int index: rowGroups[rowGroup]) {
+      for (int i = 0; i < rowGroups[rowGroup].size(); i++) {
+        int index = rowGroups[rowGroup].getInt(i);
         byte[] bytes = get(index);
 
+
+        if (!contentLengthChecker.hasSpaceFor(bytes.length) && i != 0) {
+          setOverflow(rowGroup);
+          break;
+        }
+        contentLengthChecker.addToTotalLength(bytes.length);
         if (addDelimiter) {
           t.append(delimiter.getBytes(), 0, delimiterLength);
         }
@@ -778,7 +781,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
     adjustMaxListAggSize(rowGroups, maxListAggReserveSpace);
 
     final ContentLengthChecker contentLengthChecker = new DelimitedContentLengthChecker(delimiterLength,
-      maxListAggSize - maxListAggReserveSpace, allowOneOverflow);
+      maxListAggSize - maxListAggReserveSpace, true);
 
     for (int rowGroup = 0; rowGroup < rowGroups.length; ++rowGroup) {
       if (rowGroups[rowGroup] == null) {
@@ -868,7 +871,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   public ArrowBuf[] getBuffers(int numRecords) {
     Preconditions.checkState(numRecords > 0);
     /* compact() apply all the rules and make read the vector to generate output */
-    compact(true);
+    compact();
 
     tempSpace.reset();
     int numValidGroups = outputToListVector(tempSpace, 0, numRecords);
@@ -1003,7 +1006,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
 
     /* compact at end to free some space */
     if (dstIndex > 0) {
-      compact(true);
+      compact();
     }
   }
 }

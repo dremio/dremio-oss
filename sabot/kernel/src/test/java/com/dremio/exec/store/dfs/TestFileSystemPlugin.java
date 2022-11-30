@@ -33,13 +33,18 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.dremio.connector.metadata.EntityPath;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.NamespaceKey;
@@ -64,7 +69,9 @@ public class TestFileSystemPlugin {
 
   private SabotContext sabotContext;
 
-  private FileSystem fileSystem;
+  private org.apache.hadoop.fs.FileSystem underlyingFs;
+
+  private HadoopFileSystem fileSystem;
 
   private static final String TEST_PARQUET_FILE_PATH = "/user/test/data/file.parquet";
 
@@ -78,7 +85,9 @@ public class TestFileSystemPlugin {
   public void setup() throws Exception {
     sabotContext = mock(SabotContext.class);
     final FileSystemWrapper fileSystemWrapper = mock(FileSystemWrapper.class);
-    fileSystem = mock(FileSystem.class);
+    underlyingFs = mock(org.apache.hadoop.fs.FileSystem.class);
+    when(underlyingFs.getScheme()).thenReturn("test");
+    fileSystem = Mockito.spy(HadoopFileSystem.get(underlyingFs));
     final MockFileSystemConf fileSystemConf = new MockFileSystemConf();
     final String name = "TEST";
     when(fileSystemWrapper.wrap(
@@ -202,6 +211,22 @@ public class TestFileSystemPlugin {
     Assert.assertTrue(hasAccess);
   }
 
+  /**
+   * Regression test for DX-40512
+   * During JVM shutdown, if the S3A file system is closed while a metadata synchronization is in progress, it is
+   * essential that the IO exception be propagated, to abort metadata synchronization. Otherwise, if getDatasetHandle
+   * simply returned null, we would incorrectly infer that the dataset no longer exists and can be deleted.
+   */
+  @Test
+  public void testGetDatasetPropagatesFSClosedException() throws IOException {
+    OptionManager optionManager = mock(OptionManager.class);
+    when(sabotContext.getOptionManager()).thenReturn(optionManager);
+    when(optionManager.getOption(ExecConstants.ENABLE_ICEBERG)).thenReturn(true);
+    when(optionManager.getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT)).thenReturn(true);
+    Mockito.doThrow(new IOException("FileSystem is closed!")).when(underlyingFs).exists(any(org.apache.hadoop.fs.Path.class));
+    Assert.assertThrows(RuntimeException.class, () -> fileSystemPlugin.getDatasetHandle(new EntityPath(ImmutableList.of("a", "b"))));
+  }
+
   class MockFileSystemConf extends FileSystemConf<MockFileSystemConf, MockFileSystemPlugin> {
 
     @Override
@@ -211,7 +236,7 @@ public class TestFileSystemPlugin {
 
     @Override
     public Path getPath() {
-      return null;
+      return Path.of("/base");
     }
 
     @Override

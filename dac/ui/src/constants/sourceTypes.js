@@ -72,6 +72,7 @@ export const sourceProperties = [
   { label: "Google Cloud Storage", sourceType: GCS, beta: true },
   { label: "Microsoft Azure Synapse Analytics", sourceType: SYNAPSE },
   { label: "Microsoft Azure Data Explorer", sourceType: ADX },
+  { label: "Snowflake", sourceType: SNOWFLAKE }
 ];
 
 export const metastoresSourceType = {

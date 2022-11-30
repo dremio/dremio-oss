@@ -160,4 +160,16 @@ public class TestListAggPlan extends PlanTestBase {
     final String query = "SELECT LISTAGG(o_comment, o_clerk) FROM cp.\"tpch/orders.parquet\"";
     test(query);
   }
+
+  @Test (expected = UserRemoteException.class)
+  public void testUnsupportedOrderBy1() throws Exception {
+    final String query = "SELECT LISTAGG(o_comment) WITHIN GROUP (ORDER BY o_orderkey) FROM cp.\"tpch/orders.parquet\"";
+    test(query);
+  }
+
+  @Test (expected = UserRemoteException.class)
+  public void testUnsupportedOrderBy2() throws Exception {
+    final String query = "SELECT LISTAGG(o_comment, '|') WITHIN GROUP (ORDER BY o_orderkey) FROM cp.\"tpch/orders.parquet\"";
+    test(query);
+  }
 }

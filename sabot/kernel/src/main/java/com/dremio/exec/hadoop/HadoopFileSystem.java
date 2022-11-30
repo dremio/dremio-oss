@@ -390,6 +390,18 @@ public class HadoopFileSystem
       }
     } catch (FSError e) {
       throw propagateFSError(e);
+    } catch (IOException e) {
+      if (e.getMessage().contains("FileSystem is closed")) {
+        // Fix for S3AFileSystem - if the filesystem is closed (e.g. we are in the process of a JVM shutdown and its
+        // shutdown hook has already run), it throws an IOException. This is poor behavior - it should be unchecked as
+        // it is not a predictable scenario that callers might be expected to recover from. Additionally, it being a raw
+        // IOException makes it hard to differentiate from IOException's that reflect permission errors and other
+        // problems that callers might assume are due to a bad file path rather than source in a bad state. For example,
+        // MetadataSynchronizer needs to handle those cases differently: delete the dataset when inaccessible due to bad
+        // path or permissions, but preserve if inaccessible because JVM shutdown is in progress.
+        // Ref: https://github.com/apache/hadoop/blob/735e35d6484ca9908efeaa7c2f6f4d654b1fcf41/hadoop-tools/hadoop-aws/src/main/java/org/apache/hadoop/fs/s3a/S3AFileSystem.java#L4070
+        throw new IllegalStateException(e);
+      }
     }
     return exists;
   }

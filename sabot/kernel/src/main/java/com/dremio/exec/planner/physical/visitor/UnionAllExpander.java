@@ -28,16 +28,13 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelConversionException;
 
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.DistributionTrait;
-import com.dremio.exec.planner.physical.EmptyPrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.HasDistributionAffinity;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -46,7 +43,6 @@ import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.RoundRobinExchangePrel;
 import com.dremio.exec.planner.physical.UnionAllPrel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -57,11 +53,10 @@ import com.google.common.collect.Iterables;
  *   3) If a single input is not empty, replace the union with project
  *   4) If there are more than two non-empty inputs,
  *      based on the width of each child, incrementally create binary
- *      UnionAlls and insert RoundRobinExchange between them
- *   5) If certain child's width is smaller than the defined
- *      threshold value, or the width difference between two inputs
- *      are bigger than the defined ratio,
- *      additionally add RoundRobinExchange to the smaller side
+ *      UnionAlls and insert RoundRobinExchange comparing width ratio
+ *      between current tree and new input.
+ *      RoundRobinExchange is added if current width is less than
+ *      UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_RATIO X new_input's_width.
  */
 public final class UnionAllExpander extends BasePrelVisitor<Prel, Void, IOException> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnionAllExpander.class);
@@ -83,16 +78,16 @@ public final class UnionAllExpander extends BasePrelVisitor<Prel, Void, IOExcept
       expanded.accept(new UnionAllInputValidator(), null);
       return expanded;
     } catch (IOException ex) {
-      throw new RelConversionException("Failure while attempting to expanding UnionAlls.", ex);
+      throw new RelConversionException("Failure while attempting to expand UnionAlls.", ex);
     }
-  }
-
-  private long getInputRoundRobinThreshold() {
-    return config.getContext().getOptions().getOption(PlannerSettings.UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_VALUE);
   }
 
   private double getInputRoundRobinRatio() {
     return config.getContext().getOptions().getOption(PlannerSettings.UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_RATIO);
+  }
+
+  private boolean isDistributeAllChildren() {
+    return config.getContext().getOptions().getOption(PlannerSettings.UNIONALL_DISTRIBUTE_ALL_CHILDREN);
   }
 
   @Override
@@ -106,8 +101,12 @@ public final class UnionAllExpander extends BasePrelVisitor<Prel, Void, IOExcept
     if (!(prel instanceof UnionAllPrel)) {
       return (Prel) prel.copy(prel.getTraitSet(), children);
     }
+    RelDataType originalRowType = prel.getRowType();
+    List<RexNode> exprs = new ArrayList<>();
+    for (int i = 0; i < originalRowType.getFieldCount(); i++) {
+      exprs.add(prel.getCluster().getRexBuilder().makeInputRef(originalRowType.getFieldList().get(i).getType(), i));
+    }
 
-    BatchSchema batchSchema = null;
     // populate priority queue based on width of inputs
     PriorityQueue<UnionChild> pq = new PriorityQueue<>(children.size());
     for (RelNode child : children) {
@@ -118,50 +117,47 @@ public final class UnionAllExpander extends BasePrelVisitor<Prel, Void, IOExcept
       pq.add(unionChild);
     }
 
-    if (pq.size() < 2) {
-      Prel inputRel = pq.isEmpty() ?
-        new EmptyPrel(prel.getCluster(), prel.getTraitSet(), prel.getRowType(), batchSchema) : addRoundRobinIfStrict(pq.poll().relNode);
-      final RexBuilder rexBuilder = prel.getCluster().getRexBuilder();
-      final List<RelDataTypeField> unionFields = prel.getRowType().getFieldList();
-      final List<RelDataTypeField> inputFields = inputRel.getRowType().getFieldList();
-      final List<RexNode> projects = new ArrayList<>();
-      for (int i = 0 ; i < unionFields.size() ; i++) {
-        projects.add(rexBuilder.makeCast(unionFields.get(i).getType(), new RexInputRef(i, inputFields.get(i).getType())));
-      }
-      return ProjectPrel.create(prel.getCluster(), prel.getTraitSet(), inputRel, projects, prel.getRowType());
-    }
-
-    // construct unions with RoundRobinExchanges
-    UnionChild left = pq.poll();
-    UnionChild right = pq.poll();
-    Prel convertedLeft = ((double) left.stat.getMaxWidth()) <= right.stat.getMaxWidth() * getInputRoundRobinRatio() ?
-      addRoundRobin(left.relNode) : addRoundRobinIfStrict(left);
-    Prel convertedRight = addRoundRobinIfStrict(right);
-    boolean isSingular = left.stat.isSingular() && right.stat.isSingular() && !left.stat.isDistributionStrict()&& !right.stat.isDistributionStrict();
-
-    try {
-      Prel union = new UnionAllPrel(
-        prel.getCluster(), prel.getTraitSet(),
-        ImmutableList.of(convertedLeft, convertedRight),
-        false);
-
+    if (isDistributeAllChildren()) { // legacy union all planning : if enabled, simply add RR to all inputs
+      UnionChild left = pq.poll();
+      Prel currentRel = addRoundRobin(left.relNode);
       while (!pq.isEmpty()) {
-        UnionChild newInput = pq.poll();
-        isSingular = isSingular && newInput.stat.isSingular() && !newInput.stat.isDistributionStrict();
-        union = !isSingular ? addRoundRobin(union) : union;
-        Prel convertedNewInput = shouldAddRoundRobinToNewInput(isSingular, newInput.stat) ? addRoundRobin(newInput.relNode) : addRoundRobinIfStrict(newInput);
-        union = new UnionAllPrel(prel.getCluster(), prel.getTraitSet(), ImmutableList.of(union, convertedNewInput), false);
+        try {
+          UnionChild newInput = pq.poll();
+          Prel newRight = addRoundRobin(newInput.relNode);
+          currentRel = new UnionAllPrel(prel.getCluster(), prel.getTraitSet(), ImmutableList.of(currentRel, newRight), false);
+        } catch (InvalidRelException ex) {
+          // This exception should not be thrown as we already checked compatibility
+          logger.warn("Failed to expand unionAll as inputs are not compatible", ex);
+          return prel;
+        }
       }
-      return union;
-    } catch (InvalidRelException ex) {
-      // This exception should not be thrown as we already checked compatibility
-      logger.warn("Failed to expand unionAll as inputs are not compatible", ex);
-      return prel;
+      return currentRel.getRowType().getFieldNames().equals(originalRowType.getFieldNames()) ?
+        currentRel : ProjectPrel.create(currentRel.getCluster(), currentRel.getTraitSet(), currentRel, exprs, originalRowType);
+    } else {
+      UnionChild left = pq.poll();
+      Prel currentRel = addRoundRobinIfStrict(left);
+      int currentWidth = currentRel instanceof RoundRobinExchangePrel ? Integer.MAX_VALUE : left.stat.getMaxWidth();
+      while (!pq.isEmpty()) {
+        try {
+          UnionChild newInput = pq.poll();
+          Prel newRight = addRoundRobinIfStrict(newInput);
+          int newWidth = newRight instanceof RoundRobinExchangePrel ? Integer.MAX_VALUE : newInput.stat.getMaxWidth();
+          if (((double) currentWidth) < ((double) newWidth) * getInputRoundRobinRatio()) {
+            currentRel = addRoundRobin(currentRel);
+            currentWidth = newWidth;
+          } else {
+            currentWidth = Math.min(currentWidth, newWidth);
+          }
+          currentRel = new UnionAllPrel(prel.getCluster(), prel.getTraitSet(), ImmutableList.of(currentRel, newRight), false);
+        } catch (InvalidRelException ex) {
+          // This exception should not be thrown as we already checked compatibility
+          logger.warn("Failed to expand unionAll as inputs are not compatible", ex);
+          return prel;
+        }
+      }
+      return currentRel.getRowType().getFieldNames().equals(originalRowType.getFieldNames()) ?
+        currentRel : ProjectPrel.create(currentRel.getCluster(), currentRel.getTraitSet(), currentRel, exprs, originalRowType);
     }
-  }
-
-  private boolean shouldAddRoundRobinToNewInput(boolean isSingular, FragmentStatVisitor.MajorFragmentStat inputStat) {
-    return !isSingular && (inputStat.isSingular() || inputStat.getMaxWidth() <= getInputRoundRobinThreshold());
   }
 
   private Prel addRoundRobin(Prel prel) {
@@ -170,10 +166,6 @@ public final class UnionAllExpander extends BasePrelVisitor<Prel, Void, IOExcept
 
   private Prel addRoundRobinIfStrict(UnionChild child) {
     return child.stat.isDistributionStrict() ? addRoundRobin(child.relNode) : child.relNode;
-  }
-
-  private Prel addRoundRobinIfStrict(Prel prel) {
-    return findHardAffinity(prel) ? addRoundRobin(prel) : prel;
   }
 
   public RelTraitSet createEmptyTraitSet() {

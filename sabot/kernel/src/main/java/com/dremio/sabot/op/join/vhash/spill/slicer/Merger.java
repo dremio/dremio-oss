@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
-import static com.dremio.sabot.op.join.vhash.spill.slicer.Sizer.BYTE_SIZE_BITS;
-
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -25,8 +23,11 @@ import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.DenseUnionVector;
 import org.apache.arrow.vector.complex.FixedSizeListVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.UnionVector;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.util.RoundUtil;
@@ -52,6 +53,12 @@ interface Merger {
       return new FixedListMerger((FixedSizeListVector) vector, wrapperIdx, allocator);
     } else if (vector instanceof ListVector) {
       return new ListMerger((ListVector) vector, wrapperIdx, allocator);
+    } else if (vector instanceof StructVector) {
+      return new StructMerger((StructVector) vector, wrapperIdx, allocator);
+    } else if (vector instanceof UnionVector) {
+      return new UnionMerger((UnionVector) vector, wrapperIdx, allocator);
+    } else if (vector instanceof DenseUnionVector) {
+      return new DenseUnionMerger((DenseUnionVector) vector, wrapperIdx, allocator);
     } else {
       throw new UnsupportedOperationException(String.format("Vectors for field %s of type %s not yet supported.",
         vector.getField().getName(), CompleteType.fromField(vector.getField()).toString()));
@@ -106,4 +113,12 @@ interface Merger {
     return RoundUtil.round64up(OFFSET_SIZE_BITS * ( numberOfRecords + 1));
   }
 
+  /**
+   * Bits required to store type data (in union vectors) for given number of records
+   * @param numberOfRecords
+   * @return
+   */
+  static int getTypeBufferSizeInBits(final int numberOfRecords){
+    return RoundUtil.round64up(numberOfRecords * BYTE_SIZE_BITS);
+  }
 }

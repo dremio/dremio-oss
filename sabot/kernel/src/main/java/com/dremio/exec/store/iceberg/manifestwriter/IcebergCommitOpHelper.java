@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 import org.apache.arrow.vector.IntVector;
@@ -63,8 +64,11 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
 
 /**
@@ -82,6 +86,8 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     protected IcebergOpCommitter icebergOpCommitter;
     private final Set<IcebergPartitionData> addedPartitions = new HashSet<>(); // partitions with new files
     private final Set<IcebergPartitionData> deletedPartitions = new HashSet<>(); // partitions with deleted files
+    private final Set<String> partitionPaths;
+    private final Set<String> partitionPathsWithDeletedFiles = new HashSet<>();
     protected Predicate<String> partitionExistsPredicate = path -> true;
     private FileSystem fsToCheckIfPartitionExists;
     protected ReadSignatureProvider readSigProvider = (added, deleted) -> ByteString.EMPTY;
@@ -103,9 +109,11 @@ public class IcebergCommitOpHelper implements AutoCloseable {
         this.config = config;
         this.context = context;
         this.dremioFileIO = new DremioFileIO(config.getPlugin().getFsConfCopy(), config.getPlugin());
+        this.partitionPaths = createPartitionPathsSet(config);
     }
 
     public void setup(VectorAccessible incoming) {
+      Stopwatch stopwatch = Stopwatch.createStarted();
         // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
       IcebergTableProps icebergTableProps = config.getIcebergTableProps();
 
@@ -182,6 +190,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
                 icebergOpCommitter.updateSchema(icebergTableProps.getFullSchema());
                 break;
         }
+      addMetricStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_SETUP_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
 
     private List<String> getPartitionPaths() {
@@ -211,12 +220,30 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     }
 
     protected void consumeManifestFile(ManifestFile manifestFile) {
+        logger.debug("Adding manifest file: {}", manifestFile.path());
         icebergManifestFiles.add(manifestFile);
         icebergOpCommitter.consumeManifestFile(manifestFile);
     }
 
     protected void consumeDeletedDataFile(DataFile deletedDataFile) {
-        icebergOpCommitter.consumeDeleteDataFile(deletedDataFile);
+      logger.debug("Removing data file: {}", deletedDataFile.path());
+      icebergOpCommitter.consumeDeleteDataFile(deletedDataFile);
+
+      // Record the partition paths for deleted files during incremental metadata refresh - this will help limit the
+      // number of existence checks we need to perform when updating the read signature.
+      // TODO: DX-58354: Logic for managing the read signature needs to be refactored into the IcebergOpCommitter
+      // implementations.
+      if (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH) {
+        String partitionPath = getPartitionPathFromFilePath(deletedDataFile.path().toString());
+        if (partitionPath != null) {
+          partitionPathsWithDeletedFiles.add(partitionPath);
+        } else {
+          // Just log and ignore the case where we can't match the deleted data file to a known partition path.
+          // For well-formed tables this should not occur.
+          logger.warn("Failed to find a corresponding partition path for deleted data file {}",
+              deletedDataFile.path());
+        }
+      }
     }
 
     protected void consumeDeleteDataFilePath(int row) {
@@ -259,7 +286,9 @@ public class IcebergCommitOpHelper implements AutoCloseable {
             logger.warn("Skipping iceberg commit because opCommitter isn't initialized");
             return;
         }
+        Stopwatch stopwatch = Stopwatch.createStarted();
         ByteString newReadSignature = readSigProvider.compute(addedPartitions, deletedPartitions);
+        addMetricStat(WriterCommitterOperator.Metric.READ_SIGNATURE_COMPUTE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
         icebergOpCommitter.updateReadSignature(newReadSignature);
       try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
             icebergOpCommitter.commit();
@@ -276,7 +305,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
       if (!isFullRefresh) {
         existingReadSignature = ByteString.copyFrom(config.getDatasetConfig().get().getReadDefinition().getReadSignature().toByteArray());  // TODO avoid copy
       }
-      createPartitionExistsPredicate(config);
+      createPartitionExistsPredicate(config, isFullRefresh);
 
       readSigProvider = config.getSourceTablePlugin().createReadSignatureProvider(existingReadSignature, icebergTableProps.getDataTableLocation(),
         context.getFunctionContext().getContextInformation().getQueryStartTime(),
@@ -316,20 +345,33 @@ public class IcebergCommitOpHelper implements AutoCloseable {
       return partitionDataList;
     }
 
-    protected void createPartitionExistsPredicate(WriterCommitterPOP config) {
+    protected void createPartitionExistsPredicate(WriterCommitterPOP config, boolean isFullRefresh) {
       partitionExistsPredicate = (path) ->
       {
-        try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
-          return getFS(path, config).exists(Path.of(path));
-        } catch (Exception e) {
-          throw UserException.ioExceptionError(e).buildSilently();
+        // We need to check existence of partition dirs in two cases:
+        // 1. Full refresh - even if Hive reports a partition directory as part of the table, it can be deleted, and
+        //    in that case we need to exclude it from the read signature.
+        // 2. Incremental refresh for directories where we found deleted data files - in these cases we need to
+        //    check whether the entire directory was removed.
+        // For other directories during incremental refresh, we skip existence checks as they can be expensive.  If
+        // we did not find any deleted files in a partition directory, it must still exist.
+        if (isFullRefresh || partitionPathsWithDeletedFiles.contains(path)) {
+          try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
+            return getFS(path, config).exists(Path.of(path));
+          } catch (Exception e) {
+            throw UserException.ioExceptionError(e).buildSilently();
+          }
         }
+
+        return true;
       };
     }
 
-    private FileSystem getFS(String path, WriterCommitterPOP config) throws IOException {
+    protected FileSystem getFS(String path, WriterCommitterPOP config) throws IOException {
       if (fsToCheckIfPartitionExists == null) {
+        Stopwatch stopwatch = Stopwatch.createStarted();
         fsToCheckIfPartitionExists = config.getSourceTablePlugin().createFS(path, config.getProps().getUserName(), context);
+        addMetricStat(WriterCommitterOperator.Metric.FILE_SYSTEM_CREATE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
       }
       return fsToCheckIfPartitionExists;
     }
@@ -375,6 +417,12 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     AutoCloseables.close(fsToCheckIfPartitionExists);
   }
 
+  private void addMetricStat(WriterCommitterOperator.Metric metric, long time) {
+    if (context.getStats() != null) {
+      context.getStats().addLongStat(metric, time);
+    }
+  }
+
   /**
    * Delete all data files referenced in a manifestFile
    */
@@ -405,5 +453,38 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     } catch (Exception e) {
       logger.warn("Failed to clean up manifest files", e);
     }
+  }
+
+  protected String getPartitionPathFromFilePath(String path) {
+    // data files could be in some subdirectory of a partition dir, so traverse parent dirs until we find a
+    // partition dir (or give up)
+    Path parent = Path.of(path).getParent();
+    while (parent != null) {
+      path = parent.toString();
+      if (partitionPaths.contains(path)) {
+        return path;
+      }
+      parent = parent.getParent();
+    }
+
+    return null;
+  }
+
+  private static Set<String> createPartitionPathsSet(WriterCommitterPOP config) {
+    // If this is an INCREMENTAL_REFRESH op, cache all partition paths in a set for fast lookup when evaluating
+    // deleted data files.  If the table is unpartitioned add the table root as a single 'partition path'.  If this
+    // is not an Iceberg table, return an empty set.
+    if (config.getIcebergTableProps() != null &&
+        config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH) {
+      List<String> partitionPaths = config.getIcebergTableProps().getPartitionPaths();
+      String dataTableLocation = config.getIcebergTableProps().getDataTableLocation();
+      if (partitionPaths != null && !partitionPaths.isEmpty()) {
+        return ImmutableSet.copyOf(partitionPaths);
+      } else if (dataTableLocation != null) {
+        return ImmutableSet.of(dataTableLocation);
+      }
+    }
+
+    return ImmutableSet.of();
   }
 }

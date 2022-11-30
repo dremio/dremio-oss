@@ -70,6 +70,7 @@ import org.apache.calcite.sql.validate.DremioParameterScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.ProcedureNamespace;
 import org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlScopedShuttle;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
@@ -84,6 +85,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
@@ -438,6 +440,46 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     return newExpr;
   }
 
+  @Override
+  public SqlNode expandWithAlias(SqlNode expr, SqlValidatorScope scope, SqlSelect select) {
+    Preconditions.checkNotNull(scope);
+
+    if ((optionResolver == null) || !optionResolver.getOption(PlannerSettings.EXTENDED_ALIAS)) {
+      return super.expand(expr, scope);
+    }
+
+    final Expander expander = new ExtendedAliasExpander(
+      this,
+      scope,
+      select,
+      false);
+    SqlNode newExpr = expr.accept(expander);
+    if (expr != newExpr) {
+      setOriginal(newExpr, expr);
+    }
+
+    return newExpr;
+  }
+
+  @Override
+  public SqlNode expandWhereWithAlias(SqlNode expr, SqlValidatorScope scope, SqlSelect select) {
+    if ((optionResolver == null) || !optionResolver.getOption(PlannerSettings.EXTENDED_ALIAS)) {
+      return super.expand(expr, scope);
+    }
+
+    final Expander expander = new ExtendedAliasExpander(
+      this,
+      scope,
+      select,
+      true);
+    SqlNode newExpr = expr.accept(expander);
+    if (expr != newExpr) {
+      setOriginal(newExpr, expr);
+    }
+
+    return newExpr;
+  }
+
   /**Overriden to Handle the ITEM operator.*/
   @Override
   protected @Nullable SqlNode stripDot(@Nullable SqlNode node) {
@@ -569,7 +611,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       selectList,
       from,
       condition,
-      null, null, null, null, null, null, null);
+      null, null, null, null, null, null, null, null);
   }
 
   /**
@@ -609,6 +651,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       select.getGroup(),
       select.getHaving(),
       select.getWindowList(),
+      select.getQualify(),
       select.getOrderList(),
       select.getOffset(),
       select.getFetch(),
@@ -688,7 +731,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     SqlNode outerJoin = joinSourceAndTargetTable(targetTable, sourceTableRef, call.getCondition(), joinType);
     SqlSelect select =
         new SqlSelect(SqlParserPos.ZERO, null, selectList, outerJoin, null,
-            null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null);
     call.setSourceSelect(select);
 
     if (isSqlDmlOperatorWithStar(updateStmt)) {
@@ -696,7 +739,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       // will be added to both Update's sourceExpressionList and Merge's source select
       SqlSelect updateSourceSelect =
         new SqlSelect(SqlParserPos.ZERO, null, selectList, call.getSourceTableRef(), null,
-          null, null, null, null, null, null, null);
+          null, null, null, null, null, null, null, null);
       updateStmt.setSourceSelect((SqlSelect)DeepCopier.copy(updateSourceSelect));
     }
 
@@ -731,7 +774,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       final SqlNode insertSource = DeepCopier.copy(sourceTableRef);
       select =
           new SqlSelect(SqlParserPos.ZERO, null, selectList, insertSource, null,
-              null, null, null, null, null, null, null);
+              null, null, null, null, null, null, null, null);
       insertCall.setSource(select);
     }
   }
@@ -854,6 +897,67 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       }
 
       return false;
+    }
+  }
+
+
+  private static final class ExtendedAliasExpander extends Expander {
+    private final SqlSelect select;
+    private final boolean allowMoreThanOneAlias;
+
+    public ExtendedAliasExpander(
+      org.apache.calcite.sql.validate.SqlValidatorImpl validator,
+      SqlValidatorScope scope,
+      SqlSelect select,
+      boolean allowMoreThanOneAlias) {
+      super(validator, scope);
+      this.select = select;
+      this.allowMoreThanOneAlias = allowMoreThanOneAlias;
+    }
+
+    @Override public SqlNode visit(SqlIdentifier id) {
+      if (!id.isSimple()) {
+        return super.visit(id);
+      }
+
+      try {
+        return super.visit(id);
+      } catch (CalciteContextException e) {
+        // The failure here may be happening because the path references a field with an Alias.
+        String name = id.getSimple();
+        SqlNode expr = null;
+        final SqlNameMatcher nameMatcher = validator.getCatalogReader().nameMatcher();
+        int numAliases = 0;
+        for (SqlNode s : select.getSelectList()) {
+          final String alias = SqlValidatorUtil.getAlias(s, -1);
+          if ((alias != null) && nameMatcher.matches(alias, name)) {
+            expr = s;
+            numAliases++;
+          }
+        }
+
+        if (numAliases == 0) {
+          return super.visit(id);
+        }
+
+        if ((numAliases > 1) && !allowMoreThanOneAlias) {
+          // More than one column has this alias.
+          throw validator.newValidationError(id, RESOURCE.columnAmbiguous(name));
+        }
+
+        expr = stripAs(expr);
+        if (expr instanceof SqlIdentifier) {
+          if (((SqlIdentifier) expr).names.equals(id.names)) {
+            // Not an alias , don't want to update parser position
+            return super.visit(id);
+          }
+
+          expr = getScope().fullyQualify((SqlIdentifier) expr).identifier;
+        }
+
+        validator.setOriginal(expr, id);
+        return expr;
+      }
     }
   }
 

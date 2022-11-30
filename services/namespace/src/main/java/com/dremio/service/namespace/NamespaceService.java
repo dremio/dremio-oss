@@ -58,7 +58,8 @@ public interface NamespaceService {
    */
   interface Factory {
     /**
-     * Return a namespace service for a given user
+     * Return a namespace service for a given user. Note that this is for usernames
+     * and users only, if roles are to be supported, use #get(NamespaceIdentity) instead.
      *
      * @param userName a valid user name
      * @return a namespace service instance
@@ -137,6 +138,8 @@ public interface NamespaceService {
   List<HomeConfig> getHomeSpaces();
 
   List<SourceConfig> getSources();
+
+  List<DatasetConfig> getDatasets();
 
   FolderConfig getFolder(NamespaceKey folderPath) throws NamespaceException;
 

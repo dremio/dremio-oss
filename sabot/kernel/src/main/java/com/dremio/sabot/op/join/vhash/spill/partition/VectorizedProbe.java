@@ -35,6 +35,8 @@ import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6Util;
 import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
+import com.dremio.sabot.op.join.vhash.HashJoinExtraMatcher;
+import com.dremio.sabot.op.join.vhash.JoinExtraConditionMatcher;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap;
 import com.dremio.sabot.op.join.vhash.spill.list.ProbeBuffers;
@@ -46,6 +48,8 @@ import com.google.common.base.Stopwatch;
 public class VectorizedProbe implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedProbe.class);
   public static final int SKIP = -1;
+
+  private static final HashJoinExtraMatcher NULL_MATCHER = new NullExtraMatcher();
 
   private final BufferAllocator allocator;
 
@@ -75,6 +79,7 @@ public class VectorizedProbe implements AutoCloseable {
   private int probeInRecords;
   private final ProbeCursor cursor;
   private UnmatchedCursor unmatchedCursor;
+  private HashJoinExtraMatcher extraMatcher;
 
   public VectorizedProbe(
     JoinSetupParams setupParams,
@@ -126,6 +131,10 @@ public class VectorizedProbe implements AutoCloseable {
     if (projectUnmatchedBuild) {
       this.unmatchedCursor = new UnmatchedCursor(linkedList, buffers, table::getCumulativeVarKeyLength);
     }
+
+    this.extraMatcher = (setupParams.getExtraCondition() == null) ? NULL_MATCHER :
+      new JoinExtraConditionMatcher(setupParams.getContext(), setupParams.getExtraCondition(), setupParams.getBuild2ProbeKeyMap(), setupParams.getLeft(), buildBatch);
+    this.extraMatcher.setup();
   }
 
   public void batchBegin(int pivotShift, int numRecords) {
@@ -154,7 +163,7 @@ public class VectorizedProbe implements AutoCloseable {
   public int probeBatch(int startOutputIndex, int maxOutputIndex) {
     Preconditions.checkArgument(startOutputIndex <= maxOutputIndex);
     probeListWatch.start();
-    ProbeCursor.Stats stats = cursor.next(probeInRecords, startOutputIndex, maxOutputIndex);
+    ProbeCursor.Stats stats = cursor.next(extraMatcher, probeInRecords, startOutputIndex, maxOutputIndex);
     probeListWatch.stop();
 
     int outputRecords = stats.getRecordsFound();
@@ -297,5 +306,17 @@ public class VectorizedProbe implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
+  }
+
+  private static final class NullExtraMatcher implements HashJoinExtraMatcher {
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public boolean checkCurrentMatch(int currentProbeIndex, int currentLinkBatch, int currentLinkOffset) {
+      // always matches if there is no extra condition
+      return true;
+    }
   }
 }

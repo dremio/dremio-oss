@@ -70,8 +70,8 @@ public class RelMdPercentageOriginalRows extends org.apache.calcite.rel.metadata
 
   @Override
   public Double getPercentageOriginalRows(Join rel, RelMetadataQuery mq) {
-    double left = mq.getPercentageOriginalRows(rel.getLeft());
-    double right = mq.getPercentageOriginalRows(rel.getRight());
+    Double left = mq.getPercentageOriginalRows(rel.getLeft());
+    Double right = mq.getPercentageOriginalRows(rel.getRight());
     return NumberUtil.multiply(left, right);
   }
 }

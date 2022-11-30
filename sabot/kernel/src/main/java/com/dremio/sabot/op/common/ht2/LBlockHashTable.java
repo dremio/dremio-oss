@@ -221,8 +221,8 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   public void computeHash(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashOut8B) {
     keyFixed.checkBytes(0, numRecords * pivot.getBlockWidth());
     hashOut8B.checkBytes(0, numRecords * 8);
-    final BlockChunk blockChunk = new BlockChunk(keyFixed.memoryAddress(), keyVar.memoryAddress(), keyVar.capacity(), fixedOnly,
-        pivot.getBlockWidth(), numRecords, hashOut8B.memoryAddress(), seed);
+    final BlockChunk blockChunk = new BlockChunk(keyFixed.memoryAddress(), keyVar == null ? 0 : keyVar.memoryAddress(),
+      keyVar == null ? 0 : keyVar.capacity(), fixedOnly, pivot.getBlockWidth(), numRecords, hashOut8B.memoryAddress(), seed);
     HashComputation.computeHash(blockChunk);
   }
 
@@ -261,8 +261,8 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
     long outputAddr = outOrdinals.memoryAddress();
     long hashVectorAddr8B = hash8B.memoryAddress();
     final long keyFixedVectorAddr = keyFixed.memoryAddress();
-    final long keyVarVectorAddr = keyVar.memoryAddress();
-    final long keyVarVectorSize = keyVar.capacity();
+    final long keyVarVectorAddr = keyVar == null ? 0 : keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar == null ? 0 : keyVar.capacity();
     try {
       for (keyIndex = 0; keyIndex < numRecords; keyIndex++, outputAddr += 4, hashVectorAddr8B += 8) {
         final int keyHash = (int) PlatformDependent.getLong(hashVectorAddr8B);
@@ -303,8 +303,8 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
     long outputAddr = outOrdinals.memoryAddress();
     long tableHashAddr4B = hash4B.memoryAddress();
     final long keyFixedVectorAddr = keyFixed.memoryAddress();
-    final long keyVarVectorAddr = keyVar.memoryAddress();
-    final long keyVarVectorSize = keyVar.capacity();
+    final long keyVarVectorAddr = keyVar == null ? 0 : keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar == null ? 0 :keyVar.capacity();
     try {
       for (index = 0 ; index < numRecords; index++, outputAddr += 4) {
         final int keyIndex = SV2UnsignedUtil.readAtIndex(sv2, index) - pivotShift;
@@ -363,8 +363,8 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
     long outputAddr = outOrdinals.memoryAddress();
     long hashVectorAddr8B = hash8B.memoryAddress();
     final long keyFixedVectorAddr = keyFixed.memoryAddress();
-    final long keyVarVectorAddr = keyVar.memoryAddress();
-    final long keyVarVectorSize = keyVar.capacity();
+    final long keyVarVectorAddr = keyVar == null ? 0 : keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar == null ? 0 : keyVar.capacity();
 
     switch (mode) {
       default:
@@ -442,8 +442,8 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
     long outputAddr = outOrdinals.memoryAddress();
     long hashVectorAddr4B = hash4B.memoryAddress();
     final long keyFixedVectorAddr = keyFixed.memoryAddress();
-    final long keyVarVectorAddr = keyVar.memoryAddress();
-    final long keyVarVectorSize = keyVar.capacity();
+    final long keyVarVectorAddr = keyVar == null ? 0 : keyVar.memoryAddress();
+    final long keyVarVectorSize = keyVar == null ? 0 : keyVar.capacity();
 
     switch (mode) {
       default:
@@ -1366,6 +1366,9 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
 
   private void internalInit(int capacity) {
     /* capacity is power of 2 */
+    if (capacity == 0) {
+      return;
+    }
     assert (capacity & (capacity - 1)) == 0;
     initTimer.start();
     /* tentative new state */

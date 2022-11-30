@@ -88,7 +88,7 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
       final AttemptObservers observers = AttemptObservers.of(observer, recording);
       observers.planStart(sql);
       plan = handler.getPlan(config.cloneWithNewObserver(observers), sql, sqlNode);
-      PreparedPlan prepared = new PreparedPlan(context.getQueryId(), context.getQueryUserName(), sql, plan, recording);
+      PreparedPlan prepared = new PreparedPlan(context.getQueryId(), context.getQueryUserName(), context.getQueryRequiresGroupsInfo(), sql, plan, recording);
       final Long handle = PREPARE_ID.getAndIncrement();
       state = ServerPreparedStatementState.newBuilder()
         .setHandle(handle)

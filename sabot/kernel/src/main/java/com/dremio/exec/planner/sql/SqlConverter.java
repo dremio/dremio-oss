@@ -121,7 +121,7 @@ public class SqlConverter {
     this.opTab = operatorTable;
     this.costFactory = (settings.useDefaultCosting()) ? null : new DremioCost.Factory();
     this.materializations = new MaterializationList(this, session, materializationProvider);
-    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.options,
+    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.getOptions(),
       operatorTable instanceof OperatorTable ? (OperatorTable) operatorTable : new OperatorTable(functions)));
     this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));

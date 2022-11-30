@@ -30,6 +30,7 @@ import org.apache.arrow.vector.holders.TimeMilliHolder;
 import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
+import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
@@ -310,8 +311,20 @@ abstract class VectorOutput {
           ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(dt));
           break;
         case VALUE_STRING:
-          DateTimeFormatter f = ISODateTimeFormat.dateTime().withZoneUTC();
-          ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(LocalDateTime.parse(parser.getValueAsString(), f)));
+          String timestampLiteral = parser.getValueAsString();
+          if (timestampLiteral.contains("W")) { // Joda Time does not natively support week number in short format (eg 2020W065), so we need to add hyphens ('-') around 'W'
+            int weekIndex = timestampLiteral.indexOf("W"); // Index of the W char that marks week num
+            if (timestampLiteral.charAt(weekIndex - 1) != '-') {
+              timestampLiteral = timestampLiteral.substring(0, weekIndex) + '-' + timestampLiteral.substring(weekIndex, weekIndex + 3);
+              weekIndex++; // Increment the index as we added a '-' character
+              if (timestampLiteral.length() > weekIndex + 3) { // Check if the timestamp has a day component following week
+                timestampLiteral += '-' + timestampLiteral.substring(weekIndex + 3); // Add a '-' between week num and day
+              }
+            }
+          }
+          timestampLiteral = timestampLiteral.replace(' ', 'T'); // Support formats like 2020-039 09 that have a space between date and time
+          DateTime dateTime = new DateTime(timestampLiteral);
+          ts.writeTimeStampMilli(dateTime.getMillis());
           break;
         default:
           throw UserException.unsupportedError()

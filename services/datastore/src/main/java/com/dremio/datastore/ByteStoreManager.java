@@ -15,12 +15,15 @@
  */
 package com.dremio.datastore;
 
+import static com.dremio.datastore.RocksDBStore.BLOB_PATH;
 import static com.dremio.datastore.RocksDBStore.FILTER_SIZE_IN_BYTES;
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +35,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+
+import javax.annotation.Nonnull;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -93,34 +98,44 @@ class ByteStoreManager implements AutoCloseable {
   private ColumnFamilyHandle defaultHandle;
   private StoreMetadataManagerImpl metadataManager;
 
+  private final RocksDBOpenDelegate rocksDBOpenDelegate;
+  private final boolean dbReadOnly;
+
   private final DeferredException closeException = new DeferredException();
 
   // on #start all the existing tables are loaded, and if new stores are requested, #newStore is used
   private final ConcurrentMap<Integer, String> handleIdToNameMap = Maps.newConcurrentMap();
   private final LoadingCache<String, ByteStore> maps = CacheBuilder.newBuilder()
-      .removalListener((RemovalListener<String, ByteStore>) notification -> {
-        try {
-          notification.getValue().close();
-        } catch (Exception ex) {
-          closeException.addException(ex);
-        }
-      }).build(new CacheLoader<String, ByteStore>() {
-        @Override
-        public ByteStore load(String name) throws RocksDBException {
-          return newStore(name);
-        }
-      });
+    .removalListener((RemovalListener<String, ByteStore>) notification -> {
+      try {
+        notification.getValue().close();
+      } catch (Exception ex) {
+        closeException.addException(ex);
+      }
+    }).build(new CacheLoader<String, ByteStore>() {
+      @Override
+      public ByteStore load(String name) throws RocksDBException {
+        return newStore(name);
+      }
+    });
 
   public ByteStoreManager(String baseDirectory, boolean inMemory) {
     this(baseDirectory, inMemory, false, false);
   }
 
   public ByteStoreManager(String baseDirectory, boolean inMemory, boolean noDBOpenRetry, boolean noDBLogMessages) {
+    this(baseDirectory, inMemory, noDBOpenRetry, noDBLogMessages, false);
+  }
+
+  public ByteStoreManager(String baseDirectory, boolean inMemory, boolean noDBOpenRetry, boolean noDBLogMessages,
+    boolean readOnly) {
     this.stripeCount = STRIPE_COUNT;
     this.baseDirectory = baseDirectory;
     this.inMemory = inMemory;
     this.noDBOpenRetry = noDBOpenRetry;
     this.noDBLogMessages = noDBLogMessages;
+    this.rocksDBOpenDelegate = readOnly ? RocksDB::openReadOnly : RocksDB::open;
+    this.dbReadOnly = readOnly;
   }
 
   private ByteStore newStore(String name) throws RocksDBException {
@@ -144,7 +159,7 @@ class ByteStoreManager implements AutoCloseable {
     } else {
       rocksManager = new RocksMetaManager(baseDirectory, name, Long.MAX_VALUE);
     }
-    return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount, rocksManager);
+    return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount, rocksManager, dbReadOnly);
   }
 
   // Validates that the first file found in the DB directory is owned by the currently running user.
@@ -165,7 +180,7 @@ class ByteStoreManager implements AutoCloseable {
       String dbOwner = Files.getOwner(dbFile.toPath()).getName();
       if (!procUser.equals(dbOwner)) {
         throw new DatastoreException(
-          String.format("Process user (%s) doesn't match local catalog db owner (%s).  Please run process as %s.",
+          format("Process user (%s) doesn't match local catalog db owner (%s).  Please run process as %s.",
             procUser, dbOwner, dbOwner));
       }
 
@@ -187,7 +202,7 @@ class ByteStoreManager implements AutoCloseable {
     if (dbDirectory.exists()) {
       if (!dbDirectory.isDirectory()) {
         throw new DatastoreException(
-            String.format("Invalid path %s for local catalog db, not a directory.", dbDirectory.getAbsolutePath()));
+          format("Invalid path %s for local catalog db, not a directory.", dbDirectory.getAbsolutePath()));
       }
 
       // If there are any files that exist within the dbDirectory, verify that the first file in the directory is
@@ -196,7 +211,7 @@ class ByteStoreManager implements AutoCloseable {
     } else {
       if (!dbDirectory.mkdirs()) {
         throw new DatastoreException(
-            String.format("Failed to create directory %s for local catalog db.", dbDirectory.getAbsolutePath()));
+          format("Failed to create directory %s for local catalog db.", dbDirectory.getAbsolutePath()));
       }
     }
 
@@ -272,17 +287,18 @@ class ByteStoreManager implements AutoCloseable {
 
       Metrics.newGauge(Metrics.join(METRICS_PREFIX, tickerType.name()), () -> statistics.getTickerCount(tickerType));
     }
-    // Note that Statistics also contains various histogram metrics, but those cannot be easily tracked through our metrics
+    // Note that Statistics also contains various histogram metrics, but those cannot be easily tracked through our
+    // metrics
   }
 
-public RocksDB openDB(final DBOptions dboptions, final String path, final List<ColumnFamilyDescriptor> columnNames,
-      List<ColumnFamilyHandle> familyHandles) throws RocksDBException {
+  public RocksDB openDB(final DBOptions dboptions, final String path, final List<ColumnFamilyDescriptor> columnNames,
+    List<ColumnFamilyHandle> familyHandles) throws RocksDBException {
     boolean printLockMessage = true;
 
     while (true) {
       try {
         if (!noDBLogMessages) {
-          return RocksDB.open(dboptions, path, columnNames, familyHandles);
+          return rocksDBOpenDelegate.open(dboptions, path, columnNames, familyHandles);
         }
         try (Logger logger = new Logger(dboptions) {
           // Create new logger that ignores all messages.
@@ -292,7 +308,7 @@ public RocksDB openDB(final DBOptions dboptions, final String path, final List<C
           }
         }) {
           dboptions.setLogger(logger);
-          return RocksDB.open(dboptions, path, columnNames, familyHandles);
+          return rocksDBOpenDelegate.open(dboptions, path, columnNames, familyHandles);
         }
     } catch (RocksDBException e) {
         if (e.getStatus().getCode() != Status.Code.IOError || !e.getStatus().getState().contains("While lock")) {
@@ -450,6 +466,27 @@ public RocksDB openDB(final DBOptions dboptions, final String path, final List<C
   }
 
   /**
+   * Creates a new RocksDB checkpoint (snapshot).
+   *
+   * <p>The checkpoint is a copy of all SSTables and the current Manifest file
+   * stored in a different filesystem path. It will also create a checkpoint
+   * of the blob stores associated to the RocksDB data.</p>
+   *
+   * <p>The destination directory path of the checkpoint is created into the
+   * <{@code baseDirectory}>/checkpoints directory.
+   * <p>
+   * from the method call into {@link CheckpointInfo}. The caller can use the
+   * directory path.</p>
+   *
+   * @param backupDir Directory path where the backup will be created.
+   *
+   * @return a {@link CheckpointInfo} with information of the checkpoint.
+   */
+  public synchronized CheckpointInfo newCheckpoint(@Nonnull Path backupDir) {
+    return BackupSupport.newCheckpoint(backupDir, baseDirectory, CATALOG_STORE_NAME, BLOB_PATH, db);
+  }
+
+  /**
    * Implementation that manages metadata with {@link RocksDB}.
    */
   final class StoreMetadataManagerImpl implements StoreMetadataManager {
@@ -464,7 +501,7 @@ public RocksDB openDB(final DBOptions dboptions, final String path, final List<C
 
     private StoreMetadataManagerImpl() {
       metadataStore = new RocksDBStore(DEFAULT, null /* dropping and creating default is not supported */,
-          db.getDefaultColumnFamily(), db, stripeCount);
+        db.getDefaultColumnFamily(), db, stripeCount, dbReadOnly);
     }
 
     /**
@@ -543,9 +580,12 @@ public RocksDB openDB(final DBOptions dboptions, final String path, final List<C
     }
 
     private void setLatestTransactionNumber(String storeName, long transactionNumber, long penultimateNumber) {
+      if (dbReadOnly) {
+        throw new UnsupportedOperationException("Not setting latest transaction number as the database is readonly");
+      }
       final StoreMetadata storeMetadata = new StoreMetadata()
-          .setTableName(storeName)
-          .setLatestTransactionNumber(penultimateNumber);
+        .setTableName(storeName)
+        .setLatestTransactionNumber(penultimateNumber);
 
       latestTransactionNumbers.put(storeName, transactionNumber);
       LOGGER.trace("Setting {} as transaction number for store '{}'", penultimateNumber, storeName);
@@ -593,5 +633,11 @@ public RocksDB openDB(final DBOptions dboptions, final String path, final List<C
     private Optional<StoreMetadata> getValue(Document<byte[], byte[]> info) {
       return Optional.ofNullable(info).map(doc -> valueSerializer.revert(doc.getValue()));
     }
+  }
+
+  @FunctionalInterface
+  private interface RocksDBOpenDelegate {
+    RocksDB open(final DBOptions dboptions, final String path, final List<ColumnFamilyDescriptor> columnNames,
+      final List<ColumnFamilyHandle> familyHandles) throws RocksDBException;
   }
 }

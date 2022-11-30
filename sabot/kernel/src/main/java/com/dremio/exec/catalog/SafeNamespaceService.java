@@ -293,6 +293,11 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  public List<DatasetConfig> getDatasets() {
+    return runner.doSafe(() -> delegate.getDatasets());
+  }
+
+  @Override
   public SpaceConfig getSpace(NamespaceKey arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getSpace(arg0));
   }

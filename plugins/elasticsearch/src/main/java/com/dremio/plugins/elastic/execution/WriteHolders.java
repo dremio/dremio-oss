@@ -222,7 +222,7 @@ class WriteHolders {
       if (token == JsonToken.VALUE_NUMBER_FLOAT || token == JsonToken.VALUE_NUMBER_INT) {
         writer.writeFloat8(parser.getDoubleValue());
       } else {
-        writer.writeFloat8(Float.parseFloat(parser.getValueAsString()));
+        writer.writeFloat8(Double.parseDouble(parser.getValueAsString()));
       }
     }
   }

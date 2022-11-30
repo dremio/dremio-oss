@@ -42,18 +42,20 @@ public class DiskPartition implements Partition {
   private final SpillWriter buildWriter;
   private final SpillWriter probeWriter;
   private final ImmutableList<SpillFileDescriptor> preSpillBuildFiles;
+  private final int preSpillBuildHashTableSize;
   private final Stats recordedStats;
   private int probeBatchStartIdx;
   private int probeBatchNumRecords;
 
   DiskPartition(JoinSetupParams setupParams, int partitionIdx, ArrowBuf sv2) {
-    this(setupParams, partitionIdx, sv2, ImmutableList.of(), new RecordedStats());
+    this(setupParams, partitionIdx, sv2, ImmutableList.of(), new RecordedStats(), 0);
   }
 
-  DiskPartition(JoinSetupParams setupParams, int partitionIdx, ArrowBuf sv2, List<SpillFileDescriptor> preSpillBuildFiles, Stats recordedStats) {
+  DiskPartition(JoinSetupParams setupParams, int partitionIdx, ArrowBuf sv2, List<SpillFileDescriptor> preSpillBuildFiles, Stats recordedStats, int preSpillBuildHashTableSize) {
     this.setupParams = setupParams;
     this.partitionID = String.format("p_gen_%08d_idx_%08d", setupParams.getGeneration(), partitionIdx);
     this.preSpillBuildFiles = ImmutableList.copyOf(preSpillBuildFiles);
+    this.preSpillBuildHashTableSize = preSpillBuildHashTableSize;
     this.recordedStats = recordedStats;
 
     final PagePool pool = setupParams.getSpillPagePool();
@@ -87,6 +89,11 @@ public class DiskPartition implements Partition {
   @Override
   public boolean isBuildSideEmpty() {
     return false;
+  }
+
+  @Override
+  public int hashTableSize() {
+    return preSpillBuildHashTableSize;
   }
 
   @Override
@@ -128,7 +135,6 @@ public class DiskPartition implements Partition {
 
   @Override
   public void close() throws Exception {
-    // Add entry to replay list, so that the spilled data gets replayed.
     setupParams.getReplayEntries().add(JoinReplayEntry.of(preSpillBuildFiles, buildWriter.getSpillFileDescriptor(), probeWriter.getSpillFileDescriptor()));
     AutoCloseables.close(buildWriter, probeWriter);
   }

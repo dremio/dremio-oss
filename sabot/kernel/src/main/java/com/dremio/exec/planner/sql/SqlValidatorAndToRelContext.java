@@ -340,7 +340,7 @@ public class SqlValidatorAndToRelContext {
     } else {
       return new SqlSelect(SqlParserPos.ZERO, null,
         new SqlNodeList(ImmutableList.of(sqlNode), SqlParserPos.ZERO),
-        null, null, null, null, null, null, null, null, null);
+        null, null, null, null, null, null, null, null, null, null);
     }
   }
 }

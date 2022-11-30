@@ -43,7 +43,7 @@ public class DeltaSnapshotListProcessor {
     Preconditions.checkState(!snapshots.isEmpty(), "No snapshot available for consolidation");
     DeltaLogSnapshot consolidatedSnapshot = new DeltaLogSnapshot("MERGE", 0, 0, 0, 0, Long.MIN_VALUE, false);
 
-    snapshots.stream().forEach(consolidatedSnapshot::merge);
+    snapshots.stream().sorted().forEach(consolidatedSnapshot::merge);
     return consolidatedSnapshot;
   }
 

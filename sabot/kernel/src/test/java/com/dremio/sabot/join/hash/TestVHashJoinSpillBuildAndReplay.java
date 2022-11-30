@@ -17,7 +17,6 @@ package com.dremio.sabot.join.hash;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
@@ -25,7 +24,6 @@ import com.dremio.options.OptionValue;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 
 // Test join with build, followed by spill & then, replay.
-@Ignore("DX-53045")
 public class TestVHashJoinSpillBuildAndReplay extends TestVHashJoinSpill {
   private final OptionManager options = testContext.getOptions();
 
@@ -36,6 +34,7 @@ public class TestVHashJoinSpillBuildAndReplay extends TestVHashJoinSpill {
     // If this option is set, the operator starts with a DiskPartition. This forces the code-path of spill write,
     // read and replay, thus testing the recursion & replay code.
     options.setOption(OptionValue.createString(OptionValue.OptionType.SYSTEM, HashJoinOperator.TEST_SPILL_MODE.getOptionName(), "buildAndReplay"));
+    options.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, HashJoinOperator.NUM_PARTITIONS.getOptionName(), 1));
   }
 
   @After
@@ -43,5 +42,6 @@ public class TestVHashJoinSpillBuildAndReplay extends TestVHashJoinSpill {
     options.setOption(HashJoinOperator.ENABLE_SPILL.getDefault());
     options.setOption(ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault());
     options.setOption(HashJoinOperator.TEST_SPILL_MODE.getDefault());
+    options.setOption(HashJoinOperator.NUM_PARTITIONS.getDefault());
   }
 }

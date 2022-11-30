@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.commons.lang3.tuple.Pair;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.service.autocomplete.OperatorTableFactory;
@@ -48,6 +49,7 @@ public final class FunctionFactoryTests {
   }
 
   @Test
+  @Ignore
   public void production() {
     List<String> names = OperatorTableFactory.createWithProductionFunctions(ImmutableList.of())
       .getOperatorList()

@@ -26,7 +26,7 @@ import com.dremio.exec.util.RoundUtil;
 public class ReusingPageSupplier implements PageSupplier, AutoCloseable {
   private final PagePool pool;
   private Page current;
-  int currentRemaining;
+  private int currentRemaining;
 
   public ReusingPageSupplier(PagePool pool) {
     this.pool = pool;

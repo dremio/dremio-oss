@@ -35,13 +35,13 @@ import com.dremio.jdbc.JdbcTestBase;
 import com.dremio.jdbc.SabotNodeRule;
 import com.dremio.test.TemporarySystemProperties;
 
-public class JdbcQuotingProperityTest extends JdbcTestBase {
+public class JdbcQuotingPropertyTest extends JdbcTestBase {
 
   @ClassRule
   public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
   private static final String VIEW_NAME =
-    JdbcQuotingProperityTest.class.getSimpleName() + "_View";
+    JdbcQuotingPropertyTest.class.getSimpleName() + "_View";
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();

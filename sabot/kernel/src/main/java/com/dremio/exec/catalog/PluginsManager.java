@@ -483,4 +483,9 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
     AutoCloseables.close(Iterables.concat(Collections.singleton(executor), plugins.values()));
   }
+
+  @VisibleForTesting
+  SabotContext getContext() {
+    return context;
+  }
 }

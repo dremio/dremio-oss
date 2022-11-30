@@ -16,10 +16,12 @@
 package com.dremio.dac.cmd;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
@@ -30,6 +32,7 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
+import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
@@ -50,8 +53,14 @@ import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.LocalJobsService.JobsStoreCreator;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore.KVProfileStoreCreator;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.space.proto.HomeConfig;
+import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -213,6 +222,7 @@ public class Clean {
       }
 
       if(options.deleteOrphans) {
+        deleteDatasetOrphans(provider.asLegacy());
         deleteSplitOrphans(provider.asLegacy());
         deleteCollaborationOrphans(provider.asLegacy());
       }
@@ -361,6 +371,38 @@ public class Clean {
   private static void deleteCollaborationOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting collaboration orphans... ");
     AdminLogger.log("Completed. Deleted {} orphans.", CollaborationHelper.pruneOrphans(provider));
+  }
+
+  @VisibleForTesting
+  protected static void deleteDatasetOrphans(LegacyKVStoreProvider provider) throws NamespaceException {
+    AdminLogger.log("Deleting dataset orphans... ");
+
+    int deleted = 0;
+    NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
+    Set<String> rootPaths = new HashSet<>();
+    List<SourceConfig> sourceConfigs = service.getSources();
+    for (SourceConfig s: sourceConfigs) {
+      rootPaths.add(s.getName());
+    }
+    List<SpaceConfig> spaceConfigs = service.getSpaces();
+    for (SpaceConfig s: spaceConfigs) {
+      rootPaths.add(s.getName());
+    }
+    List<HomeConfig> homeConfigs = service.getHomeSpaces();
+    for (HomeConfig h: homeConfigs) {
+      rootPaths.add(HomeName.getUserHomePath(h.getOwner()).getName());
+    }
+
+    List<DatasetConfig> datasets = service.getDatasets();
+    for (DatasetConfig d: datasets) {
+      List<String> fullPath = d.getFullPathList();
+      if (fullPath.size() > 1 && !rootPaths.contains(fullPath.get(0))) {
+        service.deleteEntity(new NamespaceKey(fullPath));
+        deleted++;
+      }
+    }
+
+    AdminLogger.log("Completed. Deleted {} orphans.", deleted);
   }
 
   private static void reindexData(LocalKVStoreProvider provider) throws Exception {

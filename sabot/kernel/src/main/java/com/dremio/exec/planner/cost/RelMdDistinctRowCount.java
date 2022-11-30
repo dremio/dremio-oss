@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.logical.FlattenRel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
@@ -133,6 +134,33 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
       return mq.getDistinctRowCount(rel.getInput(), groupKey, predicate);
     }
     return super.getDistinctRowCount(rel, mq, groupKey, predicate);
+  }
+
+  /**
+   * Computes distinct row count for a flatten rel node. If the given predicate contains any of the flatten field,
+   * and the statistics are enabled, we will just return estimate row count * selectivity of the predicate.
+   */
+  public Double getDistinctRowCount(FlattenRel flatten, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+    if (DremioRelMdUtil.isStatisticsEnabled(flatten.getCluster().getPlanner(), isNoOp)) {
+      if(containsFlattenField(ImmutableBitSet.of(flatten.getFlattenedIndices()), predicate)){
+        return flatten.estimateRowCount(mq) * RelMdUtil.guessSelectivity(predicate);
+      }else{
+        return mq.getDistinctRowCount(flatten.getInput(), groupKey, predicate);
+      }
+    }
+    return super.getDistinctRowCount(flatten, mq, groupKey, predicate);
+  }
+
+  /**
+   *
+   * @param indices: Flatten indices.
+   * @param predicate: predicate to check for flatten indices.
+   * @return true if the predicate contains any of the flatten indices.
+   */
+  private boolean containsFlattenField(ImmutableBitSet indices, RexNode predicate){
+    RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(predicate);
+    ImmutableBitSet filterBitSet = inputFinder.build();
+    return indices.intersects(filterBitSet);
   }
 
   public Double getDistinctRowCount(ValuesPrel rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {

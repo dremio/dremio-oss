@@ -27,6 +27,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunkListing;
@@ -66,7 +67,7 @@ public class TestCatalogUtil {
   }
 
   @Test
-  public void testSavePartitionChunks() {
+  public void testSavePartitionChunks() throws ConnectorException {
     final int numPartitionChunks = 10;
     final int numSplitsPerChunk = 20;
     long recordCountFromSplits = 0;

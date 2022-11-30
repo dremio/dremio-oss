@@ -327,7 +327,7 @@ SqlNode SqlCreateOrReplace() :
               policy = Policy();
           }
       ]
-      <AS>
+      <AS> { pos = pos.plus(getPos()); }
       query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
       {
           return new SqlCreateView(pos, viewName, fieldList, query, replace, policy);

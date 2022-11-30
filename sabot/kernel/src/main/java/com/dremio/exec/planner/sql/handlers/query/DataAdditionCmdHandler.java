@@ -184,6 +184,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         sqlCmd.getSortColumns(),
         sqlCmd.getDistributionColumns(),
         sqlCmd.getPartitionDistributionStrategy(config, partitionFieldNames, fieldNames),
+        sqlCmd.getLocation(),
         sqlCmd.isSingleWriter(),
         Long.MAX_VALUE,
         getIcebergWriterOperation(),

@@ -73,4 +73,10 @@ public class TimePrintMillis extends Time {
 
     return time.toString();
   }
+
+  @Override
+  public long getTime() {
+    final long baseTime = super.getTime();
+    return baseTime + millisOfSecond;
+  }
 }

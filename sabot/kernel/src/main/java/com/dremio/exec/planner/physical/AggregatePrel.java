@@ -194,7 +194,7 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
             Pair<Integer, Integer> mapping = new Pair<>(aggCall.e.getArgList().get(0), aggExprOrdinal);
             newColation = RelCollations.of(oldCollation.getFieldCollations().stream().map(collation -> {
               if (collation.getFieldIndex() != mapping.getKey()) {
-                throw new UnsupportedOperationException("Order by key in list_agg should match with its argument");
+                throw new UnsupportedOperationException("ORDER BY columns must be subset LISTAGG columns");
               }
               return collation.copy(mapping.getValue());
             }).collect(Collectors.toList()));

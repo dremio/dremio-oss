@@ -13,9 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.exec.catalog;
+package com.dremio.exec.planner.logical;
 
-import com.dremio.connector.metadata.GetDatasetOption;
-import com.dremio.connector.metadata.options.FlagMetadataOption;
+import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 
-public class AllowAutoPromote implements FlagMetadataOption, GetDatasetOption {}
+/**
+ * This version of ProjectFilterTranspose rule only pushes down column references
+ */
+public class ProjectInputRefPastFilterRule extends ProjectFilterTransposeRule {
+  public ProjectInputRefPastFilterRule() {
+    super(Config.DEFAULT.withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER)
+      .as(Config.class)
+      .withOperandFor(ProjectRel.class, FilterRel.class, JoinRel.class)
+      .withPreserveExprCondition(Conditions.PUSH_REX_INPUT_REF));
+
+  }
+}

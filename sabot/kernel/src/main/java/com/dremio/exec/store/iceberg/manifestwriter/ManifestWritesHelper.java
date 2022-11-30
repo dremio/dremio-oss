@@ -155,6 +155,7 @@ public class ManifestWritesHelper {
   }
 
   protected void addDataFile(DataFile dataFile) {
+    logger.trace("Adding data file: {}", dataFile.path());
     IcebergPartitionData ipd = IcebergPartitionData.fromStructLike(getPartitionSpec(writer.getOptions()), dataFile.partition());
     if (writer.getOptions().isReadSignatureSupport()) {
       partitionDataInCurrentManifest.add(ipd);

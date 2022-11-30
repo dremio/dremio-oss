@@ -73,7 +73,7 @@ public class TestRemoteKVStore<K, V> extends AbstractTestKVStore<K, V> {
     localKVStoreProvider =
       new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
         DirectProvider.wrap(localFabricService), allocator, HOSTNAME, tmpFolder.getRoot().toString(),
-        true, true);
+        true, true, false);
     localKVStoreProvider.start();
 
     remoteKVStoreProvider = new RemoteKVStoreProvider(

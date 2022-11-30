@@ -16,13 +16,11 @@
 
 package com.dremio.exec.store.deltalake;
 
-import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_COMMIT_INFO;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA_PARTITION_COLS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA_SCHEMA_STRING;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_PROTOCOL;
-import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_REMOVE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_TIMESTAMP;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_METRICS;
@@ -34,6 +32,10 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_OUTPUT_BYTES
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_OUTPUT_ROWS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_REMOVED_BYTES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_REMOVED_FILES;
+import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_TARGET_FILES_ADDED;
+import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_TARGET_FILES_REMOVED;
+import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_TARGET_ROWS_DELETED;
+import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_TARGET_ROWS_INSERTED;
 import static com.dremio.exec.store.deltalake.DeltaConstants.PROTOCOL_MIN_READER_VERSION;
 
 import java.io.BufferedReader;
@@ -42,7 +44,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -80,7 +81,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
 
     @Override
     public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributes, long version) throws IOException {
-      final Path commitFilePath = fileAttributes.get(0).getPath();
+        final Path commitFilePath = fileAttributes.get(0).getPath();
         try (final FSInputStream commitFileIs = fs.open(commitFilePath);
              final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
             /*
@@ -88,62 +89,31 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
              */
             DeltaLogSnapshot snapshot = new DeltaLogSnapshot();
             String nextLine;
-            boolean isOnlyMetadataChangeAction = false;
             boolean foundMetadata = false, foundCommitInfo = false;
             JsonNode metadataNode = null;
-          while (!(foundCommitInfo && foundMetadata) && (nextLine = bufferedReader.readLine())!=null) {
+            while (!(foundCommitInfo && foundMetadata) && (nextLine = bufferedReader.readLine())!=null) {
                 final JsonNode json = OBJECT_MAPPER.readTree(nextLine);
                 if (json.has(DELTA_FIELD_METADATA)) {
                     metadataNode = json.get(DELTA_FIELD_METADATA);
                     foundMetadata = true;
-                    isOnlyMetadataChangeAction = true;
                 } else if (json.has(DELTA_FIELD_PROTOCOL)) {
                     final int minReaderVersion = get(json, 1, JsonNode::intValue, DELTA_FIELD_PROTOCOL,
                             PROTOCOL_MIN_READER_VERSION);
                     Preconditions.checkState(minReaderVersion <= 1,
                             "Protocol version {} is incompatible for Dremio plugin", minReaderVersion);
-                } else if (json.has(DELTA_FIELD_REMOVE) || json.has(DELTA_FIELD_ADD)) {
-                    // No metadata change detected in this commit.
-                    isOnlyMetadataChangeAction = false;
-                }
-                else if(json.has(DELTA_FIELD_COMMIT_INFO)) {
+                } else if (json.has(DELTA_FIELD_COMMIT_INFO)) {
                     snapshot = OBJECT_MAPPER.readValue(nextLine, DeltaLogSnapshot.class);
                     foundCommitInfo = true;
                 }
             }
             if(metadataNode != null) {
-              populateSchema(snapshot, metadataNode);
+                populateSchema(snapshot, metadataNode);
             }
 
-            if (snapshot.isMissingRequiredValues()) {
-              logger.debug("{} has missing required values", commitFilePath);
-              // the snapshot is missing required values
-              // this is either a schema change operation; or also contains add/remove records
-              // if this is only a schema change operation, reset the missingRequiredValues flag on the snapshot
-              if (isOnlyMetadataChangeAction) {
-                logger.debug("{} is possibly a metadata only change", commitFilePath);
-                // this could be a schema change only operation
-                while ((nextLine = bufferedReader.readLine()) != null) {
-                  final JsonNode jsonNode = OBJECT_MAPPER.readTree(nextLine);
-                  if (jsonNode.has(DELTA_FIELD_ADD) || jsonNode.has(DELTA_FIELD_REMOVE)) {
-                    logger.debug("{} contains added/removed files, not a metadata only change", commitFilePath);
-                    isOnlyMetadataChangeAction = false;
-                    break;
-                  }
-                }
-              }
-            }
+            snapshot.setSplits(generateSplits(fileAttributes.get(0), snapshot.getDataFileEntryCount(), version));
 
-          snapshot.setSplits(generateSplits(fileAttributes.get(0), snapshot.getDataFileEntryCount(), version));
-
-          if (isOnlyMetadataChangeAction) {
-            snapshot.setMissingRequiredValues(false);
-          } else {
-            snapshot.finaliseMissingRequiredValues();
-          }
-
-          logger.debug("For file {}, snaspshot is {}", commitFilePath, snapshot.toString());
-          return snapshot;
+            logger.debug("For file {}, snaspshot is {}", commitFilePath, snapshot.toString());
+            return snapshot;
         }
     }
 
@@ -152,7 +122,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
         final String format = get(metadata, "parquet", JsonNode::asText, "format", "provider");
         Preconditions.checkState(format.equalsIgnoreCase("parquet"), "Non-parquet delta lake tables aren't supported.");
 
-      final List<String> partitionCols = new ArrayList<>();
+        final List<String> partitionCols = new ArrayList<>();
         // Fetch partitions
         final JsonNode partitionColsJson = metadata.get(DELTA_FIELD_METADATA_PARTITION_COLS);
         if (partitionColsJson!=null) {
@@ -182,39 +152,46 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
 
         @Override
         public DeltaLogSnapshot deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
-            final AtomicBoolean missingRequiredValues = new AtomicBoolean(false);
             final JsonNode fullCommitInfoJson = jp.getCodec().readTree(jp);
             final JsonNode commitInfo = fullCommitInfoJson.get(DELTA_FIELD_COMMIT_INFO);
             logger.debug("CommitInfoJson is {}", commitInfo);
             final Function<JsonNode, Long> asLong = JsonNode::asLong;
-            final String operationType = get(commitInfo, "UNKNOWN", JsonNode::asText, OP);
+            final String operationType = get(commitInfo, DeltaConstants.OPERATION_UNKNOWN, JsonNode::asText, OP);
 
-            final long numFiles = getRequired(commitInfo, missingRequiredValues, 0L, asLong, OP_METRICS, OP_NUM_FILES);
+            // CREATE, REPLACE, WRITE, and COPY INTO - report numFiles
+            // STREAMING UPDATE, DELETE, UPDATE, and TRUNCATE - report numAddedFiles and numRemovedFiles
+            // MERGE - reports numTargetFilesAdded and numTargetFilesRemoved
+            // individual metrics are reported for some operations, and are zero for other,
+            // thus all metrics could be safely aggregated in one expression
+            final long numFiles = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_FILES);
             final long numAddedFiles = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_ADDED_FILES);
             final long numRemovedFiles = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_REMOVED_FILES);
-            final long netFilesAdded = Math.max(numFiles, numAddedFiles) - numRemovedFiles;
-            final long totalFileEntries = Math.max(numFiles, numAddedFiles) + numRemovedFiles;
-            long netOutputRows = getRequired(commitInfo, missingRequiredValues, 0L, asLong, OP_METRICS, OP_NUM_OUTPUT_ROWS);
-            netOutputRows -= get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_DELETED_ROWS);
+            final long numTargetFilesAdded = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_TARGET_FILES_ADDED);
+            final long numTargetFilesRemoved = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_TARGET_FILES_REMOVED);
+            final long netFilesAdded = numFiles + numAddedFiles - numRemovedFiles + numTargetFilesAdded - numTargetFilesRemoved;
+            final long totalFileEntries = numFiles + numAddedFiles + numRemovedFiles + numTargetFilesAdded + numTargetFilesRemoved;
 
+            // CREATE, REPLACE, WRITE, COPY INTO, and STREAMING UPDATE - report numOutputRows
+            // DELETE - reports numDeletedRows
+            // MERGE - reports numTargetRowsInserted and numTargetRowsDeleted.
+            //         numOutputRows is also reported, but should be excluded for number of changed rows calculation
+            final long numOutputRows = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_OUTPUT_ROWS);
+            final long numDeletedRows = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_DELETED_ROWS);
+            final long numTargetRowsInserted = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_TARGET_ROWS_INSERTED);
+            final long numTargetRowsDeleted = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_TARGET_ROWS_DELETED);
+            final long netOutputRows = operationType.equalsIgnoreCase(DeltaConstants.OPERATION_MERGE)
+                                        ? (numTargetRowsInserted - numTargetRowsDeleted)
+                                        : (numOutputRows - numDeletedRows);
+
+            // CREATE, REPLACE, WRITE, COPY INTO, and STREAMING UPDATE - report numOutputBytes
+            // OPTIMIZE - reports numAddedBytes and numRemovedBytes
             final long numOutputBytes = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_OUTPUT_BYTES);
             final long numAddedBytes = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_ADDED_BYTES);
             final long numRemovedBytes = get(commitInfo, 0L, asLong, OP_METRICS, OP_NUM_REMOVED_BYTES);
-            final long netBytesAdded = Math.max(numOutputBytes, numAddedBytes) - numRemovedBytes;
+            final long netBytesAdded = numOutputBytes + numAddedBytes - numRemovedBytes;
 
             final long timestamp = get(commitInfo, 0L, asLong, DELTA_TIMESTAMP);
-            DeltaLogSnapshot result = new DeltaLogSnapshot(operationType, netFilesAdded, netBytesAdded, netOutputRows, totalFileEntries, timestamp, false);
-            result.setMissingRequiredValues(missingRequiredValues.get());
-            return result;
-        }
-
-        // get an required value
-        private <T> T getRequired(JsonNode node, AtomicBoolean missingRequiredValues, T defaultVal, Function<JsonNode, T> typeFunc, String... paths) {
-          node = findNode(node, paths);
-          if (node == null) {
-            missingRequiredValues.set(true);
-          }
-          return (node==null) ? defaultVal:typeFunc.apply(node);
+            return new DeltaLogSnapshot(operationType, netFilesAdded, netBytesAdded, netOutputRows, totalFileEntries, timestamp, false);
         }
     }
 

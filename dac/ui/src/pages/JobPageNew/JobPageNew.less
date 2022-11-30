@@ -20,6 +20,18 @@
     flex-direction: column;
   }
 
+  .content-wrapper {
+    // Preserve the dimensions by using a combination of positioning and opacity
+    // Firefox will not retain the scroll position when using display: none
+    height: 100%;
+    &.hasChildren {
+      opacity: 0;
+      position: absolute;
+      height: 100%;
+      width: 100%;
+    }
+  }
+
   .jobsPageBody {
     width: 100%;
     height: 100%;

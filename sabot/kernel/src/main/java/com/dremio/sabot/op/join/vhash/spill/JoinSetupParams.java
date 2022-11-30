@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.vhash.spill;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
@@ -26,10 +27,12 @@ import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
@@ -49,6 +52,7 @@ public final class JoinSetupParams implements AutoCloseable {
   public static final int TABLE_HASH_SIZE = 4;
 
   // common
+  private final OperatorContext context;
   private final OptionManager options;
   private final SabotConfig sabotConfig;
   // Allocator used for all internal allocations in the operator (has a limit)
@@ -111,11 +115,11 @@ public final class JoinSetupParams implements AutoCloseable {
   // list of replay entries for the operator. Each close of a DiskPartition appends an entry to the list.
   private final LinkedList<JoinReplayEntry> replayEntries = new LinkedList<>();
   private final boolean runtimeFilterEnabled;
+  private final LogicalExpression extraCondition;
+  private final Map<String, String> build2ProbeKeyMap;
+  private final OOBInfo oobInfo;
 
-  JoinSetupParams(OptionManager options,
-                  SabotConfig sabotConfig,
-                  BufferAllocator opAllocator,
-                  BufferAllocator outputAllocator,
+  JoinSetupParams(OperatorContext context,
                   FixedBlockVector pivotedFixedBlock,
                   VariableBlockVector pivotedVariableBlock,
                   JoinRelType joinType,
@@ -132,13 +136,17 @@ public final class JoinSetupParams implements AutoCloseable {
                   List<FieldVector> probeIncomingKeys,
                   List<FieldVector> probeOutputs,
                   ProbeBuffers probeBuffers,
+                  LogicalExpression extraCondition,
+                  Map<String, String> build2ProbeKeyMap,
                   SpillManager spillManager,
                   PagePool spillPagePool,
+                  OOBInfo oobInfo,
                   boolean runtimeFilterEnabled) {
-    this.options = options;
-    this.sabotConfig = sabotConfig;
-    this.opAllocator = opAllocator;
-    this.outputAllocator = outputAllocator;
+    this.context = context;
+    this.options = context.getOptions();
+    this.sabotConfig = context.getConfig();
+    this.opAllocator = context.getAllocator();
+    this.outputAllocator = context.getFragmentOutputAllocator();
     this.pivotedFixedBlock = pivotedFixedBlock;
     this.pivotedVariableBlock = pivotedVariableBlock;
     this.joinType = joinType;
@@ -155,8 +163,11 @@ public final class JoinSetupParams implements AutoCloseable {
     this.probeIncomingKeys = probeIncomingKeys;
     this.probeOutputs = probeOutputs;
     this.probeBuffers = probeBuffers;
+    this.extraCondition = extraCondition;
+    this.build2ProbeKeyMap = build2ProbeKeyMap;
     this.spillManager = spillManager;
     this.spillPagePool = spillPagePool;
+    this.oobInfo = oobInfo;
     this.runtimeFilterEnabled = runtimeFilterEnabled;
 
     SpillSerializable serializable = new SpillSerializableImpl();
@@ -278,6 +289,22 @@ public final class JoinSetupParams implements AutoCloseable {
 
   public SpillStats getSpillStats() {
     return spillStats;
+  }
+
+  public OperatorContext getContext() {
+    return context;
+  }
+
+  public LogicalExpression getExtraCondition() {
+    return extraCondition;
+  }
+
+  public Map<String, String> getBuild2ProbeKeyMap() {
+    return build2ProbeKeyMap;
+  }
+
+  public OOBInfo getOobInfo() {
+    return oobInfo;
   }
 
   public boolean isRuntimeFilterEnabled() {

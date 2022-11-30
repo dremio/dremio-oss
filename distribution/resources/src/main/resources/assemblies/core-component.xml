@@ -48,6 +48,7 @@
         <include>com.dremio.*:*-shade</include>
         <include>com.dremio.*:*-shaded</include>
         <include>com.dremio.jdbc:*</include>
+        <include>com.dremio.client:*</include>
       </includes>
     </dependencySet>
 

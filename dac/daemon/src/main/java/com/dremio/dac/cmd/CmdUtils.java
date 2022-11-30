@@ -17,6 +17,7 @@ package com.dremio.dac.cmd;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Optional;
 
 import javax.inject.Provider;
@@ -54,28 +55,39 @@ public final class CmdUtils {
 
   /**
    * returns store provider, if data exists. Null if there is no data.
+   *
    * @param dremioConfig
    * @param classPathScan
    * @param noDBOpenRetry
    * @return store provider
    */
-  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry, boolean noDBMessages) {
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan,
+    boolean noDBOpenRetry, boolean noDBMessages) {
+    return getKVStoreProvider(dremioConfig, classPathScan, noDBOpenRetry, noDBMessages, false);
+  }
+
+  /**
+   * Returns a KVStore provider with the provided support informed in the parameter list.
+   *
+   * @param dremioConfig
+   * @param classPathScan
+   * @param noDBOpenRetry
+   * @param noDBMessages
+   * @param readOnly
+   * @return KVStore provider
+   */
+  private static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan,
+    boolean noDBOpenRetry, boolean noDBMessages, boolean readOnly) {
     final String dbDir = dremioConfig.getString(DremioConfig.DB_PATH_STRING);
-    final File dbFile = new File(dbDir);
-
-    if (!dbFile.exists()) {
+    try {
+      validateDbDir(dbDir);
+    } catch (IOException e) {
       return Optional.empty();
     }
 
-    String[] listFiles = dbFile.list();
-    // An empty array means no file in the directory, so do not try to open it.
-    // A null value means dbFile is not a directory. Let the caller handle it.
-    if (listFiles != null && listFiles.length == 0) {
-      return Optional.empty();
-    }
-
-    return Optional.of(
-      new LocalKVStoreProvider(classPathScan, dbDir, false, true, noDBOpenRetry, noDBMessages));
+    LocalKVStoreProvider provider = new LocalKVStoreProvider(classPathScan, dbDir, false, true, noDBOpenRetry,
+      noDBMessages, readOnly);
+    return Optional.of(provider);
   }
 
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {
@@ -83,12 +95,27 @@ public final class CmdUtils {
   }
 
   /**
+   * Get the KV store provider using a different DB path. The path used into
+   * {@link DremioConfig} is ignored.
+   *
+   * @param dremioConfig
+   * @return
+   */
+  public static Optional<LocalKVStoreProvider> getReadOnlyKVStoreProvider(
+    DremioConfig dremioConfig) {
+    return getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()), true, false,
+      true);
+  }
+
+  /**
    * Returns an {@link OptionManager} provider that uses the provided {@link LocalKVStoreProvider}.
+   *
    * @param storeProvider
    * @param dremioConfig
-   * @return  {@link OptionManager} provider.
+   * @return {@link OptionManager} provider.
    */
-  public static Optional<Provider<OptionManager>> getOptionManager(LocalKVStoreProvider storeProvider, DremioConfig dremioConfig) {
+  public static Optional<Provider<OptionManager>> getOptionManager(LocalKVStoreProvider storeProvider,
+    DremioConfig dremioConfig) {
     final ScanResult scanResult = ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig());
     final LogicalPlanPersistence lpp = new LogicalPlanPersistence(dremioConfig.getSabotConfig(), scanResult);
     final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(scanResult);
@@ -115,4 +142,24 @@ public final class CmdUtils {
       .build();
     return Optional.of(() -> optionManagerWrapper);
   }
+
+  private static void validateDbDir(String dbDir) throws IOException {
+    final File dbFile = new File(dbDir);
+
+    if (!dbFile.exists()) {
+      throw new IOException(String.format("Path '%s' doesn't exist", dbDir));
+    }
+
+    if (!dbFile.isDirectory()) {
+      throw new IOException(String.format("Path '%s' is not a directory", dbDir));
+    }
+
+    String[] listFiles = dbFile.list();
+    // An empty array means no file in the directory, so do not try to open it.
+    // A null value means dbFile is not a directory. Let the caller handle it.
+    if (listFiles != null && listFiles.length == 0) {
+      throw new IOException(String.format("Path '%s' is an empty directory", dbDir));
+    }
+  }
+
 }

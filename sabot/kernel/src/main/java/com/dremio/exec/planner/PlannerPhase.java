@@ -99,6 +99,7 @@ import com.dremio.exec.planner.logical.MedianRewriteRule;
 import com.dremio.exec.planner.logical.MergeProjectForFlattenRule;
 import com.dremio.exec.planner.logical.MergeProjectRule;
 import com.dremio.exec.planner.logical.PercentileFunctionsRewriteRule;
+import com.dremio.exec.planner.logical.ProjectInputRefPastFilterRule;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.ProjectRule;
 import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
@@ -296,6 +297,13 @@ public enum PlannerPhase {
     }
   },
 
+  POST_SUBSTITUTION_TRANSITIVE("Post-substitution Transitive Filter Pushdown") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return PRE_LOGICAL_TRANSITIVE.getRules(context);
+    }
+  },
+
   /**
    * Initial phase of join planning
    */
@@ -342,6 +350,12 @@ public enum PlannerPhase {
         .add(JOIN_PUSH_EXPRESSIONS_LOGICAL_RULE)
         .add(MergeProjectRule.LOGICAL_INSTANCE)
         .add(PushJoinFilterIntoProjectRule.INSTANCE);
+
+      if (context.getPlannerSettings().isJoinPlanningProjectPushdownEnabled()) {
+        builder
+          .add(PUSH_PROJECT_INPUT_REF_PAST_FILTER_LOGICAL_INSTANCE)
+          .add(PUSH_PROJECT_INPUT_REF_PAST_JOIN_RULE);
+      }
 
       if (context.getPlannerSettings().isJoinBooleanRewriteEnabled()) {
         builder.add(JoinBooleanRewriteRule.INSTANCE);
@@ -576,6 +590,12 @@ public enum PlannerPhase {
       ExprCondition.TRUE,
       DremioRelFactories.LOGICAL_BUILDER);
 
+  public static final RelOptRule PUSH_PROJECT_INPUT_REF_PAST_JOIN_RULE = new ProjectJoinTransposeRule(
+    ProjectRel.class,
+    JoinRel.class,
+    Conditions.PUSH_REX_INPUT_REF,
+    DremioRelFactories.LOGICAL_BUILDER);
+
   public static final RelOptRule PUSH_PROJECT_PAST_JOIN_RULE_WITH_EXPR_JOIN = new ProjectJoinTransposeRule(
     ProjectRel.class,
     JoinRel.class,
@@ -753,6 +773,7 @@ public enum PlannerPhase {
     FilterRel.class,
     DremioRelFactories.LOGICAL_BUILDER, Conditions.PRESERVE_CASE_NESTED_FIELDS);
 
+  private static final RelOptRule PUSH_PROJECT_INPUT_REF_PAST_FILTER_LOGICAL_INSTANCE = new ProjectInputRefPastFilterRule();
 
   /**
    * Get the list of enabled reduce expression (logical) rules. These rules are enabled using session/system options.

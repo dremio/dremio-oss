@@ -42,7 +42,7 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
   private Iterator<String> tableNamesInCurrentDb;
 
   public HiveDatasetHandleListing(final HiveClient client, final String pluginName,
-                                  final boolean ignoreAuthzErrors) {
+                                  final boolean ignoreAuthzErrors) throws TException {
 
     this.client = client;
     this.ignoreAuthzErrors = ignoreAuthzErrors;
@@ -64,7 +64,11 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
     protected DatasetHandle computeNext() {
 
       if (!tableNamesInCurrentDb.hasNext()) {
-        advanceToNonEmptyDatabase();
+        try {
+          advanceToNonEmptyDatabase();
+        } catch (TException e) {
+          throw new RuntimeException(e);
+        }
 
         if (!dbNames.hasNext() && !tableNamesInCurrentDb.hasNext()) {
           logger.debug("Plugin '{}', database '{}' has no more tables.", pluginName, currentDbName);
@@ -90,7 +94,7 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
     }
   }
 
-  private void advanceToNonEmptyDatabase() {
+  private void advanceToNonEmptyDatabase() throws TException {
     do {
       if (dbNames.hasNext()) {
         currentDbName = dbNames.next();
@@ -101,21 +105,11 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
     } while (!tableNamesInCurrentDb.hasNext() && dbNames.hasNext());
   }
 
-  private Iterator<String> getDatabaseNames() {
-    try {
-      return client.getDatabases(ignoreAuthzErrors).iterator();
-    } catch (TException e) {
-      logger.warn("Plugin '{}', Unable to retrieve database names.", pluginName, e);
-      return Collections.emptyIterator();
-    }
+  private Iterator<String> getDatabaseNames() throws TException {
+    return client.getDatabases(ignoreAuthzErrors).iterator();
   }
 
-  private Iterator<String> getTableNames(String dbName) {
-    try {
-      return client.getTableNames(dbName, ignoreAuthzErrors).iterator();
-    } catch (TException e) {
-      logger.warn("Plugin '{}', database '{}', Unable to retrieve table names.", pluginName, dbName, e);
-      return Collections.emptyIterator();
-    }
+  private Iterator<String> getTableNames(String dbName) throws TException {
+    return client.getTableNames(dbName, ignoreAuthzErrors).iterator();
   }
 }

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.parser;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -41,7 +42,11 @@ public class CompoundIdentifier extends SqlIdentifier{
   }
 
   public CompoundIdentifier(List<IdentifierHolder> identifiers) {
-    super(getNames(identifiers), identifiers.get(0).parserPos);
+    super(
+      getNames(identifiers),
+      null,
+      SqlParserPos.sum(identifiers.stream().map(identifierHolder -> identifierHolder.parserPos).collect(Collectors.toList())),
+      identifiers.stream().map(identifierHolder -> identifierHolder.parserPos).collect(Collectors.toList()));
     this.ids = identifiers;
   }
 
@@ -131,7 +136,7 @@ public class CompoundIdentifier extends SqlIdentifier{
       names.add(holder.value);
       pos.add(holder.parserPos);
     }
-    return new SqlIdentifier(names, null, pos.get(0), pos);
+    return new SqlIdentifier(names, null, SqlParserPos.sum(pos), pos);
   }
 
   private static class IdentifierHolder{

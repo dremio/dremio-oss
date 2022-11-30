@@ -50,17 +50,6 @@ public class ${datetype}${intervaltype}Functions {
 <#macro dateIntervalArithmeticBlock left right temp op output intervaltype datetype errctx>
 
     <#-- Throw exception if we are adding integer to a TIMESTAMP -->
-    <#if (datetype == "TimeStampMilli") && (intervaltype == "Int" || intervaltype == "BigInt")>
-    if (1 == 1) {
-        /* Since this will be included in the run time generated code, there might be other logic that follows this
-         * if the exception is raised without a condition, we will hit compilation issues while compiling run time code
-         * with the error: unreachable code.
-         */
-        throw ${errctx}.error()
-          .message("Cannot add integer to TIMESTAMP, cast it to specific interval")
-          .build();
-    }
-    <#else>
     ${temp}.setMillis(${left}.value);
 
     <#if intervaltype == "Interval">
@@ -77,7 +66,6 @@ public class ${datetype}${intervaltype}Functions {
     </#if>
 
     ${output}.value = ${temp}.getMillis();
-    </#if>
 </#macro>
 
     @SuppressWarnings("unused")

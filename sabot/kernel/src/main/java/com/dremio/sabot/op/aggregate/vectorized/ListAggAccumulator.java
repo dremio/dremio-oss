@@ -178,7 +178,7 @@ public class ListAggAccumulator implements Accumulator {
     /* store the new vector and increment batches before allocating memory */
     FixedListVarcharVector vector = new FixedListVarcharVector(input.getField().getName(), computationVectorAllocator, maxValuesPerBatch,
       delimiter, maxListAggSize, distinct, orderby, asc,
-      accumStats, (getType() == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG), tempAccumulator);
+      accumStats, tempAccumulator);
 
     accumulators[batches++] = vector;
     resizeAttempted = true;
@@ -294,7 +294,7 @@ public class ListAggAccumulator implements Accumulator {
 
     for (int i = 0; i < recordsInBatches.length; i++) {
       final FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[startBatchIndex + i];
-      flv.compact(true);
+      flv.compact();
       usedByteCapacity += flv.getRequiredByteCapacity();
       numRecords += recordsInBatches[i];
     }
@@ -319,7 +319,7 @@ public class ListAggAccumulator implements Accumulator {
 
     for (int i = 0; i < recordsInBatches.length; i++) {
       final FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[startBatchIndex + i];
-      flv.compact(true);
+      flv.compact();
       usedByteCapacity += flv.getUsedByteCapacity();
       numRecords += recordsInBatches[i];
     }
@@ -437,7 +437,7 @@ public class ListAggAccumulator implements Accumulator {
     Preconditions.checkArgument(batchIndex < batches, String.format("Batch index must be less than %d", batches));
 
     final FixedListVarcharVector flv = (FixedListVarcharVector)accumulators[batchIndex];
-    flv.compact(true, nextRecSize);
+    flv.compact(nextRecSize);
   }
 
   @Override

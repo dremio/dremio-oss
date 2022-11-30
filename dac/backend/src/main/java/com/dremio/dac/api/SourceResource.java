@@ -193,7 +193,6 @@ public class SourceResource {
       // we can't use isInternal as its not a static method, instead we only show listable sources
       if (isListable(input)) {
         String sourceType = input.getAnnotation(SourceType.class).value();
-        // Hive is listed by default, but hidden in DCS currently
         if (!showHive && "HIVE".equals(sourceType)) {
           continue;
         }

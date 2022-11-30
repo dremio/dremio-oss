@@ -124,7 +124,6 @@ public class DeltaMetadataFetchJob implements Supplier {
     DeltaLogReader reader = DeltaLogReader.getInstance(type);
     DeltaLogSnapshot snapshot =  reader.parseMetadata(rootFolder, context, fs, fileAttrsList, version);
     snapshot.setVersionId(version);
-    snapshot.setFileAttrs(fileAttrsList.get(0));
     return snapshot;
   }
 

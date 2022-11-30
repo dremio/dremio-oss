@@ -130,6 +130,7 @@ public final class NamespaceTestUtils {
     final DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setName(datasetPath.getName());
     datasetConfig.setType(type);
+    datasetConfig.setFullPathList(datasetPath.getPathComponents());
 
     final PhysicalDataset physicalDataset = new PhysicalDataset();
     if (datasetSchema != null) {

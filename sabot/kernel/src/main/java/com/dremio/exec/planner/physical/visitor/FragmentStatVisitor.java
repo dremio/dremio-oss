@@ -25,6 +25,7 @@ import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.google.common.collect.Lists;
 
 /**
@@ -55,8 +56,17 @@ public abstract class FragmentStatVisitor extends BasePrelVisitor<Prel, Fragment
     return prel;
   }
 
+  public Prel visitTableFunctionDataScan(TableFunctionPrel prel, MajorFragmentStat s) throws RuntimeException {
+    s.addTableFunctionDataScan(prel);
+    RelNode child = ((Prel)prel.getInput()).accept(this, s);
+    return (Prel) prel.copy(prel.getTraitSet(), Collections.singletonList(child));
+  }
+
   @Override
   public Prel visitPrel(Prel prel, MajorFragmentStat s) throws RuntimeException {
+    if (prel instanceof TableFunctionPrel && ((TableFunctionPrel) prel).isDataScan()) {
+      return visitTableFunctionDataScan((TableFunctionPrel) prel, s);
+    }
     List<RelNode> children = Lists.newArrayList();
     s.add(prel);
 
@@ -115,6 +125,13 @@ public abstract class FragmentStatVisitor extends BasePrelVisitor<Prel, Fragment
       maxWidth = Math.min(maxWidth, prel.getMaxParallelizationWidth());
       isMultiSubScan = prel.getMinParallelizationWidth() > 1;
       distributionAffinity = prel.getDistributionAffinity();
+      add(prel);
+    }
+
+    public void addTableFunctionDataScan(TableFunctionPrel prel) {
+      int suggestedWidth = (int) Math.ceil(prel.getCluster().getMetadataQuery().getRowCount(prel) / targetSliceSize);
+      maxWidth = Math.min(maxWidth, suggestedWidth);
+      isMultiSubScan = suggestedWidth > 1;
       add(prel);
     }
 

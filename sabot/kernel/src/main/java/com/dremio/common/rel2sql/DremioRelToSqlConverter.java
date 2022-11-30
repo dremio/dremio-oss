@@ -552,7 +552,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       selects.add(
         new SqlSelect(POS, SqlNodeList.EMPTY,
           new SqlNodeList(selectList, POS), fromNode, null, null,
-          null, null, null, null, null, null));
+          null, null, null, null, null, null, null));
     }
     SqlNode query = null;
     for (SqlSelect select : selects) {
@@ -1331,7 +1331,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       }
 
       return new SqlSelect(POS, SqlNodeList.EMPTY, getSelectNodes(node), node, null, null, null,
-        SqlNodeList.EMPTY, pushUpOrderList, null, null, null);
+        SqlNodeList.EMPTY, null, pushUpOrderList,null, null, null);
     }
 
     protected SqlNodeList getSelectNodes(SqlNode node) {

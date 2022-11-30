@@ -22,7 +22,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.iceberg.PartitionSpec;
 
@@ -117,7 +116,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     } catch (Exception ex) {
       cleanUpFromCatalogAndMetaStore(key);
       throw UserException.validationError(ex)
-        .message("Error while trying to create table [%s]", key)
+        .message(ex.getMessage())
         .buildSilently();
     }
   }
@@ -156,8 +155,6 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     DataAdditionCmdHandler.validateCreateTableLocation(this.catalog, key, sqlCreateEmptyTable);
 
     final long ringCount = optionManager.getOption(PlannerSettings.RING_COUNT);
-    final String tableLocation = (SqlCharStringLiteral) sqlCreateEmptyTable.getLocation() != null ?
-      ((SqlCharStringLiteral) sqlCreateEmptyTable.getLocation()).toValue() : null;
 
     List<SqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
 
@@ -178,7 +175,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       sqlCreateEmptyTable.getSortColumns(),
       sqlCreateEmptyTable.getDistributionColumns(),
       sqlCreateEmptyTable.getPartitionDistributionStrategy(config, null, null),
-      tableLocation,
+      sqlCreateEmptyTable.getLocation(),
       sqlCreateEmptyTable.isSingleWriter(),
       Long.MAX_VALUE,
       WriterOptions.IcebergWriterOperation.CREATE,
@@ -219,6 +216,9 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
         .buildSilently();
     }
 
+    // validate if source supports providing table location
+    DataAdditionCmdHandler.validateCreateTableLocation(this.catalog, key, sqlCreateEmptyTable);
+
     final long ringCount = optionManager.getOption(PlannerSettings.RING_COUNT);
 
     final String sourceName = key.getRoot();
@@ -231,6 +231,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       sqlCreateEmptyTable.getSortColumns(),
       sqlCreateEmptyTable.getDistributionColumns(),
       sqlCreateEmptyTable.getPartitionDistributionStrategy(config, null, null),
+      sqlCreateEmptyTable.getLocation(),
       sqlCreateEmptyTable.isSingleWriter(),
       Long.MAX_VALUE,
       WriterOptions.IcebergWriterOperation.CREATE,

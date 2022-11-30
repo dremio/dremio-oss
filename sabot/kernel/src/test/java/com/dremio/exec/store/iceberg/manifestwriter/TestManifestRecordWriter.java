@@ -53,7 +53,6 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.avro.file.DataFileConstants;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
@@ -88,7 +87,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public class TestManifestRecordWriter extends BaseTestQuery {
-  private static final long QUARTER_MB = 262144;
+  private static final long MANIFEST_TARGET_SIZE = 16384;
 
   @Test
   public void testWriterWithOneBatch() throws Exception {
@@ -155,7 +154,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
   }
 
   @Test
-  public void testWriterWithMultipleBatchExtedingLimit() throws Exception {
+  public void testWriterWithMultipleBatchExceedingLimit() throws Exception {
     VectorContainer incomingVector = null;
     String tempFolderLoc = null;
     try {
@@ -180,7 +179,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
         partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
-      for (int i = 0; i < 60; i++) {
+      for (int i = 0; i < 3; i++) {
         manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
       }
       manifestFileRecordWriter.close();
@@ -206,7 +205,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       assertEquals(1, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
-          return (new File(dir, name)).length() >= QUARTER_MB - DataFileConstants.DEFAULT_SYNC_INTERVAL;
+          return (new File(dir, name)).length() >= MANIFEST_TARGET_SIZE;
         }
       })).length);
     } finally {
@@ -242,7 +241,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
         partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
-      for (int i = 0; i < 60; i++) {
+      for (int i = 0; i < 3; i++) {
         manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
       }
       manifestFileRecordWriter.close();
@@ -384,7 +383,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
           @Override
           public boolean hasReachedMaxLen() {
-            return length() + DataFileConstants.DEFAULT_SYNC_INTERVAL >= QUARTER_MB;
+            return length() >= MANIFEST_TARGET_SIZE;
           }
         };
       }

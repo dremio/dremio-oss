@@ -33,7 +33,7 @@ import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
 import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.connector.metadata.options.TimeTravelOption.TimeTravelRequest;
-import com.dremio.exec.catalog.AllowAutoPromote;
+import com.dremio.exec.catalog.AutoPromoteOption;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.SortColumnsOption;
@@ -275,8 +275,8 @@ public class DatasetRetrievalOptions {
     for(MetadataOption o : options) {
       if(o instanceof IgnoreAuthzErrors) {
         b = b.setIgnoreAuthzErrors(true);
-      }else if(o instanceof AllowAutoPromote) {
-        b.setAutoPromote(true);
+      }else if(o instanceof AutoPromoteOption) {
+        b.setAutoPromote(((AutoPromoteOption) o).getAutoPromote());
       } else if(o instanceof MaxLeafFieldCount) {
         b.setMaxMetadataLeafColumns(((MaxLeafFieldCount) o).getValue());
       } else if(o instanceof MaxNestedFieldLevels) {
@@ -317,8 +317,12 @@ public class DatasetRetrievalOptions {
 
   public GetDatasetOption[] asGetDatasetOptions(DatasetConfig datasetConfig) {
     List<GetDatasetOption> options = new ArrayList<>();
-    if (autoPromote()) {
-      options.add(new AllowAutoPromote());
+    // If users toggle to set autoPromote option in UI, no matter enabling it or not, adopt user's preference.
+    // If such option is not present, take the fallback's option.
+    if (autoPromote.isPresent()) {
+      options.add(new AutoPromoteOption(autoPromote.get()));
+    } else {
+      options.add(new AutoPromoteOption(fallback.autoPromote()));
     }
 
     if (ignoreAuthzErrors()) {

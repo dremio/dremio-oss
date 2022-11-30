@@ -57,6 +57,11 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> implements Closeable {
   final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
+  public static final int SO_BUF_SZ;
+
+  static {
+    SO_BUF_SZ = Integer.parseInt(System.getProperty("dremio.socket.buffer.size", "4194304"));
+  }
   protected static final String PROTOCOL_ENCODER = "protocol-encoder";
   protected static final String HANDSHAKE_HANDLER = "handshake-handler";
   protected static final String MESSAGE_HANDLER = "message-handler";

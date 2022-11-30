@@ -86,7 +86,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DremioIndexByName;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.PartitionStatsMetadataReader;
+import org.apache.iceberg.PartitionStatsFileLocations;
+import org.apache.iceberg.PartitionStatsMetadataUtil;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.exceptions.NotFoundException;
@@ -366,17 +367,28 @@ public class IcebergUtils {
     }
 
   public static String getPartitionStatsFile(String rootPointer, long snapshotId, Configuration conf, MutablePlugin plugin) {
-    String partitionStatsMetadata = PartitionStatsMetadataReader.toFilename(snapshotId);
-    Map<Integer, String> partitionStatsFileBySpecId;
+    String partitionStatsMetadata = PartitionStatsMetadataUtil.toFilename(snapshotId);
     try {
       String fullPath = resolvePath(rootPointer, partitionStatsMetadata);
-      partitionStatsFileBySpecId = PartitionStatsMetadataReader.read(new DremioFileIO(conf, plugin), fullPath);
+      PartitionStatsFileLocations partitionStatsLocations = PartitionStatsMetadataUtil.readMetadata(new DremioFileIO(conf, plugin), fullPath);
+      if (partitionStatsLocations == null) {
+        logger.debug("Partition stats metadata file: {} not found", partitionStatsMetadata);
+        return null;
+      }
+      Map<Integer, String> partitionStatsFileBySpecId = partitionStatsLocations.all();
+      if (partitionStatsFileBySpecId.isEmpty()) {
+        logger.debug("Partition stats metadata file: {} was empty", partitionStatsMetadata);
+        return null;
+      }
+      if (partitionStatsFileBySpecId.size() > 1) {
+        logger.warn("Partition stats metadata file: {} has multiple entries", partitionStatsMetadata);
+      }
+      // In the absence of partition spec evolution, we'll have just one partition spec file
+      return partitionStatsFileBySpecId.values().iterator().next();
     } catch (NotFoundException | UncheckedIOException exception) {
       logger.debug("Partition stats metadata file: {} not found", partitionStatsMetadata);
       return null;
     }
-    // In the absence of partition spec evolution, we'll have just one partition spec file
-    return partitionStatsFileBySpecId.size() > 0 ? partitionStatsFileBySpecId.values().iterator().next() : null;
   }
 
   @VisibleForTesting
@@ -901,6 +913,7 @@ public class IcebergUtils {
       Collections.emptyList(),
       config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)
         ? PartitionDistributionStrategy.HASH : PartitionDistributionStrategy.UNSPECIFIED,
+      null,
       false,
       Long.MAX_VALUE,
       getIcebergWriterOperation(sqlKind),

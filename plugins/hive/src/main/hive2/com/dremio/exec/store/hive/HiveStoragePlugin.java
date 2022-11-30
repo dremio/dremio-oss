@@ -111,6 +111,7 @@ import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -1078,6 +1079,10 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         if (fs.exists(cachedEntityPath)) {
           final FileStatus fileStatus = fs.getFileStatus(cachedEntityPath);
           if (cachedEntity.getLastModificationTime() < fileStatus.getModificationTime()) {
+            logger.debug(
+              "Read signature validation - partition has been modified: {}: " +
+                " cached last modification time = {}, actual modified time = {}",
+              cachedEntityPath, cachedEntity.getLastModificationTime(), fileStatus.getModificationTime());
             return true;
           }
           else if (MetadataRefreshUtils.unlimitedSplitsSupportEnabled(optionManager) && optionManager.getOption(ExecConstants.HIVE_SIGNATURE_CHANGE_RECURSIVE_LISTING)
@@ -1086,11 +1091,18 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
             while (statuses.hasNext()) {
               LocatedFileStatus attributes = statuses.next();
               if (cachedEntity.getLastModificationTime() < attributes.getModificationTime()) {
+                logger.debug(
+                  "Read signature validation - partition has been modified: {}: " +
+                    " cached last modification time = {}, actual modified time = {}",
+                  attributes.getPath(), cachedEntity.getLastModificationTime(), attributes.getModificationTime());
                 return true;
               }
             }
           }
         } else {
+          logger.debug(
+            "Read signature validation - partition has been modified: {}: directory does not exist",
+            cachedEntityPath);
           return true;
         }
       }
@@ -1107,30 +1119,43 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     Table table = client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
 
     if (table == null) { // missing table?
+      logger.debug("{}: metadata INVALID - table not found", datasetPath);
       return MetadataValidity.INVALID;
     }
 
     if (readSignature.getType() == HiveReadSignatureType.VERSION_BASED) {
       if (readSignature.getRootPointer() == null) {
+        logger.debug("{}: metadata INVALID - read signature root pointer is null", datasetPath);
         return MetadataValidity.INVALID;
       }
       if (!readSignature.getRootPointer().getPath().equals(table.getParameters().get(HiveMetadataUtils.METADATA_LOCATION))) {
+        logger.debug("{}: metadata INVALID - read signature root pointer has changed, cached: {}, actual: {}",
+          datasetPath, readSignature.getRootPointer().getPath(),
+          table.getParameters().get(HiveMetadataUtils.METADATA_LOCATION));
         return MetadataValidity.INVALID;
       }
       // if the root pointer hasn't changed, no need to check for anything else and return Valid.
       return MetadataValidity.VALID;
     }
 
-    if (HiveMetadataUtils.getHash(table,
-        HiveDatasetOptions.enforceVarcharWidth(HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(tableXattr.getDatasetOptionMap())), hiveConf)
-        != tableXattr.getTableHash()) {
+    int tableHash = HiveMetadataUtils.getHash(table,
+      HiveDatasetOptions.enforceVarcharWidth(
+        HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(tableXattr.getDatasetOptionMap())), hiveConf);
+    if (tableHash != tableXattr.getTableHash()) {
+      logger.debug("{}: metadata INVALID - table hash has changed, cached: {}, actual: {}", datasetPath,
+        tableXattr.getTableHash(), tableHash);
       return MetadataValidity.INVALID;
     }
+
     boolean includeComplexTypes = optionManager.getOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED);
     boolean isMapTypeEnabled = optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
-    int hiveTableHash = HiveMetadataUtils.getBatchSchema(table, hiveConf, includeComplexTypes, isMapTypeEnabled).hashCode();
-    if (hiveTableHash != tableSchema.hashCode()) {
+    // cached schema may have $_dremio_update_$ column added, this should not be considered during schema comparisons
+    BatchSchema tableSchemaWithoutInternalCols = tableSchema.dropField(IncrementalUpdateUtils.UPDATE_COLUMN);
+    BatchSchema hiveSchema = HiveMetadataUtils.getBatchSchema(table, hiveConf, includeComplexTypes, isMapTypeEnabled);
+    if (!hiveSchema.equalsTypesWithoutPositions(tableSchemaWithoutInternalCols)) {
       // refresh metadata if converted schema is not same as schema in kvstore
+      logger.debug("{}: metadata INVALID - schema has changed, cached: {}, actual: {}", datasetPath,
+        tableSchemaWithoutInternalCols, hiveSchema);
       return MetadataValidity.INVALID;
     }
 
@@ -1151,6 +1176,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         return MetadataValidity.VALID;
       } else {
         // found new partitions
+        logger.debug("{}: metadata INVALID - found new partitions", datasetPath);
         return MetadataValidity.INVALID;
       }
     }
@@ -1158,6 +1184,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     Collections.sort(partitionHashes);
     // There were partitions in last read signature.
     if (tableXattr.getPartitionHash() != Objects.hash(partitionHashes)) {
+      logger.debug("{}: metadata INVALID - found new or updated partitions", datasetPath);
       return MetadataValidity.INVALID;
     }
 
@@ -1169,6 +1196,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
     if (null == metadata || null == metadata.getExtraInfo() || BytesOutput.NONE == metadata.getExtraInfo() ||
       null == signature || BytesOutput.NONE == signature) {
+      logger.debug("{}: metadata INVALID - metadata and/or signature is null/missing", datasetHandle.getDatasetPath().toString());
       return MetadataValidity.INVALID;
     } else {
       try {
@@ -1211,6 +1239,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
                 for (Boolean hasChanged : validations) {
                   if (hasChanged) {
+                    logger.debug("{}: metadata INVALID - read signature has changed",
+                      datasetHandle.getDatasetPath().toString());
                     return MetadataValidity.INVALID;
                   }
                 }
@@ -1330,7 +1360,11 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) throws ConnectorException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
 
-    return new HiveDatasetHandleListing(client, this.getName(), HiveMetadataUtils.isIgnoreAuthzErrors(options));
+    try {
+      return new HiveDatasetHandleListing(client, this.getName(), HiveMetadataUtils.isIgnoreAuthzErrors(options));
+    } catch (TException e) {
+      throw new ConnectorException(String.format("Error listing dataset handles for source %s", this.getName()), e);
+    }
   }
 
   @Override

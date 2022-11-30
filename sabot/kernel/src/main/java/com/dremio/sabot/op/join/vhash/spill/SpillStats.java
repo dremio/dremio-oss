@@ -38,6 +38,7 @@ public class SpillStats {
   private long readProbeBatches;
   private long readProbeBatchesMerged;
   private long readNanos;
+  private int oobSends;
 
   public long getSpillCount() {
     return spillCount;
@@ -45,6 +46,14 @@ public class SpillStats {
 
   public void incrementSpillCount() {
     spillCount++;
+  }
+
+  public void incrementOOBSends(){
+    oobSends++;
+  }
+
+  public int getOOBSends(){
+    return oobSends;
   }
 
   public long getReplayCount() {

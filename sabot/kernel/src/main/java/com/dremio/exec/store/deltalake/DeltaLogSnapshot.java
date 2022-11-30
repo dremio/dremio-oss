@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Objects;
 
 import com.dremio.connector.metadata.DatasetSplit;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.io.file.FileAttributes;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -31,7 +29,7 @@ import com.google.common.annotations.VisibleForTesting;
  */
 public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
     private String operationType;
-    private String schema;
+    private String schema = null;
     private long netFilesAdded; // could be negative
     private long netBytesAdded; // could be negative
     private long netOutputRows; // could be negative
@@ -39,10 +37,8 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
     private long timestamp;
     private long versionId = -1;
     private boolean isCheckpoint = false;
-    private FileAttributes fileAttrs;
     private List<String> partitionColumns = Collections.emptyList();
     private List<DatasetSplit> splits = Collections.emptyList();
-    private boolean missingRequiredValues = false;
 
     public DeltaLogSnapshot(String operationType,
                             long netFilesAdded,
@@ -61,30 +57,12 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
     }
 
     public DeltaLogSnapshot() {
-      this("UNKNOWN", 0, 0, 0, 0, 0, false);
-      this.missingRequiredValues = false;
+      this(DeltaConstants.OPERATION_UNKNOWN, 0, 0, 0, 0, 0, false);
     }
 
     public void setSchema(String schema, List<String> partitionColumns) {
         this.schema = schema;
         this.partitionColumns = partitionColumns;
-    }
-
-    public boolean isMissingRequiredValues() {
-      return missingRequiredValues;
-    }
-
-    public void setMissingRequiredValues(boolean missingRequiredValues) {
-      this.missingRequiredValues = missingRequiredValues;
-    }
-
-    public void finaliseMissingRequiredValues() {
-      if (this.netOutputRows == 0) {
-        this.netOutputRows = DremioCost.LARGE_ROW_COUNT;
-      }
-      if (this.netFilesAdded == 0) {
-        this.netFilesAdded = DremioCost.LARGE_FILE_COUNT;
-      }
     }
 
     public String getOperationType() {
@@ -127,10 +105,6 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
       this.versionId = versionId;
     }
 
-    public void setFileAttrs(FileAttributes fileAttrs) {
-      this.fileAttrs = fileAttrs;
-    }
-
     public boolean containsCheckpoint() {
         return isCheckpoint;
     }
@@ -148,16 +122,25 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
         if (that == null) {
             return;
         }
-        this.operationType = "COMBINED";
+        this.operationType = DeltaConstants.OPERATION_COMBINED;
         this.netFilesAdded += that.netFilesAdded;
         this.netOutputRows += that.netOutputRows;
-        if (this.isMissingRequiredValues() || that.isMissingRequiredValues()) {
-          this.netFilesAdded = Math.min(this.netFilesAdded, DremioCost.LARGE_FILE_COUNT);
-          this.netOutputRows = Math.min(this.netOutputRows, DremioCost.LARGE_ROW_COUNT);
-          setMissingRequiredValues(true);
-        }
         this.netBytesAdded += that.netBytesAdded;
         this.totalFileEntries += that.totalFileEntries;
+        if ((that.operationType.equalsIgnoreCase(DeltaConstants.OPERATION_TRUNCATE) ||
+            that.operationType.equalsIgnoreCase(DeltaConstants.OPERATION_DELETE)) && this.netFilesAdded == 0) {
+            // when TRUNCATE and DELETE remove all files, reset row and bytes metrics as well
+            this.netOutputRows = 0;
+            this.netBytesAdded = 0;
+            this.totalFileEntries = 0;
+        }
+        if (DeltaConstants.CREATE_OPERATIONS.contains(that.operationType.toUpperCase())) {
+            // transaction log contains metrics for newly created table
+            this.netFilesAdded = that.netFilesAdded;
+            this.netOutputRows = that.netOutputRows;
+            this.netBytesAdded = that.netBytesAdded;
+            this.totalFileEntries = that.totalFileEntries;
+        }
         this.isCheckpoint = this.isCheckpoint || that.isCheckpoint;
         if (this.schema != null && that.schema != null && !this.partitionColumns.equals(that.partitionColumns)) {
             throw new IllegalStateException("Different partitions detected across the commits." +
@@ -177,9 +160,9 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
           this.netOutputRows, this.totalFileEntries, this.timestamp, this.isCheckpoint);
         clone.setSchema(this.schema, this.partitionColumns);
         clone.setVersionId(this.versionId);
-        clone.setMissingRequiredValues(this.isMissingRequiredValues());
         return clone;
     }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -189,6 +172,7 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
+
         DeltaLogSnapshot snapshot = (DeltaLogSnapshot) o;
         return netFilesAdded == snapshot.netFilesAdded &&
                 netBytesAdded == snapshot.netBytesAdded &&
@@ -197,7 +181,6 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
                 timestamp == snapshot.timestamp &&
                 versionId == snapshot.versionId &&
                 isCheckpoint == snapshot.isCheckpoint &&
-                missingRequiredValues == snapshot.missingRequiredValues &&
                 operationType.equals(snapshot.operationType) &&
                 Objects.equals(schema, snapshot.schema) &&
                 Objects.equals(partitionColumns, snapshot.partitionColumns);
@@ -205,14 +188,14 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(operationType, schema, netFilesAdded, netBytesAdded, netOutputRows, timestamp, versionId, partitionColumns, isCheckpoint, missingRequiredValues);
+        return Objects.hash(operationType, schema, netFilesAdded, netBytesAdded, netOutputRows, timestamp, versionId, partitionColumns, isCheckpoint);
     }
 
     @Override
     public String toString() {
         return "DeltaLogSnapshot{" +
                 "operationType='" + operationType + '\'' +
-                ", schema='" + schema + '\'' +
+                ", schema='" + (schema != null ? schema : "") + '\'' +
                 ", netFilesAdded=" + netFilesAdded +
                 ", netBytesAdded=" + netBytesAdded +
                 ", netOutputRows=" + netOutputRows +
@@ -220,7 +203,6 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
                 ", timestamp=" + timestamp +
                 ", versionId=" + versionId +
                 ", containsCheckpoint=" + containsCheckpoint() +
-                ", missingRequiredValues=" + isMissingRequiredValues() +
                 ", partitionColumns=" + partitionColumns +
                 '}';
     }

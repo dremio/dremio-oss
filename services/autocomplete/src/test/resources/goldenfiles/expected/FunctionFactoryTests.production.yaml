@@ -442,6 +442,13 @@
     signatures:
      - "(ANY...) -> BIGINT"
  -
+  description: "ARRAY_CONTAINS"
+  input: "ARRAY_CONTAINS"
+  output:
+    name: "ARRAY_CONTAINS"
+    signatures:
+     - "(ANY, ANY) -> BOOLEAN"
+ -
   description: "ASCII"
   input: "ASCII"
   output:

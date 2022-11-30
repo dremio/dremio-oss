@@ -72,9 +72,9 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
 
   private static final boolean DEBUG = VM.areAssertsEnabled();
 
-  public MultiPartition(JoinSetupParams setupParams, CopierFactory copierFactory) {
+  public MultiPartition(JoinSetupParams setupParams) {
     this.setupParams = setupParams;
-    this.copierFactory = copierFactory;
+    this.copierFactory = CopierFactory.getInstance(setupParams.getSabotConfig(), setupParams.getOptions());
 
     numPartitions = (int) setupParams.getOptions().getOption(HashJoinOperator.NUM_PARTITIONS);
     partitionMask = numPartitions - 1;
@@ -470,6 +470,27 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     hasher.reseed();
     // bump the generation, used for naming spill files
     setupParams.bumpGeneration();
+
+    int numInMemoryPartitions = 0;
+    int inMemTotalHashTableSize = 0;
+    int preSpillBuildTotalHashTableSize = 0;
+
+    for (PartitionWrapper p : childWrappers) {
+      if (p.getPartition() instanceof CanSwitchToSpilling) {
+        inMemTotalHashTableSize += p.getPartition().hashTableSize();
+        numInMemoryPartitions++;
+      } else {
+        preSpillBuildTotalHashTableSize += p.getPartition().hashTableSize();
+      }
+    }
+    /*
+     * DX-55636 : If no in-memory hashtable entries exist in any of the in-memory partitions and preSpill hashtable
+     * size is 1 (single entry) for DiskPartition, this will never converge.
+     *
+     * numInMemPartitions check here only exist to satisfy some unit tests...
+     */
+    Preconditions.checkState(numInMemoryPartitions == 0 || inMemTotalHashTableSize != 0 || preSpillBuildTotalHashTableSize != 1,
+      "All in memory entries belong to same group. Replay never converge. Failing the query");
 
     // recreate the partitions in descending order of memory.
     List<PartitionWrapper> sortedWrappers = Arrays.asList(childWrappers);

@@ -71,4 +71,12 @@ public interface DataAdditionCmdCall {
    * @return Query part of CTAS or INSERT command
    */
   SqlNode getQuery();
+
+  /**
+   *
+   * @return
+   */
+  default String getLocation() {
+    return null;
+  }
 }

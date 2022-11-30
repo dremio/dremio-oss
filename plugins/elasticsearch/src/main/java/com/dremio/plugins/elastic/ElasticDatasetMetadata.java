@@ -116,7 +116,7 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
 
     this.datasetMetadata = DatasetMetadata.of(
       DatasetStats.of(partitionChunkListing.getRowCount(), false, ScanCostFactor.ELASTIC.getFactor()),
-      mergeSampleSchemaResult.getSchema(),
+      mergeSampleSchemaResult.getSchema().removeNullFields(),
       Collections.emptyList(),
       Collections.emptyList(),
       os -> extended.writeTo(os)

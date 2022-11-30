@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.deltalake;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * DeltaLake specific keywords and conventions
  */
@@ -80,6 +83,24 @@ public final class DeltaConstants {
     public static final String OP_NUM_ADDED_BYTES = "numAddedBytes";
     public static final String OP_NUM_REMOVED_BYTES = "numRemovedBytes";
     public static final String OP_NUM_DELETED_ROWS = "numDeletedRows";
+    public static final String OP_NUM_TARGET_FILES_ADDED = "numTargetFilesAdded";
+    public static final String OP_NUM_TARGET_FILES_REMOVED = "numTargetFilesRemoved";
+    public static final String OP_NUM_TARGET_ROWS_INSERTED = "numTargetRowsInserted";
+    public static final String OP_NUM_TARGET_ROWS_DELETED = "numTargetRowsDeleted";
+
+    public static final String OPERATION_UNKNOWN = "UNKNOWN";
+    public static final String OPERATION_COMBINED = "COMBINED";
+    public static final String OPERATION_TRUNCATE = "TRUNCATE";
+    public static final String OPERATION_MERGE = "MERGE";
+    public static final String OPERATION_DELETE = "DELETE";
+    public static final String OPERATION_WRITE = "WRITE";
+    public static final String OPERATION_ADD_COLUMNS = "ADD COLUMNS";
+    public static final String OPERATION_OPTIMIZE = "OPTIMIZE";
+    public static final String OPERATION_CREATE_TABLE = "CREATE TABLE";
+    public static final String OPERATION_CREATE_TABLE_AS_SELECT = "CREATE TABLE AS SELECT";
+    public static final String OPERATION_CREATE_OR_REPLACE_TABLE = "CREATE OR REPLACE TABLE";
+    public static final String OPERATION_CREATE_OR_REPLACE_TABLE_AS_SELECT = "CREATE OR REPLACE TABLE AS SELECT";
+    public static final List<String> CREATE_OPERATIONS = Arrays.asList(OPERATION_CREATE_TABLE, OPERATION_CREATE_TABLE_AS_SELECT, OPERATION_CREATE_OR_REPLACE_TABLE, OPERATION_CREATE_OR_REPLACE_TABLE_AS_SELECT);
 
     public static final String PROTOCOL_MIN_READER_VERSION = "minReaderVersion";
 

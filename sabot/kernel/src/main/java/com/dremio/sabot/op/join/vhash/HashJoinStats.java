@@ -78,7 +78,13 @@ public class HashJoinStats {
     SPILL_RD_PROBE_BATCHES, /* total replayed batches, from probe side */
     SPILL_RD_PROBE_BATCHES_MERGED, /* total replayed batches, from probe side , after merge */
     SPILL_WR_NANOS, /* time spent in spill write */
-    SPILL_RD_NANOS; /* time spent in spill read */
+    SPILL_RD_NANOS, /* time spent in spill read */
+    OOB_SENDS, /* number of oob messages sent*/
+    OOB_DROP_UNDER_THRESHOLD, /* number of oob messages ignored because of being under threshold */
+    OOB_DROP_NO_VICTIM, /* number of oob messages dropped because a victim partition wasn't found */
+    OOB_DROP_LOCAL, /* number of self sent oob messages ignored */
+    OOB_DROP_WRONG_STATE, /* number of oob messages dropped because it was not in build phase */
+    OOB_SPILL; /* number of spills performed */
 
     @Override
     public int metricId() {

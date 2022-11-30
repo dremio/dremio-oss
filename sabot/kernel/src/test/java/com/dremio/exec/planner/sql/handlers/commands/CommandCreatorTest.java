@@ -112,7 +112,7 @@ public class CommandCreatorTest {
     setSessionUser1();
     setReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, QUERY, null, null);
+    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
     final PrepareToExecution expectedCommand = new PrepareToExecution(preparedPlan, attemptObserver);
@@ -135,7 +135,7 @@ public class CommandCreatorTest {
     setSessionUser1();
     setNotReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, QUERY, null, null);
+    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
     final PrepareToExecution expectedCommand = new PrepareToExecution(preparedPlan, attemptObserver);
@@ -158,7 +158,7 @@ public class CommandCreatorTest {
     setSessionUser1();
     setReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, QUERY, null, null);
+    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
     final PrepareToExecution expectedCommand = new PrepareToExecution(preparedPlan, attemptObserver);
@@ -180,7 +180,7 @@ public class CommandCreatorTest {
     setSessionUser2();
     setReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, QUERY, null, null);
+    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
     final CommandCreator commandCreator = spy(buildCommandCreator(0));
@@ -197,7 +197,7 @@ public class CommandCreatorTest {
     setSessionUser2();
     setNotReusePreparedHandles();
 
-    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, QUERY, null, null);
+    final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, false, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
     final CommandCreator commandCreator = spy(buildCommandCreator(0));

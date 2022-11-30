@@ -96,7 +96,13 @@
           output="out.value" breakTarget="outside" nullCompare=true nullComparesHigh=nullComparesHigh />
 
     <#if mode == "primitive">
+      <#if leftType == "NullableFloat4">
+      ${output} = Float.compare(left.value, right.value);
+      <#elseif leftType == "NullableFloat8">
+      ${output} = Double.compare(left.value, right.value);
+      <#else>
       ${output} = left.value < right.value ? -1 : (left.value == right.value ? 0 : 1);
+      </#if>
     <#elseif mode == "varString">
       ${output} = org.apache.arrow.memory.util.ByteFunctionHelpers.compare(
           left.buffer, left.start, left.end, right.buffer, right.start, right.end );

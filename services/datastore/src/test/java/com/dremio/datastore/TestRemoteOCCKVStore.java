@@ -64,7 +64,7 @@ public class TestRemoteOCCKVStore<K, V> extends AbstractTestOCCKVStore<K, V> {
     remoteFabricService.start();
 
     localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
-        DirectProvider.<FabricService>wrap(localFabricService), allocator, HOSTNAME, null, true, true);
+      DirectProvider.<FabricService>wrap(localFabricService), allocator, HOSTNAME, null, true, true, false);
     localKVStoreProvider.start();
     remoteKVStoreProvider = new RemoteKVStoreProvider(
       DremioTest.CLASSPATH_SCAN_RESULT,

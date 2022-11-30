@@ -28,6 +28,7 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.EntityPath;
@@ -106,7 +107,7 @@ public class SampleSourceMetadataTest {
   }
 
   @Test
-  public void testListDatasetHandles() {
+  public void testListDatasetHandles() throws ConnectorException {
     GetDatasetOption option = mock(GetDatasetOption.class);
 
     List<String> listA = Arrays.asList("a", "b");
@@ -142,7 +143,7 @@ public class SampleSourceMetadataTest {
   }
 
   @Test
-  public void testAddAPartitionChunk() {
+  public void testAddAPartitionChunk() throws ConnectorException {
     GetDatasetOption option = mock(GetDatasetOption.class);
 
     EntityPath pathA = new EntityPath(Arrays.asList("a", "b"));
@@ -162,7 +163,7 @@ public class SampleSourceMetadataTest {
   }
 
   @Test
-  public void testAddNPartitionChunks() {
+  public void testAddNPartitionChunks() throws ConnectorException {
     GetDatasetOption option = mock(GetDatasetOption.class);
 
     EntityPath pathA = new EntityPath(Arrays.asList("a", "b"));
@@ -269,7 +270,7 @@ public class SampleSourceMetadataTest {
   }
 
   @Test
-  public void testAddingDataset() {
+  public void testAddingDataset() throws ConnectorException {
     metadataConnector.addNDatasets(1, 1, 1);
 
 
@@ -277,7 +278,7 @@ public class SampleSourceMetadataTest {
   }
 
   @Test
-  public void testAddingDatasetWithChunksAndSplits() {
+  public void testAddingDatasetWithChunksAndSplits() throws ConnectorException {
     metadataConnector.addNDatasets(1, 1, 1);
 
     assertEquals(metadataConnector.getAllDatasetHandles(null).size(), 1);

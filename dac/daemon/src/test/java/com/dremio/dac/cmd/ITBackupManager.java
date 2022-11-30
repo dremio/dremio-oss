@@ -95,13 +95,13 @@ import com.google.common.io.Files;
  * Test backup and restore.
  */
 @RunWith(Parameterized.class)
-public class TestBackupManager extends BaseTestServer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestBackupManager.class);
+public class ITBackupManager extends BaseTestServer {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ITBackupManager.class);
 
   @ClassRule
   public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-  private static DACConfig dacConfig =  DACConfig
+  private static DACConfig dacConfig = DACConfig
     .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
     .autoPort(true)
     .allowTestApis(true)
@@ -146,7 +146,8 @@ public class TestBackupManager extends BaseTestServer {
   }
 
   private final String mode;
-  public TestBackupManager(String mode) {
+
+  public ITBackupManager(String mode) {
     this.mode = mode;
   }
 
@@ -159,7 +160,7 @@ public class TestBackupManager extends BaseTestServer {
   public void testBackup() throws Exception {
     boolean binary = "binary".equals(mode);
     int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
-    DACConfig dacConfig = TestBackupManager.dacConfig.httpPort(httpPort);
+    DACConfig dacConfig = ITBackupManager.dacConfig.httpPort(httpPort);
     Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
 
     LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
@@ -168,7 +169,8 @@ public class TestBackupManager extends BaseTestServer {
     // take backup 1
     CheckPoint cp1 = checkPoint();
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false), localKVStoreProvider, homeFileStore).getBackupPath());
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false),
+      localKVStoreProvider, homeFileStore, null).getBackupPath());
 
     // add dataset, delete dataset, upload file
     getPopulator().putDS("DG", "dsg11", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
@@ -294,17 +296,52 @@ public class TestBackupManager extends BaseTestServer {
     backupRestoreTestHelper("dsg12", "dsg13", "select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age");
   }
 
+  @Test
+  public void testBackupRestoreOnCli() throws Exception {
+    boolean binary = "binary".equals(mode);
+    int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
+    DACConfig dacConfig = ITBackupManager.dacConfig.httpPort(httpPort);
+    final Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
+
+    String username = DEFAULT_USERNAME;
+    String password = DEFAULT_PASSWORD;
+    File backupDir = TEMP_FOLDER.newFolder();
+    String[] args;
+    if (binary) {
+      args = new String[] { "-u", username, "-p", password, "-d", backupDir.getAbsolutePath(), "-s" };
+    } else {
+      args = new String[] { "-u", username, "-p", password, "-d", backupDir.getAbsolutePath(), "-s", "-j" };
+    }
+
+    // Create an initial checkpoint with the current populated data
+    final CheckPoint cpBeforeBackup = checkPoint();
+
+    Backup.BackupResult backupResult = Backup.doMain(args, dacConfig);
+    assertEquals("backup must finish with exit code 0", 0, backupResult.getExitStatus());
+
+    //Restore
+    getCurrentDremioDaemon().close();
+    fs.delete(dbDir, true);
+    fs.mkdirs(dbDir);
+    BackupRestoreUtil.restore(fs, Path.of(backupResult.getBackupStats().get().getBackupPath()), dacConfig);
+    startDaemon(dacConfig);
+
+    final CheckPoint cpAfterRestore = checkPoint();
+    cpAfterRestore.checkEquals(cpBeforeBackup);
+  }
 
   private void backupRestoreTestHelper(String dsName1, String dsName2, String sql) throws Exception {
     boolean binary = "binary".equals(mode);
     Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
     LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
-    HomeFileConf homeFileStore = ((CatalogServiceImpl) l(CatalogService.class)).getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
+    HomeFileConf homeFileStore =
+      ((CatalogServiceImpl) l(CatalogService.class)).getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
 
     final String tempPath = TEMP_FOLDER.getRoot().getAbsolutePath();
 
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false), localKVStoreProvider, homeFileStore).getBackupPath());
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false),
+      localKVStoreProvider, homeFileStore, null).getBackupPath());
 
     // Do some things
     getPopulator().putDS("DG", dsName1, new FromSQL(sql).wrap());

@@ -68,7 +68,7 @@ export class JobsContent extends PureComponent {
     loadItemsForFilter: PropTypes.func,
     loadNextJobs: PropTypes.func,
     changePages: PropTypes.func,
-    showSideNavAndTopNav: PropTypes.bool,
+    showSideNav: PropTypes.bool,
     specificDisplayedColumns: PropTypes.array,
     handleTabChange: PropTypes.func,
     renderButtons: PropTypes.func,
@@ -368,7 +368,7 @@ export class JobsContent extends PureComponent {
       loadNextJobs,
       intl,
       dataFromUserFilter,
-      showSideNavAndTopNav = true,
+      showSideNav = true,
       jobsColumns,
       isFromExplorePage,
     } = this.props;
@@ -395,9 +395,9 @@ export class JobsContent extends PureComponent {
       <div style={{ height: "100%" }}>
         <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
         <div className={"jobsPageBody"}>
-          {showSideNavAndTopNav && <SonarSideNav />}
+          {showSideNav && <SonarSideNav />}
           <div className={"jobPageContentDiv"}>
-            {showSideNavAndTopNav && <NavCrumbs />}
+            {!isFromExplorePage && <NavCrumbs />}
             <div
               className={classNames(
                 "jobs-content",
@@ -406,7 +406,7 @@ export class JobsContent extends PureComponent {
               )}
               style={{ ...styles.base, ...resizeStyle }}
             >
-              {showSideNavAndTopNav && (
+              {!isFromExplorePage && (
                 <JobsFilters
                   queryState={queryState}
                   onUpdateQueryState={onUpdateQueryState}

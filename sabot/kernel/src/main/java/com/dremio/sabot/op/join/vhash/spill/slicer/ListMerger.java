@@ -48,8 +48,7 @@ public class ListMerger implements Merger {
    * Arrow vector layout types including fixed size list vector documented at -
    * https://arrow.apache.org/docs/format/Columnar.html
    *
-   * JIRA ticket for this change -
-   * https://dremio.atlassian.net/browse/DX-54668
+   * JIRA ticket for this change - DX-54668
    */
   ListMerger(ListVector vector, final int wrapperIdx, final BufferAllocator allocator) {
     this.wrapperIdx = wrapperIdx;

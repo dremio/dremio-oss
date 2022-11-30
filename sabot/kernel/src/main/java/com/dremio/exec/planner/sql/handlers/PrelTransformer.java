@@ -553,7 +553,11 @@ public class PrelTransformer {
       final AccelerationAwareSubstitutionProvider substitutions = config.getConverter().getSubstitutionProvider();
       substitutions.setObserver(config.getObserver());
       substitutions.setEnabled(phase.useMaterializations);
-      substitutions.setPostSubstitutionTransformer(getPostSubstitutionTransformer(config));
+      substitutions.setCurrentPlan(input);
+      substitutions.setPostSubstitutionTransformers(
+        ImmutableList.of(
+          getPostSubstitutionTransformer(config, PlannerPhase.POST_SUBSTITUTION),
+          getPostSubstitutionTransformer(config, PlannerPhase.POST_SUBSTITUTION_TRANSITIVE)));
 
       planner = volcanoPlanner;
       toPlan = () -> {
@@ -573,11 +577,11 @@ public class PrelTransformer {
     return doTransform(config, plannerType, phase, planner, input, log, toPlan);
   }
 
-  public static RelTransformer getPostSubstitutionTransformer(SqlHandlerConfig config) {
+  public static RelTransformer getPostSubstitutionTransformer(SqlHandlerConfig config, PlannerPhase phase) {
     return relNode -> {
       final HepProgramBuilder builder = HepProgram.builder();
       builder.addMatchOrder(HepMatchOrder.ARBITRARY);
-      builder.addRuleCollection(Lists.newArrayList(config.getRules(PlannerPhase.POST_SUBSTITUTION)));
+      builder.addRuleCollection(Lists.newArrayList(config.getRules(phase)));
 
       final HepProgram p = builder.build();
 
@@ -828,7 +832,21 @@ public class PrelTransformer {
     phyRelNode = Limit0Converter.eliminateEmptyTrees(config, phyRelNode);
 
     /*
-     * 7.6.) Expand UnionAlls with multiple inputs
+     * 7.6.)
+     * Encode columns using dictionary encoding during scans and insert lookup before consuming dictionary ids.
+     */
+    if (plannerSettings.isGlobalDictionariesEnabled()) {
+      phyRelNode = GlobalDictionaryVisitor.useGlobalDictionaries(phyRelNode);
+    }
+
+    /* 7.7)
+     * If a node is replaced by an EmptyPrel, certain operators coming after that node will be
+     * empty like project or joins. Propagate the EmptyPrel and prune them here.
+     */
+    phyRelNode = EmptyPrelPropagator.propagateEmptyPrel(config, phyRelNode);
+
+    /*
+     * 7.8.) Expand UnionAlls with multiple inputs
      */
     if (plannerSettings.isUnionAllDistributeEnabled()) {
       phyRelNode = UnionAllExpander.expandUnionAlls(
@@ -836,20 +854,6 @@ public class PrelTransformer {
         config,
         plannerSettings.getSliceTarget());
     }
-
-    /*
-     * 7.7.)
-     * Encode columns using dictionary encoding during scans and insert lookup before consuming dictionary ids.
-     */
-    if (plannerSettings.isGlobalDictionariesEnabled()) {
-      phyRelNode = GlobalDictionaryVisitor.useGlobalDictionaries(phyRelNode);
-    }
-
-    /* 7.8)
-     * If a node is replaced by an EmptyPrel, certain operators coming after that node will be
-     * empty like project or joins. Propagate the EmptyPrel and prune them here.
-     */
-    phyRelNode = EmptyPrelPropagator.propagateEmptyPrel(config, phyRelNode);
 
     /* 8.)
      * Next, we add any required selection vector removers given the supported encodings of each
@@ -901,10 +905,9 @@ public class PrelTransformer {
   public static PhysicalOperator convertToPop(SqlHandlerConfig config, Prel prel) throws IOException {
     PhysicalPlanCreator creator = new PhysicalPlanCreator(config.getContext(), PrelSequencer.getIdMap(prel));
     PhysicalOperator op = prel.getPhysicalOperator(creator);
-    /*
-     * Catch unresolvable "is_member()" function in plan and set the flag in query context
-     * indicating that groups info needs to be available on executor.
-     */
+
+    // Catch unresolvable "is_member()" function in plan and set the flag in query context
+    // indicating that groups info needs to be available at executor.
     if (PrelUtil.containsCall(prel, "IS_MEMBER")) {
       config.getContext().setQueryRequiresGroupsInfo(true);
     }
@@ -950,7 +953,10 @@ public class PrelTransformer {
       boolean expand,
       RelTransformer relTransformer) {
     final Stopwatch stopwatch = Stopwatch.createStarted();
-    config.getConverter().getSubstitutionProvider().setPostSubstitutionTransformer(getPostSubstitutionTransformer(config));
+    config.getConverter().getSubstitutionProvider().setPostSubstitutionTransformers(
+      ImmutableList.of(
+        getPostSubstitutionTransformer(config, PlannerPhase.POST_SUBSTITUTION),
+        getPostSubstitutionTransformer(config, PlannerPhase.POST_SUBSTITUTION_TRANSITIVE)));
     config.getConverter().getSubstitutionProvider().setObserver(config.getObserver());
 
     final RelRootPlus convertible = sqlValidatorAndToRelContext.toConvertibleRelRoot(validatedNode, expand, true);

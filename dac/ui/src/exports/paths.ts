@@ -117,7 +117,7 @@ export const datasets = (params: SonarProjectIdParam) => "/" as const;
 export const sonarProjects = () => `${sonarBase}` as const;
 
 export const job = (params: { jobId: string }) =>
-  `/job/${params.jobId}` as const;
+  `/jobs/job/${params.jobId}` as const;
 
 export const jobsNew = () => `/jobs-new` as const;
 export const newQuery = () => `/new_query` as const;

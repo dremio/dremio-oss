@@ -19,9 +19,14 @@ import java.util.Collections;
 import java.util.Iterator;
 
 /**
- * Empty listing of {@link DatasetHandle dataset handles}.
+ * "Null object" listing of {@link DatasetHandle dataset handles} when the source does not support listing datasets.
  */
-public class EmptyDatasetHandleListing implements DatasetHandleListing {
+public final class UnsupportedDatasetHandleListing implements DatasetHandleListing {
+  public static final UnsupportedDatasetHandleListing INSTANCE = new UnsupportedDatasetHandleListing();
+
+  private UnsupportedDatasetHandleListing() {
+  }
+
   @Override
   public Iterator<DatasetHandle> iterator() {
     return Collections.emptyIterator();

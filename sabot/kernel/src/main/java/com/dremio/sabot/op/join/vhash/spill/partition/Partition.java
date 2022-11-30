@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.vhash.spill.partition;
 
 import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
 import com.dremio.sabot.op.join.vhash.PartitionColFilters;
+import com.google.common.base.Preconditions;
 
 /**
  * Partition of a hash-join.
@@ -94,6 +95,11 @@ public interface Partition extends AutoCloseable {
    * @return stats.
    */
   Stats getStats();
+
+  default int hashTableSize() {
+    Preconditions.checkState(false);
+    return 0;
+  }
 
   /**
    * Reset the partition.
