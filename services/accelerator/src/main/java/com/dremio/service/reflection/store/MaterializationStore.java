@@ -39,6 +39,8 @@ import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
+import org.apache.calcite.util.Pair;
+
 import com.dremio.common.types.MinorType;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
@@ -135,17 +137,19 @@ public class MaterializationStore {
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
-  public MaterializationMetrics getMetrics(final Materialization materialization) {
+  public Pair<MaterializationMetrics, Long> getMetrics(final Materialization materialization) {
     MaterializationMetrics metrics = new MaterializationMetrics();
     long footprint = 0;
     double originalCost = 0;
+    long outputRecords = 0;
     for(Refresh r : getRefreshes(materialization)) {
       footprint += r.getMetrics().getFootprint();
       originalCost += r.getMetrics().getOriginalCost();
+      outputRecords += r.getJob().getOutputRecords();
     }
     metrics.setOriginalCost(originalCost);
     metrics.setFootprint(footprint);
-    return metrics;
+    return Pair.of(metrics, outputRecords);
   }
 
   public Refresh getMostRecentRefresh(ReflectionId id) {

@@ -35,6 +35,12 @@ import com.dremio.service.autocomplete.parsing.ValidatingParser;
 import com.dremio.service.autocomplete.statements.grammar.TableReference;
 import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.dremio.service.functions.model.Function;
+import com.dremio.service.functions.model.FunctionSignature;
+import com.dremio.service.functions.model.Parameter;
+import com.dremio.service.functions.model.ParameterType;
+import com.dremio.service.functions.model.ParameterTypeHierarchy;
+import com.dremio.service.functions.model.SqlTypeNameToParameterType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -87,7 +93,8 @@ public final class ParameterResolver {
 
   public static ParameterResolver create(
     final SqlOperatorTable operatorTable,
-    final SimpleCatalog<?> catalog) {
+    final SimpleCatalog<?> catalog,
+    boolean generateSignatures) {
     final DremioCatalogReader catalogReader = new DremioCatalogReader(
       catalog,
       JavaTypeFactoryImpl.INSTANCE);
@@ -103,7 +110,8 @@ public final class ParameterResolver {
 
     FunctionDictionary functionDictionary = FunctionDictionary.create(
       operatorTable,
-      catalog);
+      catalog,
+      generateSignatures);
 
     ParameterTypeExtractor parameterTypeExtractor = new ParameterTypeExtractor(
       validatorAndScope.getSqlValidator(),
@@ -119,7 +127,8 @@ public final class ParameterResolver {
     AutocompleteEngineContext context) {
     return create(
       context.getOperatorTable(),
-      context.getCatalog());
+      context.getCatalog(),
+      false);
   }
 
   private Optional<FunctionInformation> getFunctionInformation(ImmutableList<DremioToken> tokens) {

@@ -45,6 +45,7 @@ import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.common.util.Retryer;
@@ -340,6 +341,54 @@ public class TestAzureAsyncContainerProvider {
 
     List<String> expectedContainers = Arrays.asList("page1container1", "page1container2", "page1container3", "page2container1", "page2container2", "page2container3");
     assertEquals(expectedContainers, receivedContainers);
+  }
+
+  @Test
+  public void testOAuthURLValidation() {
+    List<String> emptyOauthURLs = Arrays.asList(null, "");
+    List<String> validOauthURLs = Arrays.asList(
+      "https://login.microsoftonline.com/tenantid/oauth2/token",
+      "https://www.microsoftonline.com/tenantid/oauth2/token");
+    List<String> invalidOauthURLs = Arrays.asList(
+      "http:///",
+      "https:///",
+      "https://login.microsoftonline.com/",
+      "https://login.microsoftonline.com/tenantid",
+      "https://login.microsoftonline.com/tenantid/",
+      "https://login.microsoftonline.com/tenantid/oauth2",
+      "https://login.microsoftonline.com/tenantid/oauth2.0/token",
+      "http://login.microsoftonline.com/tenantid/oauth2/token",
+      "https://login.microsoftonline.com/tenantid/oauth2/tokens");
+    int emptyOauthURLsCount = 0;
+    int validOauthURLsCount = 0;
+    int invalidOauthURLsCount = 0;
+    for(String url : emptyOauthURLs) {
+      try {
+        AzureOAuthTokenProvider.validateOAuthURL(url);
+      } catch (Exception exception) {
+        emptyOauthURLsCount++;
+        Assert.assertEquals(exception.getMessage(), "OAuth 2.0 Token Endpoint cannot be empty.");
+      }
+    }
+    for(String url : validOauthURLs) {
+      try {
+        AzureOAuthTokenProvider.validateOAuthURL(url);
+        validOauthURLsCount++;
+      } catch (Exception ignore) {
+        System.out.println(ignore);
+      }
+    }
+    for(String url : invalidOauthURLs) {
+      try {
+        AzureOAuthTokenProvider.validateOAuthURL(url);
+      } catch (Exception exception) {
+        invalidOauthURLsCount++;
+        Assert.assertEquals(exception.getMessage(), "Invalid OAuth 2.0 Token Endpoint. Expected format is https://<host>/<tenantId>/oauth2/token");
+      }
+    }
+    Assert.assertEquals(emptyOauthURLsCount, emptyOauthURLs.size());
+    Assert.assertEquals(validOauthURLsCount, validOauthURLs.size());
+    Assert.assertEquals(invalidOauthURLsCount, invalidOauthURLs.size());
   }
 
   private byte[] readStaticResponse(String fileName) throws IOException {

@@ -1,0 +1,49 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns a hash value of the arguments. `HASH` does not return `NULL`,
+  even for `NULL` inputs.
+functionCategories:
+- CONVERSION
+name: HASH
+signatures:
+- description: null
+  parameters:
+  - description: Can be a general expression of any Dremio-supported data type.
+    kind: REGULAR
+    name: expression
+    type: ANY
+  returnType: NUMERIC
+  sampleCodes:
+  - call: 'SELECT HASH(host_id)
+
+      FROM "Samples"."samples.dremio.com"."Dremio University"."airbnb_listings.csv"
+
+      LIMIT 5
+
+      '
+    result: '1110609030
+
+      -- 1283762365
+
+      -- -1745730253
+
+      -- 0
+
+      -- 0
+
+      '

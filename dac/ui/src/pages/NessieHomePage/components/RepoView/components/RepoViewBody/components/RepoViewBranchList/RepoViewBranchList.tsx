@@ -49,6 +49,7 @@ type RepoViewBranchTableProps = {
   setReference: typeof setReference;
   isArcticSource: boolean;
   defaultReference?: Reference;
+  noSearchResults?: boolean;
 };
 
 function RepoViewBranchList({
@@ -63,6 +64,7 @@ function RepoViewBranchList({
   isDefault,
   isArcticSource,
   setReference: dispatchSetReference,
+  noSearchResults,
 }: RepoViewBranchTableProps & WithRouterProps) {
   const showEmptyState = rows.length < 1;
   const { allRefsStatus: status, allRefsErr: err } =
@@ -139,7 +141,7 @@ function RepoViewBranchList({
                     >
                       <dremio-icon name="vcs/commit" />
                       <CommitHash
-                        branch={cur.name}
+                        branch={cur}
                         hash={cur.hash}
                         enableCopy={false}
                       />
@@ -174,7 +176,11 @@ function RepoViewBranchList({
                   </span>
                   <span className="branch-list-item-divider"></span>
                   <span onClick={(e) => stopPropagation(e)}>
-                    {convertISOStringWithTooltip(cur)}
+                    {convertISOStringWithTooltip(
+                      cur.metadata?.commitMetaOfHEAD?.authorTime?.toString?.() ??
+                        "",
+                      { isRelative: true }
+                    )}
                   </span>
                 </div>
               )}
@@ -200,21 +206,27 @@ function RepoViewBranchList({
     );
   };
 
-  const renderCallToAction = (): JSX.Element => (
-    <EmptyStateContainer
-      title="ArcticCatalog.Branches.NoneYet"
-      icon="vcs/create-branch"
-    >
-      {defaultReference && (
-        <span
-          className="branch-list-empty-state-trigger"
-          onClick={() => openCreateDialog(defaultReference)}
-        >
-          <FormattedMessage id="ArcticCatalog.Branches.CreateBranch.EmptyState" />
-        </span>
-      )}
-    </EmptyStateContainer>
-  );
+  const renderCallToAction = (): JSX.Element =>
+    noSearchResults ? (
+      <EmptyStateContainer
+        title="Common.NoResults"
+        className="branch-list-no-results"
+      />
+    ) : (
+      <EmptyStateContainer
+        title="ArcticCatalog.Branches.NoneYet"
+        icon="vcs/create-branch"
+      >
+        {defaultReference && (
+          <span
+            className="branch-list-empty-state-trigger"
+            onClick={() => openCreateDialog(defaultReference)}
+          >
+            <FormattedMessage id="ArcticCatalog.Branches.CreateBranch.EmptyState" />
+          </span>
+        )}
+      </EmptyStateContainer>
+    );
 
   return (
     <div className="branch-list">
@@ -232,7 +244,7 @@ function RepoViewBranchList({
             <List
               rowRenderer={showEmptyState ? renderCallToAction : renderRow}
               rowCount={showEmptyState ? 1 : rows.length}
-              rowHeight={showEmptyState ? 177 : 82}
+              rowHeight={showEmptyState && !noSearchResults ? height : 82}
               height={height}
               width={1}
             />

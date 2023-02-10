@@ -22,6 +22,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -134,7 +135,7 @@ public class HiveORCCopiers {
                                           final ValueVector[] output,
                                           final VectorizedRowBatch input,
                                           boolean isOriginal,
-                                          HiveOperatorContextOptions operatorContextOptions) {
+                                          HiveOperatorContextOptions operatorContextOptions, Map<ColumnVector, String> vectorToNameMap) {
     final int numColumns = output.length;
     final ORCCopier[] copiers = new ORCCopier[numColumns];
     final ColumnVector[] cols = isOriginal ? input.cols : ((StructColumnVector) input.cols[HiveORCVectorizedReader.TRANS_ROW_COLUMN_INDEX]).fields;
@@ -144,7 +145,7 @@ public class HiveORCCopiers {
         int projectedColOrdinal = projectedColOrdinals.get(i);
         if (projectedColOrdinal < ordinalIdsFromOrcFile.length && projectedColOrdinal < cols.length) {
           int ordinalId = ordinalIdsFromOrcFile[ projectedColOrdinal ];
-          copiers[i] = createCopier(columnVectorData, ordinalId, output[i], cols[projectedColOrdinal], operatorContextOptions);
+          copiers[i] = createCopier(columnVectorData, ordinalId, output[i], cols[projectedColOrdinal], operatorContextOptions, vectorToNameMap);
           copierCreated = true;
         }
       }
@@ -164,7 +165,7 @@ public class HiveORCCopiers {
                                         int ordinalId,
                                         ValueVector output,
                                         ColumnVector input,
-                                        HiveOperatorContextOptions operatorContextOptions) {
+                                        HiveOperatorContextOptions operatorContextOptions, Map<ColumnVector, String> vectorToNameMap) {
     if (output instanceof BaseVariableWidthVector) {
       if (input instanceof  BytesColumnVector) {
         return new BytesToVarWidthCopier((BytesColumnVector) input, (BaseVariableWidthVector) output, operatorContextOptions);
@@ -247,7 +248,7 @@ public class HiveORCCopiers {
     } else if (output instanceof ListVector) {
       if (input instanceof  MultiValuedColumnVector) {
         return new ListCopier(columnVectorData, ordinalId,
-          (MultiValuedColumnVector) input, (ListVector) output, operatorContextOptions);
+          (MultiValuedColumnVector) input, (ListVector) output, operatorContextOptions, vectorToNameMap);
       }
       else {
         return new NoOpCopier(null, null);
@@ -255,7 +256,7 @@ public class HiveORCCopiers {
     } else if (output instanceof StructVector) {
       if (input instanceof  StructColumnVector) {
         return new StructCopier(columnVectorData, ordinalId,
-          (StructColumnVector) input, (StructVector) output, operatorContextOptions);
+          (StructColumnVector) input, (StructVector) output, operatorContextOptions, vectorToNameMap);
       }
       else {
         return new NoOpCopier(null, null);
@@ -263,7 +264,7 @@ public class HiveORCCopiers {
     } else if (output instanceof UnionVector) {
       if (input instanceof  UnionColumnVector) {
         return new UnionCopier(columnVectorData, ordinalId,
-          (UnionColumnVector) input, (UnionVector) output, operatorContextOptions);
+          (UnionColumnVector) input, (UnionVector) output, operatorContextOptions, vectorToNameMap);
       }
       else {
         return new NoOpCopier(null, null);
@@ -296,7 +297,7 @@ public class HiveORCCopiers {
                 int ordinalId,
                 UnionColumnVector inputVector,
                 UnionVector outputVector,
-                HiveOperatorContextOptions operatorContextOptions) {
+                HiveOperatorContextOptions operatorContextOptions, Map<ColumnVector, String> vectorToNameMap) {
       this.inputVector = inputVector;
       this.outputVector = outputVector;
       // The loop below assumes that the getChildrenFromFields() API returns
@@ -308,7 +309,7 @@ public class HiveORCCopiers {
           ColumnVector hiveFieldVector = inputVector.fields[idx];
           ValueVector arrowfieldVector = childArrowFields.get(idx);
           arrowFieldVectors.add(arrowfieldVector);
-          ORCCopier childCopier = createCopier(columnVectorData, childPos, arrowfieldVector, hiveFieldVector, operatorContextOptions);
+          ORCCopier childCopier = createCopier(columnVectorData, childPos, arrowfieldVector, hiveFieldVector, operatorContextOptions, vectorToNameMap);
           fieldCopiers.add(childCopier);
           childPos += columnVectorData.getTotalVectorCount(childPos);
         } else {
@@ -351,7 +352,7 @@ public class HiveORCCopiers {
     StructCopier(HiveColumnVectorData columnVectorData,
                  int ordinalId,
                  StructColumnVector inputVector,
-                 StructVector outputVector, HiveOperatorContextOptions operatorContextOptions) {
+                 StructVector outputVector, HiveOperatorContextOptions operatorContextOptions, Map<ColumnVector, String> vectorToNameMap) {
       this.inputVector = inputVector;
       this.outputVector = outputVector;
 
@@ -363,10 +364,19 @@ public class HiveORCCopiers {
         if (columnVectorData.isColumnVectorIncluded(childPos)) {
           ValueVector arrowElementVector = outputVector.getVectorById(arrowIdx);
           ColumnVector hiveElementVector = inputVector.fields[idx];
-          ORCCopier childCopier = createCopier(columnVectorData, childPos,
-            arrowElementVector, hiveElementVector, operatorContextOptions);
-          fieldCopiers.add(childCopier);
-          arrowIdx++;
+          Preconditions.checkNotNull(vectorToNameMap.get(hiveElementVector),"The hiveElementVector is not present in the map that maps all the inputVectors with their corresponding names");
+          if(arrowElementVector == null){
+            fieldCopiers.add(new NoOpCopier(null, null));
+          }
+          else if(vectorToNameMap.get(hiveElementVector).equals(arrowElementVector.getName())) {
+            ORCCopier childCopier = createCopier(columnVectorData, childPos,
+              arrowElementVector, hiveElementVector, operatorContextOptions, vectorToNameMap);
+            fieldCopiers.add(childCopier);
+            arrowIdx++;
+          }
+          else{
+            fieldCopiers.add(new NoOpCopier(null, null));
+          }
         }
         else {
           fieldCopiers.add(new NoOpCopier(null, null));
@@ -423,7 +433,7 @@ public class HiveORCCopiers {
     ListCopier(HiveColumnVectorData columnVectorData,
                int ordinalId,
                MultiValuedColumnVector inputVector,
-               ListVector outputVector, HiveOperatorContextOptions operatorContextOptions) {
+               ListVector outputVector, HiveOperatorContextOptions operatorContextOptions, Map<ColumnVector, String> vectorToNameMap) {
       this.inputVector = inputVector;
       this.outputVector = outputVector;
       if (inputVector instanceof ListColumnVector) {
@@ -432,7 +442,7 @@ public class HiveORCCopiers {
         final ColumnVector hiveElementVector = inputListColumnVector.child;
         final ValueVector arrowElementVector = outputVector.getDataVector();
         childCopier = createCopier(columnVectorData, childPos,
-          arrowElementVector, hiveElementVector, operatorContextOptions);
+          arrowElementVector, hiveElementVector, operatorContextOptions, vectorToNameMap);
       } else if (inputVector instanceof MapColumnVector) {
         // Convert input Map column vector to List of Structures
         int childPos = ordinalId; // in case of map, list vector is a wrapper so we continue from same ordinalId
@@ -440,7 +450,7 @@ public class HiveORCCopiers {
         final ColumnVector hiveElementVector= new StructColumnVector(VectorizedRowBatch.DEFAULT_SIZE,
           new ColumnVector[] {inputMapColumnVector.keys, inputMapColumnVector.values});
         final ValueVector arrowElementVector = outputVector.getDataVector();
-        childCopier = createCopier(columnVectorData, ordinalId, arrowElementVector, hiveElementVector, operatorContextOptions);
+        childCopier = createCopier(columnVectorData, ordinalId, arrowElementVector, hiveElementVector, operatorContextOptions, vectorToNameMap);
       }
       this.childOutputIdx = 0;
     }

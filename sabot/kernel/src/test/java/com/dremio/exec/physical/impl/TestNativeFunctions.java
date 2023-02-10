@@ -33,6 +33,7 @@ import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.time;
 import static com.dremio.sabot.Fixtures.tr;
 import static com.dremio.sabot.Fixtures.ts;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -57,7 +58,6 @@ import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieveHelper;
 import com.dremio.sabot.op.project.ProjectOperator;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
 /*
@@ -1260,7 +1260,7 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testIfElseVarbinary() throws Exception {
     testFunctions(new Object[][]{
-      {"case when (isnotnull(c0)) then c0 else c1 end", "abc".getBytes(Charsets.UTF_8), "def".getBytes(Charsets.UTF_8), "abc".getBytes(Charsets.UTF_8)}
+      {"case when (isnotnull(c0)) then c0 else c1 end", "abc".getBytes(UTF_8), "def".getBytes(UTF_8), "abc".getBytes(UTF_8)}
     });
   }
 

@@ -28,11 +28,11 @@
  */
 package io.airlift.tpch;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
-
-import com.google.common.base.Charsets;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 
@@ -65,13 +65,13 @@ public class NationGenerator extends TpchGenerator {
 
     nationKey.setSafe(outputIndex, globalRecordIndex);
 
-    byte[] nameVal = nations.getValue((int) globalRecordIndex).getBytes(Charsets.UTF_8);
+    byte[] nameVal = nations.getValue((int) globalRecordIndex).getBytes(UTF_8);
     name.setSafe(outputIndex, nameVal, 0, nameVal.length);
 
     regionKey.setSafe(outputIndex, nations.getWeight((int) globalRecordIndex));
 
     // comment
-    byte[] commentVal = commentRandom.nextValue().getBytes(Charsets.UTF_8);
+    byte[] commentVal = commentRandom.nextValue().getBytes(UTF_8);
     comment.setSafe(outputIndex, commentVal, 0, commentVal.length);
 
   }

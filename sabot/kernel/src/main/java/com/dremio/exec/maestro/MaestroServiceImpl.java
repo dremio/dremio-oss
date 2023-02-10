@@ -159,6 +159,7 @@ public class MaestroServiceImpl implements MaestroService {
       // do execution planning in the bound pool
       commandPool.get().submit(CommandPool.Priority.MEDIUM,
         QueryIdHelper.getQueryId(queryId) + ":execution-planning",
+        "execution-planning",
         (waitInMillis) -> {
           injector.injectChecked(context.getExecutionControls(),
             INJECTOR_COMMAND_POOL_SUBMIT_ERROR, ExecutionSetupException.class);

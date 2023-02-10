@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import org.apache.iceberg.view.ViewVersionMetadata;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -63,6 +62,7 @@ import com.dremio.service.namespace.PartitionChunkMetadataImpl;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
@@ -84,7 +84,7 @@ import io.protostuff.ByteString;
 public final class VersionedDatasetAdapter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VersionedDatasetAdapter.class);
 
-  private final String versionedTableKey;
+  private final List<String> versionedTableKey;
   private final ResolvedVersionContext versionContext;
   private final StoragePlugin storagePlugin;
   private final StoragePluginId storagePluginId;
@@ -130,7 +130,13 @@ public final class VersionedDatasetAdapter {
       viewVersionMetadata,
       viewFieldTypesList);
 
-    viewConfig.setTag(viewHandle.getTag());
+    viewConfig.setTag(viewHandle.getUniqueInstanceId());
+    VersionedDatasetId versionedDatasetId = new VersionedDatasetId(
+      versionedTableKey,
+      viewHandle.getContentId(),
+      TableVersionContext.of(versionContext));
+    viewConfig.setId(new EntityId(versionedDatasetId.asString()));
+    viewConfig.setRecordSchema(batchSchema.toByteString());
 
     final View view = Views.fieldTypesToView(Iterables.getLast(viewKeyPath),
       viewVersionMetadata.definition().sql(),
@@ -170,16 +176,26 @@ public final class VersionedDatasetAdapter {
     // *TBD*  Use the Filesystem(Iceberg) plugin to tell us the configuration/username
     //Similar to SchemaConfig , we need a config for DataPlane
     // TODO: check access to the dataset (and use return value or make method throw)
-    Preconditions.checkState(datasetHandle.unwrap(VersionedDatasetHandle.class).getType() == ICEBERG_TABLE);
+
+    VersionedDatasetHandle versionedDatasetHandle = datasetHandle.unwrap(VersionedDatasetHandle.class);
+    Preconditions.checkState(versionedDatasetHandle.getType() == ICEBERG_TABLE);
     checkAccess(versionedTableKey, versionContext, accessUserName);
 
     // Retrieve the metadata
     try {
-      versionedDatasetConfig = getMutatedVersionedConfig(versionedTableKey, versionContext, versionedDatasetConfig);
+      versionedDatasetConfig = getMutatedVersionedConfig(versionContext, versionedDatasetConfig);
     } catch (final ConnectorException e) {
       throw UserException.validationError(e)
         .build(logger);
     }
+    VersionedDatasetId versionedDatasetId = new VersionedDatasetId(
+      versionedTableKey,
+      versionedDatasetHandle.getContentId(),
+      TableVersionContext.of(versionContext));
+
+    versionedDatasetConfig.setId(new EntityId(versionedDatasetId.asString()));
+    setIcebergTableUUID(versionedDatasetConfig, versionedDatasetHandle.getUniqueInstanceId());
+
     // Construct the TableMetadata
 
     final TableMetadata tableMetadata = new TableMetadataImpl(storagePluginId,
@@ -211,10 +227,9 @@ public final class VersionedDatasetAdapter {
     return primaryKey;
   }
 
-  private DatasetConfig getMutatedVersionedConfig(String nessieKey,
-                                                  ResolvedVersionContext versionContext,
+  private DatasetConfig getMutatedVersionedConfig(ResolvedVersionContext versionContext,
                                                   DatasetConfig datasetConfig) throws ConnectorException {
-    final DatasetMetadata datasetMetadata = getMetadata(nessieKey, versionContext, datasetConfig);
+    final DatasetMetadata datasetMetadata = getMetadata(versionContext, datasetConfig);
     final Optional<ByteString> readSignature = getReadSignature();
     final Function<DatasetConfig, DatasetConfig> datasetMutator = java.util.function.Function.identity();
     MetadataObjectsUtils.overrideExtended(datasetConfig, datasetMetadata, readSignature,
@@ -257,8 +272,7 @@ public final class VersionedDatasetAdapter {
    *
    * @return Dataset metadata, not null
    */
-  private DatasetMetadata getMetadata(final String tableKey,
-                                      ResolvedVersionContext versionContext,
+  private DatasetMetadata getMetadata(ResolvedVersionContext versionContext,
                                       DatasetConfig datasetConfig) throws ConnectorException {
     Preconditions.checkNotNull(datasetHandle);
 
@@ -333,13 +347,23 @@ public final class VersionedDatasetAdapter {
   /**
    * TBD We need to figure out how to do the access check with dataplane
    */
-  private boolean checkAccess(final String tableKey, ResolvedVersionContext versionContext, String userName) {
+  private boolean checkAccess(final List<String> tableKey, ResolvedVersionContext versionContext, String userName) {
     // TODO: Needs to be implemented
     return true;
   }
 
+  private void setIcebergTableUUID(DatasetConfig datasetConfig, String tableUUID) {
+    PhysicalDataset pds = datasetConfig.getPhysicalDataset();
+    Preconditions.checkNotNull(pds);
+    Preconditions.checkNotNull(pds.getIcebergMetadata());
+    IcebergMetadata icebergMetadata = pds.getIcebergMetadata();
+    icebergMetadata.setTableUuid(tableUUID);
+    pds.setIcebergMetadata(icebergMetadata);
+    datasetConfig.setPhysicalDataset(pds);
+  }
+
   public static class Builder {
-    private String versionedTableKey;
+    private List<String> versionedTableKey;
     private ResolvedVersionContext versionContext;
     private StoragePlugin storagePlugin;
     private StoragePluginId storagePluginId;
@@ -350,7 +374,7 @@ public final class VersionedDatasetAdapter {
     public Builder() {
     }
 
-    public Builder setVersionedTableKey(String key) {
+    public Builder setVersionedTableKey(List<String> key) {
       versionedTableKey = key;
       return this;
     }
@@ -431,11 +455,11 @@ public final class VersionedDatasetAdapter {
      * @param key Namespace key
      * @return DatasetConfig populated with the basic info needed by the Filessystem plugin to match and unwrap to Iceberg format plugin
      */
-    private DatasetConfig createShallowIcebergDatasetConfig(String key) {
+    private DatasetConfig createShallowIcebergDatasetConfig(List<String> key) {
       return new DatasetConfig()
         .setId(new EntityId().setId(UUID.randomUUID().toString()))
-        .setName(key)
-        .setFullPathList(PathUtils.parseFullPath(key))
+        .setName(String.join(".", key))
+        .setFullPathList(key)
         //This format setting allows us to pick the Iceberg format explicitly
         .setPhysicalDataset(new PhysicalDataset().setFormatSettings(new IcebergFileConfig().asFileConfig()))
         .setLastModified(System.currentTimeMillis());

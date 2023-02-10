@@ -21,7 +21,7 @@ import TextField from "components/Fields/TextField";
 import { RemoveButton } from "components/Fields/FieldList";
 import { flexAuto } from "uiTheme/less/layout.less";
 import * as classes from "./ValueListItem.less";
-import classNames from "classnames";
+import classNames from "clsx";
 
 export default class ValueListItem extends Component {
   static propTypes = {
@@ -30,7 +30,9 @@ export default class ValueListItem extends Component {
   };
 
   render() {
-    const { onRemove, field } = this.props;
+    const { onRemove, field, prefix } = this.props;
+
+    const className = classNames({ "full-width": prefix });
 
     return (
       <div className={classes["value-list__item"]}>
@@ -39,7 +41,7 @@ export default class ValueListItem extends Component {
           className={classNames(flexAuto, classes["value-list__field"])}
           errorPlacement="top"
         >
-          <TextField {...field} />
+          <TextField {...field} prefix={prefix} className={className} />
         </FieldWithError>
         {onRemove && (
           <RemoveButton

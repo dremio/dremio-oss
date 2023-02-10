@@ -67,16 +67,16 @@
       label: "ON"
      -
       kind: "Keyword"
+      label: "."
+     -
+      kind: "Keyword"
+      label: "AS"
+     -
+      kind: "Keyword"
       label: "USING"
      -
       kind: "Keyword"
       label: ","
-     -
-      kind: "Keyword"
-      label: "WHERE"
-     -
-      kind: "Keyword"
-      label: "GROUP"
     functionContext: null
     hasMoreResults: true
  -

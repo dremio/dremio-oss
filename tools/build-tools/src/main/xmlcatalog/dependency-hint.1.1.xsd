@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema id="hints"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified"
+           targetNamespace="https://jeremylong.github.io/DependencyCheck/dependency-hint.1.1.xsd"
+           xmlns:dc="https://jeremylong.github.io/DependencyCheck/dependency-hint.1.1.xsd">
+	   
+    <xs:simpleType name="givenType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="vendor"/>
+            <xs:enumeration value="product"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="addType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="vendor"/>
+            <xs:enumeration value="product"/>
+            <xs:enumeration value="version"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="confidence">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="HIGHEST"/>
+            <xs:enumeration value="HIGH"/>
+            <xs:enumeration value="MEDIUM"/>
+            <xs:enumeration value="LOW"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="givenEvidence">
+        <xs:attribute name="type" use="required" type="dc:givenType"/>
+        <xs:attribute name="source" use="required" type="xs:string"/>
+        <xs:attribute name="name" use="required" type="xs:string"/>
+        <xs:attribute name="value" use="required" type="xs:string"/>
+        <xs:attribute name="confidence" use="required" type="dc:confidence"/>
+    </xs:complexType>
+    <xs:complexType name="addEvidence">
+        <xs:attribute name="type" use="required" type="dc:addType"/>
+        <xs:attribute name="source" use="required" type="xs:string"/>
+        <xs:attribute name="name" use="required" type="xs:string"/>
+        <xs:attribute name="value" use="required" type="xs:string"/>
+        <xs:attribute name="confidence" use="required" type="dc:confidence"/>
+    </xs:complexType>
+    <xs:complexType name="fileName">
+        <xs:attribute name="contains" use="required" type="xs:string"/>
+        <xs:attribute name="regex" use="optional" type="xs:boolean" default="false"/>
+        <xs:attribute name="caseSensitive" use="optional" type="xs:boolean" default="false"/>
+    </xs:complexType>
+    <xs:complexType name="given">
+        <xs:choice minOccurs="1" maxOccurs="unbounded">
+            <xs:element name="evidence" type="dc:givenEvidence"/>
+            <xs:element name="fileName" type="dc:fileName"/>
+        </xs:choice>
+    </xs:complexType>
+    <xs:complexType name="add">
+        <xs:sequence minOccurs="1" maxOccurs="unbounded">
+            <xs:element name="evidence" type="dc:addEvidence"/>
+        </xs:sequence>
+    </xs:complexType>	
+    <xs:complexType name="hint">
+        <xs:sequence minOccurs="1" maxOccurs="1">
+            <xs:element name="given" type="dc:given"/>
+            <xs:element name="add" type="dc:add"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="duplicatingHint">
+        <xs:attribute name="value" use="required" type="xs:string"/>
+        <xs:attribute name="duplicate" use="required" type="xs:string"/>
+    </xs:complexType>
+	
+    <xs:element name="hints">
+        <xs:complexType>
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="hint" type="dc:hint"/>
+                </xs:sequence>
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="vendorDuplicatingHint" type="dc:duplicatingHint"/>
+                </xs:sequence>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

@@ -16,14 +16,14 @@
 import NessieHomePage from "@app/pages/NessieHomePage/NessieHomePage";
 import { getArcticProjectUrl } from "@app/utils/nessieUtils";
 import * as PATHS from "@app/exports/paths";
+import { ArcticSideNav } from "@app/exports/components/SideNav/ArcticSideNav";
 
 function ArcticCatalogHomePage(props: any) {
-  return (
+  return props.catalog?.id === props.arcticCatalogId ? (
     <NessieHomePage
       {...props}
       source={{
-        // TODO: figure out how to get name
-        name: "new-catalog",
+        name: props.catalog?.name,
         id: props.arcticCatalogId,
         endpoint: getArcticProjectUrl(props.arcticCatalogId),
       }}
@@ -32,6 +32,10 @@ function ArcticCatalogHomePage(props: any) {
         arcticCatalogId: props.arcticCatalogId,
       })}
     />
+  ) : (
+    <div className="page-content">
+      <ArcticSideNav />
+    </div>
   );
 }
 export default ArcticCatalogHomePage;

@@ -16,6 +16,7 @@
 package com.dremio.dac.api;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
@@ -29,7 +30,6 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 /**
@@ -208,7 +208,7 @@ public class CatalogItem {
   }
 
   public static Optional<CatalogItem> fromNamespaceContainer(NameSpaceContainer container, CollaborationTag tags) {
-    Optional<CatalogItem> item = Optional.absent();
+    Optional<CatalogItem> item = Optional.empty();
 
     switch (container.getType()) {
       case SOURCE: {

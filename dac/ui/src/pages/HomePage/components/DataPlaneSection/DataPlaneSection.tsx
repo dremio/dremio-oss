@@ -20,6 +20,8 @@ import FinderNav from "@app/components/FinderNav";
 import ViewStateWrapper from "@app/components/ViewStateWrapper";
 import SourceBranchPicker from "../SourceBranchPicker/SourceBranchPicker";
 import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 type DataPlaneSectionProps = {
   dataPlaneSources: any;
@@ -68,7 +70,9 @@ function DataPlaneSection({
           addTooltip={intl.formatMessage({ id: "Source.AddDataPlane" })}
           isInProgress={sourcesViewState.get("isInProgress")}
           addHref={addHref}
-          listHref="/sources/dataplane/list"
+          listHref={commonPaths.dataplane.link({
+            projectId: getSonarContext()?.getSelectedProjectId?.(),
+          })}
           renderExtra={(item: any, targetRef: any) => (
             <SourceBranchPicker
               source={item}

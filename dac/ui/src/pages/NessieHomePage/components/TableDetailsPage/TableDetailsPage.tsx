@@ -19,6 +19,7 @@ import { WithRouterProps } from "react-router";
 import PageBreadcrumbHeader from "../PageBreadcrumbHeader/PageBreadcrumbHeader";
 import TableHistoryContent from "./components/TableHistoryContent/TableHistoryContent";
 import TableHistoryHeader from "./components/TableHistoryHeader/TableHistoryHeader";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import "./TableDetailsPage.less";
 
@@ -27,13 +28,13 @@ function TableDetailsPage({
 }: {
   location: WithRouterProps["location"];
 }) {
-  const isTable = location.pathname.startsWith("/table/");
+  const loc = rmProjectBase(location.pathname);
+  const isTable = loc.startsWith("/table/");
   const [path, namespace, tableName] = useMemo(() => {
-    const split =
-      parseNamespaceUrl(location.pathname, isTable ? "table" : "view") || [];
+    const split = parseNamespaceUrl(loc, isTable ? "table" : "view") || [];
     const tName = split.pop() || "";
     return [split, split.map((c) => decodeURIComponent(c)).join("."), tName];
-  }, [location, isTable]);
+  }, [isTable, loc]);
 
   return (
     <div className="tableDetailsPage">

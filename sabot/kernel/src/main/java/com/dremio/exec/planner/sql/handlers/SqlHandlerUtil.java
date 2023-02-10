@@ -19,8 +19,11 @@ package com.dremio.exec.planner.sql.handlers;
 import static com.dremio.exec.planner.physical.PlannerSettings.QUERY_RESULTS_STORE_TABLE;
 import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
+import java.text.SimpleDateFormat;
 import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -39,15 +42,21 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlBasicTypeNameSpec;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlRowTypeNameSpec;
+import org.apache.calcite.sql.SqlTimestampLiteral;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.ValidationException;
+import org.apache.calcite.util.TimestampString;
 import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.common.exceptions.UserException;
@@ -69,11 +78,11 @@ import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
+import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.DremioSqlRowTypeSpec;
 import com.dremio.exec.planner.sql.parser.SqlArrayTypeSpec;
-import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlColumnPolicyPair;
 import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpec;
-import com.dremio.exec.planner.sql.parser.SqlRowTypeSpec;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
@@ -175,7 +184,7 @@ public class SqlHandlerUtil {
 
   /**
    *  Resolve the partition columns specified in "PARTITION BY" clause of CTAS statement.
-   *
+   *  Throw validation error if a partition column is not resolved correctly.
    *  A partition column is resolved, either (1) the same column appear in the select list of CTAS
    *  or (2) CTAS has a * in select list.
    *
@@ -330,12 +339,12 @@ public class SqlHandlerUtil {
    * @param newColumsDeclaration
    * @param existingSchema
    */
-  public static void checkForDuplicateColumns(List<SqlColumnDeclaration> newColumsDeclaration, BatchSchema existingSchema, String sql) {
+  public static void checkForDuplicateColumns(List<DremioSqlColumnDeclaration> newColumsDeclaration, BatchSchema existingSchema, String sql) {
     Set<String> existingColumns = existingSchema.getFields().stream().map(Field::getName).map(String::toUpperCase)
       .collect(Collectors.toSet());
     Set<String> newColumns = new HashSet<>();
     String column, columnUpper;
-    for (SqlColumnDeclaration columnDecl : newColumsDeclaration) {
+    for (DremioSqlColumnDeclaration columnDecl : newColumsDeclaration) {
       column = columnDecl.getName().getSimple();
       columnUpper = column.toUpperCase();
       SqlIdentifier type = columnDecl.getDataType().getTypeName();
@@ -357,14 +366,14 @@ public class SqlHandlerUtil {
   }
 
   public static void checkNestedFieldsForDuplicateNameDeclarations(String sql, SqlIdentifier type) {
-    if (type instanceof SqlRowTypeSpec) {
-      checkForDuplicateColumnsInStruct((SqlRowTypeSpec) type, sql);
+    if (type instanceof DremioSqlRowTypeSpec) {
+      checkForDuplicateColumnsInStruct((DremioSqlRowTypeSpec) type, sql);
     } else if (type instanceof SqlArrayTypeSpec) {
       checkNestedFieldsForDuplicateNameDeclarations(sql, ((SqlArrayTypeSpec) type).getSpec().getTypeName());
     }
   }
 
-  private static void checkForDuplicateColumnsInStruct(SqlRowTypeSpec rowTypeSpec, String sql) {
+  private static void checkForDuplicateColumnsInStruct(DremioSqlRowTypeSpec rowTypeSpec, String sql) {
     List<SqlComplexDataTypeSpec> fieldTypes = rowTypeSpec.getFieldTypes();
     List<SqlIdentifier> fieldNames = rowTypeSpec.getFieldNames();
     Set<String> newColumns = new HashSet<>();
@@ -376,6 +385,18 @@ public class SqlHandlerUtil {
     }
   }
 
+  private static void checkForDuplicateColumnsInStruct(SqlRowTypeNameSpec rowTypeSpec, String sql) {
+    List<SqlDataTypeSpec> fieldTypes = rowTypeSpec.getFieldTypes();
+    List<SqlIdentifier> fieldNames = rowTypeSpec.getFieldNames();
+    Set<String> newColumns = new HashSet<>();
+    for (int i = 0; i < fieldNames.size(); i++) {
+      String column = fieldNames.get(i).getSimple();
+      String columnUpper = column.toUpperCase();
+      SqlIdentifier type = fieldTypes.get(i).getTypeName();
+      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, columnUpper, type, rowTypeSpec.getParserPos());
+    }
+  }
+
   /**
    * Create arrow field from sql column declaration
    *
@@ -383,7 +404,7 @@ public class SqlHandlerUtil {
    * @param column
    * @return
    */
-  public static Field fieldFromSqlColDeclaration(SqlHandlerConfig config, SqlColumnDeclaration column, String sql) {
+  public static Field fieldFromSqlColDeclaration(SqlHandlerConfig config, DremioSqlColumnDeclaration column, String sql) {
     checkInvalidType(column, sql);
 
     return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
@@ -399,7 +420,7 @@ public class SqlHandlerUtil {
    * @param column
    * @return
    */
-  public static Field fieldFromSqlColDeclaration(RelDataTypeFactory relDataTypeFactory, SqlColumnDeclaration column, String sql) {
+  public static Field fieldFromSqlColDeclaration(RelDataTypeFactory relDataTypeFactory, DremioSqlColumnDeclaration column, String sql) {
     checkInvalidType(column, sql);
 
     return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
@@ -408,7 +429,7 @@ public class SqlHandlerUtil {
             column.getDataType(), column.getName().getSimple()), sql, column.getParserPosition()).buildSilently());
   }
 
-  public static void checkInvalidType(SqlColumnDeclaration column, String sql) {
+  public static void checkInvalidType(DremioSqlColumnDeclaration column, String sql) {
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == null) {
       throw SqlExceptionHelper.parseError(String.format("Invalid column type [%s] specified for column [%s].",
           column.getDataType(), column.getName().getSimple()),
@@ -416,13 +437,15 @@ public class SqlHandlerUtil {
     }
 
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
-      column.getDataType().getPrecision() > RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION) {
+      ((SqlBasicTypeNameSpec) column.getDataType().getTypeNameSpec()).getPrecision()
+        > RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION) {
       throw SqlExceptionHelper.parseError(String.format("Precision larger than %s is not supported.",
         RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION), sql, column.getParserPosition()).buildSilently();
     }
 
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
-      column.getDataType().getScale() > RelDataTypeSystemImpl.MAX_NUMERIC_SCALE) {
+      ((SqlBasicTypeNameSpec) column.getDataType().getTypeNameSpec()).getScale()
+        > RelDataTypeSystemImpl.MAX_NUMERIC_SCALE) {
       throw SqlExceptionHelper.parseError(String.format("Scale larger than %s is not supported.",
         RelDataTypeSystemImpl.MAX_NUMERIC_SCALE), sql, column.getParserPosition()).buildSilently();
     }
@@ -434,9 +457,9 @@ public class SqlHandlerUtil {
    * @param newColumsDeclaration
    * @return
    */
-  public static BatchSchema batchSchemaFromSqlSchemaSpec(SqlHandlerConfig config, List<SqlColumnDeclaration> newColumsDeclaration, String sql) {
+  public static BatchSchema batchSchemaFromSqlSchemaSpec(SqlHandlerConfig config, List<DremioSqlColumnDeclaration> newColumsDeclaration, String sql) {
     SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
-    for (SqlColumnDeclaration column : newColumsDeclaration) {
+    for (DremioSqlColumnDeclaration column : newColumsDeclaration) {
       schemaBuilder.addField(fieldFromSqlColDeclaration(config, column, sql));
     }
     return schemaBuilder.build();
@@ -445,11 +468,11 @@ public class SqlHandlerUtil {
   /**
    * create sql column declarations from SqlNodeList
    */
-  public static List<SqlColumnDeclaration> columnDeclarationsFromSqlNodes(SqlNodeList columnList, String sql) {
-    List<SqlColumnDeclaration> columnDeclarations = new ArrayList<>();
+  public static List<DremioSqlColumnDeclaration> columnDeclarationsFromSqlNodes(SqlNodeList columnList, String sql) {
+    List<DremioSqlColumnDeclaration> columnDeclarations = new ArrayList<>();
     for (SqlNode node : columnList.getList()) {
-      if (node instanceof SqlColumnDeclaration) {
-        columnDeclarations.add((SqlColumnDeclaration) node);
+      if (node instanceof DremioSqlColumnDeclaration) {
+        columnDeclarations.add((DremioSqlColumnDeclaration) node);
       } else {
         throw SqlExceptionHelper.parseError("Column type not specified", sql, node.getParserPosition()).buildSilently();
       }
@@ -460,8 +483,8 @@ public class SqlHandlerUtil {
   public static List<SqlColumnPolicyPair> columnPolicyPairsFromSqlNodes(SqlNodeList columnList, String sql) {
     List<SqlColumnPolicyPair> columnPolicyPairs = new ArrayList<>();
     for (SqlNode node : columnList.getList()) {
-      if (node instanceof SqlColumnDeclaration) {
-        SqlColumnDeclaration columnDeclaration = (SqlColumnDeclaration) node;
+      if (node instanceof DremioSqlColumnDeclaration) {
+        DremioSqlColumnDeclaration columnDeclaration = (DremioSqlColumnDeclaration) node;
         columnPolicyPairs.add(new SqlColumnPolicyPair(node.getParserPosition(), columnDeclaration.getName(), columnDeclaration.getPolicy()));
       } else if (node instanceof SqlColumnPolicyPair) {
         columnPolicyPairs.add((SqlColumnPolicyPair) node);
@@ -521,5 +544,42 @@ public class SqlHandlerUtil {
       validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, null, false);
     }
     return validate.isPresent() ? validate.get() : new SimpleCommandResult(true, "");
+  }
+
+  public static String getTimestampFromMillis(long timestampInMillis) {
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS000000");
+    return simpleDateFormat.format(new Date(timestampInMillis));
+  }
+
+  public static Long convertToTimeInMillis(String timestamp, SqlParserPos pos) {
+    timestamp = removeEndingZeros(timestamp);
+    try {
+      TimestampString timestampStr = new TimestampString(timestamp);
+      SqlTimestampLiteral timestampLiteral = SqlLiteral.createTimestamp(timestampStr, 3, pos);
+      return timestampLiteral.getValueAs(Calendar.class).getTimeInMillis();
+    } catch (Exception e) {
+      throw UserException.parseError(e)
+        .message("Literal '%s' cannot be casted to TIMESTAMP", timestamp)
+        .buildSilently();
+    }
+  }
+
+  private static String removeEndingZeros(String timestamp) {
+    // Remove ending '0' after '.' in the timestamp string, because TimestampString does not accept timestamp string
+    // with ending of '0'. For instance, convert "2022-10-23 18:05:30.252000" to be "2022-10-23 18:05:30.252".
+    timestamp = timestamp.trim();
+    if (timestamp.indexOf('.') < 0){
+      return timestamp;
+    }
+    int index = timestamp.length();
+    while (index > 0 && timestamp.charAt(index -1)  == '0') {
+      index--;
+    }
+
+    if (timestamp.charAt(index - 1) == '.') {
+      index--;
+    }
+
+    return timestamp.substring(0, index);
   }
 }

@@ -50,7 +50,7 @@ import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
-import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManager;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionService;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -115,7 +115,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<NessieApiV1> nessieClientProvider;
   private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory;
   private final Provider<StatisticsListManager> statisticsListManagerProvider;
-  private final Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider;
+  private final Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider;
   private final Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier;
   protected BufferAllocator queryPlannerAllocator;
   private final Provider<SimpleJobRunner> jobsRunnerProvider;
@@ -164,7 +164,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
-    Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider,
+    Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider,
     Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
     Provider<SimpleJobRunner> jobsRunnerProvider,
     Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
@@ -224,7 +224,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
-    Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider,
+    Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider,
     Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
     Provider<SimpleJobRunner> jobsRunnerProvider,
     Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,

@@ -27,6 +27,7 @@ type ArcticTableHeaderProps = {
   leftButton?: JSX.Element;
   rightButton?: JSX.Element;
   name?: string;
+  loading?: boolean;
 };
 
 function ArcticTableHeader({
@@ -35,6 +36,7 @@ function ArcticTableHeader({
   leftButton,
   rightButton,
   name,
+  loading,
 }: ArcticTableHeaderProps): JSX.Element {
   const intl = useIntl();
   const nessieCtx = useNessieContext();
@@ -58,6 +60,7 @@ function ArcticTableHeader({
           showCloseIcon
           showIcon
           className={classes["arctic-search-box"]}
+          loading={loading}
         />
         {rightButton}
       </span>

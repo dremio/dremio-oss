@@ -15,13 +15,14 @@ type ExternalLinkProps = {
   children: JSX.Element;
   className?: string;
   variant?: "inline" | "list";
-};
+  hideIcon?: boolean;
+} & React.HTMLProps<HTMLAnchorElement>;
 
 export const ExternalLink = React.forwardRef<
   HTMLAnchorElement,
   ExternalLinkProps
 >((props, ref): JSX.Element => {
-  const { children, className, variant = "inline", ...rest } = props;
+  const { children, className, variant = "inline", hideIcon, ...rest } = props;
   return (
     <a
       target="_blank"
@@ -35,12 +36,12 @@ export const ExternalLink = React.forwardRef<
     >
       {variant === "inline" && (
         <>
-          {children} {externalIcon}
+          {children} {!hideIcon && externalIcon}
         </>
       )}
       {variant === "list" && (
         <>
-          {externalIcon} {children}
+          {!hideIcon && externalIcon} {children}
         </>
       )}
     </a>

@@ -15,10 +15,19 @@
  */
 package com.dremio.service.nessie;
 
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Nested;
 import org.projectnessie.versioned.persist.tests.AbstractDatabaseAdapterTest;
 import org.projectnessie.versioned.persist.tests.extension.NessieDbAdapterName;
 import org.projectnessie.versioned.persist.tests.extension.NessieExternalDatabase;
 
 @NessieDbAdapterName(DatastoreDatabaseAdapterFactory.NAME)
 @NessieExternalDatabase(DatastoreTestConnectionProviderSource.class)
-class ITDatabaseAdapterDatastore extends AbstractDatabaseAdapterTest {}
+class ITDatabaseAdapterDatastore extends AbstractDatabaseAdapterTest {
+
+  @Nested
+  @Disabled
+  public class RefLog {
+    // Ignore this nested suite of tests - reflog is not supported by DatastoreDatabaseAdapter
+  }
+}

@@ -16,6 +16,7 @@
 package com.dremio.exec.store.easy.excel;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.xml.stream.XMLStreamConstants.CHARACTERS;
 import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
 import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
@@ -48,7 +49,6 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MinorType;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -485,7 +485,7 @@ public class StAXBasedParser implements ExcelParser {
 
         case VARCHAR:
           indexToLastTypeCache.put(currentColumnIndex, valueTypeFromAttribute);
-          final byte[] b = value.getBytes(Charsets.UTF_8);
+          final byte[] b = value.getBytes(UTF_8);
           FieldSizeLimitExceptionHelper.checkSizeLimit(b.length, maxCellSize, currentColumnIndex, logger);
 
           managedBuf = managedBuf.reallocIfNeeded(b.length);

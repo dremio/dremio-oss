@@ -66,6 +66,7 @@ import com.google.common.base.Throwables;
 // methods for compatibility.)
 class DremioConnectionImpl extends AvaticaConnection
                           implements DremioConnection {
+  @SuppressWarnings("Slf4jIllegalPassedClass") // intentionally using logger from another class
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(DremioConnection.class);
 

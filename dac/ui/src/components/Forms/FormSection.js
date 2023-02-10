@@ -16,7 +16,7 @@
 import { Component, Fragment } from "react";
 
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import FormElement from "components/Forms/FormElement";
 import SourceIcon from "components/Icon/SourceIcon";
@@ -124,14 +124,16 @@ export default class FormSection extends Component {
   }
 
   renderIconAndElements(sectionConfig, fields) {
-    if (sectionConfig.getConfig().icon) {
+    const formIcon = sectionConfig.getConfig().icon;
+
+    if (formIcon) {
       const { tabTitleText } = this.props;
       if (tabTitleText) {
         return (
           <div>
             <div className={titleElementWithIcon}>
               <SourceIcon
-                src={sectionConfig.getConfig().icon}
+                dremioIcon={`sources/${formIcon.split(".")[0]}`}
                 style={styles.sourceIcon}
               />
               <span>{tabTitleText}</span>
@@ -142,7 +144,7 @@ export default class FormSection extends Component {
       } else {
         return (
           <div className={sectionWithIcon}>
-            <SourceIcon src={sectionConfig.getConfig().icon} />
+            <SourceIcon dremioIcon={`sources/${formIcon.split(".")[0]}`} />
             <div className={elementsWithIcon}>
               {this.renderElements(sectionConfig, fields)}
             </div>
@@ -150,6 +152,7 @@ export default class FormSection extends Component {
         );
       }
     }
+
     return this.renderElements(sectionConfig, fields);
   }
 

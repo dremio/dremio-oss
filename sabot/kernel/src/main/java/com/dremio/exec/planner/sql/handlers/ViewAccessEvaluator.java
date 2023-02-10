@@ -32,6 +32,7 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.users.UserNotFoundException;
@@ -40,6 +41,8 @@ import com.dremio.service.users.UserNotFoundException;
  * Validates dataset access by traversing parent datasets
  */
 public class ViewAccessEvaluator implements Runnable {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ViewAccessEvaluator.class);
+
   final CountDownLatch latch;
   final RelNode rel;
   final SqlHandlerConfig config;
@@ -81,8 +84,12 @@ public class ViewAccessEvaluator implements Runnable {
         SqlValidatorAndToRelContext sqlValidatorAndToRelContext = SqlValidatorAndToRelContext.builder(config.getConverter()).build();
         final List<DremioTable> tables = new ArrayList<>();
         for (List<String> path : topExpansionPaths) {
-          DremioTable table = sqlValidatorAndToRelContext.getDremioCatalogReader().getTable(path).getTable();
-          tables.add(table);
+          if (!supportsVersioning(path, sqlValidatorAndToRelContext.getDremioCatalogReader())) {
+            DremioTable table = sqlValidatorAndToRelContext.getDremioCatalogReader().getTable(path).getTable();
+            tables.add(table);
+          } else {
+            logger.warn(String.format("View access checks not enabled for versioned objects"));
+          }
         }
         validateViewAccess(tables, sqlValidatorAndToRelContext.getDremioCatalogReader().withCheckValidity(false), config.getContext().getQueryUserName());
       }
@@ -126,5 +133,9 @@ public class ViewAccessEvaluator implements Runnable {
         }
       }
     }
+  }
+
+  private boolean supportsVersioning(List<String> expansionPath, DremioCatalogReader catalogReader) {
+    return catalogReader.supportsVersioning(new NamespaceKey(expansionPath));
   }
 }

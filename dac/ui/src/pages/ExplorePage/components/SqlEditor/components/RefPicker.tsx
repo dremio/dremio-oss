@@ -25,7 +25,6 @@ import {
 } from "material-ui-popup-state/hooks";
 
 import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
-import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { getSortedSources } from "@app/selectors/home";
 import FontIcon from "@app/components/Icon/FontIcon";
 import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
@@ -36,6 +35,7 @@ import {
 } from "@app/pages/HomePage/components/BranchPicker/utils";
 import CurrentRefInfo from "./CurrentRefInfo/CurrentRefInfo";
 import { getIconStatusDatabase } from "@app/utils/iconUtils";
+import { isVersionedSource } from "@app/utils/sourceUtils";
 
 import "./RefPicker.less";
 
@@ -70,7 +70,8 @@ function RefPickerItem({
     <BranchPickerContext.Provider value={context}>
       <div
         className="refPicker-root"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           if (!ref.current) return;
           ref.current.open();
         }}
@@ -124,7 +125,7 @@ function RefPicker({
   const handleClose = toggleProps.onClick;
 
   const dataPlaneSources = useMemo(
-    () => sources.filter((cur) => [NESSIE, ARCTIC].includes(cur.type)),
+    () => sources.filter((cur) => isVersionedSource(cur.type)),
     [sources]
   );
   const ref = useRef(null);

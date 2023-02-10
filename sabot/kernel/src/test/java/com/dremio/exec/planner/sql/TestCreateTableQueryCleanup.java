@@ -36,13 +36,18 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.base.IcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.direct.CreateEmptyTableHandler;
 import com.dremio.exec.planner.sql.handlers.query.CreateTableHandler;
+import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
-import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -93,18 +98,21 @@ public class TestCreateTableQueryCleanup {
     UserSession userSession = mock(UserSession.class);
     CreateEmptyTableHandler handler =  new CreateEmptyTableHandler(catalog, config, userSession, false);
 
-    List<SqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(SqlNodeList.EMPTY, sql);
+    List<DremioSqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(SqlNodeList.EMPTY, sql);
     BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
     PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, new ArrayList<>(), null);
 
     ByteString partitionSpecByteString = ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec));
     String schemaAsJson = IcebergSerDe.serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema));
     IcebergTableProps icebergTableProps = new IcebergTableProps(partitionSpecByteString, schemaAsJson);
+    IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
+      .setIcebergTableProps(icebergTableProps).build();
+    TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
+      .setIcebergSpecificOptions(icebergWriterOptions).setOperation(TableFormatOperation.CREATE).build();
 
     WriterOptions options = new WriterOptions(0, new ArrayList<>(),
       new ArrayList<>(), new ArrayList<>(), PartitionDistributionStrategy.UNSPECIFIED,
-      null, sqlCreateEmptyTable.isSingleWriter(), Long.MAX_VALUE, WriterOptions.IcebergWriterOperation.CREATE,
-      null, icebergTableProps);
+      null, sqlCreateEmptyTable.isSingleWriter(), Long.MAX_VALUE, tableFormatOptions, null);
 
     doThrow(new RuntimeException("createEmptyTable_error")).when(catalog).createEmptyTable(key, batchSchema, options);
 

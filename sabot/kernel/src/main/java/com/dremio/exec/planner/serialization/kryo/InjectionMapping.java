@@ -16,8 +16,8 @@
 package com.dremio.exec.planner.serialization.kryo;
 
 import java.util.Map;
+import java.util.Optional;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
@@ -35,7 +35,7 @@ public class InjectionMapping {
       }
       current = current.getSuperclass();
     }
-    return Optional.absent();
+    return Optional.empty();
   }
 
   private void addInjections(final Iterable<Injection> injections) {

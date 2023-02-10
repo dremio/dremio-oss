@@ -16,17 +16,17 @@
 import React from "react";
 
 import Label from "../Label";
-import CopyToClipboard from "../CopyToClipboard";
 
 import SyntaxHighlighter from "react-syntax-highlighter";
 
 import jsonStyle from "./jsonStyle";
+import CopyToClipboard from "../CopyToClipboard";
 
 import "./JsonSyntaxHighlighter.scss";
 
 type JsonSyntaxHighlighterProps = {
   json: any;
-  label: string;
+  label?: string;
   labelClass?: any;
   labelStyle?: any;
   labelInnerClass?: any;
@@ -34,6 +34,7 @@ type JsonSyntaxHighlighterProps = {
   tooltipPlacement?: any;
   tooltipClasses?: any;
   tooltipText?: any;
+  externalCopy?: JSX.Element;
 };
 
 const JsonSyntaxHighlighter = (props: JsonSyntaxHighlighterProps) => {
@@ -47,11 +48,12 @@ const JsonSyntaxHighlighter = (props: JsonSyntaxHighlighterProps) => {
     tooltipPlacement,
     tooltipClasses,
     tooltipText,
+    externalCopy,
   } = props;
 
   return (
-    <React.Fragment>
-      <div className="label-container">
+    <div className="jsonSyntaxHighlighter">
+      <div className="label-container gutter-left--double gutter-right--double">
         <Label
           value={label}
           className={labelClass}
@@ -60,19 +62,23 @@ const JsonSyntaxHighlighter = (props: JsonSyntaxHighlighterProps) => {
           helpText={helpText}
           id={`textbox-label-${name}`}
         />
-        <CopyToClipboard
-          value={json}
-          placement={tooltipPlacement}
-          tooltipClasses={tooltipClasses}
-          tooltipText={tooltipText}
-        />
+        {externalCopy ? (
+          externalCopy
+        ) : (
+          <CopyToClipboard
+            value={json}
+            placement={tooltipPlacement}
+            tooltipClasses={tooltipClasses}
+            tooltipText={tooltipText}
+          />
+        )}
       </div>
       <div className="json-container" tabIndex={1}>
         <SyntaxHighlighter language="json" style={jsonStyle}>
           {json}
         </SyntaxHighlighter>
       </div>
-    </React.Fragment>
+    </div>
   );
 };
 

@@ -15,6 +15,9 @@
  */
 package com.dremio.service.autocomplete.functions;
 
+import com.dremio.service.functions.model.Function;
+import com.dremio.service.functions.model.FunctionSignature;
+import com.dremio.service.functions.model.ParameterType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 

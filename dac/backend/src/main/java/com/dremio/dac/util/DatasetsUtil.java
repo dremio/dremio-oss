@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.commons.collections.CollectionUtils;
 
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.dac.explore.DataTypeUtil;
@@ -216,6 +217,9 @@ public class DatasetsUtil {
 
     virtualDatasetUI.getState().setContextList(virtualDataset.getContextList());
     virtualDatasetUI.setReferencesList(vvds.getReferencesList());
+    if (CollectionUtils.isEmpty(vvds.getState().getReferenceList())) {
+      virtualDatasetUI.getState().setReferenceList(vvds.getReferencesList());
+    }
 
     return virtualDatasetUI;
   }

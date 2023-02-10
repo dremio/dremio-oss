@@ -21,8 +21,6 @@ import java.util.Set;
 
 import com.dremio.common.expression.SchemaPath;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 
 public final class ColumnUtils {
   public static final SchemaPath STAR_COLUMN = SchemaPath.getSimplePath("*");
@@ -52,13 +50,7 @@ public final class ColumnUtils {
     if (projected == null) {
       return false;
     }
-
-    return Iterables.tryFind(projected, new Predicate<SchemaPath>() {
-      @Override
-      public boolean apply(final SchemaPath path) {
-        return Preconditions.checkNotNull(path, "path is required").equals(STAR_COLUMN);
-      }
-    }).isPresent();
+    return projected.stream().anyMatch(path -> Preconditions.checkNotNull(path, "path is required").equals(STAR_COLUMN));
   }
 
   public static boolean isSystemColumn(String fieldName) {

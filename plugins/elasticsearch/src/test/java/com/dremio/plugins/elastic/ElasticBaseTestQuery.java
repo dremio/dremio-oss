@@ -69,6 +69,7 @@ import com.google.common.collect.ImmutableMap;
 public class ElasticBaseTestQuery extends PlanTestBase {
   private static final Logger logger = LoggerFactory.getLogger(ElasticBaseTestQuery.class);
   private static final ObjectMapper objectMapper = new ObjectMapper();
+  private static final String PUSHDOWN_PREFIX = "pushdown\n =";
   protected static final Version ELASTIC_V6 = new Version(6, 0, 0);
 
   protected ElasticsearchCluster elastic;
@@ -533,7 +534,6 @@ public class ElasticBaseTestQuery extends PlanTestBase {
       }
       String plan = getPlanInString("EXPLAIN PLAN for " + query, OPTIQ_FORMAT);
       // find the beginning of the elastic query being pushed down
-      final String PUSHDOWN_PREFIX = "pushdown\n =";
 
       int indexInPlan = 0;
       int expectedJsonBlobIndex = 0;

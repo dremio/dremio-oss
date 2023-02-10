@@ -32,12 +32,12 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.exceptions.RuntimeIOException;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.PartitionTransformTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -51,6 +51,7 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.RowCountEstimator;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.util.LongRange;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.google.common.collect.ImmutableList;
@@ -165,16 +166,20 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel,
         pw.item("table", PathUtils.constructFullPath(functionConfig.getFunctionContext().getTablePath().get(0)));
         break;
       case SPLIT_GEN_MANIFEST_SCAN:
-        Expression icebergAnyColExpression;
-        try {
-          icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(((ManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getIcebergAnyColExpression());
-        } catch (IOException e) {
-          throw new RuntimeIOException(e, "failed to deserialize ManifestFile Filter AnyColExpression");
-        } catch (ClassNotFoundException e) {
-          throw new RuntimeException("failed to deserialize ManifestFile Filter AnyColExpression" , e);
-        }
-        if(icebergAnyColExpression != null) {
+        ManifestScanFilters manifestScanFilters = ((ManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getManifestScanFilters();
+
+        if (manifestScanFilters.doesIcebergAnyColExpressionExists()) {
+          Expression icebergAnyColExpression = manifestScanFilters.getIcebergAnyColExpressionDeserialized();
           pw.item("ManifestFile Filter AnyColExpression", icebergAnyColExpression.toString());
+        }
+
+        if (manifestScanFilters.doesMinPartitionSpecIdExist()) {
+          pw.item("partition_spec_id <", manifestScanFilters.getMinPartitionSpecId());
+        }
+
+        if (manifestScanFilters.doesSkipDataFileSizeRangeExist()) {
+          LongRange range = manifestScanFilters.getSkipDataFileSizeRange();
+          pw.item("data_file.file_size_in_bytes between", range);
         }
         break;
     }
@@ -197,14 +202,13 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel,
         return survivingDataFileRecords() * selectivityEstimateFactor;
       case SPLIT_GEN_MANIFEST_SCAN:
       case METADATA_MANIFEST_FILE_SCAN:
-        if(survivingRecords == null) {
-          //In case this is not an iceberg table we should rely on old methods of estimation
-          final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
-          double sliceTarget = ((double)plannerSettings.getSliceTarget() /
+        final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
+        double sliceTarget = ((double)plannerSettings.getSliceTarget() /
           plannerSettings.getOptions().getOption(ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD));
+        if (tableMetadata.getReadDefinition().getManifestScanStats() == null) {
           return Math.max(mq.getRowCount(input) * sliceTarget, 1);
         }
-        return (double)survivingRecords;
+        return Math.max(tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount() * sliceTarget, 1);
       case SPLIT_ASSIGNMENT:
         return mq.getRowCount(this.input);
     }

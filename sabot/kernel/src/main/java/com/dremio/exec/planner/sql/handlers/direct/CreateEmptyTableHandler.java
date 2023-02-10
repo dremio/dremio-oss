@@ -34,13 +34,18 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.base.IcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlValidatorImpl;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
-import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.record.BatchSchema;
@@ -59,7 +64,7 @@ import com.google.common.base.Throwables;
 import io.protostuff.ByteString;
 
 public class CreateEmptyTableHandler extends SimpleDirectHandler {
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CreateEmptyTableHandler.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CreateEmptyTableHandler.class);
 
   private final Catalog catalog;
   private final SqlHandlerConfig config;
@@ -156,7 +161,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
 
     final long ringCount = optionManager.getOption(PlannerSettings.RING_COUNT);
 
-    List<SqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
+
+    List<DremioSqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
 
     if (!isPolicyAllowed() && columnDeclarations.stream().anyMatch(col -> col.getPolicy() != null)) {
       throw UserException.unsupportedError()
@@ -168,6 +174,10 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
     PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
     IcebergTableProps icebergTableProps = new IcebergTableProps(ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)), serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)));
+    IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
+      .setIcebergTableProps(icebergTableProps).build();
+    TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
+      .setIcebergSpecificOptions(icebergWriterOptions).setOperation(TableFormatOperation.CREATE).build();
 
     final WriterOptions options = new WriterOptions(
       (int) ringCount,
@@ -178,9 +188,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       sqlCreateEmptyTable.getLocation(),
       sqlCreateEmptyTable.isSingleWriter(),
       Long.MAX_VALUE,
-      WriterOptions.IcebergWriterOperation.CREATE,
-      null,
-      icebergTableProps
+      tableFormatOptions,
+      null
     );
 
     DremioTable table = catalog.getTableNoResolve(key);
@@ -225,6 +234,16 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
     CatalogUtil.validateResolvedVersionIsBranch(version, key.toString());
+    List<DremioSqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
+    SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
+    BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
+    PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
+    IcebergTableProps icebergTableProps = new IcebergTableProps(ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)), serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)));
+    IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
+      .setIcebergTableProps(icebergTableProps).build();
+    TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
+      .setIcebergSpecificOptions(icebergWriterOptions).setOperation(TableFormatOperation.CREATE).build();
+
     final WriterOptions writerOptions = new WriterOptions(
       (int) ringCount,
       sqlCreateEmptyTable.getPartitionColumns(null),
@@ -234,12 +253,22 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       sqlCreateEmptyTable.getLocation(),
       sqlCreateEmptyTable.isSingleWriter(),
       Long.MAX_VALUE,
-      WriterOptions.IcebergWriterOperation.CREATE,
+      tableFormatOptions,
       null,
       version
     );
 
-    List<SqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
+    DremioTable table = catalog.getTableNoResolve(key);
+    if (table != null) {
+      if(ifNotExists){
+        return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] already exists.", key)));
+      }
+      else {
+        throw UserException.validationError()
+          .message("A table with the given name already exists")
+          .buildSilently();
+      }
+    }
 
     long maxColumnCount = optionManager.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
     if (columnDeclarations.size() > maxColumnCount) {

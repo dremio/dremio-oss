@@ -111,7 +111,7 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     return delegate.getTableSnapshot(key, context);
   }
 
@@ -255,6 +255,16 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public void rollbackTable(NamespaceKey path, DatasetConfig datasetConfig, RollbackOption rollbackOption, TableMutationOptions tableMutationOptions) {
+    delegate.rollbackTable(path, datasetConfig, rollbackOption, tableMutationOptions);
+  }
+
+  @Override
+  public void vacuumTable(NamespaceKey path, DatasetConfig datasetConfig, VacuumOption vacuumOption, TableMutationOptions tableMutationOptions) {
+    delegate.vacuumTable(path, datasetConfig, vacuumOption, tableMutationOptions);
+  }
+
+  @Override
   public void addColumns(NamespaceKey table, DatasetConfig datasetConfig, List<Field> colsToAdd, TableMutationOptions tableMutationOptions) {
     delegate.addColumns(table, datasetConfig, colsToAdd, tableMutationOptions);
   }
@@ -378,6 +388,11 @@ public abstract class DelegatingCatalog implements Catalog {
   @Override
   public void validatePrivilege(NamespaceKey key, SqlGrant.Privilege privilege) {
     delegate.validatePrivilege(key, privilege);
+  }
+
+  @Override
+  public boolean hasPrivilege(NamespaceKey key, SqlGrant.Privilege privilege) {
+    return delegate.hasPrivilege(key, privilege);
   }
 
   @Override

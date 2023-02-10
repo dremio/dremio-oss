@@ -19,8 +19,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -89,6 +91,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
   private org.apache.hadoop.hive.ql.io.orc.RecordReader hiveOrcReader;
   private ORCCopier[] copiers;
   private DremioORCRecordUtils.DefaultDataReader dataReader;
+  private Map<ColumnVector, String> vectorToNameMap = new HashMap<>();
 
   /**
    * Hive vectorized ORC reader reads into this batch. It is a heap based structure and reused until the reader exhaust
@@ -432,7 +435,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
 
     copiers = HiveORCCopiers.createCopiers(columnVectorData,
       projectedColOrdinals, ordinalIdsFromOrcFile,
-      vectors, hiveBatch, fSplit.isOriginal(), this.operatorContextOptions);
+      vectors, hiveBatch, fSplit.isOriginal(), this.operatorContextOptions, vectorToNameMap);
 
     // Store the number of vectorized columns for stats/to find whether vectorized ORC reader is used or not
     context.getStats().setLongStat(Metric.NUM_VECTORIZED_COLUMNS, vectors.length);
@@ -491,26 +494,37 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
             .message("Vectorized ORC reader is not supported for datatype: %s", category)
             .build(logger);
         }
-        return getColumnVector(structField.getFieldObjectInspector());
+        return getColumnVector(structField.getFieldName(), structField.getFieldObjectInspector());
       })
       .collect(Collectors.toList());
 
   }
 
-  private ColumnVector getColumnVector(ObjectInspector oi) {
+  private ColumnVector getColumnVector(String fieldName, ObjectInspector oi) {
     Category category = oi.getCategory();
+    ColumnVector vector;
     switch (category) {
 
       case PRIMITIVE:
-        return getPrimitiveColumnVector((PrimitiveObjectInspector) oi);
+        vector = getPrimitiveColumnVector((PrimitiveObjectInspector)oi);
+        vectorToNameMap.put(vector, fieldName);
+        return vector;
       case LIST:
-        return getListColumnVector((ListObjectInspector) oi);
+        vector = getListColumnVector((ListObjectInspector)oi);
+        vectorToNameMap.put(vector, fieldName);
+        return vector;
       case STRUCT:
-        return getStructColumnVector((StructObjectInspector) oi);
+        vector =  getStructColumnVector((StructObjectInspector)oi);
+        vectorToNameMap.put(vector, fieldName);
+        return vector;
       case MAP:
-        return getMapColumnVector((MapObjectInspector) oi);
+        vector = getMapColumnVector((MapObjectInspector)oi);
+        vectorToNameMap.put(vector, fieldName);
+        return vector;
       case UNION:
-        return getUnionColumnVector((UnionObjectInspector) oi);
+        vector =  getUnionColumnVector((UnionObjectInspector)oi);
+        vectorToNameMap.put(vector, fieldName);
+        return vector;
       default:
         throw UserException.unsupportedError()
           .message("Vectorized ORC reader is not supported for datatype: %s", category)
@@ -522,7 +536,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     ArrayList<ColumnVector> vectors = new ArrayList<>();
     List<? extends ObjectInspector> members = uoi.getObjectInspectors();
     for (ObjectInspector unionField : members) {
-      vectors.add(getColumnVector(unionField));
+      vectors.add(getColumnVector("$data$",unionField));
     }
     ColumnVector[] columnVectors = vectors.toArray(new ColumnVector[0]);
     return new UnionColumnVector(VectorizedRowBatch.DEFAULT_SIZE, columnVectors);
@@ -530,8 +544,8 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
 
 
   private ColumnVector getMapColumnVector(MapObjectInspector moi) {
-    ColumnVector keys = getColumnVector(moi.getMapKeyObjectInspector());
-    ColumnVector values = getColumnVector(moi.getMapValueObjectInspector());
+    ColumnVector keys = getColumnVector("key",moi.getMapKeyObjectInspector());
+    ColumnVector values = getColumnVector("value",moi.getMapValueObjectInspector());
     return new MapColumnVector(VectorizedRowBatch.DEFAULT_SIZE, keys, values);
   }
 
@@ -539,14 +553,14 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     ArrayList<ColumnVector> vectors = new ArrayList<>();
     List<? extends StructField> members = soi.getAllStructFieldRefs();
     for (StructField structField : members) {
-      vectors.add(getColumnVector(structField.getFieldObjectInspector()));
+      vectors.add(getColumnVector(structField.getFieldName(),structField.getFieldObjectInspector()));
     }
     ColumnVector[] columnVectors = vectors.toArray(new ColumnVector[0]);
     return new StructColumnVector(VectorizedRowBatch.DEFAULT_SIZE, columnVectors);
   }
 
   private ColumnVector getListColumnVector(ListObjectInspector loi) {
-    ColumnVector lecv = getColumnVector(loi.getListElementObjectInspector());
+    ColumnVector lecv = getColumnVector("$data$", loi.getListElementObjectInspector());
     return new ListColumnVector(VectorizedRowBatch.DEFAULT_SIZE, lecv);
   }
 

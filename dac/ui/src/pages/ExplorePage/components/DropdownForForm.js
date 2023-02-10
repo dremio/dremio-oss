@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import $ from "jquery";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import "./DropdownForForm.less";
 

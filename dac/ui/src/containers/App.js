@@ -37,8 +37,6 @@ import sentryUtil from "@app/utils/sentryUtil";
 import { formatMessage } from "@app/utils/locale";
 
 import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
-import config from "dyn-load/utils/config";
-import enableFatalPropTypes from "@app/enableFatalPropTypes";
 
 import ModalsContainer from "@app/components/Modals/ModalsContainer";
 import PATModalContainer from "dyn-load/containers/PATModalContainer";
@@ -48,21 +46,21 @@ import AppHOC from "@inject/containers/AppHOC";
 import NotificationContainer from "@app/containers/Notification";
 import ConfirmationContainer from "@app/containers/Confirmation";
 import ProdErrorContainer from "@app/containers/ProdError";
-import DevErrorContainer from "@app/containers/DevError";
 import { LocationProvider } from "@app/containers/dremioLocation";
 import { withHookProvider } from "@app/containers/RouteLeave";
+import { isDcsEdition } from "dyn-load/utils/versionUtils";
 
 import { themeStyles } from "dremio-ui-lib";
 import "../uiTheme/css/react-datepicker.css";
+import "../uiTheme/css/dialog-polyfill.css";
 import "../uiTheme/css/leantable.css";
+import "../uiTheme/css/fa.css";
 
 DocumentTitle.join = (tokens) => {
   return [...tokens, formatMessage("App.Dremio")].filter(Boolean).join(" - ");
 };
 
 const { components: componentOverrides, palette, ...otherStyles } = themeStyles;
-
-const fontFamily = ["Inter var", "sans-serif"].join(",");
 
 const theme = createTheme({
   ...otherStyles,
@@ -84,7 +82,7 @@ const theme = createTheme({
   },
   typography: {
     fontSize: 12,
-    fontFamily,
+    fontFamily: "var(--dremio--font-family)",
   },
 });
 
@@ -95,7 +93,6 @@ export class App extends Component {
     //connected
     user: PropTypes.object,
     serverStatus: PropTypes.instanceOf(Immutable.Map),
-    shouldEnableRSOD: PropTypes.bool,
     dispatch: PropTypes.func.isRequired,
   };
 
@@ -107,17 +104,21 @@ export class App extends Component {
   };
 
   static redirectForServerStatus(props) {
-    const { location } = props;
-    if (
-      props.serverStatus.get("status") !== SERVER_STATUS_OK &&
-      location.pathname !== "/status"
-    ) {
-      props.dispatch(
-        replace(
-          "/status?redirect=" +
-            encodeURIComponent(props.location.pathname + props.location.search)
-        )
-      );
+    if (!isDcsEdition()) {
+      const { location } = props;
+      if (
+        props.serverStatus.get("status") !== SERVER_STATUS_OK &&
+        location.pathname !== "/status"
+      ) {
+        props.dispatch(
+          replace(
+            "/status?redirect=" +
+              encodeURIComponent(
+                props.location.pathname + props.location.search
+              )
+          )
+        );
+      }
     }
   }
 
@@ -128,10 +129,6 @@ export class App extends Component {
     // experimental according to mdn. Can get both file url and error from either.
     window.onerror = this.handleGlobalError.bind(this, window.onerror);
     window.onunhandledrejection = this.handleUnhandledRejection;
-
-    if (config.shouldEnableBugFiling || props.shouldEnableRSOD) {
-      enableFatalPropTypes();
-    }
   }
 
   getChildContext() {
@@ -213,28 +210,26 @@ export class App extends Component {
   }
 
   render() {
-    const { children, shouldEnableRSOD } = this.props;
+    const { children } = this.props;
     return (
       <Fragment>
         <ErrorBoundary>
           <Suspense>
             <LocationProvider location={this.props.location}>
-              <div style={{ height: "100%" }}>
-                <StyledEngineProvider injectFirst>
-                  <ThemeProvider theme={theme}>{children}</ThemeProvider>
-                </StyledEngineProvider>
-                <AccountSettingsModalContainer />
-                <NotificationContainer />
-                <ConfirmationContainer />
-                <PATModalContainer />
-                <ModalsContainer modals={{ AboutModal }} />
-                <div className="popup-notifications" />
-                <div className="conifrmation-container" />
-              </div>
+              <StyledEngineProvider injectFirst>
+                <ThemeProvider theme={theme}>{children}</ThemeProvider>
+              </StyledEngineProvider>
+              <AccountSettingsModalContainer />
+              <NotificationContainer />
+              <ConfirmationContainer />
+              <PATModalContainer />
+              <ModalsContainer modals={{ AboutModal }} />
+              <div className="popup-notifications" />
+              <div className="conifrmation-container" />
             </LocationProvider>
           </Suspense>
         </ErrorBoundary>
-        {shouldEnableRSOD ? <DevErrorContainer /> : <ProdErrorContainer />}
+        <ProdErrorContainer />
       </Fragment>
     );
   }
@@ -251,7 +246,6 @@ function mapStateToProps(state) {
   return {
     user,
     serverStatus: state.serverStatus,
-    shouldEnableRSOD: config.shouldEnableRSOD,
   };
 }
 

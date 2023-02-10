@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
-import { tabLabel, tabIcon } from "@app/uiTheme/less/layout.less";
+import { tabLabel } from "@app/uiTheme/less/layout.less";
 import { nav, navBtn, navBtnActive } from "./NavPanel.less";
 
 export default class NavPanel extends PureComponent {
@@ -30,23 +30,6 @@ export default class NavPanel extends PureComponent {
 
   static defaultProps = {
     showSingleTab: false,
-  };
-
-  renderTabLabel = ({ text, icon = null }) => {
-    return (
-      <span className={tabLabel}>
-        <span>{text}</span>
-        {icon && (
-          <span className={tabIcon}>
-            <dremio-icon
-              name={icon.name}
-              alt={icon.alt || ""}
-              style={icon.style || ""}
-            />
-          </span>
-        )}
-      </span>
-    );
   };
 
   render() {
@@ -70,7 +53,9 @@ export default class NavPanel extends PureComponent {
             onClick={this.props.changeTab.bind(this, key)}
             className={this.props.activeTab === key ? navBtnActive : navBtn}
           >
-            {this.renderTabLabel(labelConfig)}
+            <span className={tabLabel}>
+              <span>{labelConfig.text}</span>
+            </span>
           </div>
         );
       })

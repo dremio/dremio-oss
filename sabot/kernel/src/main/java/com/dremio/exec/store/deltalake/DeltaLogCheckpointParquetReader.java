@@ -261,7 +261,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       if (!protocolVector.isNull(i)) {
         int minReaderVersion = ((IntVector) protocolVector.getChild(PROTOCOL_MIN_READER_VERSION)).get(i);
         Preconditions.checkState(minReaderVersion <= 1,
-          "Protocol version {} is incompatible for Dremio plugin", minReaderVersion);
+          "Protocol version %s is incompatible for Dremio plugin", minReaderVersion);
         return true;
       }
     }

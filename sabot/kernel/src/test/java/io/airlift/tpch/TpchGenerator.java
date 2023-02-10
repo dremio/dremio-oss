@@ -15,6 +15,8 @@
  */
 package io.airlift.tpch;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -39,7 +41,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.Generator;
-import com.google.common.base.Charsets;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 
@@ -160,7 +161,7 @@ public abstract class TpchGenerator implements Generator {
   }
 
   protected void set(int index, VarCharVector v, String value){
-    byte[] bytesValue = value.getBytes(Charsets.UTF_8);
+    byte[] bytesValue = value.getBytes(UTF_8);
     v.setSafe(index, bytesValue, 0, bytesValue.length);
   }
 

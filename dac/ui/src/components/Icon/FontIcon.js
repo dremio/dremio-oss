@@ -15,7 +15,7 @@
  */
 import { createElement, PureComponent, Component } from "react";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import PropTypes from "prop-types";
 

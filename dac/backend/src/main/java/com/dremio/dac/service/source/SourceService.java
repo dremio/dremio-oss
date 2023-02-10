@@ -18,7 +18,6 @@ package com.dremio.dac.service.source;
 import static com.dremio.dac.api.MetadataPolicy.ONE_MINUTE_IN_MS;
 import static com.dremio.dac.util.DatasetsUtil.toDatasetConfig;
 import static com.dremio.dac.util.DatasetsUtil.toPhysicalDatasetConfig;
-import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Collections.singletonList;
@@ -35,6 +34,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -70,12 +70,12 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.namespace.DatasetHelper;
@@ -111,6 +111,7 @@ public class SourceService {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceService.class);
 
+  private final SabotContext sabotContext;
   private final NamespaceService namespaceService;
   private final DatasetVersionMutator datasetService;
   private final CatalogService catalogService;
@@ -121,6 +122,7 @@ public class SourceService {
 
   @Inject
   public SourceService(
+    SabotContext sabotContext,
     NamespaceService namespaceService,
     DatasetVersionMutator datasetService,
     CatalogService catalogService,
@@ -128,6 +130,7 @@ public class SourceService {
     CollaborationHelper collaborationService,
     ConnectionReader connectionReader,
     SecurityContext security) {
+    this.sabotContext = sabotContext;
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.catalogService = catalogService;
@@ -138,16 +141,16 @@ public class SourceService {
   }
 
   private Catalog createCatalog() {
-    return catalogService.getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(CatalogUser.from(security.getUserPrincipal().getName()))
-            .build()));
+    return createCatalog(null);
   }
 
   private Catalog createCatalog(String userName) {
-    return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(userName))
-      .build()));
+    return catalogService.getCatalog(MetadataRequestOptions.of(
+      SchemaConfig.newBuilder(StringUtils.isBlank(userName)
+          ? CatalogUser.from(security.getUserPrincipal().getName())
+          : CatalogUser.from(userName))
+        .build()));
   }
-
 
   public ConnectionConf<?, ?> getConnectionConf(SourceConfig config){
     return connectionReader.getConnectionConf(config);
@@ -158,36 +161,20 @@ public class SourceService {
   }
 
   public SourceConfig registerSourceWithRuntime(SourceUI source) throws ExecutionSetupException, NamespaceException {
-    return registerSourceWithRuntime(source.asSourceConfig(), source.getNamespaceAttributes());
+    return registerSourceWithRuntimeInternal(source.asSourceConfig(), createCatalog(), source.getNamespaceAttributes());
   }
 
-  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig,  NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
+  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig) throws ExecutionSetupException, NamespaceException {
+    return registerSourceWithRuntimeInternal(sourceConfig, createCatalog());
+  }
+
+  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, String userName, NamespaceAttribute... attributes) throws NamespaceException {
+    return registerSourceWithRuntimeInternal(sourceConfig, createCatalog(userName), attributes);
+  }
+
+  private SourceConfig registerSourceWithRuntimeInternal(SourceConfig sourceConfig, SourceCatalog sourceCatalog, NamespaceAttribute... attributes) throws NamespaceException {
     validateConnectionConf(getConnectionConf(sourceConfig));
 
-    return registerSourceWithRuntime(sourceConfig, createCatalog(), attributes);
-  }
-
-  /**
-   * Skips ConnectionConf validation to assist in the creation of internal source types.
-   *
-   * Note: THIS SHOULD NEVER BE CALLED NON-TEST CODE.
-   */
-  @VisibleForTesting
-  public SourceConfig registerSourceWithRuntimeInternal(SourceConfig sourceConfig,  NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
-    return registerSourceWithRuntime(sourceConfig, createCatalog(), attributes);
-  }
-
-  /**
-   * Skips ConnectionConf validation to assist in the creation of internal source types.
-   *
-   * Note: THIS SHOULD NEVER BE CALLED NON-TEST CODE.
-   */
-  @VisibleForTesting
-  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, String userName) throws ExecutionSetupException, NamespaceException {
-    return registerSourceWithRuntime(sourceConfig, createCatalog(userName));
-  }
-
-  private SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, SourceCatalog sourceCatalog, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
     if(sourceConfig.getTag() == null) {
       sourceCatalog.createSource(sourceConfig, attributes);
     } else {
@@ -205,34 +192,24 @@ public class SourceService {
   }
 
   /**
-   * Skips ConnectionConf validation to assist in the creation of internal source types.
-   *
-   * Note: THIS SHOULD NEVER BE CALLED NON-TEST CODE.
+   * Solely exists to allow clean-up of some test code.
    */
   @VisibleForTesting
   public void unregisterSourceWithRuntime(SourceName sourceName) {
     final NamespaceKey key = new NamespaceKey(sourceName.getName());
     try {
       SourceConfig config = namespaceService.getSource(key);
+      validateConnectionConf(getConnectionConf(config));
       createCatalog().deleteSource(config);
       reflectionServiceHelper.getReflectionSettings().removeSettings(key);
     } catch (NamespaceException e) {
       throw Throwables.propagate(e);
     }
   }
-  public SourceConfig createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
-    validateConnectionConf(getConnectionConf(sourceConfig));
-    return createSourceInternal(sourceConfig, attributes);
-  }
 
-  /**
-   * Skips ConnectionConf validation to assist in the creation of internal source types.
-   *
-   * Note: THIS SHOULD NEVER BE CALLED NON-TEST CODE.
-   */
-  @VisibleForTesting
-  public SourceConfig createSourceInternal(SourceConfig sourceConfig, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
+  public SourceConfig createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
     validateSourceConfig(sourceConfig);
+    validateConnectionConf(getConnectionConf(sourceConfig));
 
     Preconditions.checkArgument(sourceConfig.getId() == null || Strings.isNullOrEmpty(sourceConfig.getId().getId()), "Source id is immutable.");
     Preconditions.checkArgument(sourceConfig.getTag() == null, "Source tag is immutable.");
@@ -244,22 +221,12 @@ public class SourceService {
 
     sourceConfig.setCtime(System.currentTimeMillis());
 
-    return registerSourceWithRuntime(sourceConfig, attributes);
+    return registerSourceWithRuntimeInternal(sourceConfig, createCatalog(), attributes);
   }
 
-  public SourceConfig updateSource(String id, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException, ExecutionSetupException, SourceNotFoundException {
-    validateConnectionConf(getConnectionConf(sourceConfig));
-    return updateSourceInternal(id, sourceConfig, attributes);
-  }
-
-  /**
-   * Skips ConnectionConf validation to assist in the creation of internal source types.
-   *
-   * Note: THIS SHOULD NEVER BE CALLED NON-TEST CODE.
-   */
-  @VisibleForTesting
-  public SourceConfig updateSourceInternal(String id, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException, ExecutionSetupException, SourceNotFoundException {
+  public SourceConfig updateSource(String id, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException, SourceNotFoundException {
     validateSourceConfig(sourceConfig);
+    validateConnectionConf(getConnectionConf(sourceConfig));
 
     SourceConfig oldSourceConfig = getById(id);
 
@@ -268,7 +235,7 @@ public class SourceService {
     Preconditions.checkArgument(oldSourceConfig.getName().equals(sourceConfig.getName()), "Source name is immutable.");
     Preconditions.checkArgument(oldSourceConfig.getType().equals(sourceConfig.getType()), "Source type is immutable.");
 
-    return registerSourceWithRuntimeInternal(sourceConfig, attributes);
+    return registerSourceWithRuntimeInternal(sourceConfig, createCatalog(), attributes);
   }
 
   public void deleteSource(SourceConfig sourceConfig) {
@@ -282,7 +249,7 @@ public class SourceService {
     return String.format("%s %d.", errMsg, ONE_MINUTE_IN_MS);
   }
 
-   private void validateSourceConfig(SourceConfig sourceConfig) {
+  private void validateSourceConfig(SourceConfig sourceConfig) {
     // TODO: move this further down to the namespace or catalog service.  For some reason InputValidation does not work on SourceConfig.
     Preconditions.checkNotNull(sourceConfig);
     Preconditions.checkNotNull(sourceConfig.getName(), "Source name is missing.");
@@ -342,12 +309,12 @@ public class SourceService {
   }
 
   protected void addFolderToNamespaceTree(NamespaceTree ns, SourceFolderPath path, FolderConfig folderConfig) throws NamespaceNotFoundException {
-    Folder folder = Folder.newInstance(path, folderConfig, null, null, false, true);
+    Folder folder = Folder.newInstance(path, folderConfig, null, null, false, true, 0);
     ns.addFolder(folder);
   }
 
-  protected void addFolderTableToNamespaceTree(NamespaceTree ns, SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat, boolean isQueryable) throws NamespaceNotFoundException {
-    final Folder folder = Folder.newInstance(folderPath, folderConfig, fileFormat, null, isQueryable,  true);
+  protected void addFolderTableToNamespaceTree(NamespaceTree ns, SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat, boolean isQueryable, int jobCount) throws NamespaceNotFoundException {
+    final Folder folder = Folder.newInstance(folderPath, folderConfig, fileFormat, null, isQueryable,  true, jobCount);
     ns.addFolder(folder);
   }
 
@@ -416,7 +383,7 @@ public class SourceService {
           folderConfig.setTag(physicalDatasetConfig.getTag());
           fileConfig.setTag(physicalDatasetConfig.getTag());
 
-          addFolderTableToNamespaceTree(ns, folderPath, folderConfig, FileFormat.getForFolder(fileConfig), fileConfig.getType() != FileType.UNKNOWN);
+          addFolderTableToNamespaceTree(ns, folderPath, folderConfig, FileFormat.getForFolder(fileConfig), fileConfig.getType() != FileType.UNKNOWN, datasetService.getJobsCount(folderPath.toNamespaceKey()));
         }
         break;
 
@@ -527,6 +494,11 @@ public class SourceService {
     return newFolder(folderPath, folderConfig, contents, isPhysicalDataset(sourceName, folderPath), isFileSystemPlugin);
   }
 
+  public void deleteFolder(SourceFolderPath folderPath, SourceName sourceName,
+                           String refType, String refValue) {
+    throw new UnsupportedOperationException("Deleting a folder in a source is not supported.");
+  }
+
   public Folder createFolder(
       SourceName sourceName,
       SourceFolderPath folderPath,
@@ -539,7 +511,7 @@ public class SourceService {
   protected Folder newFolder(SourceFolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents, boolean isQueryable, boolean isFileSystemPlugin)
       throws NamespaceNotFoundException {
     // TODO: why do we need to look up the dataset again in isPhysicalDataset?
-    Folder folder = Folder.newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemPlugin);
+    Folder folder = Folder.newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemPlugin, 0);
     return folder;
   }
 
@@ -741,11 +713,6 @@ public class SourceService {
     }
   }
 
-
-  private FileSystemPlugin getMetadataPlugin() throws ExecutionSetupException {
-    return catalogService.getManagedSource(METADATA_STORAGE_PLUGIN_NAME).unwrap(FileSystemPlugin.class);
-  }
-
   public void deletePhysicalDataset(SourceName sourceName, PhysicalDatasetPath datasetPath, String version ,NamespaceService.DeleteCallback deleteCallback) throws PhysicalDatasetNotFoundException {
     try {
       DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath.toNamespaceKey());
@@ -822,8 +789,13 @@ public class SourceService {
     return catalogService.isSourceConfigMetadataImpacting(sourceConfig);
   }
 
-  private void validateConnectionConf(ConnectionConf<?, ?> connectionConf) {
-    if (!(connectionConf instanceof InternalFileConf) && connectionConf.isInternal()) {
+  /**
+   * This method is public such that certain (test) code paths can mock this method to ignore this
+   * validation.
+   */
+  @VisibleForTesting
+  public void validateConnectionConf(ConnectionConf<?, ?> connectionConf) {
+    if (connectionConf.isInternal()) {
       throw UserExceptionMapper.withStatus(UserException.unsupportedError(), Response.Status.BAD_REQUEST)
         .message("Source with connection type %s cannot be created nor modified.", connectionConf.getType())
         .buildSilently();

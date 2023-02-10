@@ -51,6 +51,7 @@ import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
@@ -83,6 +84,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments;
   private List<MinorFragmentEndpoint> minorFragmentEndpoints;
   private final ExpressionSplitCache expressionSplitCache;
+  private final HeapLowMemController heapLowMemController;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
                                 SabotConfig config, DremioConfig dremioConfig, FragmentHandle handle, ExecutionControls executionControls,
@@ -92,7 +94,8 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
                                 NodeDebugContextProvider nodeDebugContextProvider, TunnelProvider tunnelProvider,
                                 List<FragmentAssignment> assignments, EndpointsIndex endpointsIndex,
                                 Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
-                                List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments, ExpressionSplitCache expressionSplitCache) {
+                                List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments, ExpressionSplitCache expressionSplitCache,
+                                HeapLowMemController heapLowMemController) {
     super();
     this.stats = stats;
     this.allocator = allocator;
@@ -117,6 +120,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.endpointsIndex = endpointsIndex;
     this.extFragmentAssignments = extFragmentAssignments;
     this.expressionSplitCache = expressionSplitCache;
+    this.heapLowMemController = heapLowMemController;
   }
 
   public void setFragmentOutputAllocator(BufferAllocator fragmentOutputAllocator) {
@@ -178,7 +182,8 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         nodeEndpointProvider,
         endpointsIndex,
         minorFragmentEndpoints,
-        expressionSplitCache);
+        expressionSplitCache,
+        heapLowMemController);
       operatorContexts.add(context);
       closeable.commit();
       return context;

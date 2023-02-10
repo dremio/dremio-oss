@@ -14,44 +14,23 @@
  * limitations under the License.
  */
 import BreadcrumbLink from "../../Common/BreadcrumbLink/BreadcrumbLink";
-import Breadcrumb from "../../Common/Breadcrumb/Breadcrumb";
-import { connect } from "react-redux";
+import { useSelector } from "react-redux";
 //@ts-ignore
 import { getOrganizationInfo } from "@inject/selectors/account";
-import * as PATHS from "@app/exports/paths";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
+// @ts-ignore
+import * as orgPaths from "dremio-ui-common/paths/organization";
 
-const renderOrgLandingDisabled = (name: string) => {
-  return <Breadcrumb iconName="interface/enterprise" text={name} />;
-};
-
-const OrgCrumb = (props: { orgInfo: Record<string, any> }) => {
-  const { orgInfo } = props;
-
+const OrgCrumb = () => {
+  const orgInfo = useSelector((state) => getOrganizationInfo(state));
   return (
     orgInfo && (
-      <FeatureSwitch
-        flag={ORGANIZATION_LANDING}
-        renderEnabled={() => (
-          <BreadcrumbLink
-            to={PATHS.organization()}
-            text={orgInfo.name}
-            iconName="interface/enterprise"
-          />
-        )}
-        renderDisabled={() => renderOrgLandingDisabled(orgInfo.name)}
-        renderPending={() => renderOrgLandingDisabled(orgInfo.name)}
+      <BreadcrumbLink
+        to={orgPaths.organization.link()}
+        text={orgInfo.name}
+        iconName="interface/enterprise"
       />
     )
   );
 };
 
-const mapStateToProps = (state: Record<string, any>) => {
-  const orgInfo = getOrganizationInfo(state);
-  return {
-    orgInfo,
-  };
-};
-
-export default connect(mapStateToProps, {})(OrgCrumb);
+export default OrgCrumb;

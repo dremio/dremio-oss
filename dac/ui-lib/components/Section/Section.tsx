@@ -21,7 +21,7 @@ import { forwardRef, type ReactNode } from "react";
 
 type SectionProps = {
   children: ReactNode;
-  title: JSX.Element;
+  title?: JSX.Element;
   toolbar?: JSX.Element;
 
   className?: string;

@@ -41,7 +41,7 @@ public class UserDefinedFunctionSerdeTest {
             "foo",
             "SELECT 1",
             CompleteType.INT,
-            ImmutableList.of()))
+            ImmutableList.of(), ImmutableList.of("dir", "space")))
         .add("1 arg",
           new UserDefinedFunction(
             "foo",
@@ -49,7 +49,7 @@ public class UserDefinedFunctionSerdeTest {
             CompleteType.INT,
             ImmutableList.of(
               new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR)
-            )))
+            ), null))
         .runTests();
   }
 
@@ -64,7 +64,9 @@ public class UserDefinedFunctionSerdeTest {
             new FunctionDefinition()
               .setFunctionArgList(ImmutableList.of())
               .setFunctionBody(new FunctionBody().setRawBody("SELECT 1"))
-          )))
+          ))
+          .setFullPathList(ImmutableList.of("dir", "space"))
+      )
       .add("1 arg",
         new FunctionConfig()
           .setFunctionDefinitionsList(ImmutableList.of(
@@ -76,6 +78,7 @@ public class UserDefinedFunctionSerdeTest {
               ))
               .setFunctionBody(new FunctionBody().setRawBody("SELECT 1")))
           )
+          .setFullPathList(null)
           .setName("foo")
           .setReturnType(new ReturnType().setRawDataType(ByteString.copyFrom(CompleteType.INT.serialize()))))
       .runTests();
@@ -96,7 +99,7 @@ public class UserDefinedFunctionSerdeTest {
           "foo",
           "SELECT 1",
           CompleteType.INT,
-          ImmutableList.of()))
+          ImmutableList.of(), ImmutableList.of("dir", "space")))
       .add("1 arg",
         new UserDefinedFunction(
           "foo",
@@ -104,7 +107,7 @@ public class UserDefinedFunctionSerdeTest {
           CompleteType.INT,
           ImmutableList.of(
             new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR)
-          )))
+          ), null))
       .runTests();
   }
 }

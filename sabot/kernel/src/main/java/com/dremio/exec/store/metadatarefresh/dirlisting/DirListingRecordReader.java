@@ -49,6 +49,7 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterators;
 
 /**
  * RecordReader which given a path for a root dir will produce a list of files in the directory
@@ -96,6 +97,9 @@ public class DirListingRecordReader implements RecordReader {
   private final int footerReaderWidth;
   protected int batchSize = 32; // start with a small batch size
   private boolean isFile;
+  private boolean hasVersion;
+  private boolean hasFiles;
+  private List<String> files;
 
   //Output Vectors
   private BigIntVector mtimeVector;
@@ -123,6 +127,11 @@ public class DirListingRecordReader implements RecordReader {
     this.rootPath = Path.of(dirListInputSplit.getRootPath());
     this.operatingPath = Path.of(dirListInputSplit.getOperatingPath());
     this.isFile = dirListInputSplit.getIsFile();
+    this.hasVersion = dirListInputSplit.hasHasVersion() ? dirListInputSplit.getHasVersion() : true;
+    this.hasFiles = dirListInputSplit.hasHasFiles() ? dirListInputSplit.getHasFiles() : false;
+    if(this.hasFiles) {
+      this.files = dirListInputSplit.getFilesList();
+    }
     this.isRecursive = isRecursive;
     this.discoverPartitions = discoverPartitions;
     this.maxBatchSize = context.getTargetBatchSize();
@@ -231,6 +240,8 @@ public class DirListingRecordReader implements RecordReader {
     try {
       if(isFile) {
         dirIterator = Collections.singletonList(fs.getFileAttributes(operatingPath)).iterator();
+      } else if(hasFiles) {
+          dirIterator = getFilesIterator();
       } else {
         dirIterator = fs.listFiles(operatingPath, isRecursive).iterator();
       }
@@ -251,6 +262,22 @@ public class DirListingRecordReader implements RecordReader {
         throw e;
       }
     }
+  }
+
+  private Iterator<FileAttributes> getFilesIterator() throws IOException {
+    return Iterators.transform(files.iterator(), path -> {
+      String completePath  =  rootPath + "/" + path;
+      try {
+        return fs.getFileAttributes(Path.of(completePath));
+      } catch (IOException e) {
+        String errorMessage = "Failed to get details for file: " + completePath;
+        throw UserException
+          .dataReadError(e)
+          .message(errorMessage)
+          .addContext("File path: ", operatingPath.toString())
+          .build(logger);
+      }
+    });
   }
 
   private boolean isRateLimitingException(Exception e) {
@@ -289,8 +316,11 @@ public class DirListingRecordReader implements RecordReader {
   }
 
   private void addPath(FileAttributes fileStatus, int index) {
-    final String pathWithMTime = String.format("%s?%s=%d", fileStatus.getPath(), FILE_VERSION, fileStatus.lastModifiedTime().toMillis());
-    pathVector.setSafe(index, pathWithMTime.getBytes(StandardCharsets.UTF_8));
+    String path = fileStatus.getPath().toString();
+    if (hasVersion) {
+      path += String.format("?%s=%d", FILE_VERSION, fileStatus.lastModifiedTime().toMillis());
+    }
+    pathVector.setSafe(index, path.getBytes(StandardCharsets.UTF_8));
   }
 
   private void addMtimeAndSize(FileAttributes fileStatus, int index) {

@@ -15,7 +15,7 @@
  */
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import classNames from "classnames";
+import classNames from "clsx";
 import { getSidebarSize } from "@app/selectors/home";
 import { sidebarColumn, homeRow, mainGridColumn } from "./Columns.less";
 

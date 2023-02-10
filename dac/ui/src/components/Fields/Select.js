@@ -20,7 +20,7 @@ import { get } from "lodash/object";
 
 import { SelectView } from "@app/components/Fields/SelectView";
 import { formDefault } from "uiTheme/radium/typography";
-import classNames from "classnames";
+import classNames from "clsx";
 import SelectItem from "./SelectItem";
 import { button, label as labelCls, list as listCls } from "./Select.less";
 
@@ -43,6 +43,8 @@ export default class Select extends PureComponent {
     itemRenderer: PropTypes.func, // function(item) {}
     selectedValueRenderer: PropTypes.func, // renders a selected value in main button content
     itemClass: PropTypes.string,
+    listWidthSameAsAnchorEl: PropTypes.bool,
+    listStyle: PropTypes.object
   };
 
   static defaultProps = {
@@ -121,6 +123,8 @@ export default class Select extends PureComponent {
       className,
       listClass,
       value,
+      listWidthSameAsAnchorEl = true,
+      listStyle
     } = this.props;
 
     const defaultOption = this.props.items.length
@@ -135,7 +139,7 @@ export default class Select extends PureComponent {
       <SelectView
         content={
           <span
-            className={labelCls}
+            className={classNames([labelCls, "pointerCursor"])}
             style={{ ...formDefault, ...customLabelStyle }}
           >
             {buttonLabel}
@@ -145,10 +149,10 @@ export default class Select extends PureComponent {
         className={classNames(["field", button, className])}
         style={style}
         listClass={classNames([listCls, listClass])}
-        listStyle={{ width: 388 }}
+        listStyle={listStyle ? {...listStyle} : { width: 388 }}
         dataQa={dataQa}
         rootAttrs={{ role: "listbox" }}
-        listWidthSameAsAnchorEl
+        listWidthSameAsAnchorEl={listWidthSameAsAnchorEl}
       >
         {({ closeDD }) => this.renderItems(selectedValue, closeDD)}
       </SelectView>

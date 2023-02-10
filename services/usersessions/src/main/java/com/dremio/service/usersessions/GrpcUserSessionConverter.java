@@ -113,6 +113,9 @@ public final class GrpcUserSessionConverter {
     if (!Strings.isNullOrEmpty(session.getRoutingTag())) {
       sessionBuilder.setRoutingTag(session.getRoutingTag());
     }
+    if (!Strings.isNullOrEmpty(session.getQueryLabel())) {
+      sessionBuilder.setQueryLabel(session.getQueryLabel());
+    }
     if (!Strings.isNullOrEmpty(session.getTargetUserName())) {
       sessionBuilder.setImpersonationTarget(session.getTargetUserName());
     }
@@ -150,6 +153,10 @@ public final class GrpcUserSessionConverter {
     if (userSessionRPC.hasRoutingTag()) {
       userPropBuilder.addProperties(UserProtos.Property.newBuilder()
         .setKey(UserSession.ROUTING_TAG).setValue(userSessionRPC.getRoutingTag()).build());
+    }
+    if (userSessionRPC.hasQueryLabel()) {
+      userPropBuilder.addProperties(UserProtos.Property.newBuilder()
+              .setKey(UserSession.QUERY_LABEL).setValue(userSessionRPC.getQueryLabel()).build());
     }
     if (userSessionRPC.hasImpersonationTarget()) {
       userPropBuilder.addProperties(UserProtos.Property.newBuilder()

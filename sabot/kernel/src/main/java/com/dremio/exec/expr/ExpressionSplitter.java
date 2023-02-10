@@ -54,6 +54,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.llvm.GandivaSecondaryCacheWithStats;
 import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
@@ -345,16 +346,16 @@ public class ExpressionSplitter implements AutoCloseable {
   }
 
   // setup the pipeline for project operations
-  private void projectorSetup(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) throws GandivaException {
+  private void projectorSetup(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException {
     for(SplitStageExecutor splitStageExecutor : execPipeline) {
-      splitStageExecutor.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+      splitStageExecutor.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
     }
   }
 
   // setup the pipeline for filter operations
-  private void filterSetup(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) throws GandivaException, Exception {
+  private void filterSetup(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException, Exception {
     for(SplitStageExecutor splitStageExecutor : execPipeline) {
-      splitStageExecutor.setupFilter(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+      splitStageExecutor.setupFilter(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
     }
   }
 
@@ -551,9 +552,14 @@ public class ExpressionSplitter implements AutoCloseable {
   // create and setup the pipeline for project operations
   public VectorContainer setupProjector(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch)
     throws Exception {
+    return setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, null);
+  }
+
+  public VectorContainer setupProjector(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache)
+    throws Exception {
     verifySplitsInGandiva();
     createPipeline();
-    projectorSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+    projectorSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
     return vectorContainer;
   }
 
@@ -561,10 +567,17 @@ public class ExpressionSplitter implements AutoCloseable {
   public void setupFilter(VectorContainer outgoing, NamedExpression namedExpression,
                           Stopwatch javaCodeGenWatch,
                           Stopwatch gandivaCodeGenWatch) throws Exception {
+    setupFilter(outgoing, namedExpression, javaCodeGenWatch, gandivaCodeGenWatch, null);
+  }
+
+  public void setupFilter(VectorContainer outgoing, NamedExpression namedExpression,
+                          Stopwatch javaCodeGenWatch,
+                          Stopwatch gandivaCodeGenWatch,
+                          GandivaSecondaryCacheWithStats secondaryCache) throws Exception {
     addToSplitter(incoming, namedExpression);
     verifySplitsInGandiva();
     createPipeline();
-    filterSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+    filterSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
   }
 
   // This is invoked in case of an exception to release all buffers that have been allocated

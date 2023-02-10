@@ -17,6 +17,7 @@ package com.dremio.dac.service;
 
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
 import static org.apache.hadoop.util.Time.now;
 import static org.junit.Assert.assertEquals;
@@ -82,12 +83,13 @@ import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
 import com.dremio.test.UserExceptionAssert;
-import com.google.common.base.Charsets;
 
 import ch.qos.logback.classic.Level;
 
 /**
  * Tests to create, update and execute queries on physical datasets..
+ * If you add a new folder(s) to oss/dac/backend/src/test/resources/datasets, you will likely need to update tests
+ * in oss/dac/backend/src/test/java/com/dremio/dac/api/TestPromotion.java.
  */
 public class TestPhysicalDatasets extends BaseTestServer {
   private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
@@ -136,6 +138,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     return new SqlQuery(format("select * from %s", getSchemaPath(file)), DEFAULT_USERNAME);
   }
 
+  private static SqlQuery createQueryWithColumn(String column, String file) throws IOException {
+    return new SqlQuery(format("select %1$s from %2$s", column, getSchemaPath(file)), DEFAULT_USERNAME);
+  }
+
   private static String getUrlPath(String file) throws IOException {
     return Path.of(FileUtils.getResourceAsFile(file).getAbsolutePath()).toString();
   }
@@ -165,6 +171,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   private JobRequest sqlQueryRequestFromFile(String file) throws IOException {
     return JobRequest.newBuilder().setSqlQuery(createQuery(file)).setQueryType(QueryType.UI_RUN).build();
+  }
+
+  private JobRequest sqlQueryRequestFromColumnAndFile(String column, String file) throws IOException {
+    return JobRequest.newBuilder().setSqlQuery(createQueryWithColumn(column, file)).setQueryType(QueryType.UI_RUN).build();
   }
 
   @Test
@@ -555,7 +565,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     File folder1 = new File(getPopulator().getPath().toFile(), "tmp/_dac2/folderTSV");
     Files.createDirectories(folder1.toPath());
-    Files.write(new File(folder1, "file.tsv").toPath(), "a\tf\nc\td".getBytes(Charsets.UTF_8));
+    Files.write(new File(folder1, "file.tsv").toPath(), "a\tf\nc\td".getBytes(UTF_8));
     String folderFormatUrl = "/source/LocalFS1/file_format/tmp/_dac2/folderTSV/file.tsv";
     FileFormatUI defaultFormat = expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
     assertEquals(FileType.TEXT, defaultFormat.getFileFormat().getFileType());
@@ -569,15 +579,15 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     File folder1 = new File(getPopulator().getPath().toFile(), "tmp/_dac/folder1");
     Files.createDirectories(folder1.toPath());
-    Files.write(new File(folder1, "file.txt").toPath(), "a|f\nc|d".getBytes(Charsets.UTF_8));
+    Files.write(new File(folder1, "file.txt").toPath(), "a|f\nc|d".getBytes(UTF_8));
 
     File folder2 = new File(getPopulator().getPath().toFile(), "tmp/_dac/folder2");
     Files.createDirectories(folder2.toPath());
-    Files.write(new File(folder2, "file.txt").toPath(), "a|f\nc|d".getBytes(Charsets.UTF_8));
+    Files.write(new File(folder2, "file.txt").toPath(), "a|f\nc|d".getBytes(UTF_8));
 
     File folder3 = new File(getPopulator().getPath().toFile(), "tmp/_dac/folder3");
     Files.createDirectories(folder3.toPath());
-    Files.write(new File(folder3, "file.txt").toPath(), "a|f\nc|d".getBytes(Charsets.UTF_8));
+    Files.write(new File(folder3, "file.txt").toPath(), "a|f\nc|d".getBytes(UTF_8));
 
     doc("get default format for folder");
     String folderFormatUrl = "/source/LocalFS1/folder_format/tmp/_dac/folder1";
@@ -1043,6 +1053,52 @@ public class TestPhysicalDatasets extends BaseTestServer {
       assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
     }
     assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testSchemaChangeNewColumn() throws Exception {
+    TextFileConfig fileConfig = new TextFileConfig();
+    fileConfig.setFieldDelimiter(",");
+    fileConfig.setLineDelimiter("\n");
+    fileConfig.setTrimHeader(true);
+    fileConfig.setExtractHeader(true);
+
+    String filePath = getUrlPath("/datasets/schemaevolution");
+    final long currentTime = now();
+    setLastModified(filePath + "/2021-01-01/2021-01-01.csv", currentTime);
+    setLastModified(filePath + "/2022-02-02/2022-02-02.csv", currentTime);
+    setLastModified(filePath + "/2023-03-03/2023-03-03.csv", currentTime);
+
+    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+
+    doc("ensure select * works");
+    try (final JobDataFragment jobData1 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromFile("/datasets/schemaevolution"),
+      0, 500, allocator)) {
+      assertEquals(3, jobData1.getReturnedRowCount());
+      // There are 4 columns because of the directory column
+      assertEquals(4, jobData1.getColumns().size());
+    }
+
+    doc("ensure select NEW_col3 doesn't throw ArrayIndexOutOfBoundsException");
+    try (final JobDataFragment jobData2 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromColumnAndFile("NEW_col3", "/datasets/schemaevolution"),
+      0, 500, allocator)) {
+      assertEquals(3, jobData2.getReturnedRowCount());
+      assertEquals(1, jobData2.getColumns().size());
+    }
+
+    doc("ensure select OG_col1, OG_col2 works");
+    try (final JobDataFragment jobData3 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromColumnAndFile("OG_col1, OG_col2", "/datasets/schemaevolution"),
+      0, 500, allocator)) {
+      assertEquals(3, jobData3.getReturnedRowCount());
+      assertEquals(2, jobData3.getColumns().size());
+    }
+
+    doc("ensure select OG_col2, NEW_col3 works");
+    try (final JobDataFragment jobData4 = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromColumnAndFile("OG_col2, NEW_col3", "/datasets/schemaevolution"),
+      0, 500, allocator)) {
+      assertEquals(3, jobData4.getReturnedRowCount());
+      assertEquals(2, jobData4.getColumns().size());
+    }
   }
 
   /*

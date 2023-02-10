@@ -20,6 +20,7 @@ export const SET_CURRENT_SQL = "SET_CURRENT_SQL";
 export const SET_PREVIOUS_MULTI_SQL = "SET_PREVIOUS_MULTI_SQL";
 export const SET_PREVIOUS_AND_CURRENT_SQL = "SET_PREVIOUS_AND_CURRENT_SQL";
 export const SET_SELECTED_SQL = "SET_SELECTED_SQL";
+export const SET_UPDATE_SQL_FROM_HISTORY = "SET_UPDATE_SQL_FROM_HISTORY";
 export const SET_IS_MULTI_QUERY_RUNNING = "SET_IS_MULTI_QUERY_RUNNING";
 export const SET_QUERY_CONTEXT = "SET_QUERY_CONTEXT";
 export const SET_QUERY_STATUSES = "SET_QUERY_STATUSES";
@@ -44,6 +45,10 @@ export function setPreviousAndCurrentSql({ sql }) {
 
 export function setSelectedSql({ sql }) {
   return { type: SET_SELECTED_SQL, sql };
+}
+
+export function setUpdateSqlFromHistory({ updateSql }) {
+  return { type: SET_UPDATE_SQL_FROM_HISTORY, updateSql };
 }
 
 export function setIsMultiQueryRunning({ running }) {

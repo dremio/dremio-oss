@@ -31,6 +31,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -70,14 +71,15 @@ public abstract class ScanRelBase extends TableScan {
   protected final double observedRowcountAdjustment;
 
   public ScanRelBase(
-      RelOptCluster cluster,
-      RelTraitSet traitSet,
-      RelOptTable table,
-      StoragePluginId pluginId,
-      TableMetadata tableMetadata,
-      List<SchemaPath> projectedColumns,
-      double observedRowcountAdjustment) {
-    super(cluster, traitSet, table);
+    RelOptCluster cluster,
+    RelTraitSet traitSet,
+    RelOptTable table,
+    StoragePluginId pluginId,
+    TableMetadata tableMetadata,
+    List<SchemaPath> projectedColumns,
+    double observedRowcountAdjustment,
+    List<RelHint> hints) {
+    super(cluster, traitSet, hints, table);
     this.pluginId = Preconditions.checkNotNull(pluginId);
     this.tableMetadata = Preconditions.checkNotNull(tableMetadata);
     Preconditions.checkArgument(observedRowcountAdjustment >= 0 && observedRowcountAdjustment <= 1, "observedRowcountAdjustment cannot be set to " + observedRowcountAdjustment);
@@ -93,6 +95,16 @@ public abstract class ScanRelBase extends TableScan {
       public SchemaPath apply(String input) {
         return SchemaPath.getSimplePath(input);
       }}).toList();
+  }
+
+  /**
+   * Hive can't handle us returning an ImmutableList, so
+   * we add a version of getHints() that has a return type
+   * of List<RelHint>.
+   * @return The hints member as type List<RelHint>.
+   */
+  public List<RelHint> getHintsAsList() {
+    return super.getHints();
   }
 
   public List<SchemaPath> getProjectedColumns(){

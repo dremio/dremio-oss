@@ -28,12 +28,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.extensions.SupportsDeltaMetadata;
 import com.dremio.connector.metadata.extensions.SupportsIcebergMetadata;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.Pointer;
@@ -48,6 +51,7 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
 
 import io.protostuff.ByteString;
@@ -128,6 +132,18 @@ public final class MetadataObjectsUtils {
               .setType(manifestStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT:ScanStatsType.NO_EXACT_ROW_COUNT)
               .setRecordCount(manifestStats.getRecordCount())
       );
+    }
+
+    if (newExtended instanceof SupportsDeltaMetadata) {
+      final SupportsDeltaMetadata newMetadata = (SupportsDeltaMetadata) newExtended;
+      if (StringUtils.isNotEmpty(newMetadata.getDeltaLocation())) {
+        final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
+        FileConfig fileConfig = new FileConfig();
+        fileConfig.setLocation(newMetadata.getDeltaLocation());
+        fileConfig.setType(FileType.DELTA);
+        fileConfig.setCtime(0L);
+        pds.setFormatSettings(fileConfig);
+      }
     }
 
     if (newExtended instanceof FileConfigMetadata) {

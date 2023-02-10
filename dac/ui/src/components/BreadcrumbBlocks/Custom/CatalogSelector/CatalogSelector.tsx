@@ -13,98 +13,108 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//@ts-ignore
-import { getProjects } from "@inject/selectors/projects";
-import { withRouter, WithRouterProps } from "react-router";
-import { connect } from "react-redux";
+import { useEffect, useMemo } from "react";
+import { browserHistory } from "react-router";
 import BreadcrumbSelector from "../../Common/BreadcrumbSelector/BreadcrumbSelector";
 import Breadcrumb from "../../Common/Breadcrumb/Breadcrumb";
 import * as PATHS from "@app/exports/paths";
 //@ts-ignore
+import * as commonPaths from "dremio-ui-common/paths/common";
+//@ts-ignore
 import { PROJECT_STATES } from "@inject/pages/SettingPage/subpages/projects/ProjectConst";
-import { compose } from "redux";
 //@ts-ignore
 import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
 import BreadcrumbLink from "../../Common/BreadcrumbLink/BreadcrumbLink";
-import { useArcticCatalogs } from "@app/exports/providers/useArcticCatalogs";
+import { SonarProjectsResource } from "@app/exports/resources/SonarProjectsResource";
+import { ArcticCatalogsResource } from "@app/exports/resources/ArcticCatalogsResource";
+import { useResourceSnapshot } from "smart-resource/react";
+import { useDispatch } from "react-redux";
+import { resetNessieState } from "@app/actions/nessie/nessie";
+import { handleSonarProjectChange } from "@app/utils/projects";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
-const ARCTIC_PROJECT_TYPE = "DATA_PLANE";
-type CatalogSelectorProps = {
-  projects: Record<string, any>;
-};
-
-const CatalogSelector = (props: CatalogSelectorProps & WithRouterProps) => {
-  const {
-    projects,
-    router,
-    location: { pathname },
-  } = props;
-
+const CatalogSelector = () => {
+  const dispatch = useDispatch();
+  const pathname =
+    rmProjectBase(browserHistory.getCurrentLocation().pathname) || "/";
   const currentProject = useProjectContext();
+  const sonarProjectId = getSonarContext().getSelectedProjectId!();
   const isArctic = pathname.indexOf("/arctic") === 0;
   const splitPath = pathname.split("/").slice(1);
-  const [arcticCatalogs] = useArcticCatalogs();
+  const [arcticCatalogs] = useResourceSnapshot(ArcticCatalogsResource);
+  const [sonarProjects] = useResourceSnapshot(SonarProjectsResource);
+
+  // fetch if projects/catalogs are null
+  useEffect(() => {
+    if (!sonarProjects && !isArctic) {
+      SonarProjectsResource.fetch();
+    }
+    if (!arcticCatalogs && isArctic) {
+      ArcticCatalogsResource.fetch();
+    }
+  }, [sonarProjects, arcticCatalogs, isArctic]);
+
+  const refetchOnOpen = () => {
+    isArctic ? ArcticCatalogsResource.fetch() : SonarProjectsResource.fetch();
+  };
 
   const changeProject = (newProject: Record<string, any>) => {
     if (isArctic) {
-      router.push({
+      dispatch(resetNessieState() as any);
+      browserHistory.push({
         pathname: PATHS.arcticCatalogDataBase({
           arcticCatalogId: newProject?.id,
         }),
-        state: {
-          newProject: {},
-        },
       });
       return;
     }
 
-    if (currentProject && currentProject.id === newProject?.id) {
+    if (sonarProjectId === newProject?.id) {
       return;
     }
 
-    router.push({
-      pathname: "/",
-      state: {
-        newProject,
-      },
-    });
-  };
-
-  const sonarProjects =
-    !isArctic &&
-    projects &&
-    projects.filter(
-      (project: Record<string, any>) => project.type !== ARCTIC_PROJECT_TYPE
+    handleSonarProjectChange(newProject, () =>
+      browserHistory.push(
+        commonPaths.projectBase.link({ projectId: newProject.id })
+      )
     );
-
-  const projectsToShow = isArctic ? arcticCatalogs : sonarProjects;
+  };
 
   const iconName = isArctic
     ? "brand/arctic-catalog-source"
     : "brand/sonar-project";
 
-  const projectOptions =
-    Array.isArray(projectsToShow) &&
-    projectsToShow
-      .filter(
-        (project) =>
-          project.state === PROJECT_STATES.ACTIVE ||
-          project.state === PROJECT_STATES.INACTIVE ||
-          project.state === PROJECT_STATES.ACTIVATING
-      )
-      .map((project: Record<string, any>) => {
-        return {
-          label: <Breadcrumb text={project.name} iconName={iconName} />,
-          onClick: () => changeProject(project),
-          value: project.id,
-        };
-      });
+  const projectsToShow: Record<string, any>[] | null = isArctic
+    ? arcticCatalogs
+    : sonarProjects;
+
+  const projectOptions = useMemo(() => {
+    return (
+      Array.isArray(projectsToShow) &&
+      projectsToShow
+        .filter(
+          (project: Record<string, any>) =>
+            project.state === PROJECT_STATES.ACTIVE ||
+            project.state === PROJECT_STATES.INACTIVE ||
+            project.state === PROJECT_STATES.ACTIVATING
+        )
+        .map((project: Record<string, any>) => {
+          return {
+            label: <Breadcrumb text={project.name} iconName={iconName} />,
+            onClick: () => changeProject(project),
+            value: project.id,
+          };
+        })
+    );
+  }, [projectsToShow]);
 
   if (Array.isArray(projectOptions)) {
     return projectOptions.length > 1 ? (
       <BreadcrumbSelector
-        defaultValue={isArctic ? splitPath[1] : currentProject?.id}
+        defaultValue={isArctic ? splitPath[1] : sonarProjectId || ""}
         options={projectOptions}
+        refetchOnOpen={refetchOnOpen}
       />
     ) : (
       <BreadcrumbLink
@@ -113,7 +123,7 @@ const CatalogSelector = (props: CatalogSelectorProps & WithRouterProps) => {
             ? PATHS.arcticCatalogDataBase({
                 arcticCatalogId: arcticCatalogs[0]?.id,
               })
-            : PATHS.datasets({ projectId: currentProject?.id })
+            : commonPaths.projectBase.link({ projectId: sonarProjectId })
         }
         text={
           isArctic && arcticCatalogs
@@ -126,13 +136,4 @@ const CatalogSelector = (props: CatalogSelectorProps & WithRouterProps) => {
   }
 };
 
-const mapStateToProps = (state: Record<string, any>) => {
-  return {
-    projects: getProjects(state),
-  };
-};
-
-export default compose(
-  withRouter,
-  connect(mapStateToProps, {})
-)(CatalogSelector);
+export default CatalogSelector;

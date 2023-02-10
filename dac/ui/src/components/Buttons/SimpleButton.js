@@ -32,6 +32,7 @@ class SimpleButton extends Component {
     style: PropTypes.object,
     children: PropTypes.node,
     className: PropTypes.string,
+    showSpinnerAndText: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -60,6 +61,7 @@ class SimpleButton extends Component {
       submitting,
       style,
       children,
+      showSpinnerAndText = true,
       ...props
     } = this.props;
     invariant(
@@ -87,7 +89,14 @@ class SimpleButton extends Component {
         // DX-34369: need to fix how we use classname and style
         style={combinedStyle}
       >
-        {this.renderSpinner() || children}
+        {showSpinnerAndText ? (
+          <div className="flex --alignCenter">
+            {this.renderSpinner()}
+            {children}
+          </div>
+        ) : (
+          this.renderSpinner() || children
+        )}
       </button>
     );
   }

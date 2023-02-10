@@ -21,17 +21,23 @@ export type Position = {
   readonly line: number;
   readonly column: number;
   readonly index: number;
-}
+};
 
-export const symbolAt = (query: string, position: Position): string => query[position.index]
-export const isPastLastPosition = isSkipped
-export const positionOf = (position: Skippable<Position>): Position => isSkipped(position) ? position.to : position.value;
+export const symbolAt = (query: string, position: Position): string =>
+  query[position.index];
+export const isPastLastPosition = isSkipped;
+export const positionOf = (position: Skippable<Position>): Position =>
+  isSkipped(position) ? position.to : position.value;
 
 /**
  * Advances position by a provided number of indexes.
  * If end of input is reached, position of the last symbol is returned as Skip(position)
  */
-export const advancePosition = (query: string, position: Position, advanceBy: number): Skippable<Position> => {
+export const advancePosition = (
+  query: string,
+  position: Position,
+  advanceBy: number
+): Skippable<Position> => {
   if (advanceBy === 0) {
     return value(position);
   }
@@ -39,13 +45,13 @@ export const advancePosition = (query: string, position: Position, advanceBy: nu
   if (nextIndex >= query.length) {
     return skip(position);
   }
-  const isLineBreak = charIfExists(query, position.index) === '\n';
+  const isLineBreak = charIfExists(query, position.index) === "\n";
   const nextLine = isLineBreak ? position.line + 1 : position.line;
   const nextColumn = isLineBreak ? 1 : position.column + 1;
   const nextPosition = {
     index: nextIndex,
     line: nextLine,
-    column: nextColumn
+    column: nextColumn,
   };
   return advancePosition(query, nextPosition, advanceBy - 1);
-}
+};

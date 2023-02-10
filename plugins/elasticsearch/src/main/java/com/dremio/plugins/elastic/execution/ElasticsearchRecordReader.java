@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.elastic.execution;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
@@ -60,7 +62,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.fasterxml.jackson.core.JsonGenerationException;
-import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -314,7 +315,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         }
 
         // we didn't get the records we expected within a reasonable amount of time.
-        final String latest = new String(bytes, Charsets.UTF_8);
+        final String latest = new String(bytes, UTF_8);
         final boolean timedOut = latest.contains(TIMED_OUT);
 
         if (!timedOut && config.isWarnOnRowCountMismatch()) {

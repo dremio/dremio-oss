@@ -16,6 +16,8 @@
 
 package com.dremio.service.flight.auth;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.Optional;
 
 import javax.inject.Provider;
@@ -28,7 +30,6 @@ import com.dremio.service.flight.DremioFlightSessionsManager;
 import com.dremio.service.flight.utils.DremioFlightAuthUtils;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.UserService;
-import com.google.common.base.Charsets;
 
 /**
  * Dremio authentication specialized implementation of BasicAuthValidator. Authenticates with provided
@@ -56,12 +57,12 @@ public class DremioFlightServerBasicAuthValidator implements BasicServerAuthHand
       dremioFlightSessionsManager,
       username, password, LOGGER);
 
-    return token.getBytes(Charsets.UTF_8);
+    return token.getBytes(UTF_8);
   }
 
   @Override
   public Optional<String> isValid(byte[] bytes) {
-    final String token = new String(bytes, Charsets.UTF_8);
+    final String token = new String(bytes, UTF_8);
     try {
       tokenManagerProvider.get().validateToken(token);
       return Optional.of(token);

@@ -15,11 +15,13 @@
  */
 package com.dremio.dac.explore;
 
+import static com.dremio.dac.proto.model.dataset.TransformType.join;
 import static com.dremio.dac.proto.model.dataset.TransformType.updateSQL;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.ws.rs.core.SecurityContext;
 
@@ -46,6 +48,7 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
@@ -68,7 +71,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -86,15 +88,17 @@ public class Transformer {
   private final DatasetVersionMutator datasetService;
   private final SecurityContext securityContext;
   private final SabotContext context;
+  private final CatalogService catalogService;
 
   public Transformer(SabotContext context, JobsService jobsService, NamespaceService namespace, DatasetVersionMutator datasetService,
-                     QueryExecutor executor, SecurityContext securityContext) {
+                     QueryExecutor executor, SecurityContext securityContext, CatalogService catalogService) {
     this.securityContext = securityContext;
     this.executor = executor;
     this.datasetService = datasetService;
     this.jobsService = jobsService;
     this.namespaceService = namespace;
     this.context = context;
+    this.catalogService = catalogService;
   }
 
   public static String describe(TransformBase transform) {
@@ -194,7 +198,7 @@ public class Transformer {
       VirtualDatasetState vss = protectAgainstNull(result, transform);
       actor.getMetadata(new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext));
     }
-    VirtualDatasetUI dataset = asDataset(newVersion, path, baseDataset, transform, result, actor);
+    VirtualDatasetUI dataset = asDataset(newVersion, path, baseDataset, transform, result, actor, catalogService);
 
     // save the dataset version.
     datasetService.putVersion(dataset);
@@ -211,8 +215,8 @@ public class Transformer {
    *                   in other path. Alter a query and preview.
    * @param transform The transformation that was applied
    * @param result The result of the transformation.
-   * @param batchSchema batch schema associated with the transformation
-   * @param metadata The query metadata associated with the transformation.
+   * @param actor The result with metadata information
+   * @param catalogService The catalog service needs to incorporate in SQL Generator
    * @return The new VirtualDatasetUI object.
    */
   private VirtualDatasetUI asDataset(
@@ -221,7 +225,8 @@ public class Transformer {
       VirtualDatasetUI baseDataset,
       TransformBase transform,
       TransformResult result,
-      TransformActor actor) {
+      TransformActor actor,
+      CatalogService catalogService) {
     // here we should take a path from baseDataset, as path could be different
     baseDataset.setPreviousVersion(new NameDatasetRef(DatasetPath.defaultImpl(baseDataset.getFullPathList()).toString())
       .setDatasetVersion(baseDataset.getVersion().toString()));
@@ -235,7 +240,7 @@ public class Transformer {
     String sql =
         transform.wrap().getType() == updateSQL ?
         ((TransformUpdateSQL)transform).getSql() :
-        SQLGenerator.generateSQL(protectAgainstNull(result, transform));
+        SQLGenerator.generateSQL(protectAgainstNull(result, transform), isSupportedTransform(transform), catalogService);
     baseDataset.setSql(sql);
     baseDataset.setLastTransform(transform.wrap());
     DatasetTool.applyQueryMetadata(baseDataset, actor.getParents(), actor.getBatchSchema(), actor.getFieldOrigins(),
@@ -341,27 +346,27 @@ public class Transformer {
     QueryType queryType,
     boolean isPreview)
     throws DatasetNotFoundException, NamespaceException {
+
     final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), isPreview, username(), path, executor);
     final TransformResult transformResult = transform.accept(actor);
     setReferencesInVirtualDatasetUI(original, transform);
     if (!actor.hasMetadata()) {
       VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
-      final SqlQuery query;
-      if (transform instanceof TransformUpdateSQL) {
-        TransformUpdateSQL transformUpdateSQL = (TransformUpdateSQL) transform;
-        Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(transformUpdateSQL.getReferencesList());
-        query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext, sourceVersionMapping);
-      } else {
-        query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
-      }
+      Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(transform.getReferencesList());
+      String sql = SQLGenerator.generateSQL(vss, isSupportedTransform(transform), catalogService);
+      final SqlQuery query = new SqlQuery(sql, vss.getContextList(), securityContext, sourceVersionMapping);
       actor.getMetadata(query);
     }
     final TransformResultDatsetAndData resultToReturn = new TransformResultDatsetAndData(actor.getJobData(),
-      asDataset(newVersion, path, original, transform, transformResult, actor), transformResult);
+      asDataset(newVersion, path, original, transform, transformResult, actor, catalogService), transformResult);
     // save this dataset version.
     datasetService.putVersion(resultToReturn.getDataset());
 
     return resultToReturn;
+  }
+
+  public boolean isSupportedTransform(TransformBase transform) {
+    return transform.wrap().getType() != updateSQL;
   }
 
   /**
@@ -373,11 +378,13 @@ public class Transformer {
   private void setReferencesInVirtualDatasetUI(
     VirtualDatasetUI original,
     TransformBase transform) {
-    List<SourceVersionReference> sourceVersionReferenceList = null;
-    if (transform instanceof TransformUpdateSQL) {
-      sourceVersionReferenceList = ((TransformUpdateSQL) transform).getReferencesList();
+    List<SourceVersionReference> sourceVersionReferenceList = transform.getReferencesList();
+
+    // No need to change reference in case of Join as it might change the original reference where original table is coming from;
+    // Don't change the reference to null as it can be set null by an API call which is not supporting/ setting in-correctly
+    if (!(transform.wrap().getType() == join) && sourceVersionReferenceList != null) {
+      original.setReferencesList(sourceVersionReferenceList);
     }
-    original.setReferencesList(sourceVersionReferenceList);
   }
 
   private static class TransformResultDatsetAndData extends DatasetAndData {
@@ -486,10 +493,10 @@ public class Transformer {
             .setUserName(query.getUsername())
             .build());
         final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
-        this.batchSchema = Optional.fromNullable(jobInfo.getBatchSchema()).transform((b) -> BatchSchema.deserialize(b));
-        this.parents = Optional.fromNullable(jobInfo.getParentsList());
-        this.fieldOrigins = Optional.fromNullable(jobInfo.getFieldOriginsList());
-        this.grandParents = Optional.fromNullable(jobInfo.getGrandParentsList());
+        this.batchSchema = Optional.ofNullable(jobInfo.getBatchSchema()).map((b) -> BatchSchema.deserialize(b));
+        this.parents = Optional.ofNullable(jobInfo.getParentsList());
+        this.fieldOrigins = Optional.ofNullable(jobInfo.getFieldOriginsList());
+        this.grandParents = Optional.ofNullable(jobInfo.getGrandParentsList());
       } catch (UserException e) {
         // If the original query fails, let the user knows about
         throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext(), null, jobId, sessionId);

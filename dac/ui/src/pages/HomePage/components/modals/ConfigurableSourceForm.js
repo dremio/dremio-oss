@@ -17,6 +17,7 @@ import { Component } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import FormUtils from "utils/FormUtils/FormUtils";
+import { change } from "redux-form";
 
 import { FormBody, ModalForm, modalFormProps } from "components/Forms";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
@@ -36,6 +37,8 @@ const SOURCE_FIELDS = [
   "disableMetadataValidityCheck",
 ];
 
+const FORM_NAME = "source";
+
 class ConfigurableSourceForm extends Component {
   static propTypes = {
     onFormSubmit: PropTypes.func.isRequired,
@@ -50,6 +53,7 @@ class ConfigurableSourceForm extends Component {
     footerChildren: PropTypes.node,
     EntityType: PropTypes.string,
     permissions: PropTypes.object,
+    dispatch: PropTypes.any,
   };
 
   render() {
@@ -64,6 +68,9 @@ class ConfigurableSourceForm extends Component {
       footerChildren,
       permissions,
       editing,
+      submitting, //redux form prop
+      isSubmitting,
+      confirmButtonStyle,
     } = this.props;
 
     const { tabs: customTabs, tabSelected } = getFormTabs(
@@ -91,8 +98,11 @@ class ConfigurableSourceForm extends Component {
     return (
       <ModalForm
         {...modalFormProps(this.props)}
+        submitting={submitting || isSubmitting}
         onSubmit={handleSubmit(onFormSubmit)}
         footerChildren={footerChildren}
+        showSpinnerAndText={this.props.showSpinnerAndText}
+        confirmButtonStyle={confirmButtonStyle}
       >
         <div className={sourceFormWrapper} data-qa="configurable-source-form">
           {sourceFormConfig.form.getTabs().length > 1 && (
@@ -105,7 +115,13 @@ class ConfigurableSourceForm extends Component {
           )}
           <div className={scrollRightContainerWithHeader}>
             <FormContext.Provider
-              value={{ editing, sourceType: sourceFormConfig.sourceType }}
+              value={{
+                editing,
+                sourceType: sourceFormConfig.sourceType,
+                change: (fieldName, fieldValue) => {
+                  this.props.dispatch(change(FORM_NAME, fieldName, fieldValue));
+                },
+              }}
             >
               <FormBody>
                 {tabConfig && (
@@ -144,7 +160,7 @@ export default class ConfigurableSourceFormWrapper extends Component {
     };
     this.wrappedComponent = connectComplexForm(
       {
-        form: "source",
+        form: FORM_NAME,
         onSubmitFail: this.handleSyncValidationFailure,
         fields: SOURCE_FIELDS,
       },
@@ -163,18 +179,6 @@ export default class ConfigurableSourceFormWrapper extends Component {
       this.state.selectedTabName
     );
     this.setState({ selectedTabName: tabConfig.getName() });
-
-    const errorIcon = {
-      name: "Error.svg",
-      alt: "Errors",
-      style: { height: 19, width: 19 },
-    };
-    const updatedTabs = this.state.navTabs.update(tabConfig.getName(), () => {
-      return FormUtils.tabHasError(tabConfig, fieldsWithError)
-        ? { text: tabConfig.getName(), icon: errorIcon }
-        : { text: tabConfig.getName() };
-    });
-    this.setState({ navTabs: updatedTabs });
   };
 
   handleChangeTab = (tab) => {

@@ -17,10 +17,14 @@ package com.dremio.service.accelerator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.spy;
 
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.ws.rs.client.Entity;
@@ -55,7 +59,6 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 /**
@@ -92,8 +95,9 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   }
 
   public void addCPSource(boolean createFolder) throws Exception {
-
-    getSourceService().registerSourceWithRuntimeInternal(InternalFileConf.create(TEST_SOURCE, new URI("classpath:///acceleration/"), SchemaMutability.ALL, CatalogService.DEFAULT_METADATA_POLICY, true, null));
+    SourceService sourceService = spy(getSourceService());
+    doNothing().when(sourceService).validateConnectionConf(any());
+    sourceService.registerSourceWithRuntime(InternalFileConf.create(TEST_SOURCE, new URI("classpath:///acceleration/"), SchemaMutability.ALL, CatalogService.DEFAULT_METADATA_POLICY, true, null));
 
     final NamespaceService nsService = getNamespaceService();
     final SpaceConfig config = new SpaceConfig().setName(TEST_SPACE);
@@ -116,7 +120,9 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     NamespaceKey key = new SourcePath(TEST_SOURCE).toNamespaceKey();
     SourceConfig config;
     try {
-      getSourceService().unregisterSourceWithRuntime(new SourceName(TEST_SOURCE));
+      SourceService sourceService = spy(getSourceService());
+      doNothing().when(sourceService).validateConnectionConf(any());
+      sourceService.unregisterSourceWithRuntime(new SourceName(TEST_SOURCE));
       config = getNamespaceService().getSource(key);
       if (config != null) {
         getNamespaceService().deleteSource(key, config.getTag());
@@ -236,7 +242,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   protected AccelerationApiDescriptor waitForLayoutGeneration(final AccelerationId id) throws Exception {
     for (int i=0; i< 100; i++) {
       final AccelerationApiDescriptor descriptor = pollAcceleration(id);
-      final LayoutContainerApiDescriptor container = Optional.fromNullable(descriptor.getRawLayouts()).or(new LayoutContainerApiDescriptor());
+      final LayoutContainerApiDescriptor container = Optional.ofNullable(descriptor.getRawLayouts()).orElseGet(LayoutContainerApiDescriptor::new);
       if (descriptor.getState() != AccelerationStateApiDescriptor.NEW && !AccelerationUtils.selfOrEmpty(container.getLayoutList()).isEmpty()) {
         return descriptor;
       }
@@ -261,5 +267,4 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     assertFalse("dataset schema is required", finalApiDescriptor.getContext().getDatasetSchema().getFieldList().isEmpty());
     return newApiDescriptor;
   }
-
 }

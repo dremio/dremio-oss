@@ -20,9 +20,9 @@ import { createRef, PureComponent } from "react";
 import Immutable, { Map } from "immutable";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import Mousetrap from "mousetrap";
-import { cloneDeep } from "lodash";
+import { cloneDeep, debounce } from "lodash";
 
 import { withRouter } from "react-router";
 import { injectIntl } from "react-intl";
@@ -72,7 +72,6 @@ import {
   extractQueries,
   extractSelections,
 } from "@app/utils/statements/statementParser";
-import { memoOne } from "@app/utils/memoUtils";
 import HistoryLineController from "../components/Timeline/HistoryLineController";
 import DatasetsPanel from "../components/SqlEditor/Sidebar/DatasetsPanel";
 import ExploreInfoHeader from "../components/ExploreInfoHeader";
@@ -85,7 +84,10 @@ import ExploreTableController from "./../components/ExploreTable/ExploreTableCon
 import JoinTables from "./../components/ExploreTable/JoinTables";
 import TableControls from "./../components/TableControls";
 import ExplorePageMainContent from "./ExplorePageMainContent";
-import { assemblePendingOrRunningTabContent } from "./utils";
+import {
+  assemblePendingOrRunningTabContent,
+  getExploreContentHeight,
+} from "./utils";
 import ResizeObserver from "resize-observer-polyfill";
 import { fetchSupportFlags } from "@app/actions/supportFlags";
 import config from "@inject/utils/config";
@@ -103,11 +105,12 @@ import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
 import { intl } from "@app/utils/intl";
 import { getSortedSources } from "@app/selectors/home";
 import { isVersionedSource } from "@app/utils/sourceUtils";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { DATASET_PATH_FROM_ONBOARDING } from "@inject/components/SonarOnboardingModal/constants";
 
 const newQueryLink = newQuery();
 const DATASET_PATH_FROM_OVERLAY = "datasetPathFromOverlay";
 const EXPLORE_DRAG_TYPE = "explorePage";
-const EXPLORE_HEADER_HEIGHT = 54;
 const HISTORY_BAR_WIDTH = 34;
 const SIDEBAR_MIN_WIDTH = 300;
 const COLLAPSED_SIDEBAR_WIDTH = 36;
@@ -116,23 +119,16 @@ const EXTRA_PAGE_WIDTH = HISTORY_BAR_WIDTH + SQL_EDITOR_PADDING;
 
 const CREATE_NEW_QUERY = "SELECT * FROM /* Insert dataset here */";
 
-const getHeightOfPage = memoOne((offsetHeight, windowHeight) => {
-  // FIX THIS LATER
-  if (offsetHeight) {
-    return windowHeight - EXPLORE_HEADER_HEIGHT - offsetHeight;
-  } else {
-    return windowHeight - EXPLORE_HEADER_HEIGHT;
-  }
-});
-
-const resizeColumn = new ResizeObserver((item) => {
-  const column = item[0];
-  if (column.contentRect.width <= 1000) {
-    column.target.classList.add("--minimal");
-  } else {
-    column.target.classList.remove("--minimal");
-  }
-});
+const resizeColumn = new ResizeObserver(
+  debounce((item) => {
+    const column = item[0];
+    if (column.contentRect.width <= 1000) {
+      column.target.classList.add("--minimal");
+    } else {
+      column.target.classList.remove("--minimal");
+    }
+  }, 1)
+);
 
 export class ExplorePageContentWrapper extends PureComponent {
   static propTypes = {
@@ -279,8 +275,17 @@ export class ExplorePageContentWrapper extends PureComponent {
       setPreviousAndCurrentSql({ sql: CREATE_NEW_QUERY });
     }
 
-    // updates the sql when coming from a dataset's overlay query button
-    if (sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)) {
+    if (sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING)) {
+      // updates the sql when redirected at the end of onboarding flow
+      sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING);
+      setPreviousAndCurrentSql({
+        sql: exploreUtils.createNewQueryFromDatasetOverlay(
+          sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING)
+        ),
+      });
+      sessionStorage.removeItem(DATASET_PATH_FROM_ONBOARDING);
+    } else if (sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)) {
+      // updates the sql when coming from a dataset's overlay query button
       setPreviousAndCurrentSql({
         sql: exploreUtils.createNewQueryFromDatasetOverlay(
           sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)
@@ -326,10 +331,10 @@ export class ExplorePageContentWrapper extends PureComponent {
       jobDetails,
       location,
     } = this.props;
-
+    const loc = rmProjectBase(location.pathname);
     // This is specific to using the overlay query button from the dataset page.
     if (
-      location.pathname === newQueryLink &&
+      loc === newQueryLink &&
       sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY) &&
       this.getMonacoEditorInstance()
     ) {
@@ -386,8 +391,6 @@ export class ExplorePageContentWrapper extends PureComponent {
               currentSqlQueries.length < 2 &&
               !selectedSql
             ) {
-              newPreviousAndCurrentSql({ sql: datasetSql });
-
               // upon initialization (from job listing page), add a query status
               if (!queryStatuses.length && !!location?.query?.openResults) {
                 newQueryStatuses({
@@ -1098,6 +1101,7 @@ export class ExplorePageContentWrapper extends PureComponent {
         <div
           className={classNames(
             "explorePage",
+            "dremio-layout-container",
             this.state.sidebarCollapsed && "--collpase"
           )}
           ref={this.explorePageRef}
@@ -1125,8 +1129,8 @@ export class ExplorePageContentWrapper extends PureComponent {
               <div
                 className="dremioContent__content"
                 style={{
-                  maxHeight: getHeightOfPage(
-                    this.headerRef && this.headerRef.offsetHeight,
+                  maxHeight: getExploreContentHeight(
+                    this.headerRef?.offsetHeight,
                     window.innerHeight
                   ),
                 }}
@@ -1170,11 +1174,12 @@ export class ExplorePageContentWrapper extends PureComponent {
 function mapStateToProps(state, ownProps) {
   const { location, dataset } = ownProps;
   const version = location.query && location.query.version;
-  const isSource = location.pathname.startsWith("/source/");
+  const loc = rmProjectBase(location.pathname);
+  const isSource = loc.startsWith("/source/");
   const sources = getSortedSources(state);
   let isNessieOrArcticSource = false;
   if (isSource && sources?.size > 0) {
-    const sourceId = location.pathname.split("/")[2];
+    const sourceId = loc.split("/")[2];
     const source = (sources || []).find(
       (item) => item.get("name") === sourceId
     );

@@ -20,9 +20,12 @@ import java.util.Set;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 /**
  * Data addition commands (CTAS, INSERT) implement this interface
@@ -32,7 +35,11 @@ public interface DataAdditionCmdCall {
   /**
    * @return list partition column names
    */
-  List<String> getPartitionColumns(DremioTable dremioTable);
+  default List<String> getPartitionColumns(DremioTable dremioTable) {
+    Preconditions.checkNotNull(dremioTable);
+    List<String> columnNames =  dremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
+    return columnNames != null ? columnNames : Lists.newArrayList();
+  }
 
   List<PartitionTransform> getPartitionTransforms(DremioTable dremioTable);
 
@@ -51,8 +58,22 @@ public interface DataAdditionCmdCall {
    *
    * @return
    */
-  PartitionDistributionStrategy getPartitionDistributionStrategy(
-    SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames);
+  default PartitionDistributionStrategy getPartitionDistributionStrategy(
+    SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
+      if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)) {
+        return PartitionDistributionStrategy.UNSPECIFIED;
+      }
+
+      // DX-50375: when we use VALUES clause in INSERT command, the field names end up with using expr, e.g., "EXPR%$0",
+      // which are not the real underlying field names. Keep to use 'UNSPECIFIED' for this scenario.
+      for (String partitionFieldName : partitionFieldNames) {
+        if(!fieldNames.contains(partitionFieldName)) {
+          return PartitionDistributionStrategy.UNSPECIFIED;
+        }
+      }
+
+      return PartitionDistributionStrategy.HASH;
+  }
 
   /**
    *

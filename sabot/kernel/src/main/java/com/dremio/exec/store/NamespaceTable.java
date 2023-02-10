@@ -83,7 +83,7 @@ public class NamespaceTable implements DremioTable {
   @Override
   public ScanCrel toRel(ToRelContext toRelContext, RelOptTable relOptTable) {
     return new ScanCrel(toRelContext.getCluster(), toRelContext.getCluster().traitSetOf(Convention.NONE),
-      dataset.getStoragePluginId(), dataset, null, 1.0d, true, true);
+      dataset.getStoragePluginId(), dataset, null, 1.0d, ImmutableList.of(), true, true);
   }
 
   @Override

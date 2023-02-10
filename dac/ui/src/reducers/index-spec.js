@@ -16,7 +16,6 @@
 import { LOGOUT_USER_START } from "actions/account";
 
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
-import intercomUtils from "utils/intercomUtils";
 import socket from "utils/socket";
 
 import rootReducer from "./index";
@@ -49,12 +48,10 @@ describe("rootReducer", () => {
   describe("user setup", () => {
     beforeEach(() => {
       sinon.stub(localStorageUtils, "setUserData");
-      sinon.stub(intercomUtils, "boot");
       sinon.stub(socket, "open");
     });
     afterEach(() => {
       localStorageUtils.setUserData.restore();
-      intercomUtils.boot.restore();
       socket.open.restore();
     });
   });

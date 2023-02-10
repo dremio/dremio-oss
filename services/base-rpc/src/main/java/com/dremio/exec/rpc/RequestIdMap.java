@@ -168,6 +168,7 @@ class RequestIdMap {
     public void operationComplete(ChannelFuture future) throws Exception {
       pendingRequests.decrementAndGet();
       if (!future.isSuccess() && cachedException == null) {
+
         removeFromMap(coordinationId);
         if (future.channel().isActive()) {
           if (future.cause() != null) {
@@ -178,6 +179,8 @@ class RequestIdMap {
         } else {
           setException(new ChannelClosedException());
         }
+      } else if (future.isSuccess()) {
+        handler.dataOnWireCallback();
       }
     }
 

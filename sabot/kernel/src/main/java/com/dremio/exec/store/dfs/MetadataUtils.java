@@ -15,10 +15,11 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.util.GregorianCalendar;
 import java.util.List;
 
@@ -52,8 +53,6 @@ import com.google.common.collect.Lists;
  * Utils to serialize storage plugin specific structures to/from namespace.
  */
 public class MetadataUtils {
-  private static final Charset UTF8 = Charset.forName("UTF-8");
-
   private static final Function<SchemaPath, String> schemaPathStringFunction = new Function<SchemaPath, String>() {
     @Nullable
     @Override
@@ -124,16 +123,16 @@ public class MetadataUtils {
         if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
           return PartitionValue.of(name, (String) value, partitionType);
         } else if (value instanceof Binary) {
-          return PartitionValue.of(name, new String(((Binary) value).getBytes(), UTF8), partitionType);
+          return PartitionValue.of(name, new String(((Binary) value).getBytes(), UTF_8), partitionType);
         } else if (value instanceof byte[]) {
-          return PartitionValue.of(name, new String((byte[]) value, UTF8), partitionType);
+          return PartitionValue.of(name, new String((byte[]) value, UTF_8), partitionType);
         } else {
           throw new UnsupportedOperationException("Unable to create column data for type: " + type);
         }
 
       case VARBINARY:
         if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
-          return PartitionValue.of(name, ByteBuffer.wrap(((String) value).getBytes(UTF8)), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap(((String) value).getBytes(UTF_8)), partitionType);
         } else if (value instanceof Binary) {
           return PartitionValue.of(name, ByteBuffer.wrap(((Binary) value).getBytes()), partitionType);
         } else if (value instanceof byte[]) {

@@ -21,6 +21,7 @@ import javax.validation.ConstraintValidatorContext;
 import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
 
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.services.credentials.CredentialsServiceUtils;
 import com.google.common.base.Strings;
 
 /**
@@ -66,7 +67,12 @@ public class CheckAzureConfValidator implements ConstraintValidator<CheckAzureCo
       // Do not raise a constraint violation if we are editing an existing source (which
       // would write a placeholder in the accessKey field).
       if (!key.equals(ConnectionConf.USE_EXISTING_SECRET_VALUE)) {
-        new SharedKeyCredentials(account, key);
+        try {
+          CredentialsServiceUtils.safeURICreate(key);
+        } catch (IllegalArgumentException e) {
+          // If the key is not a URL, then we go through the azure access key check.
+          new SharedKeyCredentials(account, key);
+        }
       }
       return true;
     } catch (StringIndexOutOfBoundsException | IllegalArgumentException e) {

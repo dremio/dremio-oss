@@ -38,6 +38,7 @@ public class CatalogServiceSynchronizer extends CatalogServiceSynchronizerGrpc.C
   }
 
   @Override
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void updateRefreshDate(UpdateLastRefreshDateRequest request, StreamObserver<Empty> responseObserver) {
     logger.debug("Request received: {}", request);
     try {

@@ -70,7 +70,6 @@ public class HiveSchemaConverter {
       return false;
     }
 
-    // Don't support map anywhere.
     if (category.equals(MAP)) {
       return !isMapTypeEnabled;
     }
@@ -166,12 +165,12 @@ public class HiveSchemaConverter {
         MapTypeInfo mti = (MapTypeInfo) typeInfo;
         TypeInfo keyTypeInfo = mti.getMapKeyTypeInfo();
         Field keyField = HiveSchemaConverter.getArrowFieldFromHivePrimitiveType("key", keyTypeInfo, false);
-        if (keyField == null || !(keyField.getType().getTypeID() == ArrowType.ArrowTypeID.Utf8)){
+        if (keyField == null || keyField.getType().isComplex()){
           return null;
         }
         TypeInfo valueTypeInfo = mti.getMapValueTypeInfo();
         Field valueField = HiveSchemaConverter.getArrowFieldFromHiveType("value", valueTypeInfo, format, includeParquetComplexTypes, isMapTypeEnabled);
-        if (valueField == null || valueField.getType().isComplex()) {
+        if (valueField == null) {
           return null;
         }
         ArrayList<Field> structFields = new ArrayList<Field>();

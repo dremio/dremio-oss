@@ -206,4 +206,14 @@ public class ITUpdate extends ITDmlQueryBase {
   public void testUpdateWithContextWithPathTable() throws Exception {
     UpdateTests.testUpdateWithContextWithPathTable(allocator, SOURCE);
   }
+
+  @Test
+  public void testUpdateWithPartitionTransformation() throws Exception {
+    UpdateTests.testUpdateWithPartitionTransformation(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithStockIcebergTable() throws Exception {
+    UpdateTests.testUpdateWithStockIcebergTable(allocator, SOURCE);
+  }
 }

@@ -23,6 +23,15 @@
     justify-content: space-between;
     padding-top: 3px !important;
     padding-bottom: 3px !important;
+
+    &:hover {
+      border: 1px solid $FIGMA_NEUTRAL_300 !important;
+    }
+
+    &:focus-within {
+      border: 1px solid $FIGMA_PRIMARY_500 !important;
+    }
+
     &.--error {
       border-color: $error-color !important;
     }

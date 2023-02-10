@@ -50,7 +50,7 @@ import com.dremio.plugins.elastic.planning.rules.ElasticSampleRule;
 
 public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPrel, ElasticTerminalPrel {
 
-  private static final Logger logger = LoggerFactory.getLogger(ElasticsearchFilter.class);
+  private static final Logger logger = LoggerFactory.getLogger(ElasticsearchLimit.class);
 
   private final int fetchSize;
   private final int offsetSize;

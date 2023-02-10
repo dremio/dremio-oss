@@ -18,6 +18,8 @@ import { selectState } from "@app/selectors/nessie/nessie";
 import { DefaultApi } from "@app/services/nessie/client";
 import { getTreeApi } from "@app/services/nessie/impl/TreeApi";
 import { createContext, useContext } from "react";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 type SourceInfo = {
   name: string;
@@ -45,7 +47,12 @@ export function createNessieContext(
   source: SourceInfo,
   state: NessieRootState,
   prefix = "",
-  baseUrl = !source.endpoint ? "" : `/sources/dataplane/${source.name}`
+  baseUrl = !source.endpoint
+    ? ""
+    : commonPaths.dataplaneSource.link({
+        sourceName: source.name,
+        projectId: getSonarContext().getSelectedProjectId?.(),
+      })
 ): NessieContextType {
   const stateKey = `${prefix}${source.name}`;
   return {

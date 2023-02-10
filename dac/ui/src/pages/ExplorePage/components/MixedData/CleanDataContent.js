@@ -17,7 +17,7 @@ import { Component } from "react";
 import Immutable from "immutable";
 import { connect } from "react-redux";
 import { Link } from "react-router";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import PropTypes from "prop-types";
 

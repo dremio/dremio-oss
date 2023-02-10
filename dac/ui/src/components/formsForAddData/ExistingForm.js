@@ -26,6 +26,7 @@ import TabControl from "components/Tabs/TabControl";
 import { getSearchResult, getViewState } from "selectors/resources";
 
 import ResourceTreeContainer from "../Tree/ResourceTreeContainer";
+import searchComponentConfig from "@inject/components/formsForAddData/searchComponentConfig";
 
 import "./ExistingForm.less";
 
@@ -79,7 +80,7 @@ export class ExistingForm extends Component {
   }
 
   render() {
-    const tabs = Immutable.Map({
+    const enterpriseTabs = Immutable.Map({
       Browse: (
         <ResourceTreeContainer
           onChange={this.props.changeSelectedNode}
@@ -101,7 +102,21 @@ export class ExistingForm extends Component {
         />
       ),
     });
-    return <TabControl tabs={tabs} style={this.props.style} />;
+
+    const cloudTabs = Immutable.Map({
+      Browse: (
+        <ResourceTreeContainer
+          onChange={this.props.changeSelectedNode}
+          stopAtDatasets
+          showFolders
+          showDataSets
+          showSources
+          style={{ flex: 1, minHeight: 0, height: 210 }}
+        />
+      )
+    });
+
+    return <TabControl tabs={searchComponentConfig.showSearchComponent ? enterpriseTabs : cloudTabs} style={this.props.style} />;
   }
 }
 

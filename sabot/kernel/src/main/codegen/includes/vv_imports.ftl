@@ -21,8 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.ObjectArrays;
-import com.google.common.base.Charsets;
-import com.google.common.collect.ObjectArrays;
 
 import com.google.common.base.Preconditions;
 import io.netty.buffer.NettyArrowBuf;
@@ -78,8 +76,3 @@ import org.joda.time.Period;
 
 import com.dremio.exec.vector.accessor.sql.TimePrintMillis;
 import javax.inject.Inject;
-
-
-
-
-

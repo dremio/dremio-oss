@@ -24,16 +24,19 @@ export default class Home extends Component {
   static propTypes = {
     location: PropTypes.object,
     style: PropTypes.object,
+    router: PropTypes.object,
   };
 
   constructor(props) {
     super(props);
   }
-
   render() {
     return (
       <HomePage style={this.props.style} location={this.props.location}>
-        <HomeContents location={this.props.location} />
+        <HomeContents
+          location={this.props.location}
+          projectId={this.props.router.params?.projectId}
+        />
       </HomePage>
     );
   }

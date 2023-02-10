@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import param from "jquery-param";
+import $ from "jquery";
 import Immutable from "immutable";
 
 export const parseQueryState = (query) => {
@@ -63,7 +63,7 @@ export const renderQueryStateForServer = (queryState) => {
 
   const sort = queryState.get("sort");
   const order = queryState.get("order");
-  return param({
+  return $.param({
     ...(sort && order ? { sort, order } : {}),
     filter: filterStrings.join(";"),
   });

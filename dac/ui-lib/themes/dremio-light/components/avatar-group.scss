@@ -14,21 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-avatar-group {
-  display: flex;
-  flex-flow: row wrap;
-  padding-inline-start: calc(var(--dremio--avatar--group--overlap));
-
-  > * {
-    border: var(--dremio--avatar--group--item--border-size) solid
-      var(--dremio--avatar--group--item--border-color) !important;
-  }
-
-  > * {
-    // prettier-ignore
-    margin-inline-start: calc((var(--dremio--avatar--group--overlap) + var(--dremio--avatar--group--item--border-size)) * -1);
-  }
-}
+@use "../../base/components/avatar-group";
 
 .dremio-avatar-group {
   --dremio--avatar--group--item--border-color: white;

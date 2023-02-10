@@ -24,22 +24,34 @@ import { postDatasetOperation } from "./dataset/common";
 export const UPDATE_JOIN_DATASET_VERSION = "UPDATE_JOIN_DATASET_VERSION";
 export const CLEAR_JOIN_DATASET = "CLEAR_JOIN_DATASET";
 
-export const loadJoinDataset = (datasetPathList, viewId) => (dispatch) => {
-  // do not encode the path as getHrefForUntitledDatasetConfig will do that for us
-  const fullPath = constructFullPath(datasetPathList);
-  const newVersion = exploreUtils.getNewDatasetVersion();
-  const href = exploreUtils.getHrefForUntitledDatasetConfig(
-    fullPath,
-    newVersion
-  );
-  dispatch(postDatasetOperation({ href, schema: fullDatasetSchema, viewId }));
+export const loadJoinDataset =
+  (datasetPathList, viewId, references) => (dispatch) => {
+    // do not encode the path as getHrefForUntitledDatasetConfig will do that for us
+    const fullPath = constructFullPath(datasetPathList);
+    const newVersion = exploreUtils.getNewDatasetVersion();
+    const href = exploreUtils.getHrefForUntitledDatasetConfig(
+      fullPath,
+      newVersion
+    );
+    dispatch(
+      postDatasetOperation({
+        href,
+        schema: fullDatasetSchema,
+        viewId,
+        body: references
+          ? {
+              references,
+            }
+          : undefined,
+      })
+    );
 
-  dispatch({
-    type: UPDATE_JOIN_DATASET_VERSION,
-    joinVersion: newVersion,
-    joinDatasetPathList: datasetPathList,
-  });
-};
+    dispatch({
+      type: UPDATE_JOIN_DATASET_VERSION,
+      joinVersion: newVersion,
+      joinDatasetPathList: datasetPathList,
+    });
+  };
 
 export const clearJoinDataset = () => {
   return {
@@ -119,3 +131,11 @@ export const editRecommendedJoin = (recommendation, version) => ({
   recommendation,
   version,
 });
+
+export const SET_JOIN_REFERENCE = "SET_JOIN_REFERENCE";
+export const setJoinReference = (joinReference) => {
+  return {
+    type: SET_JOIN_REFERENCE,
+    joinReference,
+  };
+};

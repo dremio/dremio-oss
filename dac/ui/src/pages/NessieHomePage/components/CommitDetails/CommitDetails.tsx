@@ -18,6 +18,7 @@ import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/C
 import UserIcon from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/UserIcon/UserIcon";
 import { formatDate } from "@app/utils/date";
 import { CommitMeta } from "@app/services/nessie/client";
+import { Reference } from "@app/types/nessie";
 
 import "./CommitDetails.less";
 
@@ -26,7 +27,7 @@ function CommitDetails({
   branch,
 }: {
   commitMeta: CommitMeta;
-  branch: string;
+  branch: Reference;
 }) {
   const intl = useIntl();
   return (

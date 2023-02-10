@@ -27,6 +27,7 @@ describe("AllSourcesMenu", () => {
   beforeEach(() => {
     minimalProps = {
       item: Immutable.fromJS({
+        name: "sample-item",
         links: {
           self: "",
         },

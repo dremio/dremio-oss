@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
-import com.google.common.base.Charsets;
 import com.univocity.parsers.common.TextParsingException;
 
 public class TextParsingSettings {
@@ -48,7 +49,7 @@ public class TextParsingSettings {
   public void set(TextFormatConfig config){
     this.quote = bSafe(config.getQuote(), "quote");
     this.quoteEscape = bSafe(config.getEscape(), "escape");
-    this.newLineDelimiter = config.getLineDelimiter().getBytes(Charsets.UTF_8);
+    this.newLineDelimiter = config.getLineDelimiter().getBytes(UTF_8);
     this.delimiter = bSafe(config.getFieldDelimiter(), "fieldDelimiter");
     this.comment = bSafe(config.getComment(), "comment");
     this.skipFirstLine = config.isSkipFirstLine();

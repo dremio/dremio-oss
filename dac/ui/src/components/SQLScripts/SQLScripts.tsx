@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, MutableRefObject } from "react";
 import { connect } from "react-redux";
-import classNames from "classnames";
-import { isEqual } from "lodash";
+import classNames from "clsx";
+import { debounce, isEqual } from "lodash";
 import moment from "@app/utils/dayjs";
 import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
@@ -102,7 +102,8 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
     intl,
   } = props;
 
-  const inputRef = useRef();
+  const inputRef = useRef<any>();
+  const focusRef = useRef<any>();
   const [sort, setSort] = useState(SCRIPT_SORT_MENU[3]);
   const [search, setSearch] = useState("");
   const [scriptForRename, setScriptForRename] = useState<any>({});
@@ -111,6 +112,19 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
   );
 
   const prevSearch = usePrevious(search);
+
+  const onFocus = () => {
+    if (focusRef?.current)
+      focusRef.current.className = "searchDatasetsPopover --focused";
+  };
+
+  const onBlur = () => {
+    if (focusRef?.current) focusRef.current.className = "searchDatasetsPopover";
+  };
+
+  const onFocusRef = (div: MutableRefObject<any>) => {
+    focusRef.current = div;
+  };
 
   // Create scripts lists
   const [allScripts, myScripts] = useMemo(() => {
@@ -180,8 +194,13 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
     }
   }, [search, fetchSQLScripts, prevSearch, selectedScriptsTab, user]);
 
+  const debouncedSearch = debounce(
+    (e: any): void => setSearch((e.target as any).value),
+    250
+  );
+
   const clearSearch = (): void => {
-    (inputRef.current as any).value = "";
+    if (inputRef?.current) inputRef.current.value = "";
     setSearch("");
   };
 
@@ -348,12 +367,15 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
         />
       </div>
       <SearchDatasetsComponent
-        onInput={(e: any): void => setSearch((e.target as any).value)}
+        onInput={debouncedSearch}
         clearFilter={clearSearch}
         closeVisible={search !== ""}
         onInputRef={onInputRef}
         placeholderText={intl.formatMessage({ id: "Script.Search" })}
         dataQa="sqlScripts__search"
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onFocusRef={onFocusRef}
       />
       {RenderScripts}
       {scriptForRename && scriptForRename.id && (

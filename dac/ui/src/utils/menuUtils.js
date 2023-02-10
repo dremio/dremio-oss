@@ -1,5 +1,3 @@
-import { ENTITY_TYPES } from "@app/constants/Constants";
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -15,6 +13,12 @@ import { ENTITY_TYPES } from "@app/constants/Constants";
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { ENTITY_TYPES } from "@app/constants/Constants";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+
 class MenuUtils {
   getShowState({ disabled, columnType, availableTypes }) {
     if (availableTypes.indexOf(columnType) === -1) {
@@ -34,6 +38,14 @@ class MenuUtils {
     router,
   }) {
     const itemName = item.get("name");
+
+    const decodedPathname = decodeURIComponent(location?.pathname);
+    const currentlyUsingSource =
+      rmProjectBase(decodedPathname ?? "").split("/")[2] === itemName;
+    const currentlyUsingArctic = rmProjectBase(
+      decodedPathname ?? ""
+    ).startsWith(`/sources/arctic/${itemName}`);
+
     showConfirmationDialog({
       title:
         item.get("entityType") === ENTITY_TYPES.space
@@ -43,11 +55,10 @@ class MenuUtils {
       confirmText: la("Remove"),
       confirm: () => {
         removeItem(item);
-        if (
-          location &&
-          decodeURIComponent(location.pathname).split("/")[2] === itemName
-        ) {
-          router.push("/");
+
+        const projectId = getSonarContext()?.getSelectedProjectId?.();
+        if (currentlyUsingSource || currentlyUsingArctic) {
+          router.push(commonPaths.projectBase.link({ projectId }));
         }
       },
     });

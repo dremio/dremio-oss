@@ -34,81 +34,95 @@
     tokens: []
  -
   description: "USING"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING "
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING "
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - "DISPLAY"
  -
   description: "DISPLAY"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY"
   output:
-    hasIdentifier: true
-    hasMoreResults: false
-    tokens: []
+    hasIdentifier: false
+    hasMoreResults: true
+    tokens:
+     - "("
+     - ";"
+     - "ARROW"
+     - "CONSOLIDATED"
+     - "DISTRIBUTE"
  -
   description: "DISPLAY("
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY("
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY("
   output:
     hasIdentifier: true
     hasMoreResults: false
     tokens: []
  -
   description: "DISPLAY(FIELD"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD"
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - ")"
+     - ","
  -
   description: "USING DISPLAY(FIELD,"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD,"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD,"
   output:
     hasIdentifier: true
     hasMoreResults: false
     tokens: []
  -
   description: "DISTRIBUTE"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) DISTRIBUTE"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) DISTRIBUTE"
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - "BY"
  -
   description: "DISTRIBUTE BY"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) DISTRIBUTE BY"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) DISTRIBUTE BY"
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - "("
  -
   description: "PARTITION"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) PARTITION"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) PARTITION"
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - "BY"
  -
   description: "PARTITION BY"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) PARTITION BY"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) PARTITION BY"
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - "("
  -
   description: "LOCALSORT"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) LOCALSORT"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) LOCALSORT"
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - "BY"
  -
   description: "LOCALSORT BY"
-  input: "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) LOCALSORT BY"
+  input: "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) LOCALSORT BY"
   output:
-    hasIdentifier: true
+    hasIdentifier: false
     hasMoreResults: false
-    tokens: []
+    tokens:
+     - "("
  -
   description: "DIMENSION"
   input: "ALTER TABLE BLAH \n CREATE AGGREGATE REFLECTION BLAH \n USING \n DIMENSIONS (x "

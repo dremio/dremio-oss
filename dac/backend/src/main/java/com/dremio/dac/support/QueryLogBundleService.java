@@ -47,7 +47,7 @@ import com.dremio.service.users.UserNotFoundException;
 @Options
 public interface QueryLogBundleService extends Service {
 
-  org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryLogBundleService.class);
+  final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryLogBundleService.class);
   TypeValidators.BooleanValidator USERS_BUNDLE_DOWNLOAD = new TypeValidators.BooleanValidator("support.users.bundle.download", false);
 
   DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");

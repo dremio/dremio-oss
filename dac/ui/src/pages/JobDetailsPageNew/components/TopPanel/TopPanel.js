@@ -23,12 +23,15 @@ import { getTabs, getIconName } from "dyn-load/utils/jobsUtils";
 import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
 import { Button } from "dremio-ui-lib";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
 import TopPanelTab from "./TopPanelTab.js";
 import CopyButton from "@app/components/Buttons/CopyButton";
-import { UNSAVED_DATASET_PATH_URL } from "@app/constants/explorePage/paths";
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import * as jobPaths from "dremio-ui-common/paths/jobs.js";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { addProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import "./TopPanel.less";
 
@@ -59,6 +62,7 @@ export const TopPanel = (props) => {
   } = props;
 
   const renderOpenResults = () => {
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     if (
       jobsUtils.getRunning(jobStatus) ||
       jobStatus === JobState.ENQUEUED ||
@@ -86,8 +90,10 @@ export const TopPanel = (props) => {
     const datasetFullPath = jobDetails.get("datasetPaths");
     const fullPath =
       datasetFullPath && datasetFullPath.size > 0
-        ? datasetPathUtils.toHrefV2(datasetFullPath)
-        : UNSAVED_DATASET_PATH_URL;
+        ? addProjectBase(datasetPathUtils.toHrefV2(datasetFullPath))
+        : sqlPaths.unsavedDatasetPathUrl.link({
+            projectId,
+          });
 
     const nextLocation = {
       pathname: fullPath,
@@ -103,8 +109,11 @@ export const TopPanel = (props) => {
       queriedDataset.get("datasetType")
     );
     const isUnsavedPath =
-      UNSAVED_DATASET_PATH_URL === datasetFullPath.join("/");
+      sqlPaths.unsavedDatasetPathUrl.link({
+        projectId,
+      }) === addProjectBase("/" + datasetFullPath.join("/"));
     // Shouldn't have edit mode for physical datasets
+
     if (datasetFullPath && !(isUnsavedPath && isPhysicalType)) {
       nextLocation.query.mode = "edit";
     }
@@ -132,11 +141,12 @@ export const TopPanel = (props) => {
 
   const changePages = () => {
     const { state } = location;
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     state && state.history
       ? breadcrumbRouting()
       : router.push({
           ...location,
-          pathname: "/jobs",
+          pathname: jobPaths.jobs.link({ projectId }),
         });
   };
 

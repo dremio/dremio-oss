@@ -26,9 +26,9 @@ import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.types.Types;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.fn.impl.MurmurHash3;
 import com.dremio.sabot.op.common.ht2.Copier;
 import com.google.common.annotations.VisibleForTesting;

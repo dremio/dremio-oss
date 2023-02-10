@@ -102,23 +102,23 @@ public class TestUserPreferencesServiceImpl {
   public void testStarEntity()
     throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
     //given
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
-    mockValidEntity();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockValidEntity();
 
-    UserPreferenceProto.Preference preference = userPreferenceService.getPreferenceByType(
-      UserPreferenceProto.PreferenceType.STARRED);
-    // assert when user doesn't have preference added, returns an empty preference list.
-    Assert.assertEquals(0, preference.getEntitiesCount());
+      UserPreferenceProto.Preference preference = userPreferenceService.getPreferenceByType(
+        UserPreferenceProto.PreferenceType.STARRED);
+      // assert when user doesn't have preference added, returns an empty preference list.
+      Assert.assertEquals(0, preference.getEntitiesCount());
 
-    UUID entityId1 = UUID.randomUUID();
-    // when an entityId is added in preference list.
-    preference =
-      userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                  entityId1);
+      UUID entityId1 = UUID.randomUUID();
+      // when an entityId is added in preference list.
+      preference =
+        userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                    entityId1);
 
-    // assert added entry is present.
-    Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
-    mocked.close();
+      // assert added entry is present.
+      Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
+    }
   }
 
   private List<String> getIdsFromEntities(List<UserPreferenceProto.Entity> entitiesList) {
@@ -145,146 +145,145 @@ public class TestUserPreferencesServiceImpl {
     throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
     // star two entites and assert both are present and
     // assert correct order i.e second entity comes after first
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
-    mockValidEntity();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockValidEntity();
 
-    // when two entites are added one after the other
-    UUID entityId1 = UUID.randomUUID();
-    userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1);
-    UUID entityId2 = UUID.randomUUID();
-    UserPreferenceProto.Preference preference =
+      // when two entites are added one after the other
+      UUID entityId1 = UUID.randomUUID();
       userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                  entityId2);
+                                                  entityId1);
+      UUID entityId2 = UUID.randomUUID();
+      UserPreferenceProto.Preference preference =
+        userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                    entityId2);
 
-    List<String> entityIds = preference.getEntitiesList()
-      .stream()
-      .map(UserPreferenceProto.Entity::getEntityId)
-      .collect(Collectors.toList());
-    // assert both are present in preference list
-    Assert.assertTrue(entityIds.contains(entityId1.toString()));
-    Assert.assertTrue(entityIds.contains(entityId2.toString()));
+      List<String> entityIds = preference.getEntitiesList()
+        .stream()
+        .map(UserPreferenceProto.Entity::getEntityId)
+        .collect(Collectors.toList());
+      // assert both are present in preference list
+      Assert.assertTrue(entityIds.contains(entityId1.toString()));
+      Assert.assertTrue(entityIds.contains(entityId2.toString()));
 
-    // and validate order of entity1 and entity2
-    int index1 = -1;
-    int index2 = -1;
-    for (int i = 0; i < entityIds.size(); i++) {
-      if (Objects.equals(entityIds.get(i), entityId1.toString())) {
-        index1 = i;
-      } else if (Objects.equals(entityIds.get(i), entityId2.toString())) {
-        index2 = i;
+      // and validate order of entity1 and entity2
+      int index1 = -1;
+      int index2 = -1;
+      for (int i = 0; i < entityIds.size(); i++) {
+        if (Objects.equals(entityIds.get(i), entityId1.toString())) {
+          index1 = i;
+        } else if (Objects.equals(entityIds.get(i), entityId2.toString())) {
+          index2 = i;
+        }
       }
-    }
 
-    Assert.assertTrue(index1 < index2);
-    mocked.close();
+      Assert.assertTrue(index1 < index2);
+    }
   }
 
   @Test
   public void testStarDuplicateEntity()
     throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
     //given
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
-    mockValidEntity();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockValidEntity();
 
-    UUID entityId1 = UUID.randomUUID();
-    userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1);
-    // when an entity is starred twice
-    assertThatThrownBy(() -> userPreferenceService.addEntityToPreference(
-                                                UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1))
-      .isInstanceOf(EntityAlreadyInPreferenceException.class)
-      .hasMessage(String.format("entityId : %s already exists in starred list.",
-                                      entityId1));
-    mocked.close();
+      UUID entityId1 = UUID.randomUUID();
+      userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId1);
+      // when an entity is starred twice
+      assertThatThrownBy(() -> userPreferenceService.addEntityToPreference(
+                                                  UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId1))
+        .isInstanceOf(EntityAlreadyInPreferenceException.class)
+        .hasMessage(String.format("entityId : %s already exists in starred list.",
+                                        entityId1));
+    }
   }
 
   @Test
   public void testStarAndUnstarEntity()
     throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, EntityNotFoundInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
     //given
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
-    mockValidEntity();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockValidEntity();
 
-    // when entity is starred and unstarred
-    UUID entityId1 = UUID.randomUUID();
-    userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1);
-    UserPreferenceProto.Preference preference =
-      userPreferenceService.removeEntityFromPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                       entityId1);
-    // assert after unstaring entity is removed
-    Assert.assertFalse(getIdsFromEntities(
-      preference.getEntitiesList()).contains(entityId1.toString()));
-    mocked.close();
+      // when entity is starred and unstarred
+      UUID entityId1 = UUID.randomUUID();
+      userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId1);
+      UserPreferenceProto.Preference preference =
+        userPreferenceService.removeEntityFromPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                         entityId1);
+      // assert after unstaring entity is removed
+      Assert.assertFalse(getIdsFromEntities(
+        preference.getEntitiesList()).contains(entityId1.toString()));
+    }
   }
 
   @Test
   public void testUnstarNonexistingEntity() throws NamespaceNotFoundException {
     //given
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
-    mockValidEntity();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockValidEntity();
 
-    UUID entityId1 = UUID.randomUUID();
-    // when non-existing entity is starred
-    assertThatThrownBy(() -> userPreferenceService.removeEntityFromPreference(
-                                                UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1))
-      .isInstanceOf(EntityNotFoundInPreferenceException.class)
-      .hasMessage(String.format("entityId : %s not found in starred list.",
-                                      entityId1));
-    mocked.close();
+      UUID entityId1 = UUID.randomUUID();
+      // when non-existing entity is starred
+      assertThatThrownBy(() -> userPreferenceService.removeEntityFromPreference(
+                                                  UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId1))
+        .isInstanceOf(EntityNotFoundInPreferenceException.class)
+        .hasMessage(String.format("entityId : %s not found in starred list.",
+                                        entityId1));
+    }
   }
 
   @Test
   public void testValidateEntity() throws NamespaceNotFoundException {
     //given
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
 
-    // when returned Namespace container is null
-    Mockito.doReturn(null).when(namespaceService).getEntityById(any());
+      // when returned Namespace container is null
+      Mockito.doReturn(null).when(namespaceService).getEntityById(any());
 
-    UUID entityId1 = UUID.randomUUID();
-    // when non-existing entity is starred
-    assertThatThrownBy(() -> userPreferenceService.addEntityToPreference(
-                                                UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage(String.format("entityId %s provided is not a valid catalog entity.",
-                                      entityId1.toString()));
-    mocked.close();
+      UUID entityId1 = UUID.randomUUID();
+      // when non-existing entity is starred
+      assertThatThrownBy(() -> userPreferenceService.addEntityToPreference(
+                                                  UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId1))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(String.format("entityId %s provided is not a valid catalog entity.",
+                                        entityId1.toString()));
+    }
   }
 
   // when a catalog entity is deleted, it should be deleted from preference too.
   @Test
   public void testDeleteEntity()
     throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
-    mockValidEntity();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockValidEntity();
 
-    // given a valid entity is in preference list
-    UUID entityId1 = UUID.randomUUID();
-    UUID entityId2 = UUID.randomUUID();
-    userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1);
-    UserPreferenceProto.Preference preference = userPreferenceService.addEntityToPreference(
-      UserPreferenceProto.PreferenceType.STARRED,
-      entityId2);
-    Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
-    Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId2.toString()));
+      // given a valid entity is in preference list
+      UUID entityId1 = UUID.randomUUID();
+      UUID entityId2 = UUID.randomUUID();
+      userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId1);
+      UserPreferenceProto.Preference preference = userPreferenceService.addEntityToPreference(
+        UserPreferenceProto.PreferenceType.STARRED,
+        entityId2);
+      Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
+      Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId2.toString()));
 
-    // when the entity is deleted
-    Mockito.doReturn(null).when(namespaceService).getEntityById(entityId1.toString());
+      // when the entity is deleted
+      Mockito.doReturn(null).when(namespaceService).getEntityById(entityId1.toString());
 
-    // assert when get is called the entity is removed from preference list.
-    preference =
-      userPreferenceService.getPreferenceByType(UserPreferenceProto.PreferenceType.STARRED);
+      // assert when get is called the entity is removed from preference list.
+      preference =
+        userPreferenceService.getPreferenceByType(UserPreferenceProto.PreferenceType.STARRED);
 
-    Assert.assertFalse(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
-    Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId2.toString()));
-
-    mocked.close();
+      Assert.assertFalse(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
+      Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId2.toString()));
+    }
   }
 
   // when a catalog entity is deleted, validate entity is deleted from KV store
@@ -292,55 +291,55 @@ public class TestUserPreferencesServiceImpl {
   public void testDeleteEntityFromStore()
     throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
 
-    MockedStatic<RequestContext> mocked = mockCurrentUser();
-    mockValidEntity();
+    try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockValidEntity();
 
-    // given 3 valid entity is added in preference list
-    UUID entityId1 = UUID.randomUUID();
-    UUID entityId2 = UUID.randomUUID();
-    UUID entityId3 = UUID.randomUUID();
+      // given 3 valid entity is added in preference list
+      UUID entityId1 = UUID.randomUUID();
+      UUID entityId2 = UUID.randomUUID();
+      UUID entityId3 = UUID.randomUUID();
 
-    userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId1);
-    userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
-                                                entityId2);
-    UserPreferenceProto.Preference preference = userPreferenceService.addEntityToPreference(
-      UserPreferenceProto.PreferenceType.STARRED,
-      entityId3);
+      userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId1);
+      userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+                                                  entityId2);
+      UserPreferenceProto.Preference preference = userPreferenceService.addEntityToPreference(
+        UserPreferenceProto.PreferenceType.STARRED,
+        entityId3);
 
-    List<String> entityIds = getIdsFromEntities(preference.getEntitiesList());
+      List<String> entityIds = getIdsFromEntities(preference.getEntitiesList());
 
-    Assert.assertTrue(entityIds.contains(entityId1.toString()));
-    Assert.assertTrue(entityIds.contains(entityId2.toString()));
-    Assert.assertTrue(entityIds.contains(entityId3.toString()));
+      Assert.assertTrue(entityIds.contains(entityId1.toString()));
+      Assert.assertTrue(entityIds.contains(entityId2.toString()));
+      Assert.assertTrue(entityIds.contains(entityId3.toString()));
 
-    // when the entity is deleted and get call is made
-    Mockito.doReturn(null).when(namespaceService).getEntityById(entityId2.toString());
-    userPreferenceService.getPreferenceByType(UserPreferenceProto.PreferenceType.STARRED);
+      // when the entity is deleted and get call is made
+      Mockito.doReturn(null).when(namespaceService).getEntityById(entityId2.toString());
+      userPreferenceService.getPreferenceByType(UserPreferenceProto.PreferenceType.STARRED);
 
-    // validate contents from store
-    Optional<UserPreferenceProto.UserPreference> userPreference =
-      userPreferenceStore.get(USER_ID_1);
-    Assert.assertTrue(userPreference.isPresent());
+      // validate contents from store
+      Optional<UserPreferenceProto.UserPreference> userPreference =
+        userPreferenceStore.get(USER_ID_1);
+      Assert.assertTrue(userPreference.isPresent());
 
-    List<UserPreferenceProto.Preference> userPreferenceList =
-      userPreference.get().getPreferencesList();
+      List<UserPreferenceProto.Preference> userPreferenceList =
+        userPreference.get().getPreferencesList();
 
-    UserPreferenceProto.Preference preferenceList = null;
-    for (UserPreferenceProto.Preference preference1 : userPreferenceList) {
-      if (preference1.getType() == UserPreferenceProto.PreferenceType.STARRED) {
-        preferenceList = preference1;
-        break;
+      UserPreferenceProto.Preference preferenceList = null;
+      for (UserPreferenceProto.Preference preference1 : userPreferenceList) {
+        if (preference1.getType() == UserPreferenceProto.PreferenceType.STARRED) {
+          preferenceList = preference1;
+          break;
+        }
       }
+
+      entityIds = getIdsFromEntities(preferenceList.getEntitiesList());
+      // assert deleted entity is removed from store
+      Assert.assertTrue(entityIds.contains(entityId1.toString()));
+      Assert.assertFalse(entityIds.contains(entityId2.toString()));
+      Assert.assertTrue(entityIds.contains(entityId3.toString()));
     }
 
-    entityIds = getIdsFromEntities(preferenceList.getEntitiesList());
-    // assert deleted entity is removed from store
-    Assert.assertTrue(entityIds.contains(entityId1.toString()));
-    Assert.assertFalse(entityIds.contains(entityId2.toString()));
-    Assert.assertTrue(entityIds.contains(entityId3.toString()));
-
-    mocked.close();
 
   }
 

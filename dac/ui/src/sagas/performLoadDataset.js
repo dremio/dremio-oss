@@ -33,6 +33,7 @@ import {
   DataLoadError,
   explorePageChanged,
   jobUpdateWatchers,
+  loadDatasetMetadata,
 } from "sagas/runDataset";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
 import { focusSqlEditor } from "@app/actions/explore/view";
@@ -52,9 +53,7 @@ import {
   initializeExploreJobProgress,
   setExploreJobIdInProgress,
 } from "@app/actions/explore/dataset/data";
-import sendEventToIntercom from "@inject/sagas/utils/sendEventToIntercom";
-import INTERCOM_EVENTS from "@inject/constants/intercomEvents";
-import * as VersionUtils from "@app/utils/versionUtils";
+import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
 import { log } from "@app/utils/logger";
 
 import apiUtils from "utils/apiUtils/apiUtils";
@@ -67,6 +66,7 @@ import {
   TransformCanceledByLocationChangeError,
   TransformFailedError,
 } from "./transformWatcher";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 export default function* watchLoadDataset() {
   yield takeEvery(PERFORM_LOAD_DATASET, handlePerformLoadDataset);
@@ -158,7 +158,6 @@ export function* loadTableData(
   forceReload,
   isRunOrPreview = true
 ) {
-  const edition = VersionUtils.getEditionFromConfig();
   log(`prerequisites check; forceReload=${!!forceReload}`);
   let resetViewState = true;
   // we should cancel a previous data load request in any case
@@ -167,8 +166,8 @@ export function* loadTableData(
   //#region check if metadata is loaded --------------------
 
   // Tracks all preview queries
-  if (isRunOrPreview && !forceReload && datasetVersion && edition === "DCS") {
-    sendEventToIntercom(INTERCOM_EVENTS.JOB_PREVIEW);
+  if (isRunOrPreview && !forceReload && datasetVersion) {
+    sonarEvents.jobPreview();
   }
 
   if (!datasetVersion) return;
@@ -225,6 +224,73 @@ export function* loadTableData(
     }
   }
 }
+
+export function* listenToJobProgress(
+  datasetVersion,
+  jobId,
+  paginationUrl,
+  isRun,
+  datasetPath,
+  callback,
+  curIndex,
+  sessionId,
+  viewId
+) {
+  let resetViewState = true;
+  let raceResult;
+
+  // cancels any other data loads before beginning
+  yield call(cancelDataLoad);
+
+  // track all preview queries
+  if (!isRun && datasetVersion) {
+    sonarEvents.jobPreview();
+  }
+
+  try {
+    yield put(setExploreJobIdInProgress(jobId, datasetVersion));
+    yield spawn(jobUpdateWatchers, jobId);
+    yield put(
+      updateViewState(EXPLORE_TABLE_ID, {
+        isInProgress: true,
+        isFailed: false,
+        error: null,
+      })
+    );
+
+    raceResult = yield race({
+      dataLoaded: call(
+        loadDatasetMetadata,
+        datasetVersion,
+        jobId,
+        isRun,
+        paginationUrl,
+        datasetPath,
+        callback,
+        curIndex,
+        sessionId,
+        viewId
+      ),
+      isLoadCanceled: take([CANCEL_TABLE_DATA_LOAD, TRANSFORM_PEEK_START]),
+      locationChange: call(resetTableViewStateOnPageLeave),
+    });
+  } catch (e) {
+    if (!(e instanceof DataLoadError)) {
+      throw e;
+    }
+
+    resetViewState = false;
+    const viewState = yield call(getViewStateFromAction, e.response);
+    yield put(updateViewState(EXPLORE_TABLE_ID, viewState));
+  } finally {
+    if (resetViewState) {
+      yield call(hideTableSpinner);
+    }
+  }
+
+  return raceResult.dataLoaded ?? false;
+}
+
 const defaultViewState = {
   isInProgress: false,
   isFailed: false,
@@ -317,7 +383,8 @@ export function* loadDataset(
       willLoadTable
     );
   } else {
-    const pathnameParts = location.pathname.split("/");
+    const loc = rmProjectBase(location.pathname);
+    const pathnameParts = loc.split("/");
     const parentFullPath = decodeURIComponent(
       constructFullPath([pathnameParts[2]]) + "." + pathnameParts[3]
     );

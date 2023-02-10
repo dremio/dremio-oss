@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -30,7 +32,6 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Multimap;
@@ -100,9 +101,9 @@ public class PlanCache {
   public static String generateCacheKey(String sql, QueryContext context) {
     Hasher hasher = Hashing.sha256().newHasher();
 
-    hasher.putString(sql, Charsets.UTF_8)
-      .putString(context.getWorkloadType().name(), Charsets.UTF_8)
-      .putString(context.getContextInformation().getCurrentDefaultSchema(), Charsets.UTF_8);
+    hasher.putString(sql, UTF_8)
+      .putString(context.getWorkloadType().name(), UTF_8)
+      .putString(context.getContextInformation().getCurrentDefaultSchema(), UTF_8);
 
     context.getOptions().getNonDefaultOptions()
         .stream()
@@ -121,7 +122,7 @@ public class PlanCache {
               hasher.putLong(v.getNumVal());
               break;
             case STRING:
-              hasher.putString(v.getStringVal(), Charsets.UTF_8);
+              hasher.putString(v.getStringVal(), UTF_8);
               break;
             default:
               throw new AssertionError("Unsupported OptionValue kind: " + v.getKind());

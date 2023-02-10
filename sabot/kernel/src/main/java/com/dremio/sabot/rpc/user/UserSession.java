@@ -57,6 +57,7 @@ public class UserSession {
   public static final String ROUTING_QUEUE = PropertySetter.ROUTING_QUEUE.toPropertyName();
   public static final String ROUTING_ENGINE = PropertySetter.ROUTING_ENGINE.toPropertyName();
   public static final String TRACING_ENABLED = PropertySetter.TRACING_ENABLED.toPropertyName();
+  public static final String QUERY_LABEL = PropertySetter.QUERY_LABEL.toPropertyName();
 
   public static final BooleanValidator ENABLE_SESSION_IDS =
     new BooleanValidator("user.session.enable_session_id", true);
@@ -131,6 +132,13 @@ public class UserSession {
       }
     },
 
+    QUERY_LABEL {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.queryLabel = value;
+      }
+    },
+
     ROUTING_QUEUE {
       @Override
       public void setValue(UserSession session, String value) {
@@ -186,6 +194,7 @@ public class UserSession {
   private Quoting initialQuoting;
   private boolean supportFullyQualifiedProjections;
   private String routingTag;
+  private String queryLabel;
   private String routingQueue;
   private String routingEngine;
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_23_0;
@@ -348,6 +357,14 @@ public class UserSession {
 
   public String getRoutingTag() {
     return routingTag;
+  }
+
+  public String getQueryLabel() {
+    return queryLabel;
+  }
+
+  public void setQueryLabel(String queryLabel) {
+    this.queryLabel = queryLabel;
   }
 
   public String getRoutingQueue() {

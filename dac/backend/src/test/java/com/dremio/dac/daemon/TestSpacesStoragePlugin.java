@@ -17,7 +17,6 @@ package com.dremio.dac.daemon;
 
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
-import static com.dremio.dac.server.test.SampleDataPopulator.getFileContentsFromClassPath;
 import static com.dremio.service.namespace.NamespaceTestUtils.addFolder;
 import static org.junit.Assert.assertEquals;
 
@@ -103,7 +102,7 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
     getPopulator().putDS("testA", "dsA1", new FromTable("LocalFS1.\"testSpaceA.json\"").wrap());
     getPopulator().putDS("testB", "dsB1", new FromTable("LocalFS1.\"testSpaceB.json\"").wrap());
     getPopulator().putDS("testA", "dsA2", new FromTable("LocalFS1.\"testSpaceC.json\"").wrap());
-    getPopulator().putDS("testA", "dsA3", new FromSQL(getFileContentsFromClassPath("queries/tpch/03.sql")
+    getPopulator().putDS("testA", "dsA3", new FromSQL(readResourceAsString("queries/tpch/03.sql")
         .replaceAll("\\-\\-.*", "")
         .replace('`', '"')
         .replace(';', ' ')
@@ -130,12 +129,12 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
     getPopulator().putDS("testA", folderPath, "dsA2", new FromTable("LocalFS1.\"testSpaceC.json\"").wrap());
     getPopulator().putDS("@"+DEFAULT_USER_NAME, folderPath, "dsA2", new FromTable("LocalFS1.\"testSpaceC.json\"").wrap());
     folderPath.add(new FolderName("F4"));
-    getPopulator().putDS("testA", folderPath, "dsA3", new FromSQL(getFileContentsFromClassPath("queries/tpch/03.sql")
+    getPopulator().putDS("testA", folderPath, "dsA3", new FromSQL(readResourceAsString("queries/tpch/03.sql")
         .replaceAll("\\-\\-.*", "")
         .replace('`', '"')
         .replace(';', ' ')
         ).wrap());
-    getPopulator().putDS("@"+DEFAULT_USER_NAME, folderPath, "dsA3", new FromSQL(getFileContentsFromClassPath("queries/tpch/03.sql")
+    getPopulator().putDS("@"+DEFAULT_USER_NAME, folderPath, "dsA3", new FromSQL(readResourceAsString("queries/tpch/03.sql")
         .replaceAll("\\-\\-.*", "")
         .replace('`', '"')
         .replace(';', ' ')

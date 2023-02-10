@@ -29,7 +29,7 @@ import com.google.common.base.Preconditions;
 import com.koloboke.collect.hash.HashConfig;
 
 public interface HashTable {
-  Logger logger = LoggerFactory.getLogger(HashTable.class);
+  final Logger logger = LoggerFactory.getLogger(HashTable.class);
 
   String NATIVE_HASHTABLE_CLASS = "dremio.joust.NativeHashTable.class";
   String LBLOCK_HASHTABLE_CLASS = "dremio.ht2.LBlockHashTable.class";

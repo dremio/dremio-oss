@@ -17,6 +17,7 @@ import { Link } from "react-router";
 import FontIcon from "components/Icon/FontIcon";
 import { abilities } from "utils/datasetUtils";
 import { datasetTypeToEntityType } from "@app/constants/datasetTypes";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -28,7 +29,7 @@ export default function (input) {
         summaryDataset.get("datasetType") === "PHYSICAL_DATASET_HOME_FILE"
       );
       return canEdit ? (
-        <Link to={summaryDataset.getIn(["links", "edit"])}>
+        <Link to={wrapBackendLink(summaryDataset.getIn(["links", "edit"]))}>
           <FontIcon type="Edit" />
         </Link>
       ) : null;

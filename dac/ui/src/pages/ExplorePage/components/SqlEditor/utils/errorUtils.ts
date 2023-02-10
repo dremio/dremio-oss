@@ -20,36 +20,41 @@ export type ErrorResponse = {
   readonly errorMessage?: string;
   readonly details?: {
     readonly errors?: SqlError<QueryRangeResponse>[];
-  }
-}
+  };
+};
 
 export type QueryRangeResponse = {
   readonly startLine: number;
   readonly startColumn: number;
   readonly endLine: number;
   readonly endColumn: number;
-}
+};
 
 export type SqlError<TRange> = {
   readonly message: string;
   readonly range: TRange;
-}
+};
 
 export const DEFAULT_ERROR_MESSAGE = "Error";
 
 /**
- * Error message will be in the only error within the error details. 
+ * Error message will be in the only error within the error details.
  * NOTE: if this behavior changes on the server, this is the place to update.
  */
-const getSqlError = (errorResponse: ErrorResponse | undefined): SqlError<QueryRangeResponse | undefined> | undefined => {
+const getSqlError = (
+  errorResponse: ErrorResponse | undefined
+): SqlError<QueryRangeResponse | undefined> | undefined => {
   return errorResponse?.details?.errors?.[0];
-}
+};
 
 /**
- * Given an absolute range of the full statement and a range of an error within that statement, 
+ * Given an absolute range of the full statement and a range of an error within that statement,
  * returns an absolute range of an error
  */
-const getErrorRange = (statementRange: QueryRange, relativeErrorRange: QueryRangeResponse | undefined): QueryRange => {
+const getErrorRange = (
+  statementRange: QueryRange,
+  relativeErrorRange: QueryRangeResponse | undefined
+): QueryRange => {
   if (relativeErrorRange === undefined) {
     return statementRange;
   }
@@ -62,23 +67,28 @@ const getErrorRange = (statementRange: QueryRange, relativeErrorRange: QueryRang
   return {
     startLineNumber: relativeErrorRange.startLine + lineOffset,
     endLineNumber: relativeErrorRange.endLine + lineOffset,
-    startColumn: relativeErrorRange.startLine === 1
-      ? relativeErrorRange.startColumn + columnOffset
-      : relativeErrorRange.startColumn,
+    startColumn:
+      relativeErrorRange.startLine === 1
+        ? relativeErrorRange.startColumn + columnOffset
+        : relativeErrorRange.startColumn,
     // monaco looks at how to draw error by using end column as an exclusive index, hence +1
-    endColumn: relativeErrorRange.startLine === 1
-      ? relativeErrorRange.endColumn + columnOffset + 1
-      : relativeErrorRange.endColumn + 1,
-  }
-}
+    endColumn:
+      relativeErrorRange.startLine === 1
+        ? relativeErrorRange.endColumn + columnOffset + 1
+        : relativeErrorRange.endColumn + 1,
+  };
+};
 
 /**
- * 
+ *
  * @param errorResponse response from the server which contains either details error or a generic one
  * @param queryRange range within sql editor of where the error happened
  * @returns error message along with a (potentially) narrowed down range of where the error happened within the editor.
  */
-export const extractSqlErrorFromResponse = (errorResponse: ErrorResponse | undefined, queryRange: QueryRange): SqlError<QueryRange> => {
+export const extractSqlErrorFromResponse = (
+  errorResponse: ErrorResponse | undefined,
+  queryRange: QueryRange
+): SqlError<QueryRange> => {
   const sqlError = getSqlError(errorResponse);
   if (!sqlError) {
     return {
@@ -90,4 +100,4 @@ export const extractSqlErrorFromResponse = (errorResponse: ErrorResponse | undef
     message: sqlError.message,
     range: getErrorRange(queryRange, sqlError.range),
   };
-}
+};

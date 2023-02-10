@@ -51,14 +51,14 @@
   description: "ROW CONSTRUCTOR"
   input: "SELECT ROW(1)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "OR"
+     - "AS"
+     - "MULTISET"
  -
   description: "ROW CONSTRUCTOR"
   input: "SELECT ROW(1,"
@@ -99,14 +99,14 @@
   description: "ROW INDEX + INT"
   input: "SELECT ROW(1)[1]"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
  -
   description: "ROW INDEX + STRING"
   input: "SELECT ROW(1)['name'"
@@ -123,14 +123,14 @@
   description: "ROW INDEX + STRING"
   input: "SELECT ROW(1)['name']"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
  -
   description: "ARRAY"
   input: "SELECT ARRAY"
@@ -168,14 +168,14 @@
   description: "ARRAY CONSTRUCTOR PARENS"
   input: "SELECT ARRAY(SELECT * FROM T)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "ARRAY CONSTRUCTOR PARENS"
   input: "SELECT ARRAY(SELECT * FROM T,"
@@ -215,14 +215,14 @@
   description: "ARRAY PARENS INDEX"
   input: "SELECT ARRAY(SELECT * FROM T)[1]"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
  -
   description: "ARRAY CONSTRUCTOR BRACKET"
   input: "SELECT ARRAY["
@@ -251,14 +251,14 @@
   description: "ARRAY CONSTRUCTOR BRACKET"
   input: "SELECT ARRAY[1]"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
  -
   description: "ARRAY CONSTRUCTOR BRACKET"
   input: "SELECT ARRAY[1,"
@@ -299,26 +299,26 @@
   description: "ARRAY BRACKET INDEX"
   input: "SELECT ARRAY[1, 2, 3][1]"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
  -
   description: "MAP "
   input: "SELECT MAP"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
-     - "FROM"
+     - "("
+     - "!="
+     - "%"
+     - "*"
+     - "+"
  -
   description: "MAP CONSTRUCTOR PARENS"
   input: "SELECT MAP("
@@ -358,14 +358,14 @@
   description: "MAP CONSTRUCTOR PARENS"
   input: "SELECT MAP(SELECT * FROM T)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "MAP PARENS INDEX"
   input: "SELECT MAP(SELECT * FROM T)["
@@ -394,14 +394,14 @@
   description: "MAP PARENS INDEX"
   input: "SELECT MAP(SELECT * FROM T)['key']"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
  -
   description: "MAP CONSTRUCTOR BRACKET"
   input: "SELECT MAP["
@@ -442,14 +442,14 @@
   description: "MAP CONSTRUCTOR BRACKET"
   input: "SELECT MAP['key', 1]"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
  -
   description: "MAP BRACKET INDEX"
   input: "SELECT MAP['key', 1]["
@@ -478,11 +478,11 @@
   description: "MAP BRACKET INDEX"
   input: "SELECT MAP['key', 1]['key']"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"

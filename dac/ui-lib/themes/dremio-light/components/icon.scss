@@ -14,10 +14,4 @@
  * limitations under the License.
  */
 
-dremio-icon {
-  display: inline-flex;
-  block-size: 20px;
-  inline-size: 20px;
-  flex-shrink: 0;
-  vertical-align: middle;
-}
+@use "../../base/components/icon";

@@ -24,8 +24,10 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -53,6 +55,7 @@ public class SampleDataPopulatorService implements Service {
   private final Provider<CatalogService> catalogService;
   private final Provider<ConnectionReader> connectionReader;
   private final Provider<OptionManager> optionManager;
+  private final Provider<SearchService> searchService;
 
   private SampleDataPopulator sample;
 
@@ -67,6 +70,7 @@ public class SampleDataPopulatorService implements Service {
     Provider<JobsService> jobsService,
     Provider<CatalogService> catalogService,
     Provider<ConnectionReader> connectionReader,
+    Provider<SearchService> searchService,
     Provider<OptionManager> optionManager,
     boolean prepopulate,
     boolean addDefaultUser) {
@@ -77,6 +81,7 @@ public class SampleDataPopulatorService implements Service {
     this.jobsService = jobsService;
     this.catalogService = catalogService;
     this.connectionReader = connectionReader;
+    this.searchService = searchService;
     this.optionManager = optionManager;
     this.prepopulate = prepopulate;
     this.addDefaultUser = addDefaultUser;
@@ -98,14 +103,15 @@ public class SampleDataPopulatorService implements Service {
       final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, ns, jobsService.get(),
         catalogService.get(), optionManager.get());
       SecurityContext context = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
-      final SourceService ss = new SourceService(ns, data, catalogService.get(), reflectionServiceHelper, null, connectionReader.get(), context);
+      final SourceService ss = new SourceService(contextProvider.get(), ns, data, catalogService.get(), reflectionServiceHelper, null, connectionReader.get(), context);
       sample = new SampleDataPopulator(
           contextProvider.get(),
           ss,
           data,
           userService.get(),
           contextProvider.get().getNamespaceService(SampleDataPopulator.DEFAULT_USER_NAME),
-          SampleDataPopulator.DEFAULT_USER_NAME
+          SampleDataPopulator.DEFAULT_USER_NAME,
+          new CollaborationHelper(kv, contextProvider.get(), ns, context, searchService.get())
       );
 
       sample.populateInitialData();

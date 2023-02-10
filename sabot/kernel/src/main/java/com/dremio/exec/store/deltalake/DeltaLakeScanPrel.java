@@ -42,16 +42,14 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
@@ -80,8 +78,6 @@ import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.planner.sql.handlers.PrelFinalizable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ExpressionInputRewriter;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.RowCountEstimator;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
@@ -98,9 +94,9 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
   public DeltaLakeScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table,
                            StoragePluginId pluginId, TableMetadata tableMetadata, List<SchemaPath> projectedColumns,
-                           double observedRowcountAdjustment, ParquetScanFilter filter, boolean arrowCachingEnabled,
-                           PruneFilterCondition pruneCondition) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment);
+                           double observedRowcountAdjustment, List<RelHint> hints, ParquetScanFilter filter,
+                           boolean arrowCachingEnabled, PruneFilterCondition pruneCondition) {
+    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
     this.filter = filter;
     this.arrowCachingEnabled = arrowCachingEnabled;
     this.pruneCondition = pruneCondition;
@@ -121,13 +117,13 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new DeltaLakeScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
-      getProjectedColumns(), getObservedRowcountAdjustment(), filter, arrowCachingEnabled, pruneCondition);
+      getProjectedColumns(), getObservedRowcountAdjustment(), hints, filter, arrowCachingEnabled, pruneCondition);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
     return new DeltaLakeScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
-      projection, getObservedRowcountAdjustment(), filter == null ? filter : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()), arrowCachingEnabled,
+      projection, getObservedRowcountAdjustment(), hints, filter == null ? filter : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()), arrowCachingEnabled,
       pruneCondition == null ? pruneCondition : pruneCondition.applyProjection(projection, rowType, getCluster(), getBatchSchema()))
       ;
 
@@ -270,25 +266,6 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
       parquetScanTableFunctionConfig, getRowType(), rm -> (double) tableMetadata.getApproximateRecordCount());
   }
 
-  public static RelDataType getSplitRowType(RelOptCluster cluster) {
-    final RelDataTypeFactory.Builder builder = cluster.getTypeFactory().builder();
-    builder.add(new RelDataTypeFieldImpl(RecordReader.SPLIT_IDENTITY, 0, cluster.getTypeFactory().createStructType(
-      ImmutableList.of(
-        cluster.getTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-        cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT),
-        cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT),
-        cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT)),
-      ImmutableList.of(
-        SplitIdentity.PATH,
-        SplitIdentity.OFFSET,
-        SplitIdentity.LENGTH,
-        SplitIdentity.FILE_LENGTH
-      ))));
-    builder.add(new RelDataTypeFieldImpl(RecordReader.SPLIT_INFORMATION, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
-    builder.add(new RelDataTypeFieldImpl(RecordReader.COL_IDS, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
-    return builder.build();
-  }
-
   @Override
   public Iterator<Prel> iterator() {
     return Collections.emptyIterator();
@@ -364,14 +341,14 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
             removedNonNullOrAddedVersionEqualRemoveVersion,
             tableMetadata,
             splitGenTableFunctionConfig,
-            getSplitRowType(getCluster()),
+            TableFunctionUtil.getSplitRowType(getCluster()),
             rm -> rm.getRowCount(removedNonNullOrAddedVersionEqualRemoveVersion));
   }
 
   private boolean checkBroadcastConditions(JoinRelType joinRelType, RelNode probe, RelNode build) {
     final double probeRowCount = getRowCount(probe);
     final double buildRowCount = getRowCount(build);
-    return JoinPruleBase.checkBroadcastConditions(joinRelType, probe, build, probeRowCount, buildRowCount);
+    return JoinPruleBase.checkBroadcastConditions(joinRelType, probe, build, probeRowCount, buildRowCount, false);
   }
 
   private double getRowCount(RelNode relNode) {

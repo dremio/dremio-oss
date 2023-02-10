@@ -119,27 +119,24 @@ public class VectorizedHashJoinOperatorTest {
       FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
       ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
       RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(true, "col1");
-      VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
-      MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+      try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+           MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
+        joinOp.tryPushRuntimeFilter();
 
-      joinOp.tryPushRuntimeFilter();
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
 
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
-
-      RuntimeFilter filterVal = valCaptor.getValue();
-      assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-      assertEquals(101, filterVal.getProbeScanOperatorId());
-      assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
-      assertEquals("col1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
-      assertEquals(256, filterVal.getPartitionColumnFilter().getSizeBytes());
-
-      runtimeFilterUtilMockedStatic.close();
-      joinOp.close();
+        RuntimeFilter filterVal = valCaptor.getValue();
+        assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+        assertEquals(101, filterVal.getProbeScanOperatorId());
+        assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
+        assertEquals("col1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
+        assertEquals(256, filterVal.getPartitionColumnFilter().getSizeBytes());
+      }
     }
 
     @Test
@@ -148,31 +145,29 @@ public class VectorizedHashJoinOperatorTest {
       RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(true, Collections.EMPTY_LIST,
         Lists.newArrayList("col1"));
       ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-      VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
-      MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
-      copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
+      try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+           MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
+        copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
 
-      joinOp.tryPushRuntimeFilter();
+        joinOp.tryPushRuntimeFilter();
 
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
 
-      RuntimeFilter filterVal = valCaptor.getValue();
-      assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-      assertEquals(101, filterVal.getProbeScanOperatorId());
-      assertEquals(0, filterVal.getPartitionColumnFilter().getColumnsCount());
-      assertEquals(1, filterVal.getNonPartitionColumnFilterCount());
-      assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
-      assertEquals(valueListFiltersCopy.get(0).getSizeInBytes(), filterVal.getNonPartitionColumnFilter(0).getSizeBytes());
-      assertEquals(valueListFiltersCopy.get(0).getValueCount(), filterVal.getNonPartitionColumnFilter(0).getValueCount());
-      AutoCloseables.close(valueListFiltersCopy);
-
-      runtimeFilterUtilMockedStatic.close();
-      joinOp.close();
+        RuntimeFilter filterVal = valCaptor.getValue();
+        assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+        assertEquals(101, filterVal.getProbeScanOperatorId());
+        assertEquals(0, filterVal.getPartitionColumnFilter().getColumnsCount());
+        assertEquals(1, filterVal.getNonPartitionColumnFilterCount());
+        assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+        assertEquals(valueListFiltersCopy.get(0).getSizeInBytes(), filterVal.getNonPartitionColumnFilter(0).getSizeBytes());
+        assertEquals(valueListFiltersCopy.get(0).getValueCount(), filterVal.getNonPartitionColumnFilter(0).getValueCount());
+        AutoCloseables.close(valueListFiltersCopy);
+      }
     }
 
     @Test
@@ -182,39 +177,37 @@ public class VectorizedHashJoinOperatorTest {
       RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(true,
         Lists.newArrayList("pCol1", "pCol2"), Lists.newArrayList("npCol1", "npCol2"));
 
-      VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
-      MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
-      copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
+      try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+           MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
+        copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
 
-      joinOp.tryPushRuntimeFilter();
+        joinOp.tryPushRuntimeFilter();
 
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
 
-      RuntimeFilter filterVal = valCaptor.getValue();
-      assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-      assertEquals(101, filterVal.getProbeScanOperatorId());
-      assertEquals(2, filterVal.getPartitionColumnFilter().getColumnsCount());
-      assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
-      assertEquals("pCol2_probe", filterVal.getPartitionColumnFilter().getColumns(1));
-      assertEquals(256, filterVal.getPartitionColumnFilter().getSizeBytes());
+        RuntimeFilter filterVal = valCaptor.getValue();
+        assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+        assertEquals(101, filterVal.getProbeScanOperatorId());
+        assertEquals(2, filterVal.getPartitionColumnFilter().getColumnsCount());
+        assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
+        assertEquals("pCol2_probe", filterVal.getPartitionColumnFilter().getColumns(1));
+        assertEquals(256, filterVal.getPartitionColumnFilter().getSizeBytes());
 
-      assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
-      assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
-      assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
-      assertEquals("npCol1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
-      assertEquals("npCol2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
+        assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
+        assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
+        assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
+        assertEquals("npCol1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+        assertEquals("npCol2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
 
-      assertEquals(valueListFiltersCopy.get(1).getSizeInBytes(), filterVal.getNonPartitionColumnFilter(0).getSizeBytes());
-      assertEquals(valueListFiltersCopy.get(0).getValueCount(), filterVal.getNonPartitionColumnFilter(1).getValueCount());
-      AutoCloseables.close(valueListFiltersCopy);
-
-      runtimeFilterUtilMockedStatic.close();
-      joinOp.close();
+        assertEquals(valueListFiltersCopy.get(1).getSizeInBytes(), filterVal.getNonPartitionColumnFilter(0).getSizeBytes());
+        assertEquals(valueListFiltersCopy.get(0).getValueCount(), filterVal.getNonPartitionColumnFilter(1).getValueCount());
+        AutoCloseables.close(valueListFiltersCopy);
+      }
     }
 
     @Test
@@ -223,31 +216,29 @@ public class VectorizedHashJoinOperatorTest {
       ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
       RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(true,
         Lists.newArrayList("pCol1", "pCol2"), Lists.newArrayList("npCol1", "npCol2"));
-      VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
-      MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+      try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+           MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-      PartitionColFilters partitionColFilters = mock(PartitionColFilters.class);
-      doReturn(partitionColFilters).when(joinOp).createPartitionColFilters();
-      when(partitionColFilters.getBloomFilter(anyInt(), any(RuntimeFilterProbeTarget.class)))
-        .thenReturn(Optional.empty());
+        PartitionColFilters partitionColFilters = mock(PartitionColFilters.class);
+        doReturn(partitionColFilters).when(joinOp).createPartitionColFilters();
+        when(partitionColFilters.getBloomFilter(anyInt(), any(RuntimeFilterProbeTarget.class)))
+          .thenReturn(Optional.empty());
 
-      NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
-      doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
-      doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
-      when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
-        .thenReturn(Collections.emptyList());
+        NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
+        doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
+        doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
+        when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
+          .thenReturn(Collections.emptyList());
 
-      joinOp.tryPushRuntimeFilter();
+        joinOp.tryPushRuntimeFilter();
 
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
-
-      runtimeFilterUtilMockedStatic.close();
-      joinOp.close();
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
+      }
     }
 
     @Test
@@ -257,34 +248,32 @@ public class VectorizedHashJoinOperatorTest {
       RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(true,
         Lists.newArrayList("pCol1", "pCol2"),
         Lists.newArrayList("npCol1", "npCol2"));
-      VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
-      MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+      try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+           MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-      runtimeFilterUtilMockedStatic.when(() -> RuntimeFilterUtil.isRuntimeFilterEnabledForNonPartitionedCols(
-        any(OperatorContext.class))).thenReturn(false);
+        runtimeFilterUtilMockedStatic.when(() -> RuntimeFilterUtil.isRuntimeFilterEnabledForNonPartitionedCols(
+          any(OperatorContext.class))).thenReturn(false);
 
-      joinOp.tryPushRuntimeFilter();
+        joinOp.tryPushRuntimeFilter();
 
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
 
-      verify(joinOp.getTable(), never()).prepareValueListFilters(any(NonPartitionColFilters.class));
+        verify(joinOp.getTable(), never()).prepareValueListFilters(any(NonPartitionColFilters.class));
 
-      RuntimeFilter filterVal = valCaptor.getValue();
-      assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-      assertEquals(101, filterVal.getProbeScanOperatorId());
-      assertEquals(2, filterVal.getPartitionColumnFilter().getColumnsCount());
-      assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
-      assertEquals("pCol2_probe", filterVal.getPartitionColumnFilter().getColumns(1));
-      assertEquals(256, filterVal.getPartitionColumnFilter().getSizeBytes());
-      assertEquals(0, filterVal.getNonPartitionColumnFilterCount());
-
-      runtimeFilterUtilMockedStatic.close();
-      joinOp.close();
+        RuntimeFilter filterVal = valCaptor.getValue();
+        assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+        assertEquals(101, filterVal.getProbeScanOperatorId());
+        assertEquals(2, filterVal.getPartitionColumnFilter().getColumnsCount());
+        assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
+        assertEquals("pCol2_probe", filterVal.getPartitionColumnFilter().getColumns(1));
+        assertEquals(256, filterVal.getPartitionColumnFilter().getSizeBytes());
+        assertEquals(0, filterVal.getNonPartitionColumnFilterCount());
+      }
     }
 
     @Test
@@ -293,25 +282,23 @@ public class VectorizedHashJoinOperatorTest {
       ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
       RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(true,Collections.EMPTY_LIST,
       Lists.newArrayList("npCol1", "npCol2"));
-      VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
-      MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+      try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+           MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-      runtimeFilterUtilMockedStatic.when(() -> RuntimeFilterUtil.isRuntimeFilterEnabledForNonPartitionedCols(
-        any(OperatorContext.class))).thenReturn(false);
+        runtimeFilterUtilMockedStatic.when(() -> RuntimeFilterUtil.isRuntimeFilterEnabledForNonPartitionedCols(
+          any(OperatorContext.class))).thenReturn(false);
 
-      joinOp.tryPushRuntimeFilter();
+        joinOp.tryPushRuntimeFilter();
 
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), never());
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), never());
 
-      verify(joinOp.getTable(), never()).prepareValueListFilters(any(NonPartitionColFilters.class));
-
-      runtimeFilterUtilMockedStatic.close();
-      joinOp.close();
+        verify(joinOp.getTable(), never()).prepareValueListFilters(any(NonPartitionColFilters.class));
+      }
     }
 
     @Test
@@ -319,48 +306,46 @@ public class VectorizedHashJoinOperatorTest {
       FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(4).build();
       RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(false,
         Lists.newArrayList("pCol1", "pCol2"), Lists.newArrayList("npCol1", "npCol2"));
-      VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
 
       ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-      MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
-      copyValueListFiltersAtMergePoints(runtimeFilterUtilMockedStatic, valCaptor);
+      try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+           MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
+        copyValueListFiltersAtMergePoints(runtimeFilterUtilMockedStatic, valCaptor);
 
-      joinOp.tryPushRuntimeFilter();
+        joinOp.tryPushRuntimeFilter();
 
-      runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
-        any(RuntimeFilter.class), any(Optional.class), anyList(),
-        any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
+        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterAtMergePoints(
+          any(RuntimeFilter.class), any(Optional.class), anyList(),
+          any(OperatorContext.class),any(HashJoinPOP.class)), times(1));
 
-      RuntimeFilter filterVal = valCaptor.getValue();
-      assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-      assertEquals(101, filterVal.getProbeScanOperatorId());
-      assertEquals(2, filterVal.getPartitionColumnFilter().getColumnsCount());
-      assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
-      assertEquals("pCol2_probe", filterVal.getPartitionColumnFilter().getColumns(1));
-      assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
+        RuntimeFilter filterVal = valCaptor.getValue();
+        assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+        assertEquals(101, filterVal.getProbeScanOperatorId());
+        assertEquals(2, filterVal.getPartitionColumnFilter().getColumnsCount());
+        assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
+        assertEquals("pCol2_probe", filterVal.getPartitionColumnFilter().getColumns(1));
+        assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
 
-      assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
-      assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
-      assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
-      assertEquals("npCol1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
-      assertEquals("npCol2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
-      assertEquals(valueListFiltersCopy.get(0).getSizeInBytes(), filterVal.getNonPartitionColumnFilter(0).getSizeBytes());
-      assertEquals(valueListFiltersCopy.get(1).getValueCount(), filterVal.getNonPartitionColumnFilter(1).getValueCount());
-      AutoCloseables.close(valueListFiltersCopy);
-
-      runtimeFilterUtilMockedStatic.close();
-      joinOp.close();
+        assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
+        assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
+        assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
+        assertEquals("npCol1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+        assertEquals("npCol2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
+        assertEquals(valueListFiltersCopy.get(0).getSizeInBytes(), filterVal.getNonPartitionColumnFilter(0).getSizeBytes());
+        assertEquals(valueListFiltersCopy.get(1).getValueCount(), filterVal.getNonPartitionColumnFilter(1).getValueCount());
+        AutoCloseables.close(valueListFiltersCopy);
+      }
     }
 
     @Test
     public void testTryPushRuntimeFilterPartitionColOnlyShuffleJoin() throws Exception {
-        try (ArrowBuf recvBuffer = testAllocator.buffer(2 * 1024 * 1024)) {
+        FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
+        RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(false, "col1");
+        ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
+        try (ArrowBuf recvBuffer = testAllocator.buffer(2 * 1024 * 1024);
+             VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
+             MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
             recvBuffer.setZero(0, recvBuffer.capacity()); // set all bytes to zero
-            FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-            RuntimeFilterInfo runtimeFilterInfo = newRuntimeFilterInfo(false, "col1");
-            VectorizedHashJoinOperator joinOp = newVecHashJoinOp(runtimeFilterInfo, fh);
-            ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-            MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
 
             joinOp.tryPushRuntimeFilter();
 
@@ -382,9 +367,6 @@ public class VectorizedHashJoinOperatorTest {
             assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
             assertEquals("col1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
             assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
-
-            runtimeFilterUtilMockedStatic.close();
-            joinOp.close();
         }
     }
 
@@ -400,64 +382,61 @@ public class VectorizedHashJoinOperatorTest {
         ValueListFilter valueListFilter8 = utils.prepareNewValueListFilter("col2_probe", false, 17, 18, 19);
 
         FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-        VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
-                Collections.EMPTY_LIST, Lists.newArrayList("col1", "col2")), fh);
-
         ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-        MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+        try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
+                Collections.EMPTY_LIST, Lists.newArrayList("col1", "col2")), fh);
+             MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-        NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
-        doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
-        doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
-        List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
-        when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
-          .thenReturn(valueListFilterList);
+            NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
+            doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
+            doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
+            List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
+            when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
+              .thenReturn(valueListFilterList);
 
-        copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
+            copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
 
-        joinOp.tryPushRuntimeFilter();
+            joinOp.tryPushRuntimeFilter();
 
-        // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-        OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, Collections.EMPTY_LIST, null, valueListFilter3, valueListFilter4);
-        OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, Collections.EMPTY_LIST, null, valueListFilter5, valueListFilter6);
-        OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, Collections.EMPTY_LIST, null, valueListFilter7, valueListFilter8);
+            // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
+            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, Collections.EMPTY_LIST, null, valueListFilter3, valueListFilter4);
+            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, Collections.EMPTY_LIST, null, valueListFilter5, valueListFilter6);
+            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, Collections.EMPTY_LIST, null, valueListFilter7, valueListFilter8);
 
-        joinOp.workOnOOB(oobMsg2);
-        joinOp.workOnOOB(oobMsg3);
-        joinOp.workOnOOB(oobMsg4);
+            joinOp.workOnOOB(oobMsg2);
+            joinOp.workOnOOB(oobMsg3);
+            joinOp.workOnOOB(oobMsg4);
 
-        Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
-        Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
-        Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
+            Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
+            Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
+            Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
 
-        AutoCloseables.close(valueListFilter1, valueListFilter2); // sendFilterToMergePoints is expected to close; mocked here.o
+            AutoCloseables.close(valueListFilter1, valueListFilter2); // sendFilterToMergePoints is expected to close; mocked here.o
 
-        // verify filter sent to probe scan.
-        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-          any(RuntimeFilter.class), any(Optional.class), anyList(),
-          any(OperatorContext.class),any(HashJoinPOP.class)),
-          times(1));
+            // verify filter sent to probe scan.
+            runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+              any(RuntimeFilter.class), any(Optional.class), anyList(),
+              any(OperatorContext.class),any(HashJoinPOP.class)),
+              times(1));
 
-        RuntimeFilter filterVal = valCaptor.getValue();
-        assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-        assertEquals(101, filterVal.getProbeScanOperatorId());
-        assertEquals(0, filterVal.getPartitionColumnFilter().getColumnsCount());
+            RuntimeFilter filterVal = valCaptor.getValue();
+            assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+            assertEquals(101, filterVal.getProbeScanOperatorId());
+            assertEquals(0, filterVal.getPartitionColumnFilter().getColumnsCount());
 
-        assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
-        assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
-        assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
-        assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
-        assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
+            assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
+            assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
+            assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+            assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
+            assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
 
-        assertEquals(2, valueListFiltersCopy.size());
-        assertTrue(valueListFiltersCopy.get(0).isContainsNull());
-        assertEquals(Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9), utils.getValues(valueListFiltersCopy.get(0)));
-        assertFalse(valueListFiltersCopy.get(1).isContainsNull());
-        assertEquals(Lists.newArrayList(11, 12, 13, 14, 15, 16, 17, 18, 19), utils.getValues(valueListFiltersCopy.get(1)));
-        AutoCloseables.close(valueListFiltersCopy);
-
-        runtimeFilterUtilMockedStatic.close();
-        joinOp.close();
+            assertEquals(2, valueListFiltersCopy.size());
+            assertTrue(valueListFiltersCopy.get(0).isContainsNull());
+            assertEquals(Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9), utils.getValues(valueListFiltersCopy.get(0)));
+            assertFalse(valueListFiltersCopy.get(1).isContainsNull());
+            assertEquals(Lists.newArrayList(11, 12, 13, 14, 15, 16, 17, 18, 19), utils.getValues(valueListFiltersCopy.get(1)));
+            AutoCloseables.close(valueListFiltersCopy);
+        }
     }
 
     @Test
@@ -476,67 +455,65 @@ public class VectorizedHashJoinOperatorTest {
 
             List<String> partitionColNames = Lists.newArrayList("pCol1");
             FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-            VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
+            ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
+            try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
                     partitionColNames, Lists.newArrayList("col1", "col2")), fh);
 
-            ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-            MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+                 MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-            NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
-            doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
-            doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
-            List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
-            when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
-              .thenReturn(valueListFilterList);
+                NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
+                doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
+                doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
+                List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
+                when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
+                  .thenReturn(valueListFilterList);
 
-            copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
+                copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
 
-            joinOp.tryPushRuntimeFilter();
+                joinOp.tryPushRuntimeFilter();
 
-            // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.getReferenceManager().retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+                // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
+                recvBuffer.getReferenceManager().retain(3);
+                OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+                OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+                OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
-            joinOp.workOnOOB(oobMsg2);
-            joinOp.workOnOOB(oobMsg3);
-            joinOp.workOnOOB(oobMsg4);
+                joinOp.workOnOOB(oobMsg2);
+                joinOp.workOnOOB(oobMsg3);
+                joinOp.workOnOOB(oobMsg4);
 
-            Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
 
-            AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
+                AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
 
-            // verify filter sent to probe scan.
-            runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-              any(RuntimeFilter.class), any(Optional.class), anyList(),
-              any(OperatorContext.class),any(HashJoinPOP.class)),
-              times(1));
+                // verify filter sent to probe scan.
+                runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+                  any(RuntimeFilter.class), any(Optional.class), anyList(),
+                  any(OperatorContext.class),any(HashJoinPOP.class)),
+                  times(1));
 
-            RuntimeFilter filterVal = valCaptor.getValue();
-            assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-            assertEquals(101, filterVal.getProbeScanOperatorId());
-            assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
-            assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
-            assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
+                RuntimeFilter filterVal = valCaptor.getValue();
+                assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+                assertEquals(101, filterVal.getProbeScanOperatorId());
+                assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
+                assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
+                assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
 
-            assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
-            assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
-            assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
-            assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
-            assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
+                assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
+                assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
+                assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+                assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
+                assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
 
-            assertEquals(2, valueListFiltersCopy.size());
-            assertTrue(valueListFiltersCopy.get(0).isContainsNull());
-            assertEquals(Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9), utils.getValues(valueListFiltersCopy.get(0)));
-            assertFalse(valueListFiltersCopy.get(1).isContainsNull());
-            assertEquals(Lists.newArrayList(11, 12, 13, 14, 15, 16, 17, 18, 19), utils.getValues(valueListFiltersCopy.get(1)));
-            AutoCloseables.close(valueListFiltersCopy);
-
-            runtimeFilterUtilMockedStatic.close();
-            joinOp.close();
+                assertEquals(2, valueListFiltersCopy.size());
+                assertTrue(valueListFiltersCopy.get(0).isContainsNull());
+                assertEquals(Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9), utils.getValues(valueListFiltersCopy.get(0)));
+                assertFalse(valueListFiltersCopy.get(1).isContainsNull());
+                assertEquals(Lists.newArrayList(11, 12, 13, 14, 15, 16, 17, 18, 19), utils.getValues(valueListFiltersCopy.get(1)));
+                AutoCloseables.close(valueListFiltersCopy);
+            }
         }
     }
 
@@ -556,63 +533,63 @@ public class VectorizedHashJoinOperatorTest {
 
             List<String> partitionColNames = Lists.newArrayList("pCol1");
             FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-            VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
-                    partitionColNames, Lists.newArrayList("col1", "col2")), fh);
 
             ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-            MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
 
-            NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
-            doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
-            doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
-            List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
-            when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
-              .thenReturn(valueListFilterList);
+            try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
+                    partitionColNames, Lists.newArrayList("col1", "col2")), fh);
 
-            joinOp.tryPushRuntimeFilter();
+                 MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-            AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
+                NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
+                doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
+                doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
+                List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
+                when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
+                  .thenReturn(valueListFilterList);
 
-            // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.getReferenceManager().retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+                joinOp.tryPushRuntimeFilter();
 
-            joinOp.workOnOOB(oobMsg2);
-            joinOp.workOnOOB(oobMsg3);
-            joinOp.workOnOOB(oobMsg4);
+                AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
 
-            Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
+                // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
+                recvBuffer.getReferenceManager().retain(3);
+                OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+                OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+                OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
-            ArgumentCaptor<List> valListCaptor = ArgumentCaptor.forClass(List.class);
-            // verify filter sent to probe scan.
-            runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-              any(RuntimeFilter.class), any(Optional.class), valListCaptor.capture(),
-              any(OperatorContext.class),any(HashJoinPOP.class)),
-              times(1));
+                joinOp.workOnOOB(oobMsg2);
+                joinOp.workOnOOB(oobMsg3);
+                joinOp.workOnOOB(oobMsg4);
 
-            RuntimeFilter filterVal = valCaptor.getValue();
-            assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
-            assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
-            assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
-            assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
-            assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
+                Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
 
-            List<ValueListFilter> valLists = valListCaptor.getValue();
-            assertEquals(2, valLists.size());
-            assertTrue(valLists.get(0).isContainsNull());
-            assertTrue(valLists.get(0).isContainsTrue());
-            assertFalse(valLists.get(0).isContainsFalse());
+                ArgumentCaptor<List> valListCaptor = ArgumentCaptor.forClass(List.class);
+                // verify filter sent to probe scan.
+                runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+                  any(RuntimeFilter.class), any(Optional.class), valListCaptor.capture(),
+                  any(OperatorContext.class),any(HashJoinPOP.class)),
+                  times(1));
 
-            assertFalse(valLists.get(1).isContainsNull());
-            assertFalse(valLists.get(1).isContainsTrue());
-            assertTrue(valLists.get(1).isContainsFalse());
+                RuntimeFilter filterVal = valCaptor.getValue();
+                assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
+                assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
+                assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+                assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
+                assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
 
-            runtimeFilterUtilMockedStatic.close();
-            joinOp.close();
+                List<ValueListFilter> valLists = valListCaptor.getValue();
+                assertEquals(2, valLists.size());
+                assertTrue(valLists.get(0).isContainsNull());
+                assertTrue(valLists.get(0).isContainsTrue());
+                assertFalse(valLists.get(0).isContainsFalse());
+
+                assertFalse(valLists.get(1).isContainsNull());
+                assertFalse(valLists.get(1).isContainsTrue());
+                assertTrue(valLists.get(1).isContainsFalse());
+            }
         }
     }
 
@@ -632,58 +609,55 @@ public class VectorizedHashJoinOperatorTest {
 
             List<String> partitionColNames = Lists.newArrayList("pCol1");
             FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-            VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
-                    partitionColNames, Lists.newArrayList("col1", "col2")), fh);
-
             ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-            MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+            try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
+                    partitionColNames, Lists.newArrayList("col1", "col2")), fh);
+                 MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-            NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
-            doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
-            doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
-            List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
-            when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
-              .thenReturn(valueListFilterList);
+                 NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
+                 doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
+                 doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
+                 List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
+                 when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
+                   .thenReturn(valueListFilterList);
 
-            copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
+                 copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
 
-            joinOp.tryPushRuntimeFilter();
+                 joinOp.tryPushRuntimeFilter();
 
-            AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
+                 AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
 
-            // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.getReferenceManager().retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+                 // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
+                 recvBuffer.getReferenceManager().retain(3);
+                 OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+                 OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+                 OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
-            joinOp.workOnOOB(oobMsg2);
-            joinOp.workOnOOB(oobMsg3);
-            joinOp.workOnOOB(oobMsg4);
+                 joinOp.workOnOOB(oobMsg2);
+                 joinOp.workOnOOB(oobMsg3);
+                 joinOp.workOnOOB(oobMsg4);
 
-            Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
+                 Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
+                 Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
+                 Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
 
-            // verify filter sent to probe scan.
-            runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-              any(RuntimeFilter.class), any(Optional.class), anyList(),
-              any(OperatorContext.class),any(HashJoinPOP.class)),
-              times(1));
+                 // verify filter sent to probe scan.
+                 runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+                   any(RuntimeFilter.class), any(Optional.class), anyList(),
+                   any(OperatorContext.class),any(HashJoinPOP.class)),
+                   times(1));
 
-            RuntimeFilter filterVal = valCaptor.getValue();
-            assertEquals(1, filterVal.getNonPartitionColumnFilterCount());
-            assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
-            assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+                 RuntimeFilter filterVal = valCaptor.getValue();
+                 assertEquals(1, filterVal.getNonPartitionColumnFilterCount());
+                 assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
+                 assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
 
-            assertEquals(1, valueListFiltersCopy.size());
-            assertFalse(valueListFiltersCopy.get(0).isContainsNull());
-            assertFalse(valueListFiltersCopy.get(0).isContainsTrue());
-            assertTrue(valueListFiltersCopy.get(0).isContainsFalse());
-            AutoCloseables.close(valueListFiltersCopy);
-
-            runtimeFilterUtilMockedStatic.close();
-            joinOp.close();
+                 assertEquals(1, valueListFiltersCopy.size());
+                 assertFalse(valueListFiltersCopy.get(0).isContainsNull());
+                 assertFalse(valueListFiltersCopy.get(0).isContainsTrue());
+                 assertTrue(valueListFiltersCopy.get(0).isContainsFalse());
+                 AutoCloseables.close(valueListFiltersCopy);
+            }
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -706,51 +680,49 @@ public class VectorizedHashJoinOperatorTest {
 
             List<String> partitionColNames = Lists.newArrayList("pCol1");
             FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-            VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
+            ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
+            try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
                     partitionColNames, Lists.newArrayList("col1", "col2")), fh);
 
-            ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-            MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+                MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-            PartitionColFilters partitionColFilters = mock(PartitionColFilters.class);
-            doReturn(partitionColFilters).when(joinOp).createPartitionColFilters();
-            BloomFilter bloomFilter = mockedBloom().get();
-            when(partitionColFilters.getBloomFilter(anyInt(), any(RuntimeFilterProbeTarget.class)))
-              .thenReturn(Optional.of(bloomFilter));
-            when(bloomFilter.isCrossingMaxFPP()).thenReturn(true); // To force drop
+                PartitionColFilters partitionColFilters = mock(PartitionColFilters.class);
+                doReturn(partitionColFilters).when(joinOp).createPartitionColFilters();
+                BloomFilter bloomFilter = mockedBloom().get();
+                when(partitionColFilters.getBloomFilter(anyInt(), any(RuntimeFilterProbeTarget.class)))
+                  .thenReturn(Optional.of(bloomFilter));
+                when(bloomFilter.isCrossingMaxFPP()).thenReturn(true); // To force drop
 
-            NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
-            doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
-            doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
-            List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
-            when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class))).
-              thenReturn(valueListFilterList);
+                NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
+                doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
+                doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
+                List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
+                when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class))).
+                  thenReturn(valueListFilterList);
 
-            joinOp.tryPushRuntimeFilter();
+                joinOp.tryPushRuntimeFilter();
 
-            AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
+                AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
 
-            // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.getReferenceManager().retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+                // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
+                recvBuffer.getReferenceManager().retain(3);
+                OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+                OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+                OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
-            joinOp.workOnOOB(oobMsg2);
-            joinOp.workOnOOB(oobMsg3);
-            joinOp.workOnOOB(oobMsg4);
+                joinOp.workOnOOB(oobMsg2);
+                joinOp.workOnOOB(oobMsg3);
+                joinOp.workOnOOB(oobMsg4);
 
-            Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
 
-            runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-              any(RuntimeFilter.class), any(Optional.class), anyList(),
-              any(OperatorContext.class),any(HashJoinPOP.class)),
-              never());
-
-            runtimeFilterUtilMockedStatic.close();
-            joinOp.close();
+                runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+                  any(RuntimeFilter.class), any(Optional.class), anyList(),
+                  any(OperatorContext.class),any(HashJoinPOP.class)),
+                  never());
+            }
         }
     }
 
@@ -760,36 +732,34 @@ public class VectorizedHashJoinOperatorTest {
         recvBuffer.setZero(0, recvBuffer.capacity()); // set all bytes to zero
 
         FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-        VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false, "col1"), fh);
 
         ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-        MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+        try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false, "col1"), fh);
+             MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-        for (int sendingFragment = 2; sendingFragment <= 4; sendingFragment++) {
-            OutOfBandMessage oobMsg = runtimeFilterOOBFromMinorFragment(sendingFragment, recvBuffer, "col1");
-            joinOp.workOnOOB(oobMsg);
-            Arrays.stream(oobMsg.getBuffers()).forEach(ArrowBuf::close);
+            for (int sendingFragment = 2; sendingFragment <= 4; sendingFragment++) {
+                OutOfBandMessage oobMsg = runtimeFilterOOBFromMinorFragment(sendingFragment, recvBuffer, "col1");
+                joinOp.workOnOOB(oobMsg);
+                Arrays.stream(oobMsg.getBuffers()).forEach(ArrowBuf::close);
+            }
+
+            joinOp.tryPushRuntimeFilter();
+
+            // verify filter sent to probe scan.
+            runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+              any(RuntimeFilter.class), any(Optional.class), anyList(),
+              any(OperatorContext.class),any(HashJoinPOP.class)),
+              times(1));
+
+            RuntimeFilter filterVal = valCaptor.getValue();
+            assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+            assertEquals(101, filterVal.getProbeScanOperatorId());
+            assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
+            assertEquals("col1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
+            assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
+
+            recvBuffer.close();
         }
-
-        joinOp.tryPushRuntimeFilter();
-
-        // verify filter sent to probe scan.
-        runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-          any(RuntimeFilter.class), any(Optional.class), anyList(),
-          any(OperatorContext.class),any(HashJoinPOP.class)),
-          times(1));
-
-        RuntimeFilter filterVal = valCaptor.getValue();
-        assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-        assertEquals(101, filterVal.getProbeScanOperatorId());
-        assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
-        assertEquals("col1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
-        assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
-
-        recvBuffer.close();
-
-        runtimeFilterUtilMockedStatic.close();
-        joinOp.close();
   }
 
   @Test
@@ -808,67 +778,64 @@ public class VectorizedHashJoinOperatorTest {
 
             List<String> partitionColNames = Lists.newArrayList("pCol1");
             FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-            VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
-                    partitionColNames, Lists.newArrayList("col1", "col2")), fh);
-
             ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
-            MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor);
+            try (VectorizedHashJoinOperator joinOp = newVecHashJoinOp(newRuntimeFilterInfo(false,
+                    partitionColNames, Lists.newArrayList("col1", "col2")), fh);
+                 MockedStatic<RuntimeFilterUtil> runtimeFilterUtilMockedStatic = getRuntimeFilterUtilClassMocked(valCaptor)) {
 
-            NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
-            doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
-            doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
-            List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
-            when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
-              .thenReturn(valueListFilterList);
+                NonPartitionColFilters nonPartitionColFilters = mock(NonPartitionColFilters.class);
+                doReturn(nonPartitionColFilters).when(joinOp).createNonPartitionColFilters();
+                doNothing().when(nonPartitionColFilters).finalizeValueListFilters();
+                List<ValueListFilter> valueListFilterList = Arrays.asList(valueListFilter1, valueListFilter2);
+                when(nonPartitionColFilters.getValueListFilters(anyInt(), any(RuntimeFilterProbeTarget.class)))
+                  .thenReturn(valueListFilterList);
 
-            // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.getReferenceManager().retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+                // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
+                recvBuffer.getReferenceManager().retain(3);
+                OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+                OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+                OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
-            joinOp.workOnOOB(oobMsg2);
-            joinOp.workOnOOB(oobMsg3);
-            joinOp.workOnOOB(oobMsg4);
+                joinOp.workOnOOB(oobMsg2);
+                joinOp.workOnOOB(oobMsg3);
+                joinOp.workOnOOB(oobMsg4);
 
-            Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
-            Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg2.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg3.getBuffers()).forEach(ArrowBuf::close);
+                Arrays.stream(oobMsg4.getBuffers()).forEach(ArrowBuf::close);
 
-            copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
+                copyValueListFiltersFromProbeScan(runtimeFilterUtilMockedStatic, valCaptor);
 
-            joinOp.tryPushRuntimeFilter();
+                joinOp.tryPushRuntimeFilter();
 
-            // verify filter sent to probe scan.
-            runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
-              any(RuntimeFilter.class), any(Optional.class), anyList(),
-              any(OperatorContext.class),any(HashJoinPOP.class)),
-              times(1));
+                // verify filter sent to probe scan.
+                runtimeFilterUtilMockedStatic.verify(() -> RuntimeFilterUtil.sendRuntimeFilterToProbeScan(
+                  any(RuntimeFilter.class), any(Optional.class), anyList(),
+                  any(OperatorContext.class),any(HashJoinPOP.class)),
+                  times(1));
 
-            AutoCloseables.close(valueListFilter1, valueListFilter2);
+                AutoCloseables.close(valueListFilter1, valueListFilter2);
 
-            RuntimeFilter filterVal = valCaptor.getValue();
-            assertEquals(1, filterVal.getProbeScanMajorFragmentId());
-            assertEquals(101, filterVal.getProbeScanOperatorId());
-            assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
-            assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
-            assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
+                RuntimeFilter filterVal = valCaptor.getValue();
+                assertEquals(1, filterVal.getProbeScanMajorFragmentId());
+                assertEquals(101, filterVal.getProbeScanOperatorId());
+                assertEquals(1, filterVal.getPartitionColumnFilter().getColumnsCount());
+                assertEquals("pCol1_probe", filterVal.getPartitionColumnFilter().getColumns(0));
+                assertEquals(2097152, filterVal.getPartitionColumnFilter().getSizeBytes());
 
-            assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
-            assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
-            assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
-            assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
-            assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
+                assertEquals(2, filterVal.getNonPartitionColumnFilterCount());
+                assertEquals(1, filterVal.getNonPartitionColumnFilter(0).getColumnsCount());
+                assertEquals("col1_probe", filterVal.getNonPartitionColumnFilter(0).getColumns(0));
+                assertEquals(1, filterVal.getNonPartitionColumnFilter(1).getColumnsCount());
+                assertEquals("col2_probe", filterVal.getNonPartitionColumnFilter(1).getColumns(0));
 
-            assertEquals(2, valueListFiltersCopy.size());
-            assertTrue(valueListFiltersCopy.get(0).isContainsNull());
-            assertEquals(Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9), utils.getValues(valueListFiltersCopy.get(0)));
-            assertFalse(valueListFiltersCopy.get(1).isContainsNull());
-            assertEquals(Lists.newArrayList(11, 12, 13, 14, 15, 16, 17, 18, 19), utils.getValues(valueListFiltersCopy.get(1)));
-            AutoCloseables.close(valueListFiltersCopy);
-
-            runtimeFilterUtilMockedStatic.close();
-            joinOp.close();
+                assertEquals(2, valueListFiltersCopy.size());
+                assertTrue(valueListFiltersCopy.get(0).isContainsNull());
+                assertEquals(Lists.newArrayList(1, 2, 3, 4, 5, 6, 7, 8, 9), utils.getValues(valueListFiltersCopy.get(0)));
+                assertFalse(valueListFiltersCopy.get(1).isContainsNull());
+                assertEquals(Lists.newArrayList(11, 12, 13, 14, 15, 16, 17, 18, 19), utils.getValues(valueListFiltersCopy.get(1)));
+                AutoCloseables.close(valueListFiltersCopy);
+            }
         }
     }
 

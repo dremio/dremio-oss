@@ -15,7 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.BaseTestQuery.getFile;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -99,7 +98,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // now start server.
     BaseTestServer.init();
     populateInitialData();
-    query1 = getFile("tpch_quoted.sql");
+    query1 = readResourceAsString("tpch_quoted.sql");
     LocalJobsService localJobsService = getMasterDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
     localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
     localJobsService = getCurrentDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);

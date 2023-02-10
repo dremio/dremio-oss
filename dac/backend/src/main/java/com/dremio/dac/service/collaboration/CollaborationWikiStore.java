@@ -17,6 +17,7 @@ package com.dremio.dac.service.collaboration;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationWiki;
@@ -30,7 +31,6 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -101,7 +101,7 @@ public class CollaborationWikiStore {
     Iterable<Map.Entry<String, CollaborationWiki>> entries = wikiStore.get().find(findByCondition);
 
     Iterator<Map.Entry<String, CollaborationWiki>> iterator = entries.iterator();
-    return iterator.hasNext() ? Optional.fromNullable(iterator.next().getValue()) : Optional.absent();
+    return iterator.hasNext() ? Optional.ofNullable(iterator.next().getValue()) : Optional.empty();
   }
 
   /**

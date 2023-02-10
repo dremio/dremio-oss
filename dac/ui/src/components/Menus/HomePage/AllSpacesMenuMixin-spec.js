@@ -15,7 +15,6 @@
  */
 import { shallow } from "enzyme";
 
-import { findMenuItemLinkByText, findMenuItemByText } from "testUtil";
 import { AllSpacesMenu as AllSpacesMenuBase } from "components/Menus/HomePage/AllSpacesMenu";
 import { getRenderEntityLinkContent } from "@app/pages/HomePage/components/EntityLink-spec";
 import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
@@ -55,8 +54,6 @@ describe("AllSpacesMenuMixin", () => {
   it("should render menu items", () => {
     const wrapper = shallow(<AllSpacesMenu {...commonProps} />, context);
     const browse = getRenderEntityLinkContent(wrapper.find(EntityLinkProvider));
-    expect(browse.props.text).to.be.equal("Browse");
-    expect(findMenuItemLinkByText(wrapper, "Edit Details")).to.have.length(1);
-    expect(findMenuItemByText(wrapper, "Remove Space")).to.have.length(1);
+    expect(browse.props.text.props.id).to.be.equal("Dataset.Browse");
   });
 });

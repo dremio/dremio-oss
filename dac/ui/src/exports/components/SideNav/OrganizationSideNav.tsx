@@ -17,26 +17,43 @@
 import SideNav from "@app/components/SideNav/SideNav";
 import clsx from "clsx";
 import { Link } from "react-router";
-import * as PATHS from "../../paths";
-
-const headerAction = (
-  <div className="sideNav-item">
-    <Link to={PATHS.organization()}>
-      <div className={`sideNav-item__link`}>
-        <div className="sideNav-item__logo">
-          <dremio-icon name="corporate/dremio" alt=""></dremio-icon>
-        </div>
-      </div>
-    </Link>
-  </div>
-);
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
+import * as orgPaths from "dremio-ui-common/paths/organization.js";
 
 export const OrganizationSideNav = (props: any) => {
   const { className, ...rest } = props;
   return (
     <SideNav
       className={clsx(className, "sideNav--organization")}
-      headerAction={headerAction}
+      headerAction={
+        <FeatureSwitch
+          flag={ORGANIZATION_LANDING}
+          renderEnabled={() => (
+            <div className="sideNav-item">
+              <Link to={orgPaths.organization.link()}>
+                <div className={`sideNav-item__link`}>
+                  <div className="sideNav-item__logo">
+                    <dremio-icon name="corporate/dremio" alt=""></dremio-icon>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          )}
+          renderDisabled={() => (
+            <div className="sideNav-item">
+              {/** Urlability */}
+              <Link to="/">
+                <div className={`sideNav-item__link`}>
+                  <div className="sideNav-item__logo">
+                    <dremio-icon name="corporate/dremio" alt=""></dremio-icon>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          )}
+        />
+      }
       actions={<></>}
       showOrganization={false}
       {...rest}

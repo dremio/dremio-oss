@@ -19,6 +19,7 @@ import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPa
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.commons.collections.CollectionUtils;
@@ -45,7 +46,6 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -121,7 +121,7 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
 
   private void refreshMetadata(final ReflectionGoal goal, final Materialization materialization) {
     final List<ReflectionField> sortedFields =
-      Optional.fromNullable(goal.getDetails().getSortFieldList()).or(ImmutableList.<ReflectionField>of());
+      Optional.ofNullable(goal.getDetails().getSortFieldList()).orElse(ImmutableList.of());
 
     final Function<DatasetConfig, DatasetConfig> datasetMutator;
     if (sortedFields.isEmpty()) {

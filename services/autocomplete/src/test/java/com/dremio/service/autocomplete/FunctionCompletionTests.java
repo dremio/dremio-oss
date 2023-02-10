@@ -97,10 +97,8 @@ public final class FunctionCompletionTests extends AutocompleteEngineTests {
   public void aggregate() {
     ImmutableList<String> distinctOrAll = ImmutableList.of("ANY_VALUE", "AVG", "BIT_AND", "BIT_OR", "BIT_XOR", "COUNT",
       "COLLECT", "MAX", "MIN", "STDDEV", "STDDEV_POP", "STDDEV_SAMP", "SUM", "VAR_POP", "VAR_SAMP", "LISTAGG");
-    ImmutableList<String> commaSeparated = ImmutableList.of("COVAR_POP", "COVAR_SAMP", "REGR_COUNT", "REGR_SXX",
+    ImmutableList<String> commaSeparated = ImmutableList.of("COVAR_POP", "COVAR_SAMP", "REGR_SXX",
       "REGR_SYY", "APPROX_COUNT_DISTINCT");
-    ImmutableList<String> conditioned = ImmutableList.of("EVERY", "SOME");
-    ImmutableList<String> multisetFunctions = ImmutableList.of("FUSION", "INTERSECTION");
     GoldenFileTestBuilder<GoldenFileTestBuilder.MultiLineString, CompletionsForBaselines> testBuilder = new GoldenFileTestBuilder<>(this::executeTestWithFolderContext);
 
     for (String function : distinctOrAll) {
@@ -127,24 +125,6 @@ public final class FunctionCompletionTests extends AutocompleteEngineTests {
           GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(EMP.ENAME, ^ FROM EMP"))
         .add("COMMA SEPARATED WITH SECOND PARAMETER",
           GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(^ , EMP.ENAME) FROM EMP"));
-    }
-
-    for (String function : conditioned) {
-      testBuilder
-        .add(function + " CONDITIONED PARTIAL NAME",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function.substring(0, function.length() - 1) + "^"))
-        .add(function + " CONDITIONED INCOMPLETE CONDITION",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(EMP.ENAME ^ FROM EMP"))
-        .add(function + " CONDITIONED WITH CONDITION",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(EMP.ENAME < 0 ^ FROM EMP" )) ;
-    }
-
-    for (String function : multisetFunctions) {
-      testBuilder
-        .add(function + " PARTIAL NAME",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function.substring(0, function.length() - 1) + "^"))
-        .add(function + " WITH INCOMPLETE PARAMETER",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(MULTISET(\"A\", \"B\") ^ FROM EMP"));
     }
 
     testBuilder

@@ -32,6 +32,7 @@ type SQLScriptFormProps = {
   fields: any;
   intl: any;
   error: any;
+  onCancel: () => void;
 };
 
 export const FIELDS = ["name"];

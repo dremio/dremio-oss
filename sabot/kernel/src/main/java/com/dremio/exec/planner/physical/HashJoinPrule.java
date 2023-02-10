@@ -29,6 +29,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
@@ -69,16 +70,31 @@ public class HashJoinPrule extends JoinPruleBase {
 
     boolean hashSingleKey = PrelUtil.getPlannerSettings(call.getPlanner()).isHashSingleKey();
 
+    // Check if we need to force a broadcast plan.
+    MoreRelOptUtil.BroadcastHintCollector hintCollector = new MoreRelOptUtil.BroadcastHintCollector();
+    right.accept(hintCollector);
+    boolean forceBroadcast = hintCollector.shouldBroadcast();
     try {
-
       if (isDist) {
+        if (forceBroadcast)
+        {
+          // User has specified that we should be producing a broadcast plan. We need to confirm that is possible.
+          final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
+          final double probeRowCount = mq.getRowCount(left);
+          final double buildRowCount = mq.getRowCount(right);
+          if (checkBroadcastConditions(join.getJoinType(), left, right, probeRowCount, buildRowCount, forceBroadcast)) {
+            // It is possible to produce a broadcast plan, so skip on creating a dist both plan.
+            return;
+          }
+        }
+
         createDistBothPlan(call, join,
             left, right, null /* left collation */, null /* right collation */, hashSingleKey);
       } else {
         final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
         final double probeRowCount = mq.getRowCount(left);
         final double buildRowCount = mq.getRowCount(right);
-        if (checkBroadcastConditions(join.getJoinType(), left, right, probeRowCount, buildRowCount)) {
+        if (checkBroadcastConditions(join.getJoinType(), left, right, probeRowCount, buildRowCount, forceBroadcast)) {
           createBroadcastPlan(call, join, join.getCondition(), left, right, null, null);
         }
       }

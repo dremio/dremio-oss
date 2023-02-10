@@ -27,6 +27,7 @@ import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
+import static javax.ws.rs.core.Response.Status.OK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -36,6 +37,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +61,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
+import com.dremio.dac.explore.DatasetsResource;
 import com.dremio.dac.explore.model.Column;
 import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.DatasetDetails;
@@ -66,6 +70,7 @@ import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
+import com.dremio.dac.explore.model.InitialUntitledRunResponse;
 import com.dremio.dac.explore.model.ParentDatasetUI;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.model.folder.Folder;
@@ -90,6 +95,7 @@ import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.User;
@@ -99,6 +105,8 @@ import com.dremio.service.users.UserService;
  * tests for the DAC REST API
  */
 public class TestServer extends BaseTestServer {
+
+  private DatasetsResource datasetsResource;
 
   @ClassRule
   public static final TemporaryFolder folder = new TemporaryFolder();
@@ -603,11 +611,20 @@ public class TestServer extends BaseTestServer {
     assertEquals(6, (int) summary.getDescendants());
     assertEquals(0, (int)summary.getJobCount());
     assertEquals(3, summary.getFields().size());
+    assertEquals(Arrays.asList("tag1", "tag2"), summary.getTags());
+    doc("get dataset summary for virtual dataset DG.dsg4 with empty tags");
+    summary = expectSuccess(getBuilder(getAPIv2().path("/datasets/summary/DG/dsg4")).buildGet(), DatasetSummary.class);
+    assertEquals(new ArrayList<>(), summary.getTags());
+
     doc("get dataset summary for physical dataset");
     summary = expectSuccess(getBuilder(getAPIv2().path("/datasets/summary/LocalFS1/dac-sample1.json")).buildGet(), DatasetSummary.class);
     assertEquals(10, (int) summary.getDescendants());
     assertEquals(0, (int) summary.getJobCount());
     assertEquals(3, summary.getFields().size());
+    assertEquals(Arrays.asList("tag3", "tag4"), summary.getTags());
+    doc("get dataset summary for physical dataset with empty tags");
+    summary = expectSuccess(getBuilder(getAPIv2().path("/datasets/summary/LocalFS2/dac-sample2.json")).buildGet(), DatasetSummary.class);
+    assertEquals(new ArrayList<>(), summary.getTags());
   }
 
   @Test
@@ -679,6 +696,23 @@ public class TestServer extends BaseTestServer {
   }
 
   @Test
+  public void testNewTmpUntitledFromSql() throws Exception {
+    final String query = "select * from sys.version";
+    final DatasetVersion version = newVersion();
+    final Invocation invocation = getBuilder(
+      getAPIv2()
+        .path("datasets/new_tmp_untitled_sql")
+        .queryParam("newVersion", version)
+    ).buildPost(Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
+    InitialUntitledRunResponse runResponse = expectSuccess(invocation, InitialUntitledRunResponse.class);
+    assertEquals(Arrays.asList("tmp", "UNTITLED"), runResponse.getDatasetPath());
+    assertEquals(version.getVersion(), runResponse.getDatasetVersion());
+    assertNotNull(runResponse.getPaginationUrl());
+    assertNotNull(runResponse.getJobId());
+    assertNotNull(runResponse.getSessionId());
+  }
+
+  @Test
   public void testNewUntitledFromSqlWithError() throws Exception {
     final String query = "select * from values(0)";
     final Invocation invocation = getBuilder(
@@ -701,6 +735,18 @@ public class TestServer extends BaseTestServer {
   }
 
   @Test
+  public void testNewTmpUntitledFromSqlWithError() throws Exception {
+    final String query = "select * from values(0)";
+    final Invocation invocation = getBuilder(
+      getAPIv2()
+        .path("datasets/new_tmp_untitled_sql")
+        .queryParam("newVersion", newVersion())
+    ).buildPost(Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
+    // Even if the query is invalid, the command will return success though
+    Response response = expectStatus(OK, invocation);
+  }
+
+  @Test
   public void testNewUntitledFromSqlAndRun() throws Exception {
     final String query = "select * from sys.version";
     final Invocation invocation = getBuilder(
@@ -713,7 +759,23 @@ public class TestServer extends BaseTestServer {
     assertEquals(runResponse.getDataset().getDatasetVersion(), runResponse.getHistory().getCurrentDatasetVersion());
     assertEquals(query, runResponse.getDataset().getSql());
     assertNull(runResponse.getDataset().getJobCount());
+  }
 
+  @Test
+  public void testNewTmpUntitledFromSqlAndRun() throws Exception {
+    final String query = "select * from sys.version";
+    final DatasetVersion version = newVersion();
+    final Invocation invocation = getBuilder(
+      getAPIv2()
+        .path("datasets/new_tmp_untitled_sql_and_run")
+        .queryParam("newVersion", version)
+    ).buildPost(Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
+    InitialUntitledRunResponse runResponse = expectSuccess(invocation, InitialUntitledRunResponse.class);
+    assertEquals(Arrays.asList("tmp", "UNTITLED"), runResponse.getDatasetPath());
+    assertEquals(version.getVersion(), runResponse.getDatasetVersion());
+    assertNotNull(runResponse.getPaginationUrl());
+    assertNotNull(runResponse.getJobId());
+    assertNotNull(runResponse.getSessionId());
   }
 
   @Test
@@ -730,6 +792,22 @@ public class TestServer extends BaseTestServer {
     ).buildPost(Entity.entity(new CreateFromSQL(query, null, references, null), MediaType.APPLICATION_JSON_TYPE)).invoke();
     assertEquals(200, invoke.getStatus());
   }
+
+  @Test
+  public void testNewTmpUntitledFromSqlAndRunWithReferences() throws Exception {
+    final String query = "select * from sys.version";
+    final Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    final Response invoke = getBuilder(
+      getAPIv2()
+        .path("datasets/new_tmp_untitled_sql_and_run")
+        .queryParam("newVersion", newVersion())
+    ).buildPost(Entity.entity(new CreateFromSQL(query, null, references, null), MediaType.APPLICATION_JSON_TYPE)).invoke();
+    assertEquals(200, invoke.getStatus());
+  }
+
 
   @Test
   public void testHeaders() throws Exception {

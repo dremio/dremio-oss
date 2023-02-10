@@ -15,23 +15,11 @@
  */
 package com.dremio.service.nessie;
 
-import com.dremio.datastore.api.KVStore;
-import com.dremio.datastore.api.KVStoreCreationFunction;
-import com.dremio.datastore.api.StoreBuildingFactory;
-import com.dremio.datastore.format.Format;
-
 /**
  * Creates the CommitLog KV store for Nessie.
  */
-public class NessieCommitLogStoreBuilder implements KVStoreCreationFunction<String, byte[]> {
-  static final String TABLE_NAME = "commit_log";
-
-  @Override
-  public KVStore<String, byte[]> build(StoreBuildingFactory factory) {
-    return factory.<String, byte[]>newStore()
-      .name(TABLE_NAME)
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.ofBytes())
-      .build();
+public class NessieCommitLogStoreBuilder extends AbstractNessieStoreBuilder {
+  public NessieCommitLogStoreBuilder() {
+    super("commit_log");
   }
 }

@@ -35,6 +35,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.io.CompressionCodecFactory;
@@ -45,7 +46,6 @@ import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.univocity.parsers.common.TextParsingException;
 
@@ -70,6 +70,9 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   private final CompressionCodecFactory codecFactory;
   private final FileSystem dfs;
 
+  private boolean schemaImposedMode;
+  private ExtendedFormatOptions extendedFormatOptions;
+
   public CompliantTextRecordReader(FileSplit split, CompressionCodecFactory codecFactory, FileSystem dfs,
       OperatorContext context, TextParsingSettings settings, List<SchemaPath> columns) {
     super(context, columns);
@@ -79,11 +82,18 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     this.dfs = dfs;
   }
 
+  public CompliantTextRecordReader(FileSplit split, CompressionCodecFactory codecFactory, FileSystem dfs,
+                                   OperatorContext context, TextParsingSettings settings, List<SchemaPath> columns, Boolean schemaImposedMode, ExtendedFormatOptions extendedFormatOptions) {
+    this(split, codecFactory, dfs, context, settings, columns);
+    this.schemaImposedMode = schemaImposedMode;
+    this.extendedFormatOptions = extendedFormatOptions;
+  }
+
   // checks to see if we are querying all columns(star) or individual columns
   @Override
   public boolean isStarQuery() {
     if (settings.isUseRepeatedVarChar()) {
-      return super.isStarQuery() || Iterables.tryFind(getColumns(), path -> path.equals(RepeatedVarCharOutput.COLUMNS)).isPresent();
+      return super.isStarQuery() || getColumns().stream().anyMatch(path -> path.equals(RepeatedVarCharOutput.COLUMNS));
     }
     return super.isStarQuery();
   }
@@ -113,7 +123,10 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       } else {
         final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
         // setup Output using OutputMutator
-        if (settings.isHeaderExtractionEnabled()) {
+        if (schemaImposedMode) {
+          String[] fieldNames = extractHeader();
+          output = new SchemaImposedOutput(context, outputMutator, fieldNames, getColumns(), isStarQuery(), sizeLimit, extendedFormatOptions, split.getPath().toString());
+        } else if (settings.isHeaderExtractionEnabled()) {
           //extract header and use that to setup a set of VarCharVectors
           String[] fieldNames = extractHeader();
           output = new FieldVarCharOutput(outputMutator, fieldNames, getColumns(), isStarQuery(), sizeLimit);
@@ -134,7 +147,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       TextInput input = new TextInput(settings, stream, readBuffer, split.getStart(), split.getStart() + split.getLength());
 
       // setup Reader using Input and Output
-      reader = new TextReader(settings, input, output, whitespaceBuffer);
+      reader = new TextReader(settings, input, output, whitespaceBuffer, split.getPath().toString(), schemaImposedMode);
       reader.start();
     } catch (IOException e) {
       Throwable t = e.getCause();
@@ -212,6 +225,12 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     settings.setSkipFirstLine(false);
     final String[] fieldNames = readFirstLineForColumnNames();
     settings.setSkipFirstLine(true);
+
+    if(schemaImposedMode) {
+      // return original field names without modification
+      return fieldNames;
+    }
+
     return validateColumnNames(fieldNames);
   }
 
@@ -309,7 +328,11 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
       final int estimatedRecordSize = BatchSchema.estimateRecordSize(vectorMap, listSizeEstimate, varFieldSizeEstimate);
       if (estimatedRecordSize > 0) {
-        estimatedRecordCount = (int) Math.min(reader.getInput().length / estimatedRecordSize, numRowsPerBatch);
+        if(schemaImposedMode && reader.getInput().length < 0 && estimatedRecordSize == 1) {
+          estimatedRecordCount = 0;
+        } else {
+          estimatedRecordCount = (int) Math.min(reader.getInput().length / estimatedRecordSize, numRowsPerBatch);
+        }
       } else {
         estimatedRecordCount = (int) numRowsPerBatch;
       }

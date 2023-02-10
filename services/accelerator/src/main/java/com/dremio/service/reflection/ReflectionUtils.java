@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -100,7 +101,6 @@ import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -216,6 +216,13 @@ public class ReflectionUtils {
 
   public static boolean isTerminal(MaterializationState state) {
     return state == MaterializationState.DONE || state == MaterializationState.FAILED || state == MaterializationState.CANCELED;
+  }
+
+  /**
+   * computes a log-friendly reflection id
+   */
+  public static String getId(ReflectionId reflectionId) {
+    return String.format("reflection %s", reflectionId.getId());
   }
 
   /**
@@ -349,7 +356,7 @@ public class ReflectionUtils {
         null
       ),
       externalReflection.getId(),
-      Optional.fromNullable(externalReflection.getTag()).or(String.valueOf(0)),
+      Optional.ofNullable(externalReflection.getTag()).orElse("0"),
       queryDataset.getFullPathList(),
       targetDataset.getFullPathList(),
       catalogService

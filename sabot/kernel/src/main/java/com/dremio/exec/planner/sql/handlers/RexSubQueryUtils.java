@@ -39,6 +39,20 @@ public final class RexSubQueryUtils {
 
   private RexSubQueryUtils() {}
 
+  public static boolean containsSubQuery (RelNode relNode) {
+    RexSubQueryFinder rexSubQueryFinder = new RexSubQueryFinder();
+    relNode.accept(rexSubQueryFinder);
+    if(rexSubQueryFinder.foundRexSubQuery) {
+      return true;
+    }
+    for(RelNode sub: relNode.getInputs()) {
+      if(containsSubQuery(sub)){
+        return true;
+      }
+    }
+    return false;
+  }
+
   /*
    * Finds RexSubQuery/FieldAccess/CorrelatedVariable in RelNode's expressions.
    */

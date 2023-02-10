@@ -15,12 +15,16 @@
  */
 
 import { type FunctionComponent } from "react";
-import { Avatar, Card } from "dremio-ui-lib/dist-esm";
+import { Avatar, Card, IconButton } from "dremio-ui-lib/dist-esm";
 import { intl } from "@app/utils/intl";
 import type { ArcticCatalog } from "../../endpoints/ArcticCatalogs/ArcticCatalog.type";
 import classes from "./ArcticCatalogCard.less";
 import { nameToInitials } from "../../utilities/nameToInitials";
 import { formatFixedDateTimeLong } from "../../utilities/formatDate";
+import * as PATHS from "@app/exports/paths";
+//@ts-ignore
+import { Tooltip } from "dremio-ui-lib";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 
 type ArcticCatalogCardProps = {
   catalog: ArcticCatalog;
@@ -31,6 +35,7 @@ export const ArcticCatalogCard: FunctionComponent<ArcticCatalogCardProps> = (
 ) => {
   const { catalog } = props;
   const { formatMessage } = intl;
+
   return (
     <Card
       title={
@@ -40,23 +45,35 @@ export const ArcticCatalogCard: FunctionComponent<ArcticCatalogCardProps> = (
             class={classes["arctic-catalog-card__title-icon"]}
             alt=""
           ></dremio-icon>
-          <h2
-            className={classes["arctic-catalog-card__title"]}
-            title={catalog.name}
-          >
-            {catalog.name}
+          <h2 className={classes["arctic-catalog-card__title"]}>
+            <Tooltip title={catalog.name}>
+              <p className="text-ellipsis">{catalog.name}</p>
+            </Tooltip>
           </h2>
         </>
+      }
+      toolbar={
+        <IconButton
+          as={LinkWithRef}
+          className="arctic-catalog-card__settings"
+          to={PATHS.arcticCatalogSettings({ arcticCatalogId: catalog.id })}
+          tooltip={formatMessage({ id: "Settings.Catalog" })}
+        >
+          <dremio-icon
+            name="interface/settings"
+            alt={formatMessage({ id: "Settings.Catalog" })}
+          />
+        </IconButton>
       }
     >
       <dl className="dremio-description-list">
         <dt>{formatMessage({ id: "Common.Owner" })}</dt>
         <dd>
           <Avatar
-            initials={nameToInitials(catalog.owner)}
+            initials={nameToInitials(catalog.ownerName)}
             style={{ marginRight: "var(--dremio--spacing--05)" }}
           />
-          {catalog.owner}
+          {catalog.ownerName}
         </dd>
         <dt>{formatMessage({ id: "Common.CreatedOn" })}</dt>
         <dd>{formatFixedDateTimeLong(catalog.createdAt)}</dd>

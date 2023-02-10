@@ -23,7 +23,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { DragSource } from "react-dnd";
-import classNames from "classnames";
+import classNames from "clsx";
 
 const source = {
   beginDrag(props) {

@@ -38,6 +38,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyGroupScanUtils;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
+import com.dremio.exec.store.dfs.easy.ExtendedEasyReaderProperties;
 import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
 import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
 import com.dremio.exec.store.text.TextRecordWriter;
@@ -74,6 +75,18 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
     return new CompliantTextRecordReader(split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns);
   }
 
+  @Override
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties) throws ExecutionSetupException {
+    Path path = new Path(dfs.makeQualified(com.dremio.io.file.Path.of(splitAttributes.getPath())).toURI());
+    FileSplit split = new FileSplit(path, splitAttributes.getStart(), splitAttributes.getLength(), new String[]{""});
+    TextParsingSettings settings = new TextParsingSettings();
+    settings.set((TextFormatConfig) formatConfig);
+    if (properties.getExtendedFormatOptions() != null && properties.getExtendedFormatOptions().getTrimSpace() != null) {
+      settings.setIgnoreTrailingWhitespaces(properties.getExtendedFormatOptions().getTrimSpace());
+      settings.setIgnoreLeadingWhitespaces(properties.getExtendedFormatOptions().getTrimSpace());
+    }
+    return new CompliantTextRecordReader(split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns, properties.isSchemaImposed(), properties.getExtendedFormatOptions());
+  }
 
   @Override
   protected ScanStats getScanStats(final EasyGroupScanUtils scan) {

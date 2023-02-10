@@ -35,6 +35,7 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.NamespaceTable.StatisticImpl;
 import com.dremio.exec.store.TableMetadata;
@@ -47,7 +48,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * DatasetTable that is used for table with options.
  */
-public class MaterializedDatasetTable implements DremioTranslatableTable {
+public class MaterializedDatasetTable implements DremioTable {
 
   private final NamespaceKey canonicalPath;
   private final Supplier<DatasetConfig> datasetConfig;
@@ -89,6 +90,7 @@ public class MaterializedDatasetTable implements DremioTranslatableTable {
         new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), timeTravel),
         null,
         1.0d,
+        ImmutableList.of(),
         true,
         !timeTravel);
   }
@@ -117,6 +119,21 @@ public class MaterializedDatasetTable implements DremioTranslatableTable {
   @Override
   public TableType getJdbcTableType() {
     return TableType.TABLE;
+  }
+
+  @Override
+  public String getVersion() {
+    return getDatasetConfig().getTag();
+  }
+
+  @Override
+  public BatchSchema getSchema() {
+    return BatchSchema.deserialize((getDatasetConfig().getRecordSchema()));
+  }
+
+  @Override
+  public DatasetConfig getDatasetConfig() {
+    return datasetConfig.get();
   }
 
   @Override

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.pojo;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 
@@ -31,7 +33,6 @@ import org.joda.time.DateTime;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
-import com.google.common.base.Charsets;
 
 public class Writers {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Writers.class);
@@ -139,7 +140,7 @@ public class Writers {
         return;
       } else {
         h.isSet = 1;
-        byte[] bytes = s.getBytes(Charsets.UTF_8);
+        byte[] bytes = s.getBytes(UTF_8);
         ensureLength(bytes.length);
         data.clear();
         data.writeBytes(bytes);

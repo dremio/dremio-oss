@@ -23,6 +23,7 @@ import static com.google.common.base.Predicates.not;
 import static com.google.common.base.Predicates.notNull;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -45,7 +46,6 @@ import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -186,7 +186,7 @@ public class DependencyManager {
         public Long apply(ReflectionDependency dependency) {
           final Optional<Long> lastSuccessfulRefresh = Preconditions.checkNotNull(dependencyResolutionContext.getLastSuccessfulRefresh(dependency.getReflectionId()),
             "Reflection %s depends on a non-existing reflection %s", id.getId(), dependency.getReflectionId().getId());
-          return lastSuccessfulRefresh.orNull();
+          return lastSuccessfulRefresh.orElse(null);
         }
       }).filter(notNull())
       .toList(); // we need to apply the transform so that refreshNow gets computed
@@ -249,7 +249,7 @@ public class DependencyManager {
 
   /**
    * Computes a reflection's oldest dependent materialization from the reflections it depends upon.<br>
-   * If the reflection only depends on physical datasets, returns Optional.absent()
+   * If the reflection only depends on physical datasets, returns Optional.empty()
    */
   public Optional<Long> getOldestDependentMaterialization(ReflectionId reflectionId) {
     // retrieve all the reflection entries reflectionId depends on
@@ -265,7 +265,7 @@ public class DependencyManager {
       .filter(notNull());
 
     if (Iterables.isEmpty(dependencies)) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     return Optional.of(Ordering.natural().min(dependencies));
@@ -302,7 +302,7 @@ public class DependencyManager {
 
 
     if (Iterables.isEmpty(gracePeriods)) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     return Optional.of(Ordering.natural().min(gracePeriods));
@@ -328,7 +328,7 @@ public class DependencyManager {
       .filter(notNull());
 
     if (Iterables.isEmpty(expirationTimes)) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     return Optional.of(Ordering.natural().min(expirationTimes));

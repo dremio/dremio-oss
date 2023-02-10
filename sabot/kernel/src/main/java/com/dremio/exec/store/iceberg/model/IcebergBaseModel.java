@@ -28,8 +28,11 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
+import com.dremio.exec.catalog.RollbackOption;
+import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -43,25 +46,25 @@ import com.google.common.base.Stopwatch;
  */
 public abstract class IcebergBaseModel implements IcebergModel {
 
-    protected static final String EMPTY_NAMESPACE = "";
-    protected final String namespace;
-    protected final Configuration configuration;
-    protected final FileSystem fs; /* if fs is null it will use iceberg HadoopFileIO class instead of DremioFileIO class */
-    protected final OperatorContext context;
-    private final DatasetCatalogGrpcClient client;
-    private final MutablePlugin plugin;
+  protected static final String EMPTY_NAMESPACE = "";
+  protected final String namespace;
+  protected final Configuration configuration;
+  protected final FileSystem fs; /* if fs is null it will use iceberg HadoopFileIO class instead of DremioFileIO class */
+  protected final OperatorContext context;
+  private final DatasetCatalogGrpcClient client;
+  private final MutablePlugin plugin;
 
   protected IcebergBaseModel(String namespace,
-                               Configuration configuration,
-                               FileSystem fs, OperatorContext context,
-                               DatasetCatalogGrpcClient datasetCatalogGrpcClient, MutablePlugin plugin) {
-        this.namespace = namespace;
-        this.configuration = configuration;
-        this.fs = fs;
-        this.context = context;
-        this.client = datasetCatalogGrpcClient;
-        this.plugin = plugin;
-    }
+                             Configuration configuration,
+                             FileSystem fs, OperatorContext context,
+                             DatasetCatalogGrpcClient datasetCatalogGrpcClient, MutablePlugin plugin) {
+    this.namespace = namespace;
+    this.configuration = configuration;
+    this.fs = fs;
+    this.context = context;
+    this.client = datasetCatalogGrpcClient;
+    this.plugin = plugin;
+  }
 
   protected abstract IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier);
 
@@ -129,6 +132,31 @@ public abstract class IcebergBaseModel implements IcebergModel {
   public IcebergOpCommitter getPrimaryKeyUpdateCommitter(IcebergTableIdentifier tableIdentifier, List<Field> columns) {
     IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
     return new PrimaryKeyUpdateCommitter(icebergCommand, columns);
+  }
+
+  @Override
+  public IcebergOpCommitter getOptimizeCommitter(OperatorStats operatorStats,
+                                                 IcebergTableIdentifier tableIdentifier,
+                                                 DatasetConfig datasetConfig,
+                                                 Long minInputFilesBeforeOptimize,
+                                                 IcebergTableProps icebergTableProps,
+                                                 FileSystem fs) {
+    IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
+    return new IcebergOptimizeOperationCommitter(icebergCommand, operatorStats, datasetConfig, minInputFilesBeforeOptimize, icebergTableProps, fs);
+  }
+
+  @Override
+  public void rollbackTable(IcebergTableIdentifier tableIdentifier, RollbackOption rollbackOption) {
+    IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
+    icebergCommand.rollback(rollbackOption);
+  }
+
+  @Override
+  public void vacuumTable(IcebergTableIdentifier tableIdentifier, VacuumOption vacuumOption) {
+    IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
+    icebergCommand.expireSnapshots(
+      vacuumOption.getOlderThanInMillis(),
+      vacuumOption.getRetainLast());
   }
 
   @Override

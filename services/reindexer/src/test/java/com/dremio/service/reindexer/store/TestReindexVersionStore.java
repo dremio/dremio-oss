@@ -58,7 +58,7 @@ public class TestReindexVersionStore extends DremioTest {
   public static final String DOC_ID = UUID.randomUUID().toString();
   @ClassRule
   public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TestReindexVersionStore.class.getName());
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TestReindexVersionStore.class);
   private static final String VERSION_INFO_COLLECTION = "versioninfo";
   private ReindexVersionStore reindexVersionStore;
   private KVStoreProvider kvStoreProvider;

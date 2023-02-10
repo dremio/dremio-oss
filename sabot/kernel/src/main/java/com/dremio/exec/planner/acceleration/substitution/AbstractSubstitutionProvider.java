@@ -45,7 +45,11 @@ public abstract class AbstractSubstitutionProvider implements SubstitutionProvid
   }
 
   public List<DremioMaterialization> getMaterializations() {
-    return getMaterializationProvider().getMaterializations();
+    return getMaterializationProvider().getApplicableMaterializations();
+  }
+
+  public List<DremioMaterialization> buildApplicableMaterializations(final RelNode origRoot) {
+    return getMaterializationProvider().buildApplicableMaterializations(origRoot);
   }
 
   public Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path, List<String> vdsFields) {

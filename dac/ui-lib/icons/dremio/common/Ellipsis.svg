@@ -1,10 +1,7 @@
 <svg id="common/Ellipsis" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
     <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
-    <title>Icon/Expand-Text</title>
-    <desc>Created with Sketch.</desc>
-    <defs></defs>
     <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
-        <g id="Icon/Expand-Text" sketch:type="MSArtboardGroup">
+        <g sketch:type="MSArtboardGroup">
             <g sketch:type="MSLayerGroup">
                 <g id="icon-box-24-copy-14" sketch:type="MSShapeGroup">
                     <rect id="icon-box-24" x="0" y="0" width="20" height="20"></rect>

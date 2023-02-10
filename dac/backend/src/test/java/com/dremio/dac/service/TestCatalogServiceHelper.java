@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Optional;
 
 import javax.ws.rs.core.SecurityContext;
 
@@ -82,7 +83,6 @@ import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.ReflectionSettings;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.ByteString;
@@ -206,7 +206,7 @@ public class TestCatalogServiceHelper {
     when(namespaceService.getEntityById(datasetConfig.getId().getId())).thenReturn(namespaceContainer);
 
     ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
-    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.<AccelerationSettings>absent());
+    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.empty());
     when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
 
     DremioTable dremioTable = mock(DremioTable.class);
@@ -261,7 +261,7 @@ public class TestCatalogServiceHelper {
     when(catalog.getTable(any(String.class))).thenReturn(dremioTable);
 
     ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
-    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.<AccelerationSettings>absent());
+    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.empty());
     when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
 
     Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList, new ArrayList<>(), new ArrayList<>());
@@ -656,7 +656,7 @@ public class TestCatalogServiceHelper {
     when(namespaceService.getEntityById(dataset.getId())).thenReturn(namespaceContainer);
 
     ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
-    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.<AccelerationSettings>absent());
+    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.empty());
     when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
 
     DremioTable dremioTable = mock(DremioTable.class);
@@ -734,7 +734,7 @@ public class TestCatalogServiceHelper {
     when(namespaceService.getEntityById(dataset.getId())).thenReturn(namespaceContainer);
 
     ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
-    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.<AccelerationSettings>absent());
+    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.empty());
     when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
 
     DremioTable dremioTable = mock(DremioTable.class);

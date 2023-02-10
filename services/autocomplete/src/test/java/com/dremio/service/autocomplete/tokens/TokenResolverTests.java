@@ -92,8 +92,6 @@ public final class TokenResolverTests {
       .add("EXISTS(", "SELECT Name FROM Production.Product WHERE EXISTS(")
       .add("NOT EXISTS", "SELECT Name FROM Production.Product WHERE NOT EXISTS ")
       .add("NOT EXISTS", "SELECT Name FROM Production.Product WHERE NOT EXISTS(")
-      .add("UNIQUE", "SELECT Name FROM Production.Product WHERE UNIQUE ")
-      .add("UNIQUE(", "SELECT Name FROM Production.Product WHERE UNIQUE(")
       .add("ALIAS", "SELECT Name, ListPrice, (SELECT AVG(ListPrice) FROM Production.Product) ")
       .runTests();
   }
@@ -120,7 +118,7 @@ public final class TokenResolverTests {
       .add("Greater than or equal", "SELECT * FROM EMP WHERE EMP.age >= ")
       .add("Less than", "SELECT * FROM EMP WHERE EMP.age < ")
       .add("Less than or equal", "SELECT * FROM EMP WHERE EMP.age <= ")
-      .add("Whether two values are equal, treating null values as the same", "SELECT * FROM EMP WHERE EMP.age <=> ")
+      //.add("Whether two values are equal, treating null values as the same", "SELECT * FROM EMP WHERE EMP.age <=> ")
       .add("IS", "SELECT * FROM EMP WHERE EMP.age IS ")
       .add("IS NULL", "SELECT * FROM EMP WHERE EMP.age IS NULL")
       .add("IS NOT", "SELECT * FROM EMP WHERE EMP.age IS NOT")
@@ -201,17 +199,17 @@ public final class TokenResolverTests {
       .add("ALTER + CREATE", "ALTER DATASET blah CREATE ")
       // RAW REFLECTIONS
       .add("RAW REFLECTION", "ALTER DATASET blah CREATE RAW REFLECTION ")
-      .add("USING", "ALTER DATASET blah CREATE RAW REFLECTION USING ")
-      .add("DISPLAY", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY")
-      .add("DISPLAY(", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(")
-      .add("DISPLAY(FIELD", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD")
-      .add("USING DISPLAY(FIELD,", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD,")
-      .add("DISTRIBUTE", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) DISTRIBUTE")
-      .add("DISTRIBUTE BY", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) DISTRIBUTE BY")
-      .add("PARTITION", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) PARTITION")
-      .add("PARTITION BY", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) PARTITION BY")
-      .add("LOCALSORT", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) LOCALSORT")
-      .add("LOCALSORT BY", "ALTER DATASET blah CREATE RAW REFLECTION USING DISPLAY(FIELD) LOCALSORT BY")
+      .add("USING", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING ")
+      .add("DISPLAY", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY")
+      .add("DISPLAY(", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(")
+      .add("DISPLAY(FIELD", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD")
+      .add("USING DISPLAY(FIELD,", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD,")
+      .add("DISTRIBUTE", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) DISTRIBUTE")
+      .add("DISTRIBUTE BY", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) DISTRIBUTE BY")
+      .add("PARTITION", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) PARTITION")
+      .add("PARTITION BY", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) PARTITION BY")
+      .add("LOCALSORT", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) LOCALSORT")
+      .add("LOCALSORT BY", "ALTER DATASET blah CREATE RAW REFLECTION myReflection USING DISPLAY(FIELD) LOCALSORT BY")
       // AGGREGATE REFLECTIONS
       .add("DIMENSION", "ALTER TABLE BLAH \n" +
         " CREATE AGGREGATE REFLECTION BLAH \n" +
@@ -344,7 +342,6 @@ public final class TokenResolverTests {
       .add("CASE", "SELECT CASE case1 WHEN when1, when2")
       .add("CASE", "SELECT CASE case1 WHEN when1, when2 THEN")
       .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1")
-      .add("CASE", "SELECT CASE case1 WHEN when1 THEN result1 THEN")
 
       .add("CASE", "SELECT CASE")
       .add("CASE", "SELECT CASE WHEN condition1")

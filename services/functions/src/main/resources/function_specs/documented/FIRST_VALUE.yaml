@@ -1,0 +1,46 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns the first value within an ordered group of a result set.
+functionCategories:
+- WINDOW
+name: FIRST_VALUE
+signatures:
+- description: null
+  parameters:
+  - description: The expression that determines the return value.
+    kind: REGULAR
+    name: expression
+    type: CHARACTERS
+  - description: "An optional expression that groups rows into partitions. You can\
+      \ specify a single expression or a comma-separated list of expressions. For\
+      \ example, `PARTITION BY column1, column3, \u2026`"
+    kind: REGULAR
+    name: partition_expression
+    type: CHARACTERS
+  - description: "An expression that specifies the order of the rows within each partition.\
+      \ You can specify a single expression or a comma-separated list of expressions.\
+      \ For example, `PARTITION BY column1, column3, \u2026`"
+    kind: REGULAR
+    name: order_expression
+    type: CHARACTERS
+  returnType: ANY
+  sampleCodes:
+  - call: "SELECT city, state, pop, \nFIRST_VALUE(pop) OVER (PARTITION BY state ORDER\
+      \ BY city)\nFROM Samples.\"samples.dremio.com\".\"zips.json\"\n"
+    result: "city, state, pop, EXPR$3\n-- 98791, AK, 5345, 5345\n-- AKHIOK, AK, 13309,\
+      \ 5345\n-- AKIACHAK, AK, 481, 5345\n-- ... \n"

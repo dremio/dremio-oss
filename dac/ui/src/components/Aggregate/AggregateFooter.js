@@ -16,7 +16,7 @@
 import { PureComponent } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import FontIcon from "@app/components/Icon/FontIcon";
 
 import AggregateFooterMixin from "dyn-load/components/Aggregate/AggregateFooterMixin.js";

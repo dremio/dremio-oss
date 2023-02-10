@@ -33,6 +33,7 @@ import { getRefQueryParams } from "@app/utils/nessieUtils";
 import { updateRightTreeVisibility } from "actions/ui/ui";
 
 import MainInfo from "../components/MainInfo";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 export const VIEW_ID = "HomeContents";
 
@@ -120,13 +121,14 @@ class HomeContents extends Component {
 }
 
 function mapStateToProps(state, props) {
-  const { location } = props;
-  const entityType = getEntityType(location.pathname);
-
+  const { location, projectId } = props;
+  const pathname = rmProjectBase(location.pathname, { projectId }) || "/";
+  const entityType = getEntityType(pathname);
   const getContentUrl = getNormalizedEntityPathByUrl(
-    location.pathname,
+    pathname,
     getUserName(state)
   );
+
   const sourceName = getSourceNameFromUrl(getContentUrl);
   const sources = getSortedSources(state);
   const source =

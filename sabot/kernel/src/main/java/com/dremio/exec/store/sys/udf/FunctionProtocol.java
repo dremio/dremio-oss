@@ -90,11 +90,11 @@ public class FunctionProtocol implements FabricProtocol {
 
     switch (rpcType) {
     case FunctionRPC.RpcType.REQ_FUNCTION_INFO_VALUE: {
-      Iterable<UserDefinedFunctionListManager.FunctionInfo> FunctionInfos = namespaceServiceProvider.get().getFunctions().
-        stream().map(UserDefinedFunctionListManager::getFunctionInfoFromConfig).collect(Collectors.toList());
+      Iterable<UserDefinedFunctionService.FunctionInfo> FunctionInfos = namespaceServiceProvider.get().getFunctions().
+        stream().map(UserDefinedFunctionService::getFunctionInfoFromConfig).collect(Collectors.toList());
       FunctionRPC.FunctionInfoResp resp = FunctionRPC.FunctionInfoResp.newBuilder().addAllFunctionInfo(
           StreamSupport.stream(FunctionInfos.spliterator(), false)
-            .map(UserDefinedFunctionListManager.FunctionInfo::toProto)
+            .map(UserDefinedFunctionService.FunctionInfo::toProto)
             .collect(Collectors.toList()))
         .build();
       sender.send(new Response(FunctionRPC.RpcType.RESP_FUNCTION_INFO, resp));

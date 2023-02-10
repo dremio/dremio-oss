@@ -17,11 +17,29 @@
 .arctic-catalog-card {
   &__title {
     white-space: nowrap;
+    &-icon {
+      block-size: 24px;
+      inline-size: 24px;
+      margin-inline-start: -4px;
+      margin-inline-end: 4px;
+    }
+    &-default {
+      margin-left: var(--dremio--spacing--05);
+      overflow: visible;
+    }
   }
-  &__title-icon {
-    block-size: 24px;
-    inline-size: 24px;
-    margin-inline-start: -4px;
-    margin-inline-end: 4px;
+}
+
+:global {
+  .arctic-catalog-card__settings {
+    visibility: hidden;
+  }
+
+  .dremio-card {
+    &:hover {
+      .arctic-catalog-card__settings {
+        visibility: visible;
+      }
+    }
   }
 }

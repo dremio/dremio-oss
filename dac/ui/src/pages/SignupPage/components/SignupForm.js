@@ -69,7 +69,9 @@ export class SignupForm extends PureComponent {
     };
     const viewId = SIGNUP_FORM_VIEW_ID;
     this.setState({ showSpinner: true }, () => {
-      return this.props.createFirstUser(mappedValues, { viewId });
+      return this.props
+        .createFirstUser(mappedValues, { viewId })
+        .finally(() => this.setState({ showSpinner: false }));
     });
   };
 

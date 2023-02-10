@@ -14,46 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-section {
-  background: var(--dremio--section--background);
-  border: var(--dremio--section--border);
-  border-radius: var(--dremio--section--border-radius);
-  color: var(--dremio--section--color);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-
-  &__header {
-    align-items: center;
-    border-block-end: var(--dremio--section--header--border);
-    display: flex;
-    flex-direction: row;
-    line-height: var(--dremio--section--header--line-height);
-  }
-
-  &__title {
-    align-items: center;
-    display: inline-flex;
-  }
-
-  &__title,
-  &__title > * {
-    font-size: var(--dremio--section--title--font-size);
-    font-weight: var(--dremio--section--title--font-weight);
-    margin: 0;
-    padding: 0;
-  }
-
-  &__toolbar {
-    margin-inline-start: auto;
-  }
-
-  &__body {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--dremio--section--body--padding);
-  }
-}
+@use "../../base/components/section";
 
 .dremio-section {
   --dremio--section--background: white;
@@ -66,4 +27,11 @@
   --dremio--section--title--font-weight: 600;
 
   --dremio--section--body--padding: var(--dremio--spacing--1) 0;
+
+  + hr {
+    background-color: var(--dremio--color--neutral--150);
+    border: none;
+    block-size: 1px;
+    margin-block: var(--dremio--spacing--2);
+  }
 }

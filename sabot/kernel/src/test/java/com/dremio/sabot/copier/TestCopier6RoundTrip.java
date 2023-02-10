@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.copier;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
@@ -35,7 +36,6 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
 import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 
 import io.netty.util.internal.PlatformDependent;
@@ -186,7 +186,7 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
         vec.allocateNew(count[vecIdx] * 8, count[vecIdx]);
         for (int i = 0; i < count[vecIdx]; i++) {
           if (i % 5 == 0) {
-            byte[] data = ("hello-" + i).getBytes(Charsets.UTF_8);
+            byte[] data = ("hello-" + i).getBytes(UTF_8);
             vec.setSafe(i, data, 0, data.length);
           }
         }
@@ -230,7 +230,7 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
         vec.allocateNew(count[vecIdx] * 8, count[vecIdx]);
         for (int i = 0; i < count[vecIdx]; i++) {
           if (i % 5 == 0) {
-            byte[] data = ("hello-" + i).getBytes(Charsets.UTF_8);
+            byte[] data = ("hello-" + i).getBytes(UTF_8);
             vec.setSafe(i, data, 0, data.length);
           }
         }
@@ -335,7 +335,7 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
           if (i % 5 == 0) {
             in[vecIdx].setIndexDefined(i);
             writer.setPosition(i);
-            byte[] data = ("Item-" + (i / 5)).getBytes(Charsets.UTF_8);
+            byte[] data = ("Item-" + (i / 5)).getBytes(UTF_8);
             tempBuf.setBytes(0, data, 0, data.length);
             writer.varChar("string").writeVarChar(0, data.length, tempBuf);
             writer.integer("integer").writeInt(i / 5);
@@ -395,7 +395,7 @@ public class TestCopier6RoundTrip extends BaseTestOperator {
           if (i % 5 == 0) {
             in[vecIdx].setIndexDefined(i);
             writer.setPosition(i);
-            byte[] data = ("Item-" + (i / 5)).getBytes(Charsets.UTF_8);
+            byte[] data = ("Item-" + (i / 5)).getBytes(UTF_8);
             tempBuf.setBytes(0, data, 0, data.length);
             writer.varChar("string").writeVarChar(0, data.length, tempBuf);
             writer.integer("integer").writeInt(i / 5);

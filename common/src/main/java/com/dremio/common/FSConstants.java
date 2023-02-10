@@ -57,8 +57,4 @@ public interface FSConstants {
 
   // AZURE secure connection
   String AZURE_SECURE = "dremio.azure.secure";
-
-
-  // AZURE Shared Access key
-  String AZURE_KEY = "dremio.azure.key";
 }

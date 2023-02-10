@@ -106,6 +106,9 @@ import {
 import { addNotification } from "@app/actions/notification";
 import { ExploreActions } from "./ExploreActions";
 import ExploreTableJobStatusSpinner from "./ExploreTable/ExploreTableJobStatusSpinner";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+
 import * as classes from "./ExploreHeader.module.less";
 import "./ExploreHeader.less";
 
@@ -449,8 +452,9 @@ export class ExploreHeader extends PureComponent {
   handleDiscard = () => {
     this.props.resetQueryState();
     this.props.setActiveScript({ script: {} });
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     this.props.router.push({
-      pathname: "/new_query",
+      pathname: sqlPaths.sqlEditor.link({ projectId }),
       state: { discard: true },
     });
   };
@@ -987,6 +991,7 @@ export class ExploreHeader extends PureComponent {
     const { dataset, location } = this.props;
     const { isSaveAsModalOpen } = this.state;
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     return (
       <div className="ExploreHeader__container">
         {this.renderHeaders()}
@@ -1012,7 +1017,7 @@ export class ExploreHeader extends PureComponent {
             {...(isDatasetPage && {
               push: () =>
                 this.props.router.push({
-                  pathname: "/new_query",
+                  pathname: sqlPaths.sqlEditor.link({ projectId }),
                   state: { renderScriptTab: true },
                 }),
             })}

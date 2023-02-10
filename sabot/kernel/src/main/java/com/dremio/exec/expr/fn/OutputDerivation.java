@@ -50,6 +50,7 @@ public interface OutputDerivation {
   OutputDerivation DECIMAL_NEGATIVE = new DecimalNegativeScale();
   OutputDerivation DECIMAL_MOD =
     ((base, args) -> DecimalGandivaBinaryOutput.getOutputType(OperationType.MOD, args));
+  OutputDerivation DECIMAL_SINGLE_VALUE = new DecimalSingleValue();
 
 
   CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args);
@@ -239,7 +240,7 @@ public interface OutputDerivation {
    */
   class DecimalAggSum implements OutputDerivation {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalCast.class);
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalAggSum.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -260,7 +261,7 @@ public interface OutputDerivation {
    */
   class DecimalAggMinMax implements OutputDerivation {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalCast.class);
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalAggMinMax.class);
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -285,6 +286,18 @@ public interface OutputDerivation {
           "          \"incorrect number of arguments. Expected two but received %d arguments.", args.size()).buildSilently();
       }
       return DecimalGandivaBinaryOutput.getOutputType(OperationType.ADD, args);
+    }
+  }
+
+  class DecimalSingleValue implements OutputDerivation {
+
+    @Override
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      if (args.size() != 1) {
+        throw UserException.functionError().message("Attempted to get decimal value with \" +\n" +
+          "          \"incorrect number of arguments. Expected one but received %d arguments.", args.size()).buildSilently();
+      }
+      return args.get(0).getCompleteType();
     }
   }
 

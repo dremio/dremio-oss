@@ -20,7 +20,7 @@ import SummarySubHeader from "./components/SummarySubHeader/SummarySubHeader";
 import SummaryStats from "./components/SummaryStats/SummaryStats";
 import SummaryColumns from "./components/SummaryColumns/SummaryColumns";
 import exploreUtils from "@app/utils/explore/exploreUtils";
-
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import * as classes from "./DatasetSummary.module.less";
 
 type DatasetSummaryProps = {
@@ -39,9 +39,9 @@ const DatasetSummary = ({
   location,
 }: DatasetSummaryProps) => {
   const datasetType = dataset.get("datasetType");
-  const selfLink = dataset.getIn(["links", "self"]);
+  const selfLink = dataset.getIn(["links", "query"]);
   const editLink = dataset.getIn(["links", "edit"]);
-  const jobsLink = dataset.getIn(["links", "jobs"]);
+  const jobsLink = wrapBackendLink(dataset.getIn(["links", "jobs"]));
   const jobCount = dataset.get("jobCount");
   const descendantsCount = dataset.get("descendants");
   const fields = dataset.get("fields");

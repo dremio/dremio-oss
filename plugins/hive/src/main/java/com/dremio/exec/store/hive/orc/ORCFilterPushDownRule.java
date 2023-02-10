@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive.orc;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,7 +46,6 @@ import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.github.slugify.Slugify;
-import com.google.common.base.Optional;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**

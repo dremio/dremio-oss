@@ -19,6 +19,7 @@ import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -42,7 +43,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.service.flight.FlightRpcUtils;
+import com.dremio.service.flightcommon.FlightRpcUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
@@ -177,10 +178,14 @@ public class SysFlightRecordReader extends AbstractRecordReader {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(stream, batchHolder, AutoCloseables.all(Arrays.asList(valueVectors)));
-    if (cancellableContext != null) {
-      cancellableContext.close();
+    Collection <AutoCloseable> autoCloseables = new ArrayList<>(Arrays.asList(stream, batchHolder));
+    if(valueVectors != null) {
+      autoCloseables.addAll(Arrays.asList(valueVectors));
     }
+    if(cancellableContext != null){
+      autoCloseables.add(cancellableContext);
+    }
+    AutoCloseables.close(autoCloseables);
     cancellableContext = null;
   }
 }

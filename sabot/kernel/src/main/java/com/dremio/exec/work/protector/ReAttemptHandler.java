@@ -25,6 +25,8 @@ import com.dremio.proto.model.attempts.AttemptReason;
  */
 public interface ReAttemptHandler {
 
+  final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReAttemptHandler.class);
+
   /**
    * @return true if one of the previous attempts failed with an out of memory
    */

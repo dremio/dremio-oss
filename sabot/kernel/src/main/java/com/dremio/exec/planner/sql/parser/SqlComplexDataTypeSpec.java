@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.parser;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 
 /**
@@ -27,11 +28,8 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
 
   public SqlComplexDataTypeSpec(SqlDataTypeSpec spec) {
     super(spec.getCollectionsTypeName(),
-      spec.getTypeName(),
-      spec.getTypeName(),
-      spec.getPrecision(),
-      spec.getScale(),
-      spec.getCharSetName(),
+      spec.getTypeNameSpec(),
+      spec.getTypeNameSpec(),
       spec.getTimeZone(),
       spec.getNullable(),
       spec.getParserPosition());
@@ -66,5 +64,23 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
     RelDataTypeFactory typeFactory,
     SqlTypeNameSpec typeNameSpec) {
     return typeNameSpec.deriveType(typeFactory);
+  }
+
+  private int tryGetPrecision(SqlDataTypeSpec spec) {
+    // Only SqlBasicTypeNameSpec has precision
+    if (spec.getTypeNameSpec() instanceof SqlBasicTypeNameSpec) {
+      return ((SqlBasicTypeNameSpec) spec.getTypeNameSpec()).getPrecision();
+    }
+
+    return -1;
+  }
+
+  private int tryGetScale(SqlDataTypeSpec spec) {
+    // Only SqlBasicTypeNameSpec has scale
+    if (spec.getTypeNameSpec() instanceof SqlBasicTypeNameSpec) {
+      return ((SqlBasicTypeNameSpec) spec.getTypeNameSpec()).getScale();
+    }
+
+    return -1;
   }
 }

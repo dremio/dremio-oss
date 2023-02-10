@@ -59,6 +59,7 @@ public class MaestroGrpcServerFacade extends MaestroServiceGrpc.MaestroServiceIm
     }, responseObserver);
   }
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private <T extends Message>
   void handleMessage(T request, Consumer<T> consumer, StreamObserver<Empty> responseObserver) {
     try {

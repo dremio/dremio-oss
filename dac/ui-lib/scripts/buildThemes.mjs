@@ -15,6 +15,7 @@
  */
 /* eslint-disable */
 import fs from "fs";
+import fsExtra from "fs-extra";
 import glob from "glob";
 import path from "path";
 import sass from "sass";
@@ -79,6 +80,14 @@ const buildFiles = (err, files) => {
   });
 };
 
+export const copyAssets = (err, files) => {
+  files.forEach((file) => {
+    const [_themesRoot, theme, ...paths] = file.split(path.sep);
+    const outFilePath = path.join(OUT_DIR, theme, ...paths);
+    fsExtra.copySync(file, outFilePath);
+  });
+};
+
 // Bundle all tokens and component styles into one file
 glob("themes/*/index.scss", buildFiles);
 
@@ -90,3 +99,5 @@ glob("themes/*/components/*.scss", buildFiles);
 
 // Bundle only the tokens into one file
 glob("themes/*/tokens.scss", buildFiles);
+
+glob("themes/*/assets", copyAssets);

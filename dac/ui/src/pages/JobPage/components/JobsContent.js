@@ -15,7 +15,7 @@
  */
 import { PureComponent } from "react";
 import $ from "jquery";
-import classNames from "classnames";
+import classNames from "clsx";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";

@@ -16,6 +16,8 @@
 
 package com.dremio.sabot.op.writer;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,10 +48,11 @@ import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
-import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 
 public class WriterOperator implements SingleInputOperator {
 
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOperator.class);
   private final Listener listener = new Listener();
   private final StatsListener statsListener = new StatsListener();
   private final OperatorContext context;
@@ -109,8 +112,7 @@ public class WriterOperator implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
 
     if(options.hasPartitions() || options.hasDistributions()){
-      partitionManager = new PartitionWriteManager(options, incoming,
-        options.getIcebergWriterOperation() != WriterOptions.IcebergWriterOperation.NONE);
+      partitionManager = new PartitionWriteManager(options, incoming, options.getTableFormatOptions().isTableFormatWriter());
       this.maskedContainer = partitionManager.getMaskedContainer();
       recordWriter.setup(maskedContainer, listener, statsListener);
     } else {
@@ -206,7 +208,7 @@ public class WriterOperator implements SingleInputOperator {
       }
 
       if (e.path != null) {
-        byte[] bytePath = e.path.getBytes(Charsets.UTF_8);
+        byte[] bytePath = e.path.getBytes(UTF_8);
         pathVector.setSafe(i, bytePath, 0, bytePath.length);
       }
 
@@ -277,15 +279,24 @@ public class WriterOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(recordWriter, output);
-    if(checkForIcebergRecordWriterAbort()) {
-      recordWriter.abort();
+    try {
+      if (checkForIcebergRecordWriterAbort()) {
+        recordWriter.abort();
+        if (options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INSERT) {
+          Preconditions.checkNotNull(recordWriter.getLocation(),"Location cannot be null");
+          Preconditions.checkState(recordWriter.getFs() != null, "Unexpected state");
+          recordWriter.getFs().delete(recordWriter.getLocation(), true);
+        }
+      }
+    }catch(Exception e){
+      logger.error(String.format("Failure during cleaning up the unwanted files: %s", e.getMessage()));
     }
   }
 
   private boolean checkForIcebergRecordWriterAbort() throws Exception {
     if (state != State.DONE && recordWriter != null &&
-      options != null && options.getIcebergTableProps() != null) {
-      IcebergCommandType command = options.getIcebergTableProps().getIcebergOpType();
+      options != null && options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps() != null) {
+      IcebergCommandType command = options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getIcebergOpType();
       if (command == IcebergCommandType.INCREMENTAL_METADATA_REFRESH
         || command == IcebergCommandType.CREATE
         || command == IcebergCommandType.INSERT) {

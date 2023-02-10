@@ -21,9 +21,16 @@ import com.dremio.sabot.threads.sharedres.SharedResourceType;
 public interface AsyncTask extends Runnable {
 
   /**
+   * Invoked before a task is run
+   */
+  default String preRunUpdate(int load) {
+    return "";
+  }
+
+  /**
    * Invoked after a run of the task
    */
-  default void postRunUpdate() {
+  default void postRunUpdate(long taskRunTimeNanos, String preRunName) {
   }
   void refreshState();
   Task.State getState();

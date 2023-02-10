@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { connect } from "react-redux";
 import {
-  fetchDefaultReference as fetchDefaultReferenceAction,
+  fetchDefaultReferenceIfNeeded as fetchDefaultReferenceAction,
   fetchBranchReference,
 } from "@app/actions/nessie/nessie";
 // @ts-ignore
@@ -29,6 +29,7 @@ import {
   NessieContext as NessieContext,
 } from "./utils/context";
 import { Branch } from "@app/services/nessie/client";
+import { ARCTIC_STATE_PREFIX } from "@app/constants/nessie";
 
 import "./NessieHomePage.less";
 const DATA_OPTIMIZATION = "data_optimization";
@@ -84,7 +85,10 @@ function HomePageContentUnconnected({
   baseUrl,
   initialRef,
 }: NessieHomePageProps & ConnectedProps) {
-  const contextValue = createNessieContext(sourceInfo, nessie, "", baseUrl);
+  const contextValue = useMemo(
+    () => createNessieContext(sourceInfo, nessie, ARCTIC_STATE_PREFIX, baseUrl),
+    [baseUrl, nessie, sourceInfo]
+  );
   const initReference = useRef<Branch | undefined>(initialRef);
 
   const { stateKey, api } = contextValue;

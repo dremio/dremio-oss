@@ -56,6 +56,7 @@ public final class PrefixedTokensSearchTests {
       .add("REFRESH", new Input("REFRESH", 5))
       .add("RESET", new Input("RESET", 3))
       .add("REVOKE", new Input("REVOKE", 5))
+      .add("ROLLBACK", new Input("ROLLBACK", 4))
       .add("ROW", new Input("ROW", 3))
       .add("RUNNING", new Input("RUNNING", 3))
       .add("SET", new Input("SET", 3))
@@ -67,6 +68,7 @@ public final class PrefixedTokensSearchTests {
       .add("USE", new Input("USE", 4))
       .add("VALUES", new Input("VALUES", 2))
       .add("WITH", new Input("WITH", 3))
+      .add("VACUUM", new Input("VACUUM", 5))
       .runTests();
   }
 

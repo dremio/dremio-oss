@@ -22,6 +22,7 @@ import { APIV2Call } from "@app/core/APICall";
 import { updateBody } from "@inject/actions/explore/dataset/updateLocation";
 import { getNessieReferencePayload } from "@app/utils/nessieUtils";
 import { store } from "@app/store/store";
+import readNewTmpUntitledResponse from "@app/utils/apiUtils/newTmpUntitledUtils";
 
 export const NEW_UNTITLED_START = "NEW_UNTITLED_START";
 export const NEW_UNTITLED_SUCCESS = "NEW_UNTITLED_SUCCESS";
@@ -98,7 +99,8 @@ export function postNewUntitledSql(
   queryContext,
   viewId,
   references,
-  noUpdate
+  noUpdate,
+  isTmpUntitled = false
 ) {
   const meta = { viewId };
 
@@ -115,11 +117,13 @@ export function postNewUntitledSql(
     [RSAA]: {
       types: [
         { type: NEW_UNTITLED_SQL_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(
-          NEW_UNTITLED_SQL_SUCCESS,
-          datasetWithoutData,
-          meta
-        ),
+        !isTmpUntitled
+          ? schemaUtils.getSuccessActionTypeWithSchema(
+              NEW_UNTITLED_SQL_SUCCESS,
+              datasetWithoutData,
+              meta
+            )
+          : readNewTmpUntitledResponse(NEW_UNTITLED_SQL_SUCCESS, meta),
         { type: NEW_UNTITLED_SQL_FAILURE, meta: { ...meta, noUpdate } },
       ],
       method: "POST",
@@ -148,6 +152,32 @@ export function newUntitledSql(
   };
 }
 
+export function newTmpUntitledSql(
+  sql,
+  queryContext,
+  viewId,
+  references,
+  sessionId,
+  version,
+  noUpdate
+) {
+  return (dispatch) => {
+    const newVersion = version ? version : exploreUtils.getNewDatasetVersion();
+    const href = exploreUtils.getTmpUntitledSqlHref({ newVersion, sessionId });
+    return dispatch(
+      postNewUntitledSql(
+        href,
+        sql,
+        queryContext,
+        viewId,
+        references,
+        noUpdate,
+        true
+      )
+    );
+  };
+}
+
 export function newUntitledSqlAndRun(
   sql,
   queryContext,
@@ -165,6 +195,36 @@ export function newUntitledSqlAndRun(
     });
     return dispatch(
       postNewUntitledSql(href, sql, queryContext, viewId, references, noUpdate)
+    );
+  };
+}
+
+export function newTmpUntitledSqlAndRun(
+  sql,
+  queryContext,
+  viewId,
+  references,
+  sessionId,
+  version,
+  noUpdate
+) {
+  return (dispatch) => {
+    const newVersion = version ? version : exploreUtils.getNewDatasetVersion();
+    const href = exploreUtils.getTmpUntitledSqlAndRunHref({
+      newVersion,
+      sessionId,
+    });
+
+    return dispatch(
+      postNewUntitledSql(
+        href,
+        sql,
+        queryContext,
+        viewId,
+        references,
+        noUpdate,
+        true
+      )
     );
   };
 }

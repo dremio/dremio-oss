@@ -240,7 +240,8 @@ public class TestRelMdRowCount {
     List<SchemaPath> columns = FluentIterable.from(SystemTable.VERSION.getRecordSchema()).transform(input -> SchemaPath.getSimplePath(input.getName())).toList();
     final RelOptTable relOptTable = Mockito.mock(RelOptTable.class);
     when(relOptTable.getRowCount()).thenReturn(rowCount);
-    return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, rowType, ImmutableList.of());
+    return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, ImmutableList.of(), rowType,
+                              ImmutableList.of());
   }
 
   private RelDataType rowType() {

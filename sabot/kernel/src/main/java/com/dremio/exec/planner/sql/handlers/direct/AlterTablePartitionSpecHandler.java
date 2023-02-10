@@ -34,15 +34,13 @@ import com.dremio.exec.planner.sql.SqlValidatorImpl;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 
 public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
-
-    private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AlterTablePartitionSpecHandler.class);
-
     private final Catalog catalog;
     private final SqlHandlerConfig config;
 
@@ -58,7 +56,7 @@ public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
         OptionManager optionManager = Preconditions.checkNotNull(context.getOptions());
         SqlValidatorImpl.checkForFeatureSpecificSyntax(sqlNode, optionManager);
 
-        NamespaceKey path = catalog.resolveSingle(sqlPartitionSpecChanges.getTable());
+        NamespaceKey path = DmlUtils.getTablePath(catalog, sqlPartitionSpecChanges.getTable());
 
         DremioTable table = catalog.getTableNoResolve(path);
         SimpleCommandResult result = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
@@ -67,8 +65,8 @@ public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
             return Collections.singletonList(result);
         }
 
-        boolean isNativeIcebergTable = !CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog));
-        if (!isNativeIcebergTable) {
+        boolean isInternalIcebergTableOrJsonTableOrMongoTable = CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig());
+        if (isInternalIcebergTableOrJsonTableOrMongoTable) {
             throw UserException.unsupportedError()
                     .message("Using \'ALTER TABLE\' command to change partition specification is supported only for ICEBERG table format type")
                     .buildSilently();

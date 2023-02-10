@@ -246,7 +246,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(firstFile.getPath().toString());
       e.addDatasetPath(tableSchemaPath.getPathComponents());
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+      throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
     }
   }
 

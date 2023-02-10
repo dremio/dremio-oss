@@ -116,10 +116,10 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
     if (credentialsType == AZURE_ACTIVE_DIRECTORY) {
       clientID = Objects.requireNonNull(conf.get(CLIENT_ID));
       tokenEndpoint = Objects.requireNonNull(conf.get(TOKEN_ENDPOINT));
-      clientSecret = Objects.requireNonNull(conf.get(CLIENT_SECRET));
+      clientSecret = new String(Objects.requireNonNull(conf.getPassword(CLIENT_SECRET)));
       this.authProvider = new AzureOAuthTokenProvider(tokenEndpoint, clientID, clientSecret);
     } else if (credentialsType == ACCESS_KEY) {
-      key = Objects.requireNonNull(conf.get(KEY));
+      key = new String(Objects.requireNonNull(conf.getPassword(KEY)));
       this.authProvider = new AzureSharedKeyAuthTokenProvider(account, key);
     } else {
       throw new IOException("Unrecognized credential type");

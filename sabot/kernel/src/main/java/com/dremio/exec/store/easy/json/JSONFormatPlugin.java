@@ -32,6 +32,7 @@ import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
+import com.dremio.exec.store.dfs.easy.ExtendedEasyReaderProperties;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin.JSONFormatConfig;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -57,6 +58,11 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns) throws ExecutionSetupException {
     return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns);
+  }
+
+  @Override
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties) throws ExecutionSetupException {
+    return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns, properties.isSchemaImposed(), properties.getExtendedFormatOptions());
   }
 
   @Override

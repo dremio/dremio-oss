@@ -1,0 +1,13 @@
+.dremio-icon-label {
+  align-items: center;
+  display: inline-flex;
+  flex-direction: row;
+  gap: var(--dremio--icon-label--gap);
+
+  dremio-icon,
+  img {
+    display: inline-flex;
+    block-size: var(--dremio--icon-label--icon-size);
+    inline-size: var(--dremio--icon-label--icon-size);
+  }
+}

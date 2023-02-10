@@ -15,7 +15,6 @@
  */
 package com.dremio.service.autocomplete;
 
-import static com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog.createCatalog;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,11 +26,11 @@ import org.apache.calcite.sql.parser.StringAndPos;
 import com.dremio.service.autocomplete.catalog.AutocompleteSchemaProvider;
 import com.dremio.service.autocomplete.catalog.mock.MockAutocompleteSchemaProvider;
 import com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog;
+import com.dremio.service.autocomplete.catalog.mock.MockNessieElementReader;
 import com.dremio.service.autocomplete.completions.CompletionItem;
 import com.dremio.service.autocomplete.completions.Completions;
 import com.dremio.service.autocomplete.functions.FunctionContext;
 import com.dremio.service.autocomplete.functions.ParameterResolverTests;
-import com.dremio.service.autocomplete.nessie.MockNessieElementReader;
 import com.dremio.test.GoldenFileTestBuilder.MultiLineString;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -58,7 +57,7 @@ public abstract class AutocompleteEngineTests {
   }
 
   protected Completions generateCompletions(List<String> context, String sql, int cursorPosition) {
-    MockMetadataCatalog.CatalogData data = createCatalog(context);
+    MockMetadataCatalog.CatalogData data = MockMetadataCatalog.createCatalog(context);
     AutocompleteSchemaProvider schemaProvider = new MockAutocompleteSchemaProvider(
       data.getContext(),
       data.getHead());

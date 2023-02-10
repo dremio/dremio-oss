@@ -15,9 +15,10 @@
  */
 package com.dremio.service.reflection;
 
+import java.util.Optional;
+
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
-import com.google.common.base.Optional;
 
 /**
  * Interface for datasets/sources acceleration settings.

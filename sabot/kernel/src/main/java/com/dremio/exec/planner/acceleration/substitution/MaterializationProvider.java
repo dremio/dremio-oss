@@ -18,19 +18,31 @@ package com.dremio.exec.planner.acceleration.substitution;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.calcite.rel.RelNode;
+
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
- * Provides a list of materializations for {@link SubstitutionProvider}
+ * Provides a list of {@link DremioMaterialization} for {@link SubstitutionProvider}
+ * Since this provider is used in context of a query, we only want to provide materializations
+ * that are actually applicable to that query.  Therefore, SubstitutionProvider is expected
+ * to first call buildApplicableMaterializations with the user query before calling getApplicableMaterializations.
  */
 public interface MaterializationProvider {
 
   /**
-   * Returns list of materializations that provider considers for substitution.
+   * Builds list of materializations that overlap with the userQueryNode.
+   * @param userQueryNode
+   * @return
+   */
+  List<DremioMaterialization> buildApplicableMaterializations(RelNode userQueryNode);
+
+  /**
+   * Returns list of previously built materializations
    *
    */
-  List<DremioMaterialization> getMaterializations();
+  List<DremioMaterialization> getApplicableMaterializations();
 
   /**
    * Returns the default raw materialization that provider considers for substitution

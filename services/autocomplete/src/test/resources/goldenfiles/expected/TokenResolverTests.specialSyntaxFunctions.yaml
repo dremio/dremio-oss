@@ -59,21 +59,20 @@
     hasMoreResults: false
     tokens:
      - ")"
-     - "("
-     - "CHARACTER"
+     - "ARRAY"
      - "MULTISET"
  -
   description: "CAST"
   input: "SELECT CAST(myValue AS INTEGER)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "*"
      - ","
+     - "AS"
      - "FROM"
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "MULTISET"
  -
   description: "EXTRACT"
   input: "SELECT EXTRACT("
@@ -122,14 +121,14 @@
   description: "EXTRACT"
   input: "SELECT EXTRACT(CENTURY FROM datetimeColumn)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "POSITION"
   input: "SELECT POSITION("
@@ -181,14 +180,14 @@
   description: "POSITION"
   input: "SELECT POSITION(string1 IN string2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "AS"
+     - "MULTISET"
+     - "IS"
  -
   description: "POSITION"
   input: "SELECT POSITION(string1 IN string2 FROM"
@@ -217,14 +216,14 @@
   description: "POSITION"
   input: "SELECT POSITION(string1 IN string2 FROM integer1)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "CONVERT"
   input: "SELECT CONVERT("
@@ -268,14 +267,14 @@
   description: "CONVERT"
   input: "SELECT CONVERT(myValue USING myValue2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "AS"
+     - "MULTISET"
+     - "IS"
  -
   description: "TRANSLATE"
   input: "SELECT TRANSLATE("
@@ -319,14 +318,14 @@
   description: "TRANSLATE"
   input: "SELECT TRANSLATE(char_value USING translation_name)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "AS"
+     - "MULTISET"
+     - "IS"
  -
   description: "TRANSLATE"
   input: "SELECT TRANSLATE(inputString, characters"
@@ -355,14 +354,14 @@
   description: "TRANSLATE"
   input: "SELECT TRANSLATE(inputString, characters, translations)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - ","
-     - "FROM"
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "EQUALS"
+     - "OVERLAPS"
+     - "PRECEDES"
+     - "SUCCEEDS"
  -
   description: "OVERLAY"
   input: "SELECT OVERLAY("
@@ -439,14 +438,14 @@
   description: "OVERLAY"
   input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "OVERLAY"
   input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR "
@@ -475,14 +474,14 @@
   description: "OVERLAY"
   input: "SELECT OVERLAY(string1 PLACING string2 FROM integer1 FOR integer2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "AS"
+     - "MULTISET"
+     - "IS"
  -
   description: "FLOOR"
   input: "SELECT FLOOR("
@@ -531,14 +530,14 @@
   description: "FLOOR"
   input: "SELECT FLOOR(datetimeColumn TO CENTURY)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "AS"
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "MULTISET"
+     - "OVER"
  -
   description: "CEIL"
   input: "SELECT CEIL("
@@ -587,14 +586,14 @@
   description: "CEIL"
   input: "SELECT CEIL(datetimeColumn TO CENTURY)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "AS"
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "MULTISET"
+     - "OVER"
  -
   description: "SUBSTRING"
   input: "SELECT SUBSTRING("
@@ -671,14 +670,14 @@
   description: "SUBSTRING"
   input: "SELECT SUBSTRING(string1 FROM integer1 FOR integer2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "AS"
+     - "MULTISET"
+     - "IS"
  -
   description: "TRIM"
   input: "SELECT TRIM("
@@ -731,14 +730,14 @@
   description: "TRIM"
   input: "SELECT TRIM(string1 FROM string2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "TRIM"
   input: "SELECT TRIM(BOTH"
@@ -791,14 +790,14 @@
   description: "TRIM"
   input: "SELECT TRIM(BOTH string1 FROM string2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "TRIM"
   input: "SELECT TRIM(LEADING"
@@ -851,14 +850,14 @@
   description: "TRIM"
   input: "SELECT TRIM(LEADING string1 FROM string2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "TRIM"
   input: "SELECT TRIM(TRAILING"
@@ -911,14 +910,14 @@
   description: "TRIM"
   input: "SELECT TRIM(TRAILING string1 FROM string2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "MULTISET"
+     - "IS"
      - "FROM"
+     - "AS"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
  -
   description: "TIMESTAMPADD"
   input: "SELECT TIMESTAMPADD("
@@ -991,14 +990,14 @@
   description: "TIMESTAMPADD"
   input: "SELECT TIMESTAMPADD(DAY, myInteger, myDatetime)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - ","
-     - "FROM"
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "EQUALS"
+     - "OVERLAPS"
+     - "PRECEDES"
+     - "SUCCEEDS"
  -
   description: "TIMESTAMPDIFF"
   input: "SELECT TIMESTAMPDIFF("
@@ -1071,14 +1070,14 @@
   description: "TIMESTAMPDIFF"
   input: "SELECT TIMESTAMPDIFF(DAY, myDatetime, myDatetime2)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - ","
-     - "FROM"
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "EQUALS"
+     - "OVERLAPS"
+     - "PRECEDES"
+     - "SUCCEEDS"
  -
   description: "CASE"
   input: "SELECT CASE"
@@ -1143,14 +1142,14 @@
   description: "CASE"
   input: "SELECT CASE case1 WHEN when1 THEN result1 END"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
+     - "*"
+     - "+"
  -
   description: "CASE"
   input: "SELECT CASE case1 WHEN when1 THEN result1 ELSE"
@@ -1179,14 +1178,14 @@
   description: "CASE"
   input: "SELECT CASE case1 WHEN when1 THEN result1 ELSE resultZ END"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
+     - "*"
+     - "+"
  -
   description: "CASE"
   input: "SELECT CASE case1 WHEN when1, when2"
@@ -1223,18 +1222,6 @@
      - "IN"
      - "."
      - "="
- -
-  description: "CASE"
-  input: "SELECT CASE case1 WHEN when1 THEN result1 THEN"
-  output:
-    hasIdentifier: false
-    hasMoreResults: true
-    tokens:
-     - "!="
-     - "%"
-     - "("
-     - "*"
-     - "+"
  -
   description: "CASE"
   input: "SELECT CASE"
@@ -1287,14 +1274,14 @@
   description: "CASE"
   input: "SELECT CASE WHEN condition1 THEN result1 END"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
+     - "*"
+     - "+"
  -
   description: "CASE"
   input: "SELECT CASE WHEN condition1 THEN result1 ELSE"
@@ -1323,14 +1310,14 @@
   description: "CASE"
   input: "SELECT CASE WHEN condition1 THEN result1 ELSE resultZ END"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
-     - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
+     - "!="
+     - "%"
+     - "*"
+     - "+"
  -
   description: "CASE"
   input: "SELECT CASE WHEN condition1 THEN result1 WHEN "
@@ -1379,14 +1366,14 @@
   description: "COUNT"
   input: "SELECT COUNT(*)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "AS"
+     - ">"
+     - "MULTISET"
  -
   description: "COUNT"
   input: "SELECT COUNT(DISTINCT"
@@ -1415,14 +1402,14 @@
   description: "COUNT"
   input: "SELECT COUNT(DISTINCT myValue)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "AS"
+     - "MULTISET"
+     - "IS"
  -
   description: "COUNT"
   input: "SELECT COUNT(myValue"
@@ -1439,11 +1426,11 @@
   description: "COUNT"
   input: "SELECT COUNT(myValue)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "OVER"
+     - "AS"
+     - "+"

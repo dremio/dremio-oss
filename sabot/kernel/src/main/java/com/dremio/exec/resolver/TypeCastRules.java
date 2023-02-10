@@ -1021,6 +1021,7 @@ public class TypeCastRules {
 
     switch (from) {
       case INT:
+      case TIMESTAMP:
         return to == MinorType.BIGINT;
       case FLOAT4:
         return to == MinorType.FLOAT8;

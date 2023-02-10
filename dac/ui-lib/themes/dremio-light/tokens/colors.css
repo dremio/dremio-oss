@@ -38,6 +38,7 @@
   --dremio--color--status--information--foreground: #0684f9;
 
   --dremio--color--status--error--background: #fdeded;
+  --dremio--color--status--delete--background: #ad3021;
   --dremio--color--status--success--background: #edf7ed;
   --dremio--color--status--warning--background: #fff4e5;
   --dremio--color--status--information--background: var(

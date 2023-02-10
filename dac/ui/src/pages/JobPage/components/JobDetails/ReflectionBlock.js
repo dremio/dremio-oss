@@ -19,8 +19,8 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { loadSummaryDataset } from "actions/resources/dataset";
 import { getSummaryDataset } from "selectors/datasets";
-
 import ReflectionList from "./ReflectionList";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 const VIEW_ID = "ReflectionBlock";
 
@@ -44,7 +44,9 @@ class ReflectionBlock extends PureComponent {
     const materializationFor = jobDetails.get("materializationFor");
     const datasetPathList = jobDetails.get("datasetPathList");
     const datasetQueryLinks = summaryDataset.get("links");
-    const datasetLink = datasetQueryLinks ? datasetQueryLinks.get("query") : "";
+    const datasetLink = datasetQueryLinks
+      ? wrapBackendLink(datasetQueryLinks.get("query"))
+      : "";
 
     const reflectionsListData = [
       {

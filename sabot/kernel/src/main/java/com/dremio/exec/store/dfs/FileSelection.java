@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
 
 import org.apache.commons.io.FilenameUtils;
 
@@ -142,7 +143,7 @@ public class FileSelection {
   }
 
   public Optional<FileAttributes> getFirstFile() throws IOException {
-    return Iterables.tryFind(fileAttributesList, FileAttributes::isRegularFile).toJavaUtil();
+    return fileAttributesList.stream().filter(FileAttributes::isRegularFile).findFirst();
   }
 
   public Optional<FileAttributes> getFirstFileIteratively(FileSystem fs) throws IOException {
@@ -164,7 +165,9 @@ public class FileSelection {
     }
 
     try(DirectoryStream<FileAttributes> stream = fs.listFiles(path, true)) {
-      return Iterables.tryFind(stream, FileAttributes::isRegularAndNoHiddenFile).toJavaUtil();
+      return StreamSupport.stream(stream.spliterator(), false)
+        .filter(FileAttributes::isRegularAndNoHiddenFile)
+        .findFirst();
     } catch (DirectoryIteratorException e) {
       throw e.getCause();
     }

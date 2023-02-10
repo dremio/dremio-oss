@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.fn.hive;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -29,7 +30,6 @@ import com.dremio.common.util.TestTools;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
 
 public class ITSampleHiveUDFs extends HiveTestBase {
 
@@ -192,9 +192,9 @@ public class ITSampleHiveUDFs extends HiveTestBase {
         .unOrdered()
         .baselineColumns("c1", "c2", "c3")
         .baselineValues(longVal1.substring(0, 255) /* CHAR return type returns max of 255 chars */,
-            longVal1, longVal1.getBytes(Charsets.UTF_8))
+            longVal1, longVal1.getBytes(UTF_8))
         .baselineValues(longVal2.substring(0, 255) /* CHAR return type returns max of 255 chars */,
-            longVal2, longVal2.getBytes(Charsets.UTF_8))
+            longVal2, longVal2.getBytes(UTF_8))
         .baselineValues(null, null, null)
         .go();
   }

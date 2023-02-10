@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import javax.inject.Provider;
+
 import com.dremio.common.utils.PathUtils;
 import com.dremio.context.RequestContext;
 import com.dremio.context.SupportContext;
@@ -29,6 +31,9 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.beans.QueryProfile;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowFileMetadata;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.DataSet;
 import com.dremio.service.job.proto.JobAttempt;
@@ -43,18 +48,27 @@ import com.google.common.annotations.VisibleForTesting;
  * Each public util function should first check whether to obfuscate
  * and next step the actual obfuscation should be done.
  */
+@Options
 public class ObfuscationUtils {
-  public static final String FULL_OBFUSCATION_PROPERTY_NAME = "dremio.supportconsole.fullobfuscation.enabled";
+  private static final String FULL_OBFUSCATION_PROPERTY_NAME = "dremio.supportconsole.fullobfuscation.enabled";
   private static boolean fullObfuscation = Boolean.getBoolean(FULL_OBFUSCATION_PROPERTY_NAME);
+  private static Provider<OptionManager> optionManagerProvider = null;
+  public static final TypeValidators.BooleanValidator PARTIAL_OBFUSCATION_ENABLED =
+          new TypeValidators.BooleanValidator("dremio.supportconsole.obfuscation.partial.enabled", true);
 
   @VisibleForTesting
   public static void setFullObfuscation(boolean fullObfuscationParam){
     fullObfuscation = fullObfuscationParam;
   }
 
+  public static void setOptionManagerProvider(Provider<OptionManager> optionManagerProviderParam) {
+    optionManagerProvider = optionManagerProviderParam;
+  }
+
   // return true only when support context is present in RequestContext
   public static boolean shouldObfuscatePartial() {
-    return RequestContext.current().get(SupportContext.CTX_KEY) != null;
+    return RequestContext.current().get(SupportContext.CTX_KEY) != null &&
+            (optionManagerProvider == null ? true: optionManagerProvider.get() .getOption(PARTIAL_OBFUSCATION_ENABLED));
   }
 
   public static boolean shouldObfuscateFull() {

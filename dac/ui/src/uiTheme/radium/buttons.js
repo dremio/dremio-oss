@@ -30,9 +30,10 @@ export const button = {
   height: "32px",
   borderRadius: 4,
   marginRight: 5,
-  fontSize: 13,
+  fontSize: 14,
   cursor: "pointer",
   display: "flex",
+  fontWeight: 500
 };
 
 export const primary = {
@@ -41,6 +42,13 @@ export const primary = {
   backgroundColor: BLUE,
   borderColor: BLUE,
 };
+
+export const danger = {
+  ...button,
+  color: '#fff',
+  backgroundColor: 'var(--dremio--color--status--error--foreground)',
+  border: "none"
+}
 
 export const warn = {
   ...button,
@@ -74,6 +82,10 @@ export const submitting = {
     backgroundColor: "rgba(0,0,0,0.02)",
     cursor: "default",
   },
+  danger: {
+    backgroundColor: 'var(--dremio--color--status--delete--background)',
+    cursor: "default"
+  }
 };
 
 export const disabledLink = {

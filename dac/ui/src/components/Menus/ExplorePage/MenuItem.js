@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import classnames from "classnames";
+import classnames from "clsx";
 import PropTypes from "prop-types";
 import { Tooltip } from "dremio-ui-lib";
 

@@ -18,7 +18,6 @@ import PropTypes from "prop-types";
 import clsx from "clsx";
 import Modal from "components/Modals/Modal";
 import { modalContent } from "uiTheme/radium/modal";
-import fileABug from "utils/fileABug";
 import FontIcon from "components/Icon/FontIcon";
 import SimpleButton from "components/Buttons/SimpleButton";
 import CopyButton from "components/Buttons/CopyButton";
@@ -35,7 +34,6 @@ export default class ProdErrorModal extends Component {
     eventId: PropTypes.string,
     onHide: PropTypes.func,
     showGoHome: PropTypes.bool,
-    showFileABug: PropTypes.bool,
   };
 
   renderCopyButton(valueToCopy) {
@@ -51,7 +49,7 @@ export default class ProdErrorModal extends Component {
   }
 
   render() {
-    const { error, eventId, showGoHome, showFileABug } = this.props;
+    const { eventId, showGoHome } = this.props;
 
     const sessionUUID = la("Session ID:") + " " + sentryUtil.sessionUUID;
 
@@ -104,17 +102,6 @@ export default class ProdErrorModal extends Component {
               onClick={() => (window.location = "/")}
             >
               {la("Go Home")}
-            </SimpleButton>
-          )}
-          {showFileABug && (
-            <SimpleButton
-              data-qa="fileABug"
-              type="button"
-              buttonStyle="secondary"
-              className={clsx(classes["secondaryButtonPsuedoClasses"])}
-              onClick={() => fileABug(error)}
-            >
-              {la("File a Bug")}
             </SimpleButton>
           )}
           <SimpleButton

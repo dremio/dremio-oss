@@ -65,7 +65,61 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
         Thread.sleep(1001);
 
         String query = String.format("ALTER TABLE %s DROP COLUMN col1", tableName);
-        errorMsgTestHelper(query, "Table [dropcol01] not found");
+        errorMsgTestHelper(query, "Table [dropcol01] does not exist");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
+
+  @Test
+  public void addAndDropColumnOnTableWithPath() throws Exception {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addAndDropColumnOnTableWithPath";
+      String path = "path";
+      try (AutoCloseable c = enableIcebergTables()) {
+
+        final String createTableQuery = String.format("CREATE TABLE %s.%s.%s as " +
+                        "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+                testSchema, path, tableName);
+        test(createTableQuery);
+
+        final String selectFromCreatedTable = String.format("select * from %s.%s.%s", testSchema, path, tableName);
+        testBuilder()
+                .sqlQuery(selectFromCreatedTable)
+                .unOrdered()
+                .baselineColumns("n_regionkey")
+                .baselineValues(0)
+                .baselineValues(1)
+                .build()
+                .run();
+
+
+        test("USE %s", testSchema);
+        String addColQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(key int)", path, tableName);
+        test(addColQuery);
+
+        testBuilder()
+                .sqlQuery(selectFromCreatedTable)
+                .unOrdered()
+                .baselineColumns("n_regionkey", "key")
+                .baselineValues(0, null)
+                .baselineValues(1, null)
+                .build()
+                .run();
+
+        String dropColQuery = String.format("ALTER TABLE %s.%s DROP COLUMN n_Regionkey", path, tableName);
+        test(dropColQuery);
+
+        testBuilder()
+                .sqlQuery(selectFromCreatedTable)
+                .unOrdered()
+                .baselineColumns("key")
+                .baselineValues((Object) null)
+                .baselineValues((Object) null)
+                .build()
+                .run();
+
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }

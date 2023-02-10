@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.File;
 import java.math.BigDecimal;
 
@@ -26,6 +29,10 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.collect.ImmutableList;
 
 public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
@@ -161,8 +168,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(2)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), drop_column_test));
     }
   }
@@ -171,6 +177,22 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testDropColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDropColumn("drop_column_test", TEMP_SCHEMA_HADOOP);
+    }
+  }
+
+  @Test
+  public void testDropPartitionColumn() throws Exception {
+    final String tableName = "test_drop_partition_col";
+    try (AutoCloseable c = enableIcebergTables()) {
+      runSQL(String.format("create table %s.%s (c1 int, p1 int) PARTITION by (p1)", TEMP_SCHEMA_HADOOP, tableName));
+      runSQL(String.format("insert into %s.%s values (1,1), (2,2)", TEMP_SCHEMA_HADOOP, tableName));
+      runSQL(String.format("alter table %s.%s drop PARTITION FIELD p1", TEMP_SCHEMA_HADOOP, tableName));
+      NamespaceService namespaceService = getSabotContext().getNamespaceService(SYSTEM_USERNAME);
+      DatasetConfig datasetConfig = namespaceService.getDataset(new NamespaceKey(ImmutableList.of(TEMP_SCHEMA_HADOOP, tableName)));
+
+      assertThat(datasetConfig.getReadDefinition().getPartitionColumnsList()).isNullOrEmpty();
+    } finally {
+      runSQL(String.format("drop table %s.%s", TEMP_SCHEMA_HADOOP, tableName));
     }
   }
 
@@ -206,8 +228,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(2, 2)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), add_column_test));
     }
   }
@@ -260,8 +281,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(2, 2)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), drop_and_add_test));
     }
   }
@@ -314,8 +334,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(2, 2)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), drop_and_add_same_column_test));
     }
   }
@@ -377,8 +396,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(null, 1)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), simple_pushdown_test));
     }
   }
@@ -426,8 +444,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(2L, new Double("2.0"), new BigDecimal("22.000"))
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), up_promote_test));
     }
   }
@@ -495,8 +512,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(3L, new Double("3.0"), new BigDecimal("33.000"))
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), up_promote_and_rename_test));
     }
   }

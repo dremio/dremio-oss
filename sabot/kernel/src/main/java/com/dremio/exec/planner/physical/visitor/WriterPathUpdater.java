@@ -43,7 +43,6 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
 
 public class WriterPathUpdater extends BasePrelVisitor<Prel, CreateTableEntry, RuntimeException> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterUpdater.class);
   private final SqlHandlerConfig sqlConfig;
 
   private WriterPathUpdater(SqlHandlerConfig config){

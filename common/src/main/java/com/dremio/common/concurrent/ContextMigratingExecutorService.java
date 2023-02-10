@@ -26,6 +26,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import com.dremio.common.tracing.TracingUtils;
+import com.dremio.common.util.Closeable;
 import com.dremio.context.RequestContext;
 import com.google.common.base.Preconditions;
 
@@ -136,7 +137,8 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
 
     // We only support plain callable types.
     return  () -> {
-      final Span workSpan = atTaskStart(waitingSpan, parentSpan, tracer);
+      final String childSpanName = (inner instanceof ContextMigratingTask) ? ((ContextMigratingTask) inner).getSpanName() : WORK_OPERATION_NAME;
+      final Span workSpan = atTaskStart(tracer, waitingSpan, parentSpan, childSpanName);
       try (Scope s = tracer.activateSpan(workSpan)) {
         return savedContext.call(inner);
       } finally {
@@ -145,15 +147,25 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     };
   }
 
-  private static Span atTaskStart(Span waitingSpan, Span parentSpan, Tracer tracer) {
+  public static Closeable getCloseableSpan(Tracer tracer, Span parentSpan, String spanName) {
+    final Thread thisThread = Thread.currentThread();
+    Span childSpan = TracingUtils.childSpanBuilder(tracer, parentSpan, spanName,
+      "thread-group", thisThread.getThreadGroup().getName(),
+      "thread-name", thisThread.getName())
+      .asChildOf(parentSpan)
+      .start();
+
+    return () -> childSpan.finish();
+  }
+
+  private static Span atTaskStart(Tracer tracer, Span waitingSpan, Span parentSpan, String spanName) {
     final Thread thisThread = Thread.currentThread();
     waitingSpan.finish();
-    return TracingUtils.childSpanBuilder(tracer, parentSpan, WORK_OPERATION_NAME,
+    return TracingUtils.childSpanBuilder(tracer, parentSpan, spanName,
       "thread-group", thisThread.getThreadGroup().getName(),
         "thread-name", thisThread.getName())
       .asChildOf(parentSpan)
       .start();
-
   }
 
   /**
@@ -194,7 +206,8 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
 
     final RequestContext savedContext = RequestContext.current();
     return factory.apply(() -> {
-      final Span workSpan = atTaskStart(waitingSpan, parentSpan, tracer);
+      final String childSpanName = (inner instanceof ContextMigratingTask) ? ((ContextMigratingTask) inner).getSpanName() : WORK_OPERATION_NAME;
+      final Span workSpan = atTaskStart(tracer, waitingSpan, parentSpan, childSpanName);
       try (Scope s = tracer.activateSpan(workSpan)) {
         savedContext.run(inner);
       } finally {

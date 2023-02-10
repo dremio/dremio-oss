@@ -49,6 +49,7 @@ public class ElasticScanPrule extends RelOptRule {
         logicalScan.getTableMetadata(),
         logicalScan.getProjectedColumns(),
         logicalScan.getObservedRowcountAdjustment(),
+        logicalScan.getHints(),
         ImmutableList.of()
         );
 

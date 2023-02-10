@@ -111,39 +111,4 @@ describe("SaveAsDatasetModal", () => {
       return promise.to.eventually.eql("afterSaveDataset");
     });
   });
-
-  describe("componentWillReceiveProps", () => {
-    let nextProps;
-    beforeEach(() => {
-      nextProps = {
-        dataset: Immutable.fromJS({ fullPath: null }),
-        loadDependentDatasets: sinon.spy(),
-      };
-    });
-
-    it("shouldn't run loadDependentDatasets when popup should be closed ", () => {
-      const instance = shallow(
-        <SaveAsDatasetModal {...commonProps} isOpen />
-      ).instance();
-      nextProps.isOpen = false;
-      instance.componentWillReceiveProps(nextProps);
-      expect(nextProps.loadDependentDatasets.called).to.be.false;
-    });
-    it("shouldn't run loadDependentDatasets when popup was already opened ", () => {
-      const instance = shallow(
-        <SaveAsDatasetModal {...commonProps} isOpen />
-      ).instance();
-      nextProps.isOpen = true;
-      instance.componentWillReceiveProps(nextProps);
-      expect(nextProps.loadDependentDatasets.called).to.be.false;
-    });
-    it("should run loadDependentDatasets when popup should be opened ", () => {
-      const instance = shallow(
-        <SaveAsDatasetModal {...commonProps} isOpen={false} />
-      ).instance();
-      nextProps.isOpen = true;
-      instance.componentWillReceiveProps(nextProps);
-      expect(nextProps.loadDependentDatasets.called).to.be.true;
-    });
-  });
 });

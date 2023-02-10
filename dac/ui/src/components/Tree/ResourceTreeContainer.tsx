@@ -47,8 +47,10 @@ import {
   constructSummaryFullPath,
 } from "@app/components/Tree/resourceTreeUtils";
 import { getViewState } from "@app/selectors/resources";
+import clsx from "clsx";
 
 export type ResourceTreeContainerProps = {
+  className?: string;
   resourceTree: any;
   sources: any; //Loaded from parent
   starredResourceTree: any;
@@ -88,6 +90,7 @@ export type ResourceTreeContainerProps = {
 };
 
 export const ResourceTreeContainer = ({
+  className,
   resourceTree,
   sources,
   starredResourceTree,
@@ -295,7 +298,10 @@ export const ResourceTreeContainer = ({
   };
 
   return (
-    <div data-qa="resourceTreeContainer">
+    <div
+      data-qa="resourceTreeContainer"
+      className={clsx("resourceTreeContainer", className)}
+    >
       <ResourceTreeController
         sidebarCollapsed={sidebarCollapsed}
         isCollapsable={isCollapsable}

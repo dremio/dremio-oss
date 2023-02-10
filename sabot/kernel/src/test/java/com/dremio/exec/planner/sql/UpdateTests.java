@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.BaseTestQuery.getDfsTestTmpSchemaLocation;
+import static com.dremio.BaseTestQuery.getIcebergTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Table;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Tables;
@@ -32,12 +34,19 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testDmlQuery;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQueries;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.util.Collections;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.iceberg.DataFile;
+import org.junit.Assert;
+
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.google.common.collect.Iterables;
 
 /**
  * UPDATE tests.
@@ -672,6 +681,42 @@ public class UpdateTests {
     }
   }
 
+  private  static void testUpdateWithPartitionTransformation(BufferAllocator allocator,
+                                                             Table table,
+                                                             String droppedPartitionTransformField,
+                                                             String addedPartitionTransformClause,
+                                                             org.apache.iceberg.Table icebergTable,
+                                                             int expectedDataFileCount) throws Exception {
+    if (droppedPartitionTransformField != null) {
+      String partitionTransformQuery = String.format("ALTER TABLE  %s DROP PARTITION FIELD %s", table.fqn, droppedPartitionTransformField);
+      BaseTestQuery.test(partitionTransformQuery);
+    }
+
+    String partitionTransformQuery = String.format("ALTER TABLE  %s ADD PARTITION FIELD %s", table.fqn, addedPartitionTransformClause);
+    BaseTestQuery.test(partitionTransformQuery);
+
+    testDmlQuery(allocator, "UPDATE %s SET id = id",
+      new Object[]{table.fqn}, table, 10000, table.originalData);
+
+    icebergTable.refresh();
+    Iterable<DataFile> dataFiles = icebergTable.currentSnapshot().addedDataFiles(icebergTable.io());
+    Assert.assertEquals(expectedDataFileCount, Iterables.size(dataFiles));
+  }
+
+  public  static void testUpdateWithPartitionTransformation(BufferAllocator allocator, String source) throws Exception {
+    String tableName = "updateWithPartitionTransformation";
+    try (Table table = createBasicTable(0, source, 2, 10000, tableName)) {
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
+      org.apache.iceberg.Table icebergTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
+
+      // transformation function: "bucket(3, id)", 3 data files are expected to generate
+      testUpdateWithPartitionTransformation(allocator, table, null, "bucket(3, id)", icebergTable, 3);
+
+      // transformation function: "truncate(1, column_0)", 10 data files are expected to generate for truncated values (0..9)
+      testUpdateWithPartitionTransformation(allocator, table, "bucket(3, id)", "truncate(1, column_0)", icebergTable, 10);
+    }
+  }
+
   // BEGIN: Contexts + Paths
   public static void testUpdateWithWrongContextWithPathTable(BufferAllocator allocator, String source) throws Exception {
     try (
@@ -693,6 +738,16 @@ public class UpdateTests {
               "UPDATE %s.%s SET %s = 'One' WHERE id = %s",
               new Object[]{table.paths[0], table.name, table.columns[1], table.originalData[0][0]}, table, 1,
               new Object[]{0, "One"}, table.originalData[1]);
+    }
+  }
+
+  public static void testUpdateWithStockIcebergTable(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = DmlQueryTestUtils.createStockIcebergTable(
+      source, 2, 2, "test_update_into_stock_iceberg");
+         AutoCloseable ignored = setContext(allocator, source)) {
+
+      testDmlQuery(allocator, "UPDATE %s SET %s = 'One' WHERE id = 1", new Object[]{table.fqn, table.columns[1]},
+        table, 0, null);
     }
   }
   // END: Contexts + Paths

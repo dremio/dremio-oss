@@ -38,9 +38,10 @@ public class RemoveEmptyScansRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final ScanRelBase scan = call.rel(0);
-    if(scan.getTableMetadata().getSplitCount() == 0) {
-      call.transformTo(new EmptyCrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(),
-        scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment()));
+    if (scan.getTableMetadata().getSplitCount() == 0) {
+      call.transformTo(new EmptyCrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(), scan.getPluginId(),
+                                     scan.getTableMetadata(), scan.getProjectedColumns(),
+                                     scan.getObservedRowcountAdjustment(), scan.getHints()));
     }
   }
 }

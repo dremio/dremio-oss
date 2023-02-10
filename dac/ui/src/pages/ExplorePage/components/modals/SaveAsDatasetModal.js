@@ -30,7 +30,6 @@ import { navigateToNextDataset } from "actions/explore/dataset/common";
 import { getDatasetFromLocation } from "selectors/explore";
 import { getViewState, getDescendantsList } from "selectors/resources";
 import { NEXT_ACTIONS } from "actions/explore/nextAction";
-import { loadDependentDatasets } from "actions/resources/spaceDetails";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import FormUnsavedWarningHOC from "@app/components/Modals/FormUnsavedWarningHOC";
 import { splitFullPath } from "@app/utils/pathUtils";
@@ -54,7 +53,6 @@ export class SaveAsDatasetModal extends Component {
     submitSaveAsDataset: PropTypes.func.isRequired,
     submitReapplyAndSaveAsDataset: PropTypes.func.isRequired,
     afterSaveDataset: PropTypes.func.isRequired,
-    loadDependentDatasets: PropTypes.func,
     navigateToNextDataset: PropTypes.func,
     // from FormUnsavedWarningHOC
     updateFormDirtyState: PropTypes.func,
@@ -66,20 +64,6 @@ export class SaveAsDatasetModal extends Component {
 
   static contextTypes = {
     username: PropTypes.string,
-  };
-
-  componentWillMount() {
-    this.receiveProps(this.props, {});
-  }
-
-  componentWillReceiveProps(nextProps) {
-    this.receiveProps(nextProps, this.props);
-  }
-
-  receiveProps = (nextProps, oldProps) => {
-    if (!oldProps.isOpen && nextProps.isOpen) {
-      nextProps.loadDependentDatasets(nextProps.dataset.get("fullPath"));
-    }
   };
 
   getMessage(nextAction) {
@@ -125,7 +109,7 @@ export class SaveAsDatasetModal extends Component {
         title={intl.formatMessage({ id: "NewQuery.SaveViewAsBtn" })}
         isOpen={isOpen}
         hide={hide}
-        modalHeight="500px"
+        modalHeight="600px"
       >
         <SaveAsDatasetForm
           dependentDatasets={dependentDatasets}
@@ -160,6 +144,5 @@ export default connect(mapStateToProps, {
   submitSaveAsDataset,
   submitReapplyAndSaveAsDataset,
   afterSaveDataset,
-  loadDependentDatasets,
   navigateToNextDataset,
 })(FormUnsavedWarningHOC(SaveAsDatasetModal));

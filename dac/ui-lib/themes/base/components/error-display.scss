@@ -1,0 +1,82 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.dremio-error-display {
+  --dremio--error-display--background: var(--dremio--color--neutral--100);
+  --dremio--error-display--padding: var(--dremio--spacing--2);
+
+  --dremio--error-display--title--font-size: 16px;
+  --dremio--error-display--title--font-weight: 600;
+  --dremio--error-display--title--line-height: 24px;
+
+  --dremio--error-display--title--icon--size: 120px;
+
+  block-size: 100%;
+  box-sizing: border-box;
+  font-size: 14px;
+  inline-size: 100%;
+  line-height: 20px;
+  min-inline-size: 30ch;
+  background: var(--dremio--error-display--background);
+  color: black;
+  padding: var(--dremio--error-display--padding);
+  text-align: center;
+
+  &__wrapper {
+    margin-inline: auto;
+    max-inline-size: 75ch;
+    inline-size: 100%;
+
+    > * + * {
+      margin-block-start: var(--dremio--spacing--1);
+    }
+  }
+
+  &__title-text {
+    font-size: var(--dremio--error-display--title--font-size);
+    font-weight: var(--dremio--error-display--title--font-weight);
+    line-height: var(--dremio--error-display--title--line-height);
+  }
+
+  &__title-icon {
+    block-size: 100%;
+    inline-size: 100%;
+    max-block-size: var(--dremio--error-display--title--icon--size);
+    max-inline-size: var(--dremio--error-display--title--icon--size);
+    margin-block-end: var(--dremio--spacing--2);
+  }
+
+  &__codeblock {
+    user-select: all;
+    white-space: pre-wrap;
+    inline-size: 100%;
+    background: white;
+    border: 1px solid black;
+    border-radius: var(--dremio--radius--1);
+    padding: var(--dremio--spacing--2);
+    max-block-size: 200px;
+    overflow: auto;
+    text-align: start;
+  }
+
+  &__collapsible-stacktrace {
+    text-align: start;
+
+    &-icon {
+      margin-inline-start: -13px;
+    }
+  }
+}

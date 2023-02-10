@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.COMMITTED;
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.SKIPPED;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -74,6 +77,7 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
       /* OperatorStats are null when create empty table is executed via Coordinator*/
       if(operatorStats != null) {
         operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
+        operatorStats.addLongStat(WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS, COMMITTED.value());
       }
 
       return snapshot;
@@ -82,6 +86,9 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
         icebergCommand.deleteTable();
       }catch(Exception i){
         logger.warn("Failure during cleaning up the unwanted files", i);
+      }
+      if(operatorStats != null) {
+        operatorStats.addLongStat(WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS, SKIPPED.value());
       }
       throw new RuntimeException(e);
     }

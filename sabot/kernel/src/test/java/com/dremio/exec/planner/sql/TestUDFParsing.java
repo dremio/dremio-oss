@@ -42,7 +42,7 @@ public class TestUDFParsing {
             "SELECT CASE WHEN `query_user`() IN ('dave', 'mike') OR `is_member`('Accounting') THEN `val` ELSE `CONCAT`('XXX-XX-', `SUBSTR`(`val`, 8, 4)) END",
             "(`val`, VARCHAR)",
             "VARCHAR",
-            false);
+            false, null);
   }
 
   @Test
@@ -60,7 +60,7 @@ public class TestUDFParsing {
       "CASE WHEN `query_user`() IN ('dave', 'mike') OR `is_member`('Accounting') THEN `val` ELSE `CONCAT`('XXX-XX-', `SUBSTR`(`val`, 8, 4)) END",
       "(`val`, VARCHAR)",
       "VARCHAR",
-      false);
+      false, null);
   }
 
   @Test
@@ -79,7 +79,56 @@ public class TestUDFParsing {
             "SELECT CASE WHEN `query_user`() IN ('dave', 'mike') OR `is_member`('Accounting') THEN `val` ELSE `CONCAT`('XXX-XX-', `SUBSTR`(`val`, 8, 4)) END",
             "(`val`, VARCHAR)",
             "VARCHAR",
-            true);
+            true, null);
+  }
+
+  @Test
+  public void createFunctionWithDefault() throws Exception {
+    testCreate("CREATE FUNCTION\n" +
+        "    protect_ssn (val VARCHAR default (select 1 from foo), val2 VARCHAR default '1')\n" +
+        "    RETURNS VARCHAR\n" +
+        "    RETURN\n" +
+        "        SELECT\n" +
+        "            CASE \n" +
+        "                WHEN query_user() IN ('dave','mike') \n" +
+        "                    OR is_member('Accounting') THEN val\n" +
+        "                ELSE CONCAT('XXX-XX-',SUBSTR(val,8,4))\n" +
+        "            END\n",
+      "protect_ssn",
+      "SELECT CASE WHEN `query_user`() IN ('dave', 'mike') OR `is_member`('Accounting') THEN `val` ELSE `CONCAT`('XXX-XX-', `SUBSTR`(`val`, 8, 4)) END",
+      "(`val`, VARCHAR DEFAULT (SELECT 1\n" +
+        "FROM `foo`)), (`val2`, VARCHAR DEFAULT '1')",
+      "VARCHAR",
+      false, null);
+  }
+
+  @Test
+  public void createTabularFunction() throws Exception {
+    testCreate("CREATE FUNCTION\n" +
+        "    tabular_UDF (val VARCHAR)\n" +
+        "    RETURNS TABLE (a VARCHAR)\n" +
+        "    RETURN SELECT '1'",
+      "tabular_UDF",
+      "SELECT '1'",
+      "(`val`, VARCHAR)",
+      null,
+      false,
+      "(`a` VARCHAR)");
+  }
+
+  @Test
+  public void createTabularFunctionWithDefault() throws Exception {
+    testCreate("CREATE FUNCTION\n" +
+        "    tabular_UDF (val VARCHAR default select 1 from foo)\n" +
+        "    RETURNS TABLE (a VARCHAR, b BOOLEAN, c INT)\n" +
+        "    RETURN SELECT '1'",
+      "tabular_UDF",
+      "SELECT '1'",
+      "(`val`, VARCHAR DEFAULT (SELECT 1\n" +
+        "FROM `foo`))",
+      null,
+      false,
+      "(`a` VARCHAR, `b` BOOLEAN, `c` INT)");
   }
 
   @Test
@@ -99,8 +148,8 @@ public class TestUDFParsing {
 
   }
 
-  private void testCreate(String command, String fName, String exp, String fieldList, String returnType, boolean replacePolicy) throws Exception {
-    validateCreate(parse(SqlCreateFunction.class, command), fName, exp, fieldList, returnType, replacePolicy);
+  private void testCreate(String command, String fName, String exp, String fieldList, String returnType, boolean replacePolicy, String tabularReturnType) throws Exception {
+    validateCreate(parse(SqlCreateFunction.class, command), fName, exp, fieldList, returnType, replacePolicy, tabularReturnType);
   }
 
   private <SQL_NODE extends SqlNode> SQL_NODE parse(Class<SQL_NODE> nodeType, String command) throws Exception {
@@ -111,11 +160,15 @@ public class TestUDFParsing {
     return nodeType.cast(sqlNode);
   }
 
-  private void validateCreate(SqlCreateFunction sqlCreateFunctionResult, String fName, String exp, String fieldList, String returnType, boolean replacePolicy) {
+  private void validateCreate(SqlCreateFunction sqlCreateFunctionResult, String fName, String exp, String fieldList, String scalarReturnType, boolean replacePolicy, String tabularReturnType) {
     Assert.assertEquals("function name doesn't match", fName, sqlCreateFunctionResult.getName().toString());
     Assert.assertEquals("function body doesn't match", exp, sqlCreateFunctionResult.getExpression().toString());
     Assert.assertEquals("function arguments doesn't match", fieldList, sqlCreateFunctionResult.getFieldList().toString());
-    Assert.assertEquals("function return type doesn't match", returnType, sqlCreateFunctionResult.getReturnType().toString());
+    if (scalarReturnType == null) {
+      Assert.assertNull("function return type doesn't match", sqlCreateFunctionResult.getScalarReturnType());
+    } else {
+      Assert.assertEquals("function return type doesn't match", scalarReturnType, sqlCreateFunctionResult.getScalarReturnType().toString());
+    }
     Assert.assertEquals("shouldReplace doesn't match", replacePolicy, sqlCreateFunctionResult.shouldReplace());
   }
 }

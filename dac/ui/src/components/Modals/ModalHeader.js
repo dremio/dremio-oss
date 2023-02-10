@@ -52,9 +52,14 @@ export default class ModalHeader extends PureComponent {
       type = "CloseBig",
       headerIcon,
       addShadow,
+      iconDisabled,
     } = this.props;
 
     const addShadowClass = addShadow ? "add-shadow" : "";
+
+    const iconStyles = iconDisabled
+      ? { ...styles.cancel, ...styles.disabledStyle }
+      : styles.cancel;
     return (
       <div
         className={`modal-header ${addShadowClass} ${className}`}
@@ -68,7 +73,7 @@ export default class ModalHeader extends PureComponent {
             type={type}
             onClick={hide}
             theme={styles.cancelIcon}
-            style={styles.cancel}
+            style={iconStyles}
           />
         )}
       </div>
@@ -98,6 +103,10 @@ const styles = {
     alignItems: "center",
     cursor: "pointer",
     marginLeft: 8,
+  },
+  disabledStyle: {
+    opacity: "0.5",
+    pointerEvents: "none",
   },
   cancelIcon: {
     Icon: {

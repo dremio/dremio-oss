@@ -58,7 +58,7 @@ import com.google.gson.JsonObject;
  *
  */
 public class ElasticDatasetMetadata implements DatasetMetadata {
-  private static final Logger logger = LoggerFactory.getLogger(ElasticPartitionChunkListing.class);
+  private static final Logger logger = LoggerFactory.getLogger(ElasticDatasetMetadata.class);
 
   private static final Joiner RESOURCE_JOINER = Joiner.on('/');
 
@@ -114,9 +114,11 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
 
     extended = tableAttributesB.build();
 
+    final BatchSchema finalMergedSchema = mergeSampleSchemaResult.getSchema().removeNullFields();
+    logger.debug("Final merged schema for {}: {}", datasetHandle.getDatasetPath().toString(), finalMergedSchema);
     this.datasetMetadata = DatasetMetadata.of(
       DatasetStats.of(partitionChunkListing.getRowCount(), false, ScanCostFactor.ELASTIC.getFactor()),
-      mergeSampleSchemaResult.getSchema().removeNullFields(),
+      finalMergedSchema,
       Collections.emptyList(),
       Collections.emptyList(),
       os -> extended.writeTo(os)
@@ -124,8 +126,6 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
   }
 
   private BatchSchema getSampledSchema(BatchSchema schema, Map<SchemaPath, FieldAnnotation> annotations) throws ConnectorException {
-    logger.debug("Sample elastic table");
-
     final ElasticsearchScanSpec spec = new ElasticsearchScanSpec(
       partitionChunkListing.getIndexOrAlias() + "/" + partitionChunkListing.getTypeName(),
       null /* match all */,
@@ -164,7 +164,9 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
         reader.setup(mutator);
         reader.next();
         mutator.getContainer().buildSchema(SelectionVectorMode.NONE);
-        return mutator.getContainer().getSchema();
+        final BatchSchema sampledSchema = mutator.getContainer().getSchema();
+        logger.debug("Sample for {}.\nOriginal schema: {} \nSampled Schema: {}", datasetHandle.getDatasetPath().toString(), schema, sampledSchema);
+        return sampledSchema;
       }
 
     } catch (RuntimeException e) {

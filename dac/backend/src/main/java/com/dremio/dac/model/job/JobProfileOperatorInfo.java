@@ -41,6 +41,8 @@ import com.dremio.service.jobAnalysis.proto.OperatorSpecificDetails;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 
 public class JobProfileOperatorInfo {
 
@@ -64,6 +66,8 @@ public class JobProfileOperatorInfo {
   private final long outputBytes;
   private final JobProfileOperatorHealth jpOperatorHealth;
   private final Map<String,JobProfileMetricDetails> metricsDetailsMap;
+  @JsonSerialize(using = JobProfileRelNodeInfoSerializer.class)
+  private final UserBitShared.RelNodeInfo attributes;
 
   @JsonCreator
   public JobProfileOperatorInfo(
@@ -84,7 +88,8 @@ public class JobProfileOperatorInfo {
     @JsonProperty("outputRecords") Long outputRecords,
     @JsonProperty("outputBytes") Long outputBytes,
     @JsonProperty("jpOperatorHealth") JobProfileOperatorHealth jpOperatorHealth,
-    @JsonProperty("metricsDetailsMap") Map<String,JobProfileMetricDetails> metricsDetailsMap) {
+    @JsonProperty("metricsDetailsMap") Map<String,JobProfileMetricDetails> metricsDetailsMap,
+    @JsonProperty("attributes") UserBitShared.RelNodeInfo attributes) {
     super();
     this.phaseId = phaseId;
     this.operatorId = operatorId;
@@ -104,9 +109,10 @@ public class JobProfileOperatorInfo {
     this.outputBytes = outputBytes;
     this.jpOperatorHealth = jpOperatorHealth;
     this.metricsDetailsMap = metricsDetailsMap;
+    this.attributes = attributes;
   }
 
-  public JobProfileOperatorInfo(String phaseId, String operatorId, String operatorName, int operatorType, long setupTime, long waitTime, long peakMemory, long processTime, long bytesProcessed, long batchesProcessed, long recordsProcessed, Map<String,String> operatorMetricsMap, OperatorSpecificDetails operatorSpecificDetails, long numberOfThreads, long outputRecords, long outputBytes, JobProfileOperatorHealth jpOperatorHealth, Map<String,JobProfileMetricDetails> metricsDetailsMap) {
+  public JobProfileOperatorInfo(String phaseId, String operatorId, String operatorName, int operatorType, long setupTime, long waitTime, long peakMemory, long processTime, long bytesProcessed, long batchesProcessed, long recordsProcessed, Map<String,String> operatorMetricsMap, OperatorSpecificDetails operatorSpecificDetails, long numberOfThreads, long outputRecords, long outputBytes, JobProfileOperatorHealth jpOperatorHealth, Map<String,JobProfileMetricDetails> metricsDetailsMap, UserBitShared.RelNodeInfo attributes) {
     this.phaseId = phaseId;
     this.operatorId = operatorId;
     this.operatorName = operatorName;
@@ -125,6 +131,7 @@ public class JobProfileOperatorInfo {
     this.outputBytes = outputBytes;
     this.jpOperatorHealth = jpOperatorHealth;
     this.metricsDetailsMap = metricsDetailsMap;
+    this.attributes = attributes;
   }
 
 
@@ -176,6 +183,7 @@ public class JobProfileOperatorInfo {
       this.outputBytes = baseMetrics.getOutputBytes();
       this.jpOperatorHealth = jpOperatorHealth;
       this.metricsDetailsMap = metricsDetailsMap;
+      this.attributes = QueryProfileUtil.getOperatorAttributes(profile, phaseId, operatorId);
     } else {
       throw new NotFoundException(format("Profile Fragment is not available"));
     }
@@ -253,6 +261,9 @@ public class JobProfileOperatorInfo {
     return jpOperatorHealth;
   }
 
+  public UserBitShared.RelNodeInfo getAttributes() {
+    return attributes;
+  }
   /**
    * This Method Will return Fragment information from Profile Object for requested phase Id
    */

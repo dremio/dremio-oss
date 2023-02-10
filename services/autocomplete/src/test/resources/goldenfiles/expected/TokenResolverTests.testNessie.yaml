@@ -19,44 +19,59 @@
   description: "JUST FINISHED TABLE NAME"
   input: "SELECT * FROM EMP "
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "WHERE"
+     - "."
+     - "MATCH_RECOGNIZE"
      - "JOIN"
      - "ORDER"
-     - ","
-     - "NATURAL"
  -
   description: "JUST FINISHED TABLE NAME WITH AT"
   input: "SELECT * FROM EMP AT "
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
-     - "BRANCH"
-     - "COMMIT"
-     - "TAG"
-     - "REF"
-     - "REFERENCE"
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"
  -
   description: "BRANCH"
   input: "SELECT * FROM EMP AT BRANCH "
   output:
     hasIdentifier: true
-    hasMoreResults: false
-    tokens: []
+    hasMoreResults: true
+    tokens:
+     - "!="
+     - "%"
+     - "("
+     - "*"
+     - "+"
  -
   description: "COMMIT"
   input: "SELECT * FROM EMP AT COMMIT "
   output:
     hasIdentifier: true
-    hasMoreResults: false
-    tokens: []
+    hasMoreResults: true
+    tokens:
+     - "!="
+     - "%"
+     - "("
+     - "*"
+     - "+"
  -
   description: "TAG"
   input: "SELECT * FROM EMP AT TAG "
   output:
     hasIdentifier: true
-    hasMoreResults: false
-    tokens: []
+    hasMoreResults: true
+    tokens:
+     - "!="
+     - "%"
+     - "("
+     - "*"
+     - "+"

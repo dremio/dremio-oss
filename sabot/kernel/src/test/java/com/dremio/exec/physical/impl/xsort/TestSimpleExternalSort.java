@@ -32,7 +32,6 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.record.RecordBatchLoader;
@@ -41,8 +40,6 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.test.DremioTest;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestSimpleExternalSort extends BaseTestQuery {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSimpleExternalSort.class);
@@ -142,8 +139,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       bit2.run();
       client.connect();
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-              Files.toString(FileUtils.getResourceAsFile("/xsort/one_key_sort_descending.json"),
-                      Charsets.UTF_8));
+        readResourceAsString("/xsort/one_key_sort_descending.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {
@@ -191,8 +187,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       bit1.run();
       client.connect();
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-              Files.toString(FileUtils.getResourceAsFile("/xsort/oom_sort_test.json"),
-                      Charsets.UTF_8));
+        readResourceAsString("/xsort/oom_sort_test.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {

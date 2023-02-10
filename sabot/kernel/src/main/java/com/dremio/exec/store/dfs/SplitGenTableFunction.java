@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -78,19 +79,19 @@ public class SplitGenTableFunction extends AbstractTableFunction {
   private final Map<String, ValueVector> partitionColValues;
   private final long blockSize;
 
-  private VarCharVector pathVector;
-  private BigIntVector sizeVector;
-  private BigIntVector modTimeVector;
-  private StructVector outputSplitsIdentity;
-  private VarBinaryVector outputSplits;
+  protected VarCharVector pathVector;
+  protected BigIntVector sizeVector;
+  protected BigIntVector modTimeVector;
+  protected StructVector outputSplitsIdentity;
+  protected VarBinaryVector outputSplits;
 
-  private String currentPath;
-  private long currentModTime;
-  private long currentStart = 0L;
-  private long fileSize;
-  private long remainingSize;
-  private int row;
-  private ArrowBuf tmpBuf;
+  protected String currentPath;
+  protected long currentModTime;
+  protected long currentStart = 0L;
+  protected long fileSize;
+  protected long remainingSize;
+  protected int row;
+  protected ArrowBuf tmpBuf;
 
   public SplitGenTableFunction(FragmentExecutionContext fec, OperatorContext context, TableFunctionConfig functionConfig) {
     super(context, functionConfig);
@@ -102,9 +103,7 @@ public class SplitGenTableFunction extends AbstractTableFunction {
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     super.setup(accessible);
-    pathVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_PATH);
-    sizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_SIZE);
-    modTimeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_MODIFICATION_TIME);
+    initializeIncomingVectors();
     outputSplits = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_INFORMATION);
     outputSplitsIdentity = (StructVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_IDENTITY);
     partitionCols.forEach(col -> partitionColValues.put(col, VectorUtil.getVectorFromSchemaPath(incoming, col + PARTITION_NAME_SUFFIX)));
@@ -112,12 +111,15 @@ public class SplitGenTableFunction extends AbstractTableFunction {
     return outgoing;
   }
 
+  protected void initializeIncomingVectors() {
+    pathVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_PATH);
+    sizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_SIZE);
+    modTimeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_MODIFICATION_TIME);
+  }
+
   @Override
   public void startRow(int row) throws Exception {
-    final Path currentPathResolved = Path.of(functionConfig.getFunctionContext().getFormatSettings().getLocation())
-            .resolve(new String(pathVector.get(row), StandardCharsets.UTF_8));
-    currentPath = currentPathResolved.toString();
-    currentPath = URLDecoder.decode(currentPath, "UTF-8");
+    setCurrentPath(row);
     logger.debug("Reading data file {}", currentPath);
     // Generating splits with 0 as the mtime to signify that these Parquet files are immutable
     currentModTime = 0L;
@@ -125,6 +127,13 @@ public class SplitGenTableFunction extends AbstractTableFunction {
     fileSize = sizeVector.get(row);
     remainingSize = fileSize;
     this.row = row;
+  }
+
+  protected void setCurrentPath(int row) throws UnsupportedEncodingException {
+    final Path currentPathResolved = Path.of(functionConfig.getFunctionContext().getFormatSettings().getLocation())
+            .resolve(new String(pathVector.get(row), StandardCharsets.UTF_8));
+    currentPath = currentPathResolved.toString();
+    currentPath = URLDecoder.decode(currentPath, "UTF-8");
   }
 
   @Override
@@ -152,7 +161,7 @@ public class SplitGenTableFunction extends AbstractTableFunction {
     return splitOffset;
   }
 
-  private List<SplitAndPartitionInfo> createSplits(String path, long mtime, int maxRecords, List<SplitIdentity> splitsIdentity) {
+  protected List<SplitAndPartitionInfo> createSplits(String path, long mtime, int maxRecords, List<SplitIdentity> splitsIdentity) {
     PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = PartitionProtobuf.NormalizedPartitionInfo
             .newBuilder();
     partitionInfoBuilder.setId(String.valueOf(1));

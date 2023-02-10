@@ -24,7 +24,7 @@ import { removeDataset, removeFile } from "actions/resources/spaceDetails";
 import { showConfirmationDialog } from "actions/confirmation";
 import { constructFullPath, getFullPathListFromEntity } from "utils/pathUtils";
 import { UpdateMode } from "pages/HomePage/components/modals/UpdateDataset/UpdateDatasetView";
-
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import DatasetMenuMixin from "dyn-load/components/Menus/HomePage/DatasetMenuMixin";
 
 // todo: all these entities have a lot of similarities (they are all Datasets of some sort)
@@ -55,6 +55,7 @@ export class DatasetMenu extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map).isRequired,
     entityType: PropTypes.string.isRequired, // todo: remove and get from #entity (physicalDataset || dataset || file)
+    isVersionedSource: PropTypes.boolean,
 
     closeMenu: PropTypes.func.isRequired,
     removeDataset: PropTypes.func.isRequired,
@@ -65,7 +66,7 @@ export class DatasetMenu extends Component {
   getMenuItemUrl(itemCode) {
     const { entity } = this.props;
     // todo: seems very brittle, and it should be a computed prop of the entity
-    const url = entity.getIn(["links", "query"]);
+    const url = wrapBackendLink(entity.getIn(["links", "query"]));
     const parseUrl = urlParse(url);
     return `${parseUrl.pathname}/${itemCode}${parseUrl.query}`;
   }

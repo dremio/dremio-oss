@@ -21,6 +21,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import com.dremio.common.exceptions.ErrorHelper;
@@ -33,6 +34,7 @@ import io.netty.buffer.ByteBuf;
  */
 public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
   private static ScheduledThreadPoolExecutor delayer;
+  private final AtomicInteger numOutstandingReads = new AtomicInteger(0);
   private AsyncByteReader inner;
   private long timeoutInMillis;
 
@@ -62,6 +64,7 @@ public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
 
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
+    numOutstandingReads.getAndIncrement();
     CompletableFuture<Void> future = within(inner.readFully(offset, dst, dstOffset, len),
       timeoutInMillis);
     future = future.whenComplete((result, throwable) -> {
@@ -70,6 +73,7 @@ public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
         // in the future and access the buf. This buf is essentially leaked.
         dst.retain();
       }
+      numOutstandingReads.getAndDecrement();
     });
     return future;
   }

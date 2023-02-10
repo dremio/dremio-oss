@@ -31,8 +31,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -45,7 +43,6 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.TableModify;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlNode;
@@ -60,7 +57,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
@@ -72,6 +68,8 @@ import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.planner.common.TestPlanHelper.NodeFinder;
+import com.dremio.exec.planner.common.TestPlanHelper.TargetNodeDescriptor;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DmlPlanGenerator.MergeType;
@@ -96,6 +94,7 @@ import com.dremio.exec.planner.sql.handlers.query.DeleteHandler;
 import com.dremio.exec.planner.sql.handlers.query.DmlHandler;
 import com.dremio.exec.planner.sql.handlers.query.InsertTableHandler;
 import com.dremio.exec.planner.sql.handlers.query.MergeHandler;
+import com.dremio.exec.planner.sql.handlers.query.TableManagementHandler;
 import com.dremio.exec.planner.sql.handlers.query.UpdateHandler;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
@@ -316,7 +315,7 @@ public class TestDml extends BaseTestQuery {
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
-    assertThatThrownBy(() -> InsertTableHandler.validateDmlRequest(mockCatalog, mockConfig, path))
+    assertThatThrownBy(() -> InsertTableHandler.validateDmlRequest(mockCatalog, mockConfig, path, node))
       .isInstanceOf(UserException.class);
   }
 
@@ -335,7 +334,7 @@ public class TestDml extends BaseTestQuery {
     assertThat(scanCrel.isSubstitutable()).as("scanCrel should be substitutable before rewrite").isTrue();
 
     // disable substitution of TableModifyCrel's target table ScanCrel
-    RelNode rewrite = DmlHandler.TableModifyScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
+    RelNode rewrite = TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
 
     // find the ScanCrel from rewritten TableModifyCrel
     scanCrel = findSingleNode(rewrite, ScanCrel.class, null);
@@ -358,7 +357,7 @@ public class TestDml extends BaseTestQuery {
     scanCrels.stream().forEach(scanCrel -> assertThat(scanCrel.isSubstitutable()).as("scanCrel should be substitutable before rewrite").isTrue());
 
     // disable substitution of TableModifyCrel's target table ScanCrel
-    RelNode rewrite = DmlHandler.TableModifyScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
+    RelNode rewrite = TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
 
     // find the ScanCrel from rewritten TableModifyCrel
     scanCrels = findNodesMoreThanOne(rewrite, ScanCrel.class, null);
@@ -384,7 +383,7 @@ public class TestDml extends BaseTestQuery {
     scanCrels.stream().forEach(scanCrel -> assertThat(scanCrel.isSubstitutable()).as("scanCrel should be substitutable before rewrite").isTrue());
 
     // disable substitution of TableModifyCrel's target table ScanCrel
-    RelNode rewrite = DmlHandler.TableModifyScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
+    RelNode rewrite = TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
 
     // find the ScanCrel from rewritten TableModifyCrel
     scanCrels = findNodesMoreThanOne(rewrite, ScanCrel.class, null);
@@ -875,87 +874,5 @@ public class TestDml extends BaseTestQuery {
     }
     // Verify column name
     testResultColumnName(mergeQuery);
-  }
-
-  private static class TargetNodeDescriptor {
-    private Class clazz;
-    private Map<String, String> attributes;
-
-    public TargetNodeDescriptor(Class clazz, Map<String, String> attributes) {
-      this.clazz = clazz;
-      this.attributes = attributes;
-    }
-  }
-
-  @SuppressForbidden
-  private static class NodeFinder<T extends RelNode> extends StatelessRelShuttleImpl {
-    private final List<T> collectedNodes = new ArrayList<>();
-    private final TargetNodeDescriptor targetNodeDescriptor;
-    public static<T> List<T> find(RelNode input, TargetNodeDescriptor targetNodeDescriptor) {
-      NodeFinder finder = new NodeFinder(targetNodeDescriptor);
-      finder.visit(input);
-      return finder.collect();
-    }
-
-    public NodeFinder(TargetNodeDescriptor targetNodeDescriptor) {
-      this.targetNodeDescriptor = targetNodeDescriptor;
-    }
-
-    public List<T> collect() {
-      return collectedNodes;
-    }
-
-    private static Field getField(Class clazz, String fieldName)
-      throws NoSuchFieldException {
-      try {
-        return clazz.getDeclaredField(fieldName);
-      } catch (NoSuchFieldException e) {
-        Class superClass = clazz.getSuperclass();
-        if (superClass==null) {
-          throw e;
-        } else {
-          return getField(superClass, fieldName);
-        }
-      }
-    }
-
-    private boolean matchAttributes(T node) {
-      if (targetNodeDescriptor.attributes == null) {
-        return true;
-      }
-
-      try {
-        for (Map.Entry<String, String> entry : targetNodeDescriptor.attributes.entrySet()) {
-          String attribue = entry.getKey();
-          Field field = getField(targetNodeDescriptor.clazz, attribue);
-          field.setAccessible(true);
-          Object value = field.get(node);
-          if (!value.toString().toLowerCase().contains(entry.getValue().toLowerCase())) {
-            return false;
-          }
-        }
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        fail("This should never happen");
-      }
-
-      return true;
-    }
-
-    @Override
-    public RelNode visit(RelNode node) {
-      return visitNode(node);
-    }
-
-    @Override
-    public RelNode visit(TableScan scan) {
-      return visitNode(scan);
-    }
-
-    private RelNode visitNode(RelNode node) {
-      if (targetNodeDescriptor.clazz.isAssignableFrom(node.getClass())  && matchAttributes((T)node)) {
-        collectedNodes.add((T)node);
-      }
-      return super.visit(node);
-    }
   }
 }

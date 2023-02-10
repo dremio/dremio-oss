@@ -15,20 +15,20 @@
  */
 package com.dremio.service.nessie;
 
-import org.projectnessie.versioned.StoreWorker;
-import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
+import org.projectnessie.versioned.persist.adapter.events.AdapterEventConsumer;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterFactory;
 
-public class DatastoreDatabaseAdapterFactory extends NonTransactionalDatabaseAdapterFactory<NessieDatastoreInstance> {
+public class DatastoreDatabaseAdapterFactory extends
+  NonTransactionalDatabaseAdapterFactory<DatastoreDatabaseAdapter, NessieDatastoreInstance> {
 
   public static final String NAME = "DATASTORE";
 
   @Override
-  protected DatabaseAdapter create(NonTransactionalDatabaseAdapterConfig config,
-                                   NessieDatastoreInstance datastore,
-                                   StoreWorker<?, ?, ?> storeWorker) {
-    return new DatastoreDatabaseAdapter(config, datastore, storeWorker);
+  protected DatastoreDatabaseAdapter create(NonTransactionalDatabaseAdapterConfig config,
+                                            NessieDatastoreInstance datastore,
+                                            AdapterEventConsumer eventConsumer) {
+    return new DatastoreDatabaseAdapter(config, datastore, eventConsumer);
   }
 
   @Override

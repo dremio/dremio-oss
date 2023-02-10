@@ -35,6 +35,13 @@ import { getIconStatusDatabase } from "utils/iconUtils";
 import * as allSpacesAndAllSources from "uiTheme/radium/allSpacesAndAllSources";
 import BrowseTable from "../../components/BrowseTable";
 import { tableStyles } from "../../tableStyles";
+import { getSettingsLocation } from "components/Menus/HomePage/AllSourcesMenu";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import { IconButton } from "dremio-ui-lib";
+
+const btnTypes = {
+  settings: "settings"
+};
 
 class AllSourcesView extends PureComponent {
   static propTypes = {
@@ -100,19 +107,75 @@ class AllSourcesView extends PureComponent {
               value: new Date(item.get("ctime")),
             },
             [action.key]: {
-              node: () => (
-                <span className="action-wrap">
-                  <SettingsBtn
-                    routeParams={this.context.location.query}
-                    menu={<AllSourcesMenu item={item} />}
-                    dataQa={item.get("name")}
-                  />
-                </span>
-              ),
+              node: () => this.getActionCell(item)
             },
           },
         };
       });
+  }
+
+  getActionCell(item) {
+    return <ActionWrap>{this.getActionCellButtons(item)}</ActionWrap>
+  }
+
+  getActionCellButtons(item) {
+    const allBtns = [{
+      label: this.getInlineIcon("interface/settings"),
+      tooltip: "Common.Settings",
+      link: getSettingsLocation(this.context.location, item),
+      type: btnTypes.settings
+    }]
+    return [
+      ...allBtns
+        // return rendered link buttons
+        .map((btnType, index) => (
+          <IconButton
+            as={LinkWithRef}
+            to={btnType.link}
+            tooltip={btnType.tooltip}
+            key={item.get("id") + index}
+            className="main-settings-btn min-btn"
+            data-qa={btnType.type}
+          >
+            {btnType.label}
+          </IconButton>
+        )),
+      this.getSettingsBtnByType(
+        <AllSourcesMenu
+          item={item}
+        />,
+        item
+      ),
+    ];
+  }
+
+  handleSettingsClose(settingsWrap) {
+    $(settingsWrap).parents("tr").removeClass("hovered");
+  }
+
+  handleSettingsOpen(settingsWrap) {
+    $(settingsWrap).parents("tr").addClass("hovered");
+  }
+
+  getSettingsBtnByType(menu, item) {
+    return (
+      <SettingsBtn
+        handleSettingsClose={this.handleSettingsClose.bind(this)}
+        handleSettingsOpen={this.handleSettingsOpen.bind(this)}
+        dataQa={item.get("name")}
+        menu={menu}
+        classStr="main-settings-btn min-btn catalog-btn"
+        key={`${item.get("name")}-${item.get("id")}`}
+        tooltip="Common.More"
+        hideArrowIcon
+      >
+        {this.getInlineIcon("interface/more")}
+      </SettingsBtn>
+    );
+  }
+
+  getInlineIcon(icon) {
+    return <dremio-icon name={icon} data-qa={icon} />;
   }
 
   getTableColumns() {
@@ -127,7 +190,7 @@ class AllSourcesView extends PureComponent {
       { key: "created", label: intl.formatMessage({ id: "Common.Created" }) },
       {
         key: "action",
-        label: intl.formatMessage({ id: "Common.Action" }),
+        label: "",
         style: tableStyles.actionColumn,
         disableSort: true,
         width: 60,
@@ -178,8 +241,17 @@ class AllSourcesView extends PureComponent {
         tableData={this.getTableData()}
         columns={this.getTableColumns()}
         buttons={this.renderAddButton()}
+        disableZebraStripes={true}
+        rowHeight={40}
       />
     );
   }
 }
 export default injectIntl(AllSourcesView);
+
+function ActionWrap({ children }) {
+  return <span className="action-wrap">{children}</span>;
+}
+ActionWrap.propTypes = {
+  children: PropTypes.node,
+};

@@ -247,6 +247,7 @@ export class Support extends PureComponent {
           data-qa="support-key-search-btn"
           submitting={this.state.getSettingInProgress}
           style={{ display: "inline-block", marginLeft: "6px" }}
+          showSpinnerAndText={false}
         >
           {la("Show")}
         </SimpleButton>

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import moize from "moize";
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Modal from "components/Modals/Modal";
@@ -26,9 +27,15 @@ export class AccelerationModal extends Component {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
     location: PropTypes.object,
+    onDone: PropTypes.func,
     // connected from FormUnsavedWarningHOC
     updateFormDirtyState: PropTypes.func,
   };
+
+  onDone = moize((...args) => {
+    this.props.onDone?.();
+    this.props.hide(...args);
+  });
 
   render() {
     const { canSubmit, isOpen, hide, location } = this.props;
@@ -44,9 +51,10 @@ export class AccelerationModal extends Component {
         <AccelerationController
           updateFormDirtyState={this.props.updateFormDirtyState}
           onCancel={hide}
-          onDone={hide}
+          onDone={this.onDone}
           datasetId={datasetId}
           canSubmit={canSubmit}
+          location={location}
         />
       </Modal>
     );

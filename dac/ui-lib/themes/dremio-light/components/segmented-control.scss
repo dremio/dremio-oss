@@ -14,35 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-segmented-control {
-  display: flex;
-  flex-direction: row;
-  gap: var(--dremio--segmented-control-option--gap);
-
-  > *:first-child {
-    border-start-start-radius: var(--dremio--segmented-control--border-radius);
-    border-end-start-radius: var(--dremio--segmented-control--border-radius);
-    padding-inline-start: calc(
-      var(--dremio--segmented-control-option--padding) + 1px
-    );
-  }
-
-  > *:last-child {
-    border-start-end-radius: var(--dremio--segmented-control--border-radius);
-    border-end-end-radius: var(--dremio--segmented-control--border-radius);
-    padding-inline-end: calc(
-      var(--dremio--segmented-control-option--padding) + 1px
-    );
-  }
-
-  &-option {
-    background: var(--dremio--segmented-control-option--background);
-    border: var(--dremio--segmented-control-option--border);
-    color: var(--dremio--segmented-control-option--color);
-    font-weight: var(--dremio--segmented-control-option--font-weight);
-    padding: var(--dremio--segmented-control-option--padding);
-  }
-}
+@use "../../base/components/segmented-control";
 
 .dremio-segmented-control {
   --dremio--segmented-control--border-radius: var(--dremio--radius--1);

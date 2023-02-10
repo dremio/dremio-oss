@@ -19,9 +19,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.proto.UserBitShared.MeasureColumn;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
@@ -166,6 +168,10 @@ public class MaterializationDescriptor {
 
   public List<String> getPartition() {
     return partition;
+  }
+
+  public boolean isApplicable(Set<List<String>> queryTablesUsed, Set<List<String>> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
+    return true;
   }
 
   public static class ReflectionInfo {

@@ -1,0 +1,167 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns the difference between two expressions of time as another expression
+  of time.
+functionCategories:
+- DATETIME
+name: DATE_DIFF
+signatures:
+- description: sample signature description
+  parameters:
+  - description: The date, in the format 'YYY-MM-DD', to subtract days from. The value
+      can be either a database column in DATE format, or literal value explicitly
+      converted to DATE.
+    kind: REGULAR
+    name: date_expression
+    type: DATE
+  - description: A 32-bit integer of the number of days to be subtracted from the
+      specified date.
+    kind: REGULAR
+    name: days
+    type: INT
+  returnType: DATE
+  sampleCodes:
+  - call: SELECT DATE_DIFF(DATE '2022-01-01', 5)
+    result: 2021-12-27
+  - call: SELECT DATE_DIFF(DATE '2022-01-01', -5)
+    result: 2022-01-06
+- description: sample signature description
+  parameters:
+  - description: The date, in the format 'YYY-MM-DD', to subtract the second date
+      from. The value can be either a database column in DATE format, or literal value
+      explicitly converted to DATE.
+    kind: REGULAR
+    name: date_expression
+    type: DATE
+  - description: The date, in the format 'YYY-MM-DD', to subtract from the first date.
+      The value can be either a database column in DATE format, or literal value explicitly
+      converted to DATE.
+    kind: REGULAR
+    name: date_expression
+    type: DATE
+  returnType: INTERVAL
+  sampleCodes:
+  - call: SELECT DATE_DIFF(DATE '2022-04-01', DATE '2022-01-01')
+    result: +090 00:00:00.000
+  - call: SELECT DATE_DIFF(DATE '2022-01-01', DATE '2022-04-01')
+    result: -090 00:00:00.000
+- description: sample signature description
+  parameters:
+  - description: The timestamp, in the format 'YYYY-MM-DD HH:MM:SS', to subtract the
+      second timestamp from. The value can be either a database column in TIMESTAMP
+      format, or literal value explicitly converted to TIMESTAMP.
+    kind: REGULAR
+    name: timestamp_expression
+    type: TIMESTAMP
+  - description: The timestamp, in the format 'YYYY-MM-DD HH:MM:SS', to subtract from
+      the first timestamp. The value can be either a database column in TIMESTAMP
+      format, or literal value explicitly converted to TIMESTAMP.
+    kind: REGULAR
+    name: timestamp_expression
+    type: TIMESTAMP
+  returnType: INTERVAL
+  sampleCodes:
+  - call: SELECT DATE_DIFF(TIMESTAMP '2022-04-01 12:35:23', TIMESTAMP '2022-01-01
+      01:00:00')
+    result: +090 11:35:23.000
+  - call: SELECT DATE_DIFF(TIMESTAMP '2022-01-01 01:00:00', TIMESTAMP '2022-04-01
+      12:35:23')
+    result: -090 11:35:23.000
+- description: sample signature description
+  parameters:
+  - description: The time, in the format 'HH:MM:SS', from which to subtract a number
+      of seconds, minutes, or hours. The value can be either a database column in
+      TIME format, or literal value explicitly converted to TIME.
+    kind: REGULAR
+    name: time_expression
+    type: TIME
+  - description: 'A CAST of a number to one of these intervals: SECOND, MINUTE, HOUR.
+
+      '
+    kind: REGULAR
+    name: time_interval
+    type: INTERVAL
+  returnType: TIME
+  sampleCodes:
+  - call: SELECT DATE_DIFF(TIME '12:00:00', CAST(30 AS INTERVAL SECOND))
+    result: '11:59:30'
+  - call: SELECT DATE_DIFF(TIME '12:00:00', CAST(30 AS INTERVAL MINUTE))
+    result: '11:30:00'
+- description: sample signature description
+  parameters:
+  - description: The date, in the format 'YYYY-MM-DD', from which to subtract a number
+      of days, months, or years. The value can be either a database column in DATE
+      format, or literal value explicitly converted to DATE.
+    kind: REGULAR
+    name: date_expression
+    type: DATE
+  - description: 'A CAST of a number to one of these intervals: DAY, MONTH, YEAR.
+
+      '
+    kind: REGULAR
+    name: time_interval
+    type: INTERVAL
+  returnType: TIMESTAMP
+  sampleCodes:
+  - call: SELECT DATE_DIFF(DATE '2022-01-01', CAST(30 AS INTERVAL DAY))
+    result: 2021-12-02 00:00:00
+  - call: SELECT DATE_DIFF(DATE '2022-01-01', CAST(30 AS INTERVAL MONTH))
+    result: 2019-07-01 00:00:00
+- description: sample signature description
+  parameters:
+  - description: The timestamp, in the format 'YYYY-MM-DD HH:MM:SS', to subtract days
+      from. The value can be either a database column in TIMESTAMP format, or literal
+      value explicitly converted to TIMESTAMP.
+    kind: REGULAR
+    name: timestamp_expression
+    type: TIMESTAMP
+  - description: A 32-bit integer of the number of days to be subtracted from the
+      specified timestamp.
+    kind: REGULAR
+    name: days
+    type: INT
+  returnType: TIMESTAMP
+  sampleCodes:
+  - call: SELECT DATE_DIFF(TIMESTAMP '2022-01-01 12:35:23', 5)
+    result: 2021-12-27 12:35:23
+  - call: SELECT DATE_DIFF(TIMESTAMP '2022-01-01 12:35:23', -5)
+    result: 2022-01-06 12:35:23
+- description: sample signature description
+  parameters:
+  - description: The timestamp, in the format 'YYYY-MM-DD HH:MM:SS', from which to
+      subtract a number of seconds, minutes, hours, days, months, or years.  The value
+      can be either a database column in TIMESTAMP format, or literal value explicitly
+      converted to TIMESTAMP.
+    kind: REGULAR
+    name: timestamp_expression
+    type: TIMESTAMP
+  - description: 'A CAST of a number to one of these intervals: SECOND, MINUTE, HOUR,
+      DAY, MONTH, YEAR.
+
+      '
+    kind: REGULAR
+    name: time_interval
+    type: INTERVAL
+  returnType: TIMESTAMP
+  sampleCodes:
+  - call: SELECT DATE_DIFF(TIMESTAMP '2022-01-01 01:00:00.000', CAST(30 AS INTERVAL
+      SECOND))
+    result: 2022-01-01 00:59:30
+  - call: SELECT DATE_DIFF(TIMESTAMP '2022-01-01 01:00:00.000', CAST(30 AS INTERVAL
+      MINUTE))
+    result: 2022-01-01 00:30:00

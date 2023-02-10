@@ -22,15 +22,24 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.nio.file.Paths;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.hive.LazyDataGeneratingHiveTestBase;
 import com.dremio.exec.store.hive.HiveConfFactory;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.users.SystemUser;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -40,6 +49,9 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
   private static AutoCloseable enableIcebergDmlSupportFlags;
   private static final String SCHEME = "file:///";
   private static String WAREHOUSE_LOCATION;
+
+  @Rule
+  public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -109,7 +121,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
   @Test
   public void testCreateEmptyIcebergTableOnLocation() throws Exception {
     final String tableName = "iceberg_test_location";
-    final String queryTableLocation = "default/location";
+    final String queryTableLocation = Paths.get(temporaryFolder.getRoot().getAbsolutePath(), "default", "location").toString();
     try {
       testBuilder()
         .sqlQuery(String.format("Create table %s.%s(n int) LOCATION '%s'", HIVE_TEST_PLUGIN_NAME, tableName, queryTableLocation))
@@ -133,7 +145,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
 
     final String tableName = "iceberg_test_ctas1";
     final String tableNameWithCatalog = HIVE_TEST_PLUGIN_NAME + "." + tableName;
-    final String tableLocationFolder = "default/location";
+    final String tableLocationFolder = Paths.get(temporaryFolder.getRoot().getAbsolutePath(), "default", "location").toString();
 
     try {
       runSQL(getCTASQueryWithLocation("(values (1), (2), (3))", tableNameWithCatalog, tableLocationFolder));
@@ -347,7 +359,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
   public void truncateOnCreateAtLocation() throws Exception {
 
     String tableName = "truncTable1";
-    String queryTableLocation = "default/location_trunc";
+    final String queryTableLocation = Paths.get(temporaryFolder.getRoot().getAbsolutePath(), "default", "location-trunc").toString();
     try {
       testBuilder()
         .sqlQuery(String.format("Create table %s.%s(n int) LOCATION '%s'", HIVE_TEST_PLUGIN_NAME, tableName, queryTableLocation))
@@ -515,4 +527,21 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
 
   }
 
+  @Test
+  public void testDropPartitionColumn() throws Exception {
+    // TODO: DX-46976 - Enable these for MapR
+    assumeNonMaprProfile();
+    final String tableName = "iceberg_test_testDropPartitionColumn";
+
+    try {
+      runSQL(String.format("CREATE TABLE %s.%s(n int, p1 int) PARTITION BY (p1)", HIVE_TEST_PLUGIN_NAME, tableName));
+      runSQL(String.format("ALTER TABLE %s.%s drop PARTITION FIELD p1", HIVE_TEST_PLUGIN_NAME, tableName));
+      NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+      DatasetConfig datasetConfig = ns.getDataset(new NamespaceKey(ImmutableList.of(HIVE_TEST_PLUGIN_NAME, "default", tableName)));
+
+      assertTrue(CollectionUtils.isEmpty(datasetConfig.getReadDefinition().getPartitionColumnsList()));
+    } finally {
+      runSQL(String.format("DROP TABLE %s.%s", HIVE_TEST_PLUGIN_NAME, tableName));
+    }
+  }
 }

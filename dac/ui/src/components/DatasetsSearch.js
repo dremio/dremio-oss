@@ -21,7 +21,7 @@ import ViewStateWrapper from "components/ViewStateWrapper";
 import { injectIntl } from "react-intl";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
 import { Tooltip, TagList } from "dremio-ui-lib";
-
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { bodySmall } from "uiTheme/radium/typography";
 
 import { PALE_NAVY } from "uiTheme/radium/colors";
@@ -80,7 +80,7 @@ class DatasetsSearch extends PureComponent {
           key={key}
           className="dataset"
           style={{ textDecoration: "none" }}
-          to={value.getIn(["links", "self"])}
+          to={wrapBackendLink(value.getIn(["links", "self"]))}
           onClick={this.onClickDataSetItem}
         >
           {datasetItem}
@@ -98,7 +98,7 @@ class DatasetsSearch extends PureComponent {
     return (
       <span className="main-settings-btn min-btn" style={styles.actionButtons}>
         {dataset.getIn(["links", "edit"]) && (
-          <Link to={dataset.getIn(["links", "edit"])}>
+          <Link to={wrapBackendLink(dataset.getIn(["links", "edit"]))}>
             <Tooltip title={formatMessage({ id: "Common.Edit" })}>
               <button className="settings-button" data-qa="edit">
                 <dremio-icon
@@ -110,7 +110,7 @@ class DatasetsSearch extends PureComponent {
             </Tooltip>
           </Link>
         )}
-        <Link to={dataset.getIn(["links", "self"])}>
+        <Link to={wrapBackendLink(dataset.getIn(["links", "self"]))}>
           <Tooltip title={formatMessage({ id: "Common.DoQuery" })}>
             <button className="settings-button" data-qa="query">
               <dremio-icon

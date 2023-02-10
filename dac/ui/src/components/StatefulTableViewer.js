@@ -41,6 +41,7 @@ export default class StatefulTableViewer extends Component {
     disableZebraStripes: PropTypes.any,
     scrollableTable: PropTypes.bool,
     defaultDescending: PropTypes.bool,
+    onClickId: PropTypes.string | undefined
     // extra props passed along to underlying Table impl
     // columns: PropTypes.array.isRequired,
     // className: PropTypes.string,
@@ -51,6 +52,7 @@ export default class StatefulTableViewer extends Component {
     virtualized: false,
     className: "",
     noDataText: "No Items",
+    onClickId: undefined
   };
 
   renderTableContent() {
@@ -65,6 +67,7 @@ export default class StatefulTableViewer extends Component {
       disableSort,
       scrollableTable,
       disableZebraStripes,
+      onClickId,
       ...passAlongProps
     } = this.props;
 
@@ -77,6 +80,7 @@ export default class StatefulTableViewer extends Component {
       disableZebraStripes,
       disableSort,
       onClick,
+      onClickId: onClickId ? onClickId : undefined,
       ...passAlongProps,
     };
     const tableSize = List.isList(tableData)

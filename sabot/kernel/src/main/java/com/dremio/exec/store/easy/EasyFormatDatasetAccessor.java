@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -76,10 +77,8 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetXAttr;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileConfig;
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.net.HostAndPort;
 
@@ -199,9 +198,8 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle, MetadataSup
     ) {
       final ImplicitFilesystemColumnFinder explorer = new ImplicitFilesystemColumnFinder(context.getOptionManager(), dfs, GroupScan.ALL_COLUMNS);
 
-      Optional<FileAttributes> fileName = Iterables.tryFind(selection.getFileAttributesList(), input -> input.size() > 0);
-
-      final FileAttributes file = fileName.or(selection.getFileAttributesList().get(0));
+      Optional<FileAttributes> fileName = selection.getFileAttributesList().stream().filter(input -> input.size() > 0).findFirst();
+      final FileAttributes file = fileName.orElse(selection.getFileAttributesList().get(0));
 
       EasyDatasetSplitXAttr dataset = EasyDatasetSplitXAttr.newBuilder()
           .setStart(0L)

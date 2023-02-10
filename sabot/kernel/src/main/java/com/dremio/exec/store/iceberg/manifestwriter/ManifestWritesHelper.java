@@ -50,6 +50,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.FieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
@@ -89,7 +90,8 @@ public class ManifestWritesHelper {
   private final byte[] schema;
 
   public static ManifestWritesHelper getInstance(IcebergManifestWriterPOP writer, int columnLimit) {
-    if (writer.getOptions().getIcebergTableProps().isDetectSchema()) {
+    if (writer.getOptions().getTableFormatOptions()
+      .getIcebergSpecificOptions().getIcebergTableProps().isDetectSchema()) {
       return new SchemaDiscoveryManifestWritesHelper(writer, columnLimit);
     } else {
       return new ManifestWritesHelper(writer);
@@ -98,11 +100,13 @@ public class ManifestWritesHelper {
 
   protected ManifestWritesHelper(IcebergManifestWriterPOP writer) {
     this.writer = writer;
-    this.schema = writer.getOptions().getIcebergTableProps().getFullSchema().serialize();
+    IcebergTableProps tableProps = writer.getOptions().getTableFormatOptions()
+      .getIcebergSpecificOptions().getIcebergTableProps();
+    this.schema = tableProps.getFullSchema().serialize();
     this.listOfFilesCreated = Lists.newArrayList();
     FileSystem fs  = null;
     try {
-      fs = writer.getPlugin().createFS(writer.getOptions().getIcebergTableProps().getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
+      fs = writer.getPlugin().createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
     } catch (IOException e) {
       throw new RuntimeException("Unable to create File System", e);
     }
@@ -118,7 +122,8 @@ public class ManifestWritesHelper {
   public void startNewWriter() {
     this.currentNumDataFileAdded = 0;
     final WriterOptions writerOptions = writer.getOptions();
-    final String baseMetadataLocation = writerOptions.getIcebergTableProps().getTableLocation() + Path.SEPARATOR + ICEBERG_METADATA_FOLDER;
+    final String baseMetadataLocation = writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+      .getIcebergTableProps().getTableLocation() + Path.SEPARATOR + ICEBERG_METADATA_FOLDER;
     final PartitionSpec partitionSpec = getPartitionSpec(writer.getOptions());
     this.partitionSpecId = Optional.of(partitionSpec.specId());
     final String icebergManifestFileExt = "." + outputExtension;
@@ -192,17 +197,20 @@ public class ManifestWritesHelper {
   }
 
   PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
-    PartitionSpec partitionSpec = writer.getOptions().getDeserializedPartitionSpec();
+    PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+        .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+
     if (partitionSpec != null) {
       return partitionSpec;
     }
 
-    List<String> partitionColumns = writerOptions.getIcebergTableProps().getPartitionColumnNames();
-    BatchSchema batchSchema = writerOptions.getIcebergTableProps().getFullSchema();
+    IcebergTableProps tableProps = writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps();
+    List<String> partitionColumns = tableProps.getPartitionColumnNames();
+    BatchSchema batchSchema = tableProps.getFullSchema();
 
     Schema icebergSchema = null;
     if (writerOptions.getExtendedProperty() != null) {
-      icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), batchSchema, writerOptions.getIcebergTableProps().getTableName());
+      icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), batchSchema, tableProps.getTableName());
     }
 
     return IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns, icebergSchema);

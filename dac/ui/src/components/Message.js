@@ -277,7 +277,7 @@ class Message extends PureComponent {
       case "REQUESTED_REFLECTION_MISSING":
         return <span>{la("The requested Reflection no longer exists.")}</span>;
       case "REFLECTION_LOST_FIELDS":
-        return <span>{la("Review changes.")}</span>;
+        return <span>{la("Review changes")}</span>;
       default: {
         const asLocKey = `Message.Code.${code}.Message`;
         if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;

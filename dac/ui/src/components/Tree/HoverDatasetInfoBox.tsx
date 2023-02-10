@@ -19,7 +19,6 @@ import {
 } from "utils/iconUtils";
 import FontIcon from "@app/components/Icon/FontIcon";
 // import { intl } from "@app/utils/intl";
-// import Art from "../Art";
 import "./HoverDatasetInfoBox.less";
 
 // Starring phase 2

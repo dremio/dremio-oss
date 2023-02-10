@@ -39,6 +39,4 @@ public abstract class MayBeDistFileSystemConf<C extends FileSystemConf<C, P>, P 
   public abstract String getAccountName();
 
   public abstract String getAccountKind();
-
-  public abstract String getSharedAccessKey();
 }

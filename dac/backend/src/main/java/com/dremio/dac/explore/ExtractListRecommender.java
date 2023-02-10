@@ -47,7 +47,7 @@ import com.dremio.dac.service.errors.ClientErrorException;
  * for each recommendation.
  */
 public class ExtractListRecommender extends Recommender<ExtractListRule, Selection> {
-  private static final Logger logger = LoggerFactory.getLogger(ReplaceRecommender.class);
+  private static final Logger logger = LoggerFactory.getLogger(ExtractListRecommender.class);
 
   @Override
   public List<ExtractListRule> getRules(Selection selection, DataType selColType) {

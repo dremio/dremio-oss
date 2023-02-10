@@ -16,6 +16,7 @@
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { IconButton } from "dremio-ui-lib";
 import { getSettingsLocation } from "components/Menus/HomePage/DatasetMenu";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -42,7 +43,7 @@ export default function (input) {
         {
           label: this.getInlineIcon("interface/edit"),
           tooltip: "Common.Edit",
-          link: item.getIn(["links", "edit"]),
+          link: wrapBackendLink(item.getIn(["links", "edit"])),
           type: btnTypes.edit,
           isShown: entityType === "dataset",
         },

@@ -17,6 +17,8 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { connect } from "react-redux";
+import { compose } from "redux";
+
 import { FormattedMessage, injectIntl } from "react-intl";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
@@ -32,6 +34,7 @@ import SelectSourceType from "pages/HomePage/components/modals/AddSourceModal/Se
 import ConfigurableSourceForm from "pages/HomePage/components/modals/ConfigurableSourceForm";
 import { isCME } from "dyn-load/utils/versionUtils";
 import { loadGrant } from "dyn-load/actions/resources/grant";
+import EnginePreRequisiteHOC from "@inject/pages/HomePage/components/modals/PreviewEngineCheckHOC.tsx";
 
 import AddSourceModalMixin, {
   mapStateToProps,
@@ -43,6 +46,7 @@ import { trimObjectWhitespace } from "pages/HomePage/components/modals/utils";
 import * as classes from "./AddSourceModal.module.less";
 import { isVersionedReflectionsEnabled } from "../AddEditSourceUtils";
 import { isVersionedSource } from "@app/utils/sourceUtils";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 const VIEW_ID = "ADD_SOURCE_MODAL";
 const TIME_BEFORE_MESSAGE = 5000;
@@ -82,6 +86,8 @@ export class AddSourceModal extends Component {
   };
 
   componentDidMount() {
+    this.isPreviewEngineRequired = false;
+
     this.setStateWithSourceTypeListFromServer();
     this.fetchData();
     if (isCME && !isCME()) {
@@ -125,6 +131,11 @@ export class AddSourceModal extends Component {
           }
         );
         const isFileSystemSource = combinedConfig.metadataRefresh;
+        if (this.props.setPreviewEngine) {
+          this.props.setPreviewEngine(json.previewEngineRequired, "Add");
+          this.isPreviewEngineRequired = json.previewEngineRequired;
+        }
+
         this.setState({
           isTypeSelected: true,
           selectedFormType: combinedConfig,
@@ -210,6 +221,14 @@ export class AddSourceModal extends Component {
     });
   };
 
+  handleCustomSubmit = (values) => {
+    const submitFn = this.handleAddSourceSubmit;
+    const closeFn = this.hide;
+    this.props.handleSubmit(values, submitFn, closeFn).catch((err) => {
+      return err;
+    });
+  };
+
   handleAddSourceSubmit = (values) => {
     const data = trimObjectWhitespace(this.mutateFormValues(values), [
       "appSecret",
@@ -226,10 +245,12 @@ export class AddSourceModal extends Component {
         this.stopTrackSubmitTime();
         if (response && !response.error) {
           const nextSource = ApiUtils.getEntityFromResponse("source", response);
-          this.context.router.push(nextSource.getIn(["links", "self"]));
+          this.context.router.push(
+            wrapBackendLink(nextSource.getIn(["links", "self"]))
+          );
         }
         this.sendAddCompleteEvent();
-        return null;
+        return Promise.resolve("done");
       })
       .catch((error) => {
         this.stopTrackSubmitTime();
@@ -252,12 +273,26 @@ export class AddSourceModal extends Component {
     const { isAddingSampleSource, errorMessage, didSourceTypeLoadFail } =
       this.state;
 
-    const viewState = didSourceTypeLoadFail
-      ? new Immutable.fromJS({
-          isFailed: true,
-          error: { message: errorMessage },
-        })
-      : new Immutable.Map({ isInProgress: isAddingSampleSource });
+    //HOC Props
+    const {
+      iconDisabled,
+      hideCancel,
+      confirmText,
+      canSubmit,
+      hasError,
+      isSubmitting,
+      showSpinnerAndText,
+      confirmButtonStyle,
+      onDismissError,
+    } = this.props;
+
+    const viewState =
+      didSourceTypeLoadFail || hasError
+        ? new Immutable.fromJS({
+            isFailed: true,
+            error: { message: hasError || errorMessage },
+          })
+        : new Immutable.Map({ isInProgress: isAddingSampleSource });
 
     return (
       <Modal
@@ -265,12 +300,17 @@ export class AddSourceModal extends Component {
         title={this.getTitle(isExternalSource, isDataPlaneSource)}
         isOpen={isOpen}
         confirm={this.state.isTypeSelected && this.confirm}
-        hide={this.hide}
+        hide={!iconDisabled && this.hide}
+        iconDisabled={iconDisabled}
         className={
           !this.state.isTypeSelected ? classes["add-source-modal"] : ""
         }
       >
-        <ViewStateWrapper viewState={viewState}>
+        <ViewStateWrapper
+          viewState={viewState}
+          hideChildrenWhenFailed={false}
+          onDismissError={onDismissError}
+        >
           {!this.state.isTypeSelected ? (
             <SelectSourceType
               isExternalSource={isExternalSource}
@@ -280,8 +320,16 @@ export class AddSourceModal extends Component {
             />
           ) : (
             <ConfigurableSourceForm
+              hideCancel={hideCancel}
+              confirmText={confirmText}
+              canSubmit={canSubmit}
+              isSubmitting={isSubmitting}
               sourceFormConfig={this.state.selectedFormType}
-              onFormSubmit={this.handleAddSourceSubmit}
+              onFormSubmit={
+                this.isPreviewEngineRequired
+                  ? this.handleCustomSubmit
+                  : this.handleAddSourceSubmit
+              }
               onCancel={this.hide}
               updateFormDirtyState={updateFormDirtyState}
               footerChildren={this.renderLongSubmitLabel()}
@@ -293,6 +341,8 @@ export class AddSourceModal extends Component {
               )}
               EntityType="source"
               initialValues={initialFormValues}
+              showSpinnerAndText={showSpinnerAndText}
+              confirmButtonStyle={confirmButtonStyle}
             />
           )}
         </ViewStateWrapper>
@@ -301,10 +351,13 @@ export class AddSourceModal extends Component {
   }
 }
 
-export default connect(mapStateToProps, {
-  createSource,
-  createSampleSource,
-  dispatchPassDataBetweenTabs: passDataBetweenTabs,
-  loadGrant,
-  ...additionalMapDispatchToProps,
-})(FormUnsavedWarningHOC(AddSourceModal));
+export default compose(
+  EnginePreRequisiteHOC,
+  connect(mapStateToProps, {
+    createSource,
+    createSampleSource,
+    dispatchPassDataBetweenTabs: passDataBetweenTabs,
+    loadGrant,
+    ...additionalMapDispatchToProps,
+  })
+)(FormUnsavedWarningHOC(AddSourceModal));

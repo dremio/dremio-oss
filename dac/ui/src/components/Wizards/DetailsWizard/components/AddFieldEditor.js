@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 import { getExploreState } from "@app/selectors/explore";
 
 import SqlAutoComplete from "pages/ExplorePage/components/SqlEditor/SqlAutoComplete";
-import FunctionsHelpPanel from "pages/ExplorePage/components/SqlEditor/FunctionsHelpPanel";
+import FunctionsHelpPanel from "@app/pages/ExplorePage/components/SqlEditor/FunctionsHelpPanel";
 
 import "./AddFieldEditor.less";
 

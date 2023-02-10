@@ -99,8 +99,7 @@ export default class SelectSourceType extends Component {
           pillText={pillText}
           isCommunity={isCommunity}
           disabled={item.disabled}
-          iconType={`sources/${item.sourceType}`}
-          icon={item.icon}
+          dremioIcon={`sources/${item.sourceType}`}
           key={item.sourceType}
           onClick={
             !item.disabled
@@ -117,7 +116,7 @@ export default class SelectSourceType extends Component {
       <SelectConnectionButton
         sampleSource
         label={this.props.intl.formatMessage({ id: "Source.SampleSource" })}
-        iconType={"sources/SampleSource"}
+        dremioIcon="sources/SampleSource"
         onClick={this.props.onSelectSource.bind(this, {
           sourceType: "SampleSource",
         })}

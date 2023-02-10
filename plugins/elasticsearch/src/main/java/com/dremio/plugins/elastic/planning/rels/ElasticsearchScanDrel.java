@@ -22,6 +22,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -33,18 +34,18 @@ public class ElasticsearchScanDrel extends ScanRelBase implements Rel {
 
   public ElasticsearchScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table,
       StoragePluginId pluginId, TableMetadata tableMetadata, List<SchemaPath> projectedColumns,
-      double observedRowcountAdjustment) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment);
+      double observedRowcountAdjustment, List<RelHint> hints) {
+    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ElasticsearchScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
+    return new ElasticsearchScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, hints);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new ElasticsearchScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, projection, observedRowcountAdjustment);
+    return new ElasticsearchScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, projection, observedRowcountAdjustment, hints);
   }
 
 }

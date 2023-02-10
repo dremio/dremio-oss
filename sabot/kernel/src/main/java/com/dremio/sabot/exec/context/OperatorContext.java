@@ -45,6 +45,7 @@ import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.spill.SpillService;
@@ -99,6 +100,8 @@ public abstract class OperatorContext {
   public abstract OptionManager getOptions();
 
   public abstract int getTargetBatchSize();
+
+  public abstract HeapLowMemController getHeapLowMemController();
 
   public abstract ClassProducer getClassProducer();
 

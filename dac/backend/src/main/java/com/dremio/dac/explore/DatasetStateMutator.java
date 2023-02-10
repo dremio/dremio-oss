@@ -37,6 +37,7 @@ import com.dremio.dac.proto.model.dataset.FromSubQuery;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.proto.model.dataset.Join;
 import com.dremio.dac.proto.model.dataset.Order;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.google.common.base.Joiner;
@@ -421,6 +422,10 @@ class DatasetStateMutator {
       }
     }
     return null;
+  }
+
+  public void setVirtualDatasetStateReference(List<SourceVersionReference> referencesList) {
+    virtualDatasetState.setReferenceList(referencesList);
   }
 
   private static class Ref<T> {

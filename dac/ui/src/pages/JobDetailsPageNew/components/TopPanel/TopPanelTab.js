@@ -15,7 +15,7 @@
  */
 import { injectIntl } from "react-intl";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import { getTagClassName } from "dyn-load/utils/jobsUtils";
 
 import "./TopPanel.less";

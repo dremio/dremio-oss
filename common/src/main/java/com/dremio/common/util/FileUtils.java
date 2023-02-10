@@ -15,17 +15,16 @@
  */
 package com.dremio.common.util;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
 
 public class FileUtils {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileUtils.class);
-
   public static final char separatorChar = '/';
 
   public static final String separator = "" + separatorChar;
@@ -37,12 +36,12 @@ public class FileUtils {
       throw new FileNotFoundException(String.format("Unable to find file on path %s", fileName));
     }
   }
+
   public static File getResourceAsFile(String fileName) throws IOException {
     return new File(getResource(fileName).getPath());
   }
 
   public static String getResourceAsString(String fileName) throws IOException {
-    return Resources.toString(getResource(fileName), Charsets.UTF_8);
+    return Resources.toString(getResource(fileName), UTF_8);
   }
-
 }

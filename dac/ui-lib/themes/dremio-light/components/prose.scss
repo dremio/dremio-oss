@@ -14,12 +14,4 @@
  * limitations under the License.
  */
 
-.dremio-prose {
-  font-size: 14px;
-  line-height: 20px;
-  max-inline-size: 75ch;
-
-  > * + * {
-    margin-block-start: 1em;
-  }
-}
+@use "../../base/components/prose";

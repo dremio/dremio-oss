@@ -18,14 +18,17 @@ package com.dremio.jdbc;
 import static java.sql.ResultSetMetaData.columnNullable;
 import static java.sql.Types.BIGINT;
 import static java.sql.Types.DATE;
+import static java.sql.Types.DECIMAL;
 import static java.sql.Types.DOUBLE;
 import static java.sql.Types.INTEGER;
+import static java.sql.Types.TIME;
 import static java.sql.Types.TIMESTAMP;
 import static java.sql.Types.VARCHAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import java.math.BigDecimal;
 import java.sql.Clob;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -34,6 +37,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.List;
 
@@ -89,9 +93,9 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
             "cast(12384729 as BIGINT ) as bigint_field, " +
             "'varchar_value' as varchar_field, " +
             "timestamp '2008-2-23 10:00:20.123' as ts_field, " +
+            "time '10:00:20.2' as time_field, " +
             "date '2008-2-23' as date_field, " +
-            // DX-4852
-            //"cast('99999912399.4567' as decimal(18, 5)) as decimal_field" +
+            "cast('99999912399.4567' as decimal(18, 5)) as decimal_field," +
             "cast('99999912399.4567' as double) as double_field" +
             " FROM INFORMATION_SCHEMA.CATALOGS")) {
 
@@ -99,10 +103,10 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
           new ExpectedColumnResult("int_field", INTEGER, columnNullable, 11, 0, 0, true, Integer.class.getName()),
           new ExpectedColumnResult("bigint_field", BIGINT, columnNullable, 20, 0, 0, true, Long.class.getName()),
           new ExpectedColumnResult("varchar_field", VARCHAR, columnNullable, 65536, 65536, 0, false, String.class.getName()),
-          new ExpectedColumnResult("ts_field", TIMESTAMP, columnNullable, 23, 0, 0, false, Timestamp.class.getName()),
+          new ExpectedColumnResult("ts_field", TIMESTAMP, columnNullable, 23, 3, 0, false, Timestamp.class.getName()),
+          new ExpectedColumnResult("time_field", TIME, columnNullable, 12, 3, 0, false, Time.class.getName()),
           new ExpectedColumnResult("date_field", DATE, columnNullable, 10, 0, 0, false, Date.class.getName()),
-          // DX-4852
-          //new ExpectedColumnResult("decimal_field", DECIMAL, columnNullable, 20, 18, 5, true, BigDecimal.class.getName())
+          new ExpectedColumnResult("decimal_field", DECIMAL, columnNullable, 20, 18, 5, true, BigDecimal.class.getName()),
           new ExpectedColumnResult("double_field", DOUBLE, columnNullable, 24, 0, 0, true, Double.class.getName())
       );
 
@@ -118,9 +122,10 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
         assertThat(rs.getLong(2)).isEqualTo(12384729L);
         assertThat(rs.getString(3)).isEqualTo("varchar_value");
         assertThat(rs.getTimestamp(4)).isEqualTo(Timestamp.valueOf("2008-2-23 10:00:20.123"));
-        assertThat(rs.getDate(5)).isEqualTo(Date.valueOf("2008-2-23"));
-        //assertThat(rs.getBigDecimal(6)).isEqualTo(new BigDecimal("99999912399.45670"));
-        assertThat(rs.getDouble(6)).isEqualTo(99999912399.4567D);
+        assertThat(rs.getTime(5).toString()).isEqualTo("10:00:20.200");
+        assertThat(rs.getDate(6)).isEqualTo(Date.valueOf("2008-2-23"));
+        assertThat(rs.getBigDecimal(7)).isEqualTo(new BigDecimal("99999912399.45670"));
+        assertThat(rs.getDouble(8)).isEqualTo(99999912399.4567D);
         assertThat(rs.next()).isFalse();
       }
     }
@@ -131,7 +136,9 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
     int i = 0;
     for(ExpectedColumnResult e : exp) {
       ++i;
-      assertThat(e.isEqualsTo(act, i)).isTrue();
+      assertThat(e.isEqualsTo(act, i))
+        .describedAs("Expected: %s\nActual: %s", e, PreparedStatementTest.toString(act, i))
+        .isTrue();
     }
   }
 
@@ -145,6 +152,17 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
         ", scale=" + metadata.getScale(colNum) +
         ", signed=" + metadata.isSigned(colNum) +
         ", className='" + metadata.getColumnClassName(colNum) + '\'' +
+        ", catalogName='" + metadata.getCatalogName(colNum) + '\'' +
+        ", schemaName='" + metadata.getSchemaName(colNum) + '\'' +
+        ", tableName='" + metadata.getTableName(colNum) + '\'' +
+        ", columnLabel='" + metadata.getColumnLabel(colNum) + '\'' +
+        ", isSearchable='" + metadata.isSearchable(colNum) + '\'' +
+        ", isAutoIncrement='" + metadata.isAutoIncrement(colNum) + '\'' +
+        ", isCaseSensitive='" + metadata.isCaseSensitive(colNum) + '\'' +
+        ", isReadOnly='" + metadata.isReadOnly(colNum) + '\'' +
+        ", isWritable='" + metadata.isWritable(colNum) + '\'' +
+        ", isDefinitelyWritable='" + metadata.isDefinitelyWritable(colNum) + '\'' +
+        ", isCurrency='" + metadata.isCurrency(colNum) + '\'' +
         ']';
   }
 
@@ -179,8 +197,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
           metadata.getColumnLabel(colNum).equals(columnName) &&
           metadata.getColumnType(colNum) == type &&
           metadata.isNullable(colNum) == nullable &&
-          // There is an existing bug where query results doesn't contain the precision for VARCHAR field.
-          //metadata.getPrecision(colNum) == precision &&
+          metadata.getPrecision(colNum) == precision &&
           metadata.getScale(colNum) == scale &&
           metadata.isSigned(colNum) == signed &&
           metadata.getColumnDisplaySize(colNum) == displaySize &&

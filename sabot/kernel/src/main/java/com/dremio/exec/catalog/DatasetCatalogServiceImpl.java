@@ -202,7 +202,7 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
       logger.error("NamespaceInvalidStateException", e);
       responseObserver.onError(Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asException());
     } catch (ConcurrentModificationException e) {
-      logger.error("ConcurrentModificationException", e);
+      logger.debug("ConcurrentModificationException", e);
       responseObserver.onError(Status.ABORTED.withCause(e).withDescription(e.getMessage()).asException());
     } catch (UserException e) {
       logger.error("UserException", e);

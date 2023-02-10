@@ -41,28 +41,113 @@
       kind: "Column"
       label: "JOB"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_MAX(${1:BYTES})"
+      insertText: "BIN(${1:INT})"
       kind: "Function"
-      label: "$HISTOGRAM_MAX(???)"
+      label: "BIN(???)"
     functionContext:
       function:
-        description: "Returns the part of a string."
+        description: "Returns the portion of the STRING from the specified base expression starting at the specified characters."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "SUBSTRING"
         signatures:
-         - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex})"
-         - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.], NUMERIC[The length.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+         -
+          description: "Returns the substring starting from an offset."
+          parameters:
+           -
+            description: "Base expression to extract a substring from."
+            kind: "REGULAR"
+            name: "stringValue"
+            type: "CHARACTERS"
+           -
+            description: "The offset from which the substring starts."
+            kind: "REGULAR"
+            name: "offset"
+            type: "NUMERIC"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('dremio user 1 2 3', 12)"
+            result: "1 2 3"
+          snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex})"
+         -
+          description: "Returns the substring."
+          parameters:
+           -
+            description: "Base expression to extract substring from."
+            kind: "REGULAR"
+            name: "STRING_expression"
+            type: "CHARACTERS"
+           -
+            description: "The regex pattern to match for the start of the substring."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('dremio user 123', '[0-9]+')"
+            result: "123"
+         -
+          description: "Returns the substring starting from an offset for a certain length."
+          parameters:
+           -
+            description: "Base expression to extract subSTRING from."
+            kind: "REGULAR"
+            name: "STRING_expression"
+            type: "CHARACTERS"
+           -
+            description: "The offset from which the subSTRING starts."
+            kind: "REGULAR"
+            name: "offset"
+            type: "NUMERIC"
+           -
+            description: "The length limit of the subSTRING."
+            kind: "OPTIONAL"
+            name: "length"
+            type: "NUMERIC"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('base expression', 6, 4)"
+            result: "expr"
+          snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex} FOR ${3:length})"
       missingTypes:
        - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.], NUMERIC[The length.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+       -
+        description: "Returns the substring starting from an offset for a certain length."
+        parameters:
+         -
+          description: "Base expression to extract subSTRING from."
+          kind: "REGULAR"
+          name: "STRING_expression"
+          type: "CHARACTERS"
+         -
+          description: "The offset from which the subSTRING starts."
+          kind: "REGULAR"
+          name: "offset"
+          type: "NUMERIC"
+         -
+          description: "The length limit of the subSTRING."
+          kind: "OPTIONAL"
+          name: "length"
+          type: "NUMERIC"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT SUBSTRING('base expression', 6, 4)"
+          result: "expr"
+        snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex} FOR ${3:length})"
       suppliedParameterTypes:
         afterCursor:
          - "ANY"
@@ -126,15 +211,100 @@
       label: "SAL"
     functionContext:
       function:
-        description: "Returns the part of a string."
+        description: "Returns the portion of the STRING from the specified base expression starting at the specified characters."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "SUBSTRING"
         signatures:
-         - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex})"
-         - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.], NUMERIC[The length.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+         -
+          description: "Returns the substring starting from an offset."
+          parameters:
+           -
+            description: "Base expression to extract a substring from."
+            kind: "REGULAR"
+            name: "stringValue"
+            type: "CHARACTERS"
+           -
+            description: "The offset from which the substring starts."
+            kind: "REGULAR"
+            name: "offset"
+            type: "NUMERIC"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('dremio user 1 2 3', 12)"
+            result: "1 2 3"
+          snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex})"
+         -
+          description: "Returns the substring."
+          parameters:
+           -
+            description: "Base expression to extract substring from."
+            kind: "REGULAR"
+            name: "STRING_expression"
+            type: "CHARACTERS"
+           -
+            description: "The regex pattern to match for the start of the substring."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('dremio user 123', '[0-9]+')"
+            result: "123"
+         -
+          description: "Returns the substring starting from an offset for a certain length."
+          parameters:
+           -
+            description: "Base expression to extract subSTRING from."
+            kind: "REGULAR"
+            name: "STRING_expression"
+            type: "CHARACTERS"
+           -
+            description: "The offset from which the subSTRING starts."
+            kind: "REGULAR"
+            name: "offset"
+            type: "NUMERIC"
+           -
+            description: "The length limit of the subSTRING."
+            kind: "OPTIONAL"
+            name: "length"
+            type: "NUMERIC"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('base expression', 6, 4)"
+            result: "expr"
+          snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex} FOR ${3:length})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.], NUMERIC[The length.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+       -
+        description: "Returns the substring starting from an offset for a certain length."
+        parameters:
+         -
+          description: "Base expression to extract subSTRING from."
+          kind: "REGULAR"
+          name: "STRING_expression"
+          type: "CHARACTERS"
+         -
+          description: "The offset from which the subSTRING starts."
+          kind: "REGULAR"
+          name: "offset"
+          type: "NUMERIC"
+         -
+          description: "The length limit of the subSTRING."
+          kind: "OPTIONAL"
+          name: "length"
+          type: "NUMERIC"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT SUBSTRING('base expression', 6, 4)"
+          result: "expr"
+        snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex} FOR ${3:length})"
       suppliedParameterTypes:
         afterCursor:
          - "ANY"
@@ -198,15 +368,100 @@
       label: "SAL"
     functionContext:
       function:
-        description: "Returns the part of a string."
+        description: "Returns the portion of the STRING from the specified base expression starting at the specified characters."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "SUBSTRING"
         signatures:
-         - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex})"
-         - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.], NUMERIC[The length.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+         -
+          description: "Returns the substring starting from an offset."
+          parameters:
+           -
+            description: "Base expression to extract a substring from."
+            kind: "REGULAR"
+            name: "stringValue"
+            type: "CHARACTERS"
+           -
+            description: "The offset from which the substring starts."
+            kind: "REGULAR"
+            name: "offset"
+            type: "NUMERIC"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('dremio user 1 2 3', 12)"
+            result: "1 2 3"
+          snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex})"
+         -
+          description: "Returns the substring."
+          parameters:
+           -
+            description: "Base expression to extract substring from."
+            kind: "REGULAR"
+            name: "STRING_expression"
+            type: "CHARACTERS"
+           -
+            description: "The regex pattern to match for the start of the substring."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('dremio user 123', '[0-9]+')"
+            result: "123"
+         -
+          description: "Returns the substring starting from an offset for a certain length."
+          parameters:
+           -
+            description: "Base expression to extract subSTRING from."
+            kind: "REGULAR"
+            name: "STRING_expression"
+            type: "CHARACTERS"
+           -
+            description: "The offset from which the subSTRING starts."
+            kind: "REGULAR"
+            name: "offset"
+            type: "NUMERIC"
+           -
+            description: "The length limit of the subSTRING."
+            kind: "OPTIONAL"
+            name: "length"
+            type: "NUMERIC"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT SUBSTRING('base expression', 6, 4)"
+            result: "expr"
+          snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex} FOR ${3:length})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(CHARACTERS[The string to take the substring of.], NUMERIC[The start index.], NUMERIC[The length.]) -> CHARACTERS\n\tSUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+       -
+        description: "Returns the substring starting from an offset for a certain length."
+        parameters:
+         -
+          description: "Base expression to extract subSTRING from."
+          kind: "REGULAR"
+          name: "STRING_expression"
+          type: "CHARACTERS"
+         -
+          description: "The offset from which the subSTRING starts."
+          kind: "REGULAR"
+          name: "offset"
+          type: "NUMERIC"
+         -
+          description: "The length limit of the subSTRING."
+          kind: "OPTIONAL"
+          name: "length"
+          type: "NUMERIC"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT SUBSTRING('base expression', 6, 4)"
+          result: "expr"
+        snippetOverride: "SUBSTRING(${1:stringValue} FROM ${2:startIndex} FOR ${3:length})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -219,66 +474,26 @@
   output:
     completions:
      -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
+      kind: "Keyword"
+      label: "SELECT"
      -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
+      kind: "Keyword"
+      label: ")"
      -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
+      kind: "Keyword"
+      label: "VALUES"
      -
-      data:
-        column:
-          name: "MGR"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.MGR"
-      kind: "Column"
-      label: "MGR"
+      kind: "Keyword"
+      label: "*"
      -
-      data:
-        column:
-          name: "SAL"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.SAL"
-      kind: "Column"
-      label: "SAL"
+      kind: "Keyword"
+      label: "CASE"
     functionContext:
       function:
         name: "BITWISE_AND"
-        signatures:
-         - "(NUMERIC, INT) -> INT"
-         - "(NUMERIC, BIGINT) -> BIGINT"
-      missingTypes:
-       - "NUMERIC"
-      signaturesMatched:
-       - "(NUMERIC, INT) -> INT"
-       - "(NUMERIC, BIGINT) -> BIGINT"
+        signatures: []
+      missingTypes: []
+      signaturesMatched: []
       suppliedParameterTypes:
         afterCursor:
          - "ANY"
@@ -290,67 +505,26 @@
   output:
     completions:
      -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
+      kind: "Keyword"
+      label: "("
      -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
+      kind: "Keyword"
+      label: "MULTISET"
      -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
+      kind: "Keyword"
+      label: "+"
      -
-      data:
-        column:
-          name: "MGR"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.MGR"
-      kind: "Column"
-      label: "MGR"
+      kind: "Keyword"
+      label: "-"
      -
-      data:
-        column:
-          name: "SAL"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.SAL"
-      kind: "Column"
-      label: "SAL"
+      kind: "Keyword"
+      label: "?"
     functionContext:
       function:
         name: "BITWISE_AND"
-        signatures:
-         - "(NUMERIC, INT) -> INT"
-         - "(NUMERIC, BIGINT) -> BIGINT"
-      missingTypes:
-       - "INT"
-       - "BIGINT"
-      signaturesMatched:
-       - "(NUMERIC, INT) -> INT"
-       - "(NUMERIC, BIGINT) -> BIGINT"
+        signatures: []
+      missingTypes: []
+      signaturesMatched: []
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:

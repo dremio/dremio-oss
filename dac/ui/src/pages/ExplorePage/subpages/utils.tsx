@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
+import { showNavCrumbs } from "@inject/components/NavCrumbs/NavCrumbs";
+import { memoOne } from "@app/utils/memoUtils";
 import { cloneDeep } from "lodash";
 import { FormattedMessage } from "react-intl";
 import { QueryStatusType } from "../components/SqlEditor/SqlQueryTabs/utils";
+import { EXPLORE_PAGE_MIN_HEIGHT } from "../ExplorePage";
+import { JOB_STATUS } from "../components/ExploreTable/constants";
 
 type StatusObjectType = {
   renderIcon?: string;
@@ -27,13 +31,14 @@ type StatusObjectType = {
   buttonAlt?: string;
   ranJob?: boolean;
   error?: any;
+  showGraph?: boolean;
 };
 
 export const assemblePendingOrRunningTabContent = (
   queryStatuses: QueryStatusType[],
   statusesArray: string[],
-  newQueryStatuses: (statuses: { statuses: QueryStatusType[] }) => {},
-  cancelJob: (jobId: string | undefined) => {},
+  newQueryStatuses: (statuses: { statuses: QueryStatusType[] }) => void,
+  cancelJob: (jobId: string | undefined) => void,
   cancelPendingSql: (index: number) => void
 ) => {
   const tabStatusArr = queryStatuses.map((query, index) => {
@@ -61,6 +66,19 @@ export const assemblePendingOrRunningTabContent = (
       obj.text = <FormattedMessage id="NewQuery.Removed" />;
     } else if (query.error) {
       obj.error = query.error;
+    } else if (
+      [
+        JOB_STATUS.pending,
+        JOB_STATUS.metadataRetrieval,
+        JOB_STATUS.planning,
+        JOB_STATUS.engineStart,
+        JOB_STATUS.queued,
+        JOB_STATUS.executionPlanning,
+        JOB_STATUS.starting,
+        JOB_STATUS.running,
+      ].includes(statusesArray[index])
+    ) {
+      obj.showGraph = true;
     } else {
       return;
     }
@@ -70,3 +88,21 @@ export const assemblePendingOrRunningTabContent = (
 
   return tabStatusArr;
 };
+
+const EXPLORE_HEADER_HEIGHT = 54;
+const NAV_CRUMBS_HEIGHT = 40;
+
+export const getExploreContentHeight = memoOne((offsetHeight, windowHeight) => {
+  let contentHeight =
+    windowHeight <= EXPLORE_PAGE_MIN_HEIGHT
+      ? EXPLORE_PAGE_MIN_HEIGHT
+      : windowHeight;
+
+  if (offsetHeight) {
+    contentHeight = contentHeight - offsetHeight;
+  }
+  if (showNavCrumbs) {
+    contentHeight = contentHeight - NAV_CRUMBS_HEIGHT;
+  }
+  return contentHeight - EXPLORE_HEADER_HEIGHT;
+});

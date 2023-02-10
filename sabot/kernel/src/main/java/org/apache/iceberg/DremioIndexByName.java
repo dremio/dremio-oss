@@ -79,11 +79,6 @@ public class DremioIndexByName extends TypeUtil.CustomOrderSchemaVisitor<Map<Str
       addField(field.name(), field.fieldId());
     }
 
-    if (map.valueType().isStructType()) {
-      // return to avoid errorprone failure
-      return valueResult.get();
-    }
-
     withName("value", valueResult::get);
 
     return null;

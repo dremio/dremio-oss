@@ -25,17 +25,17 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceService;
 
 /**
  * Resource to create tableau exports for a given dataset
@@ -44,7 +44,7 @@ import com.dremio.service.namespace.NamespaceService;
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
-@Path("/tableau/{datasetId}")
+@Path("/tableau/{path: .*}")
 @Options
 public class TableauResource extends BaseBIToolResource {
   // Special option for enabling the Tableau TDS endpoint.
@@ -53,21 +53,22 @@ public class TableauResource extends BaseBIToolResource {
 
   @Inject
   public TableauResource(
-      NamespaceService namespace,
-      ProjectOptionManager optionManager,
-      @PathParam("datasetId") String datasetId) {
-    super(namespace, optionManager, datasetId);
+    ProjectOptionManager optionManager,
+    DatasetCatalog datasetCatalog,
+    @PathParam("path") String path,
+    @QueryParam("refType") String refType,
+    @QueryParam("refValue") String refValue) {
+    super(optionManager, datasetCatalog, path, refType, refValue);
   }
 
   /**
    * returns a Tableau export for the dataset
    * @return
    * @throws DatasetNotFoundException
-   * @throws NamespaceException
    */
   @GET
   @Produces({APPLICATION_TDS, APPLICATION_TDS_DRILL})
-  public Response get(@HeaderParam(HttpHeaders.HOST) String host) throws DatasetNotFoundException, NamespaceException {
+  public Response get(@HeaderParam(HttpHeaders.HOST) String host) throws DatasetNotFoundException {
     return getWithHostHelper(host);
   }
 

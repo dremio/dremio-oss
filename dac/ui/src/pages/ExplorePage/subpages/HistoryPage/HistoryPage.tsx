@@ -23,10 +23,14 @@ import { NessieRootState } from "@app/types/nessie";
 import { getSortedSources } from "@app/selectors/home";
 import { withRouter, WithRouterProps } from "react-router";
 import { getTableAndNamespace } from "./utils";
-import { getSourceByName } from "@app/utils/nessieUtils";
+import {
+  getEndpointFromSourceConfig,
+  getSourceByName,
+} from "@app/utils/nessieUtils";
 import TableHistoryContent from "@app/pages/NessieHomePage/components/TableDetailsPage/components/TableHistoryContent/TableHistoryContent";
-import { fetchDefaultReference as fetchDefaultReferenceAction } from "@app/actions/nessie/nessie";
-import { useEffect } from "react";
+import { fetchDefaultReferenceIfNeeded as fetchDefaultReferenceAction } from "@app/actions/nessie/nessie";
+import { useEffect, useMemo } from "react";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import "./HistoryPage.less";
 
@@ -46,10 +50,15 @@ function HistoryPage({
   fetchDefaultReference,
 }: ConnectedProps & WithRouterProps) {
   const config = source?.config;
-  const endpoint = config?.nessieEndpoint;
-  const context = createNessieContext(
-    { id: source?.id, name: source?.name, endpoint },
-    nessie
+
+  const endpoint = getEndpointFromSourceConfig(config);
+  const context = useMemo(
+    () =>
+      createNessieContext(
+        { id: source?.id, name: source?.name, endpoint },
+        nessie
+      ),
+    [endpoint, nessie, source?.name, source?.id]
   );
 
   useEffect(() => {
@@ -66,7 +75,9 @@ function HistoryPage({
 }
 
 const mapStateToProps = (state: any, { location }: WithRouterProps) => {
-  const [sourceName, namespaceString] = getTableAndNamespace(location.pathname);
+  const [sourceName, namespaceString] = getTableAndNamespace(
+    rmProjectBase(location.pathname)
+  );
   const namespace = (namespaceString || "").split(".");
   namespace.pop();
   const sources = getSortedSources(state);

@@ -18,9 +18,9 @@ package com.dremio.exec.expr.fn.impl;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.arrow.memory.ArrowBuf;
 
@@ -154,7 +154,7 @@ public class CharSequenceWrapper implements CharSequence {
       charBuffer = CharBuffer.allocate(INITIAL_CHAR_BUF);
     }
     if (decoder == null) {
-      decoder = Charset.forName("UTF-8").newDecoder();
+      decoder = StandardCharsets.UTF_8.newDecoder();
     }
   }
 

@@ -114,7 +114,7 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
     # netty options
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=0 -Dio.netty.tryReflectionSetAccessible=true"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=${DREMIO_NETTY_MAX_DIRECT_MEMORY:-0} -Dio.netty.tryReflectionSetAccessible=true"
     # MapRFS specific options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -DMAPR_IMPALA_RA_THROTTLE -DMAPR_MAX_RA_STREAMS=${MAPR_MAX_RA_STREAMS:-400}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_GC_OPTS"

@@ -159,7 +159,7 @@ export const SOURCES_LIST_LOAD_SUCCESS = "SOURCES_LIST_LOAD_SUCCESS";
 export const SOURCES_LIST_LOAD_FAILURE = "SOURCES_LIST_LOAD_FAILURE";
 
 function fetchSourceListData(includeDatasetCount = false) {
-  const meta = { viewId: "AllSources", mergeEntities: true };
+  const meta = { viewId: "AllSources", replaceEntities: true };
 
   const apiCall = new APIV2Call()
     .path("sources")
@@ -173,7 +173,11 @@ function fetchSourceListData(includeDatasetCount = false) {
         schemaUtils.getSuccessActionTypeWithSchema(
           SOURCES_LIST_LOAD_SUCCESS,
           { sources: arrayOf(sourceSchema) },
-          meta
+          meta,
+          undefined,
+          undefined,
+          undefined,
+          sourceSchema._key
         ),
         { type: SOURCES_LIST_LOAD_FAILURE, meta },
       ],

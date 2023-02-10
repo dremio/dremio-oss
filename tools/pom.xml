@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
 
   <groupId>com.dremio.tools</groupId>
@@ -40,4 +40,17 @@
     <module>redis-test-runner</module>
     <module>protostuff-maven-plugin</module>
   </modules>
+
+  <profiles>
+    <profile>
+      <id>jdk11-or-higher</id>
+      <activation>
+        <jdk>[11,)</jdk>
+      </activation>
+      <modules>
+        <module>errorprone-dremio</module>
+      </modules>
+    </profile>
+  </profiles>
+
 </project>

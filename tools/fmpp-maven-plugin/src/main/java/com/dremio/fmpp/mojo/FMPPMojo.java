@@ -47,7 +47,7 @@ import fmpp.util.MiscUtil;
  * a maven plugin to run the freemarker generation incrementally
  * (if output has not changed, the files are not touched)
  */
-@Mojo(name = "generate", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+@Mojo(name = "generate", defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true)
 public class FMPPMojo extends AbstractMojo {
 
   /**

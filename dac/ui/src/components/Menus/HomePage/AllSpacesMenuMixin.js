@@ -17,6 +17,7 @@ import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
 import MenuItemLink from "components/Menus/MenuItemLink";
 import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
+import { FormattedMessage } from "react-intl";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -31,7 +32,7 @@ export default function (input) {
               {(link) => (
                 <MenuItemLink
                   href={link}
-                  text={la("Browse")}
+                  text={<FormattedMessage id="Dataset.Browse" />}
                   closeMenu={closeMenu}
                 />
               )}
@@ -43,13 +44,13 @@ export default function (input) {
                 ...location,
                 state: { modal: "SpaceModal", entityId: spaceId },
               }}
-              text={la("Edit Details")}
+              text={<FormattedMessage id="Common.Settings" />}
               closeMenu={closeMenu}
             />
           }
           {
             <MenuItem onClick={this.handleRemoveSpace}>
-              {la("Remove Space")}
+              {<FormattedMessage id="Space.RemoveSpace" />}
             </MenuItem>
           }
         </Menu>

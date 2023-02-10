@@ -16,7 +16,7 @@
 import { Fragment, PureComponent } from "react";
 import PropTypes from "prop-types";
 import moment from "@app/utils/dayjs";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import { SelectView } from "@app/components/Fields/SelectView";
 import FontIcon from "components/Icon/FontIcon";

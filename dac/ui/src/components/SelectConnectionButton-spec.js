@@ -24,7 +24,7 @@ describe("SelectConnectionButton", () => {
   beforeEach(() => {
     minimalProps = {
       label: "foo label",
-      iconType: "foo",
+      dremioIcon: "sources/ADL",
     };
     commonProps = {
       ...minimalProps,
@@ -39,8 +39,8 @@ describe("SelectConnectionButton", () => {
 
   it("should render label and icon", () => {
     expect(wrapper.text()).to.contain(commonProps.label);
-    expect(wrapper.find("SourceIcon").props().src).to.equal(
-      `${commonProps.iconType}.svg`
+    expect(wrapper.find("SourceIcon").props().dremioIcon).to.equal(
+      "sources/ADL"
     );
   });
 

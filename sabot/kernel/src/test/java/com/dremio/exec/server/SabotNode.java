@@ -81,7 +81,7 @@ import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
-import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManager;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionService;
 import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ForemenTool;
@@ -624,7 +624,7 @@ public class SabotNode implements AutoCloseable {
         bind(StatisticsService.class).toInstance(StatisticsService.MOCK_STATISTICS_SERVICE);
         bind(StatisticsAdministrationService.Factory.class).toInstance((context) -> StatisticsService.MOCK_STATISTICS_SERVICE);
         bind(StatisticsListManager.class).toProvider(Providers.of(null));
-        bind(UserDefinedFunctionListManager.class).toProvider(Providers.of(null));
+        bind(UserDefinedFunctionService.class).toProvider(Providers.of(null));
         bind(RelMetadataQuerySupplier.class).toInstance(DremioRelMetadataQuery.getSupplier(StatisticsService.MOCK_STATISTICS_SERVICE));
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -732,7 +732,7 @@ public class SabotNode implements AutoCloseable {
             Provider<StatisticsService> statisticsService,
             Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
             Provider<StatisticsListManager> statisticsListManagerProvider,
-            Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider,
+            Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider,
             Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
             Provider<SimpleJobRunner> jobsRunnerProvider,
             Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,

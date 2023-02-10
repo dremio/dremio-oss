@@ -110,7 +110,7 @@ public class SchemaAggTableFunction extends AbstractTableFunction implements Sup
     try {
       this.reconciledSchema = reconciledSchema.mergeWithUpPromotion(currentSchema, this);
     } catch (NoSupportedUpPromotionOrCoercionException e) {
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+      throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
     }
     logger.debug("Merged schema after processing row {} is {}", startOutIndex, reconciledSchema.toJSONString());
     if (reconciledSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {

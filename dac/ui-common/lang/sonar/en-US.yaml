@@ -1,0 +1,97 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+Sonar.Datasets.Label: Datasets
+Sonar.Jobs.Label: Jobs
+Sonar.Job.Status.NotSubmitted: Not Submitted
+Sonar.Job.Status.Starting: Starting
+Sonar.Job.Status.Running: Running
+Sonar.Job.Status.Completed: Completed
+Sonar.Job.Status.Canceled: Canceled
+Sonar.Job.Status.Failed: Failed
+Sonar.Job.Status.CancellationRequested: Cancellation Requested
+Sonar.Job.Status.Enqueued: Enqueued
+Sonar.Job.Status.Pending: Pending
+Sonar.Job.Status.MetadataRetrieval: Metadata Retrieval
+Sonar.Job.Status.Planning: Planning
+Sonar.Job.Status.EngineStart: Engine Starting
+Sonar.Job.Status.Queued: Queued
+Sonar.Job.Status.ExecutionPlanning: Execution Planning
+Sonar.Scripts.Label: Scripts
+Sonar.Search: Search Spaces and Datasets
+Sonar.Source.Add: Add Source
+Sonar.Sql.Label: SQL Runner
+Sonar.Description: Sonar is a lakehouse query engine that lets analysts explore data with sub-second query response times and allows data engineers to ingest and transform data with DML operations. Additionally, Sonar connects to external databases so you don't have to move all your data into object storage in order to query it.
+Sonar.Project.AddFirst: Add your first project
+Sonar.Tagline: Explore data with sub-second query response times
+Sonar.Reflection.Remove: Remove Reflection
+Sonar.Reflection.Remove.Prompt: Are you sure you want to remove Reflection “{reflectionName}”?
+Sonar.Reflection.RefreshStatus.SCHEDULED: Scheduled
+Sonar.Reflection.RefreshStatus.GIVEN_UP: Given up
+Sonar.Reflection.RefreshStatus.MANUAL: Manual
+Sonar.Reflection.RefreshStatus.RUNNING: Running
+Sonar.Reflection.RefreshMethod.FULL: Full
+Sonar.Reflection.RefreshMethod.NONE: None
+Sonar.Reflection.RefreshMethod.INCREMENTAL: Incremental
+Sonar.Reflection.LostFieldsPreamble: "The following {fieldNames} column(s) are no longer a part of the dataset and will be removed from the reflection:"
+Sonar.Reflection.StatusDisabled: Reflection is disabled.
+Sonar.Reflection.StatusInvalidConfiguration: "{status}\n\nReflection configuration is outdated. Please re-configure."
+Sonar.Reflection.StatusFailedFinal: "{status}\n\nMultiple attempts to build Reflection failed, will not reattempt."
+Sonar.Reflection.StatusIncomplete: "{status}\n\nMost recent version of the reflection is unreachable."
+Sonar.Reflection.StatusExpired: "{status}\n\nMost recent version of the reflection is expired."
+Sonar.Reflection.StatusRefreshing: "{status}\n\nA refresh job is currently running."
+Sonar.Reflection.StatusBuilding: "{status}\n\nReflection in progress."
+Sonar.Reflection.StatusFailedNonFinal: "{status}\n\n{failCount} refresh job attempts failed, will reattempt."
+Sonar.Reflection.StatusFailedNoReattempt: "{status}\n\n{failCount} refresh job attempts failed, will not reattempt."
+Sonar.Reflection.StatusManual: "{status}\n\nReflection is configured to never refresh."
+Sonar.Reflection.StatusCanAccelerate: "Reflection can accelerate."
+Sonar.Reflection.StatusCannotAccelerate: "Reflection cannot accelerate."
+Sonar.Reflection.Scheduled: "Reflection refresh is scheduled according to the dataset refresh policies."
+Sonar.Reflection.AccelerationStatus.INVALID.Hint: "Reflection’s definition has an invalid configuration because the underlying dataset has changed."
+Sonar.Reflection.AccelerationStatus.DISABLED.Hint: "Reflection has been manually disabled and will not be used to accelerate queries."
+Sonar.Reflection.AccelerationStatus.AVAILABLE.Hint: "Reflection can accelerate queries."
+Sonar.Reflection.AccelerationStatus.NONE.Hint: "Reflection is not available to accelerate queries because it is new, has zero records or requires manual refresh/reactivation."
+Sonar.Reflection.AccelerationStatus.EXPIRED.Hint: "Reflection has expired based on the refresh policy of the queried dataset. Expired reflection cannot accelerate queries."
+Sonar.Reflection.RefreshStatus.SCHEDULED.Hint: "Refreshes of the reflection occur according to the schedule defined in the refresh policy of the queried dataset."
+Sonar.Reflection.RefreshStatus.GIVEN_UP.Hint: "Multiple attempts to refresh the reflection have failed. Dremio will not make further attempts and require user reactivation."
+Sonar.Reflection.RefreshStatus.MANUAL.Hint: "The refresh policy of the queried dataset is set to never refresh, so refresh must be triggered manually."
+Sonar.Reflection.RefreshStatus.RUNNING.Hint: "Dremio is in the process of refreshing the reflection."
+Sonar.Reflection.Column.Name.Label: "Name"
+Sonar.Reflection.Column.Type.Label: "Type"
+Sonar.Reflection.Column.Dataset.Label: "Dataset"
+Sonar.Reflection.Column.RefreshStatus.Label: "Refresh Status"
+Sonar.Reflection.Column.RefreshStatus.Hint: "Refresh status based on refresh policy."
+Sonar.Reflection.Column.CurrentFootprint.Label: "Current Footprint"
+Sonar.Reflection.Column.CurrentFootprint.Hint: "Size of the current reflection."
+Sonar.Reflection.Column.TotalFootprint.Label: "Total Footprint"
+Sonar.Reflection.Column.TotalFootprint.Hint: "Total size of this reflection across all refreshes."
+Sonar.Reflection.Column.LastRefreshDuration.Label: "Last Refresh Duration"
+Sonar.Reflection.Column.LastRefreshDuration.Hint: "Time taken to build the current reflection."
+Sonar.Reflection.Column.RefreshMethod.Label: "Refresh Method"
+Sonar.Reflection.Column.RefreshMethod.Hint: "Refresh method based on refresh policy or the view definition."
+Sonar.Reflection.Column.AvailableUntil.Label: "Available Until"
+Sonar.Reflection.Column.AvailableUntil.Hint: "Time at which the reflection will expire based on the refresh policy."
+Sonar.Reflection.Column.RecordCount.Label: "Record Count"
+Sonar.Reflection.Column.RecordCount.Hint: "Number of records in the current reflection."
+Sonar.Reflection.Column.ConsideredCount.Label: "Considered Count"
+Sonar.Reflection.Column.ConsideredCount.Hint: "Number of jobs that considered this reflection in the planning phase."
+Sonar.Reflection.Column.MatchedCount.Label: "Matched Count"
+Sonar.Reflection.Column.MatchedCount.Hint: "Number of jobs that matched this reflection in the planning phase."
+Sonar.Reflection.Column.AcceleratedCount.Label: "Accelerated Count"
+Sonar.Reflection.Column.AcceleratedCount.Hint: "Number of user jobs that were accelerated by the reflection."
+Sonar.Reflection.Column.RefreshHistory.Label: "Refresh Job History"
+Sonar.Reflection.Column.RefreshHistory.Link: "History"

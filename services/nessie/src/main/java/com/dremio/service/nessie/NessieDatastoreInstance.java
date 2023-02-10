@@ -32,10 +32,13 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
 
   private KVStore<String, byte[]> repoDescription;
   private KVStore<String, byte[]> globalPointer;
+  private KVStore<String, byte[]> namedRefHeads;
+  private KVStore<String, byte[]> refNames;
   private KVStore<String, byte[]> globalLog;
   private KVStore<String, byte[]> commitLog;
+  private KVStore<String, byte[]> attachments;
+  private KVStore<String, byte[]> attachmentKeys;
   private KVStore<String, byte[]> keyList;
-  private KVStore<String, byte[]> refLog;
 
   private DatastoreDbConfig config;
 
@@ -54,10 +57,13 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
     Provider<KVStoreProvider> kvStoreProvider = config.getStoreProvider();
     repoDescription = kvStoreProvider.get().getStore(NessieRepoDescriptionStoreBuilder.class);
     globalPointer = kvStoreProvider.get().getStore(NessieGlobalPointerStoreBuilder.class);
+    namedRefHeads = kvStoreProvider.get().getStore(NessieNamedRefHeadsStoreBuilder.class);
+    refNames = kvStoreProvider.get().getStore(NessieRefNamesStoreBuilder.class);
     globalLog = kvStoreProvider.get().getStore(NessieGlobalLogStoreBuilder.class);
     commitLog = kvStoreProvider.get().getStore(NessieCommitLogStoreBuilder.class);
+    attachments = kvStoreProvider.get().getStore(NessieAttachmentsStoreBuilder.class);
+    attachmentKeys = kvStoreProvider.get().getStore(NessieAttachmentKeysStoreBuilder.class);
     keyList = kvStoreProvider.get().getStore(NessieKeyListStoreBuilder.class);
-    refLog = kvStoreProvider.get().getStore(NessieRefLogStoreBuilder.class);
   }
 
   @Override
@@ -80,12 +86,24 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
     return globalPointer;
   }
 
-  public KVStore<String, byte[]> getKeyList() {
-    return keyList;
+  public KVStore<String, byte[]> getAttachments() {
+    return attachments;
   }
 
-  public KVStore<String, byte[]> getRefLog() {
-    return refLog;
+  public KVStore<String, byte[]> getAttachmentKeys() {
+    return attachmentKeys;
+  }
+
+  public KVStore<String, byte[]> getNamedRefHeads() {
+    return namedRefHeads;
+  }
+
+  public KVStore<String, byte[]> getRefNames() {
+    return refNames;
+  }
+
+  public KVStore<String, byte[]> getKeyList() {
+    return keyList;
   }
 
   public ReadWriteLock getLock() {

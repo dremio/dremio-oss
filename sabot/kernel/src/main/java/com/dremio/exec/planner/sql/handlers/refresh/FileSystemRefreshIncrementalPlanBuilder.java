@@ -103,9 +103,11 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
     final FileSystemPlugin<?> metaStoragePlugin = config.getContext().getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
     List<String> paths = isPartialRefresh ? generatePathsForPartialRefresh() : Collections.emptyList();
 
-    return new DirListingInvocationPrel(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL),
-      table, storagePluginId, refreshExecTableMetadata,
-      1.0d, metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh, metadataProvider, paths, x -> getRowCountEstimates("DirList"), ImmutableList.of());
+    return new DirListingInvocationPrel(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL), table,
+                                        storagePluginId, refreshExecTableMetadata, 1.0d, ImmutableList.of(),
+                                        metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh,
+                                        metadataProvider, paths, x -> getRowCountEstimates("DirList"),
+                                        ImmutableList.of());
   }
 
   public Prel getDirListToFooterReadExchange(Prel child) {

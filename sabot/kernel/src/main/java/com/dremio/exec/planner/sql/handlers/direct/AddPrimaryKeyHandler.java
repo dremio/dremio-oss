@@ -32,9 +32,6 @@ import com.google.common.collect.Lists;
  * Adds primary key info to the table metadata
  */
 public class AddPrimaryKeyHandler extends SimpleDirectHandler {
-
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AddPrimaryKeyHandler.class);
-
   private final Catalog catalog;
 
   public AddPrimaryKeyHandler(Catalog catalog) {

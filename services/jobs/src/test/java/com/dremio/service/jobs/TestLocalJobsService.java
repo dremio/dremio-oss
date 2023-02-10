@@ -134,7 +134,7 @@ public class TestLocalJobsService {
       return new JobSubmission().setJobId(new JobId("foo"));
     }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
 
-    spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name());
+    spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name(), null);
   }
 
   @Test
@@ -147,11 +147,12 @@ public class TestLocalJobsService {
       return new JobSubmission().setJobId(new JobId("foo"));
     }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
 
-    assertThatThrownBy(() -> spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name()))
+    assertThatThrownBy(() -> spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name(), null))
       .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void runQueryAsJobFailure() {
     final LocalJobsService spy = spy(localJobsService);
     doAnswer((Answer<JobSubmission>) invocationOnMock -> {
@@ -159,7 +160,7 @@ public class TestLocalJobsService {
       return JobSubmission.getDefaultInstance();
     }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
 
-    assertThatThrownBy(() -> spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name()))
+    assertThatThrownBy(() -> spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name(), null))
       .isInstanceOf(IllegalStateException.class)
       .hasCauseInstanceOf(NumberFormatException.class);
   }

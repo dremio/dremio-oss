@@ -17,6 +17,9 @@ package com.dremio.plugins.elastic;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.server.SabotContext;
@@ -24,6 +27,7 @@ import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticMapping;
 
 public class ElasticDatasetHandle implements DatasetHandle {
+  private static final Logger logger = LoggerFactory.getLogger(ElasticDatasetHandle.class);
 
   private final EntityPath name;
   private final ElasticConnection connection;
@@ -42,6 +46,7 @@ public class ElasticDatasetHandle implements DatasetHandle {
     List<String> aliasIndices,
     boolean alias
     ) {
+    logger.debug("Create dataset handle for {}, mapping {}, alias indices {}", name, mapping, aliasIndices);
     this.name = name;
     this.connection = connection;
     this.context = context;

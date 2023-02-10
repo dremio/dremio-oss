@@ -288,6 +288,14 @@ export class LocalStorageUtils {
   isQueryEngine() {
     return false;
   }
+
+  setProjectSwitcherState(state) {
+    localStorage.setItem("projectSwitcherState", state);
+  }
+
+  getProjectSwitcherState() {
+    return localStorage.getItem("projectSwitcherState");
+  }
 }
 
 // todo: this shouldn't export `undefined` - it should use an in-memory only store

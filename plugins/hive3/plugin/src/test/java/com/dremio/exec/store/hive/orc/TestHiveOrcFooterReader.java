@@ -62,34 +62,36 @@ public class TestHiveOrcFooterReader extends BaseTestQuery {
 
   @Test
   public void testOrcFooterReaderWithEstimate() throws Exception {
-    BatchSchema tableSchema = BatchSchema.of(
-            Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Int(32, true)),
-            Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Utf8()));
-    OperatorContext opCtx = getOpCtx();
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+    try (AutoCloseable ac = withSystemOption(ExecConstants.STORE_ACCURATE_PARTITION_STATS, false)) {
+      BatchSchema tableSchema = BatchSchema.of(
+        Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Int(32, true)),
+        Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Utf8()));
+      OperatorContext opCtx = getOpCtx();
+      FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    long fileSize = 280L;
-    double compressionFactor = 30f;
-    int recordSize = tableSchema.estimateRecordSize((int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
-            (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
-    HiveOrcFooterReader reader = new HiveOrcFooterReader(tableSchema, fs, opCtx);
-    Path fileRoot = Path.of(Resources.getResource("orc/").toURI());
-    String file1 = fileRoot.resolve("testsample1.orc").toString();
-    Footer footer = reader.getFooter(file1, fileSize);
-    assertEquals((long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
+      long fileSize = 280L;
+      double compressionFactor = 30f;
+      int recordSize = tableSchema.estimateRecordSize((int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
+        (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
+      HiveOrcFooterReader reader = new HiveOrcFooterReader(tableSchema, fs, opCtx);
+      Path fileRoot = Path.of(Resources.getResource("orc/").toURI());
+      String file1 = fileRoot.resolve("testsample1.orc").toString();
+      Footer footer = reader.getFooter(file1, fileSize);
+      assertEquals((long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
 
-    tableSchema = BatchSchema.of(
-            Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Utf8()),
-            Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Int(32, true)),
-            Field.nullablePrimitive("col3", new ArrowType.PrimitiveType.Bool())
-            );
-    fileSize = 372L;
-    recordSize = tableSchema.estimateRecordSize((int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
-            (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
-    String file2 = fileRoot.resolve("testsample2.orc").toString();
-    reader = new HiveOrcFooterReader(tableSchema, fs, opCtx);
-    footer = reader.getFooter(file2, fileSize);
-    assertEquals((long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
+      tableSchema = BatchSchema.of(
+        Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Utf8()),
+        Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Int(32, true)),
+        Field.nullablePrimitive("col3", new ArrowType.PrimitiveType.Bool())
+      );
+      fileSize = 372L;
+      recordSize = tableSchema.estimateRecordSize((int) opCtx.getOptions().getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
+        (int) opCtx.getOptions().getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
+      String file2 = fileRoot.resolve("testsample2.orc").toString();
+      reader = new HiveOrcFooterReader(tableSchema, fs, opCtx);
+      footer = reader.getFooter(file2, fileSize);
+      assertEquals((long) Math.ceil(fileSize * compressionFactor / recordSize), footer.getRowCount());
+    }
   }
 
   private OperatorContext getOpCtx() {

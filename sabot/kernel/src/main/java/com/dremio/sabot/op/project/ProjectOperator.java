@@ -70,6 +70,7 @@ import com.dremio.exec.record.VectorAccessibleComplexWriter;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.llvm.GandivaSecondaryCacheWithStats;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
 import com.dremio.sabot.op.project.ProjectorStats.Metric;
 import com.dremio.sabot.op.spi.SingleInputOperator;
@@ -99,6 +100,7 @@ public class ProjectOperator implements SingleInputOperator {
   private BatchSchema initialSchema;
   private Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
   private Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
+  private GandivaSecondaryCacheWithStats secondaryCache = null;
 
   public static enum EvalMode {DIRECT, COMPLEX, EVAL};
 
@@ -129,6 +131,11 @@ public class ProjectOperator implements SingleInputOperator {
 
     final IntHashSet transferFieldIds = new IntHashSet();
 
+    if (context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE)) {
+      // enable the secondary cache
+      secondaryCache = GandivaSecondaryCacheWithStats.createCache();
+    }
+
     List<NamedExpression> nonDirectExprs = new ArrayList<>();
     splitter = createSplitterWithExpressions(incoming, exprs, transfers, cg, transferFieldIds,
       context, projectorOptions, outgoing, null, nonDirectExprs);
@@ -137,7 +144,7 @@ public class ProjectOperator implements SingleInputOperator {
     outgoing.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
     initialSchema = outgoing.getSchema();
-    splitter.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+    splitter.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
     projector.setup(
@@ -163,6 +170,10 @@ public class ProjectOperator implements SingleInputOperator {
     stats.addLongStat(Metric.JAVA_EXPRESSIONS, splitter.getNumExprsInJava());
     stats.addLongStat(Metric.MIXED_EXPRESSIONS, splitter.getNumExprsInBoth());
     stats.addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
+    if (secondaryCache != null) {
+      stats.addLongStat(Metric.PERSISTENT_CACHE_READ_TIME, secondaryCache.getReadTime());
+      stats.addLongStat(Metric.BUILT_FROM_GANDIVA_CACHE, secondaryCache.getBuiltFromCache().ordinal());
+    }
     stats.setProfileDetails(OperatorProfileDetails
       .newBuilder()
       .addAllSplitInfos(splitter.getSplitInfos())

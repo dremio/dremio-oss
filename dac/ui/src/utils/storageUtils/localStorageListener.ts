@@ -23,7 +23,8 @@ type Listener = (event: StorageEvent) => void;
 const listeners: Listener[] = [];
 
 window.addEventListener("storage", (event) => {
-  if (event.storageArea != localStorage) return;
+  if (event.storageArea != localStorage && event.storageArea != sessionStorage)
+    return;
   for (let i = 0; i < listeners.length; i++) {
     listeners[i](event);
   }

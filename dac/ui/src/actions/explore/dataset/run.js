@@ -50,7 +50,7 @@ function fetchRunDataset(dataset, viewId, sessionId) {
       types: [
         { type: RUN_DATASET_START, meta },
         schemaUtils.getSuccessActionTypeWithSchema(
-          RUN_DATASET_SUCCESS,
+          RUN_DATASET_SUCCESS, // this action doesn't do anything, leaving here as a placeholder
           datasetWithoutData,
           meta
         ),

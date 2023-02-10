@@ -23,15 +23,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceInfo;
+import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.ImmutableKeyList;
 import org.projectnessie.versioned.persist.adapter.ImmutableKeyListEntry;
 import org.projectnessie.versioned.persist.adapter.KeyList;
+import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization;
 import org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
@@ -83,22 +85,23 @@ public class RebuildKeyList extends UpgradeTask {
         .setStoreProvider(() -> storeProvider)
         .build());
       store.initialize();
-      TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
       DatastoreDatabaseAdapter adapter = (DatastoreDatabaseAdapter) new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
         .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build())
-        .build(worker);
+        .build();
 
       // Only process main. Other branches in the Embedded Nessie are not utilized during runtime.
       ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
       // Find the most recent key list
       AtomicReference<List<Hash>> keyListIds = new AtomicReference<>();
-      DatabaseAdapterUtil.takeUntilExcludeLast(adapter.commitLog(main.getHash()), c -> keyListIds.get() != null)
-        .forEach(commitLogEntry -> {
-          if (!commitLogEntry.getKeyListsIds().isEmpty()) {
-            keyListIds.set(commitLogEntry.getKeyListsIds());
-          }
-        });
+      try (Stream<CommitLogEntry> log = adapter.commitLog(main.getHash())) {
+        DatabaseAdapterUtil.takeUntilExcludeLast(log, c -> keyListIds.get() != null)
+          .forEach(commitLogEntry -> {
+            if (!commitLogEntry.getKeyListsIds().isEmpty()) {
+              keyListIds.set(commitLogEntry.getKeyListsIds());
+            }
+          });
+      }
 
       if (keyListIds.get() == null) {
         AdminLogger.log("No key lists found.");
@@ -114,37 +117,48 @@ public class RebuildKeyList extends UpgradeTask {
         Document<String, byte[]> doc = store.getKeyList().get(adapter.dbKey(hash));
         KeyList keyList = ProtoSerialization.protoToKeyList(doc.getValue());
         keyLists.put(hash, keyList);
-        keyList.getKeys().forEach(keyListEntry -> activeKeys.add(keyListEntry.getKey()));
+        keyList.getKeys().forEach(keyListEntry -> {
+          if (keyListEntry != null) {
+            activeKeys.add(keyListEntry.getKey());
+          }
+        });
         AdminLogger.log("Loaded key list entity {}", hash);
       });
 
       // Find relevant commit IDs for active keys.
       Map<Key, Hash> activePuts = new HashMap<>();
       AtomicInteger numCommits = new AtomicInteger();
-      DatabaseAdapterUtil.takeUntilExcludeLast(adapter.commitLog(main.getHash()), c -> activeKeys.isEmpty())
-        .forEach(commitLogEntry -> commitLogEntry.getPuts().forEach(keyWithBytes -> {
-          // Find the most recent "put" for each active key.
-          if (activeKeys.remove(keyWithBytes.getKey())) {
-            activePuts.put(keyWithBytes.getKey(), commitLogEntry.getHash());
-          }
+      try (Stream<CommitLogEntry> log = adapter.commitLog(main.getHash())) {
+        DatabaseAdapterUtil.takeUntilExcludeLast(log, c -> activeKeys.isEmpty())
+          .forEach(commitLogEntry -> commitLogEntry.getPuts().forEach(keyWithBytes -> {
+            // Find the most recent "put" for each active key.
+            if (activeKeys.remove(keyWithBytes.getKey())) {
+              activePuts.put(keyWithBytes.getKey(), commitLogEntry.getHash());
+            }
 
-          if (numCommits.incrementAndGet() % PROGRESS_CYCLE == 0) {
-            AdminLogger.log("Processed {} commits. {} keys remain to be found.", numCommits.get(), activeKeys.size());
-          }
-        }));
+            if (numCommits.incrementAndGet() % PROGRESS_CYCLE == 0) {
+              AdminLogger.log("Processed {} commits. {} keys remain to be found.", numCommits.get(), activeKeys.size());
+            }
+          }));
+      }
 
-      // Update key list entities to ensure each entry has a commit ID.
+      // Update key list entities to ensure each non-null entry has a commit ID.
+      // Note: null entries are valid, they represent empty slots in open hashing key tables.
       keyLists.forEach((keyListHash, keyList) -> {
         ImmutableKeyList.Builder updated = ImmutableKeyList.builder();
         keyList.getKeys().forEach(keyListEntry -> {
-          Key key = keyListEntry.getKey();
-          Hash commitHash = activePuts.get(key);
-          if (commitHash == null) {
-            throw new IllegalStateException("Put not found for key: " + key);
-          }
+          if (keyListEntry == null) {
+            updated.addKeys((KeyListEntry) null);
+          } else {
+            Key key = keyListEntry.getKey();
+            Hash commitHash = activePuts.get(key);
+            if (commitHash == null) {
+              throw new IllegalStateException("Put not found for key: " + key);
+            }
 
-          // Use the latest put's commit hash in the key list entry.
-          updated.addKeys(ImmutableKeyListEntry.builder().from(keyListEntry).commitId(commitHash).build());
+            // Use the latest put's commit hash in the key list entry.
+            updated.addKeys(ImmutableKeyListEntry.builder().from(keyListEntry).commitId(commitHash).build());
+          }
         });
 
         // Overwrite the key list entity at the same hash.

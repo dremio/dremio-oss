@@ -18,19 +18,10 @@
 
 :global {
   .delete-branch-dialog {
-    .MuiDialog-paper {
-      width: 600px;
+    width: 600px;
 
-      .MuiDialogTitle-root,
-      .MuiDialogActions-root {
-        height: 55px;
-      }
-
-      .MuiDialogContent-root {
-        height: 150px;
-        padding-left: 16px;
-        padding-top: 24px;
-      }
+    .dremio-dialog-content__main {
+      height: 150px;
     }
 
     &-header {
@@ -52,11 +43,9 @@
     }
 
     &-body {
-      .MuiDialogContentText-root {
-        font-size: 14px;
-        font-weight: 400;
-        color: @DARK_900;
-      }
+      font-size: 14px;
+      font-weight: 400;
+      color: @DARK_900;
 
       &-error {
         color: #f44336;

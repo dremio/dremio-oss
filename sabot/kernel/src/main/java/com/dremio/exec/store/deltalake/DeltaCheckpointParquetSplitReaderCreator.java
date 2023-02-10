@@ -97,7 +97,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
         this.fs = fs;
     }
 
-    public RecordReader getParquetRecordReader(EasyScanOperatorCreator.SplitAndExtended input, boolean addWithPartitionCols) throws ExecutionSetupException{
+    public RecordReader getParquetRecordReader(FileSystem fs, EasyScanOperatorCreator.SplitAndExtended input, boolean addWithPartitionCols) throws ExecutionSetupException{
         final EasyProtobuf.EasyDatasetSplitXAttr easyXAttr = input.getExtended();
 
         if (!easyXAttr.getPath().endsWith("parquet")) {
@@ -108,19 +108,23 @@ public class DeltaCheckpointParquetSplitReaderCreator {
         List<SchemaPath> fieldsToRead = addWithPartitionCols ? easyConfig.getColumns() : removePartitionColumns(easyConfig.getColumns());
 
         try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
-            final ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetXAttr = toParquetXAttr(easyXAttr);
+          final ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetXAttr = toParquetXAttr(easyXAttr);
           final ParquetScanProjectedColumns projectedCols = ParquetScanProjectedColumns.fromSchemaPaths(fieldsToRead);
           final List<List<String>> referencedTables = ImmutableList.of(easyConfig.getTableSchemaPath());
           final List<String> dataset = referencedTables.isEmpty() ? null : referencedTables.iterator().next();
+          String parquetPath = parquetXAttr.getPath();
+          if (fs != null && !fs.supportsPathsWithScheme()) {
+            parquetPath = Path.getContainerSpecificRelativePath(Path.of(parquetPath));
+          }
 
-          if (!parquetXAttr.getPath().equals(lastPath)) {
+          if (!parquetPath.equals(lastPath)) {
             lastFooter = null;
           }
 
           final InputStreamProvider inputStreamProvider = inputStreamProviderFactory.create(
                     fs,
                     opCtx,
-                    Path.of(parquetXAttr.getPath()),
+                    Path.of(parquetPath),
                     parquetXAttr.getFileLength(),
                     parquetXAttr.getLength(),
                     projectedCols,
@@ -149,7 +153,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
                             autoCorrectCorruptDates));
 
           final ParquetSubScan parquetSubScanConfig = toParquetScanConfig(addWithPartitionCols, referencedTables,
-            fieldsToRead, footer, parquetXAttr.getPath(), SchemaDerivationHelper.builder().build()); // add mapDataTypeEnabled to support Map Type in CheckoutpointParquet
+            fieldsToRead, footer, parquetPath, SchemaDerivationHelper.builder().build()); // add mapDataTypeEnabled to support Map Type in CheckoutpointParquet
 
           schemaHelperBuilder.noSchemaLearning(parquetSubScanConfig.getFullSchema());
             SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();

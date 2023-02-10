@@ -26,6 +26,10 @@ import MenuItem from "@mui/material/MenuItem";
 import { IconButton, Tooltip } from "dremio-ui-lib";
 import { splitFullPath } from "utils/pathUtils";
 import CopyButton from "@app/components/Buttons/CopyButton";
+import {
+  rmProjectBase,
+  addProjectBase,
+} from "dremio-ui-common/utilities/projectBase.js";
 
 import "./BreadCrumbs.less";
 
@@ -126,7 +130,6 @@ const BreadCrumbs = ({
           <BreadCrumbItem longCrumbs={longCrumbs}>{lastCrumb}</BreadCrumbItem>
           {fullPath && showCopyButton && (
             <CopyButton
-              // @ts-ignore
               text={
                 includeQuotes
                   ? formatFullPath(fullPath).join(".")
@@ -211,7 +214,15 @@ const BreadCrumbs = ({
   const containerClasses = longCrumbs
     ? "Breadcrumbs"
     : "Breadcrumbs shortMaxWidth";
-  return <div className={containerClasses}>{renderPath()} </div>;
+  return (
+    <div
+      onMouseOver={(e) => e.stopPropagation()}
+      onFocus={(e) => e.stopPropagation()}
+      className={containerClasses}
+    >
+      {renderPath()}{" "}
+    </div>
+  );
 };
 
 export function getPathElements(
@@ -248,10 +259,11 @@ export function getPathElements(
     .toJS();
 }
 
+// TODO Use ui-common paths
 export function getPartialPath(index: number, fullPath: any, pathname: string) {
   // NOTE: This would be a lot easier if we had the parent container's url.
   // Instead we need to get the first part of the path (/space or /source) from the current location.pathname
-  const pathnameParts = pathname.split("/");
+  const pathnameParts = (rmProjectBase(pathname) || "/").split("/");
   const fullPathRoot = fullPath.get(index);
   let partialPath;
   if (index === 0) {
@@ -269,7 +281,7 @@ export function getPartialPath(index: number, fullPath: any, pathname: string) {
     )}/folder/${encodedFullPath.slice(1, index + 1).join("/")}`;
   }
 
-  return partialPath;
+  return addProjectBase(partialPath);
 }
 
 export default BreadCrumbs;

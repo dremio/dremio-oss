@@ -285,13 +285,9 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     if (schemaHelper.isMapDataTypeEnabled() && groupType.getOriginalType()==OriginalType.MAP && groupType.getFieldCount() == 1
       && groupType.getType(0).isRepetition(Repetition.REPEATED) && groupType.getType(0).asGroupType().getFieldCount() == 2) {
       boolean isEligible = true;
-      if (groupType.getType(0).asGroupType().getType(0).getOriginalType() != OriginalType.UTF8) {
+      if (!groupType.getType(0).asGroupType().getType(0).isPrimitive()) {
         isEligible = false;
-        logger.debug(String.format(" Key of map Field %s is not of VarChar (String) type or is a Complex Type", groupType.getName()));
-      }
-      if (!groupType.getType(0).asGroupType().getType(1).isPrimitive()) {
-        isEligible = false;
-        logger.debug(String.format(" Value of map Field %s is a Complex Type",groupType.getName()));
+        logger.debug(String.format(" Key of map Field %s is a Complex Type", groupType.getName()));
       }
       return isEligible;
     }

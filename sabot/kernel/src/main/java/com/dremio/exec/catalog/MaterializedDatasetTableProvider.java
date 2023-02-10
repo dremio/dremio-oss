@@ -34,8 +34,11 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.VersionedDatasetHandle;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Suppliers;
 
 /**
@@ -54,6 +57,7 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
   private final StoragePluginId pluginId;
   private final SchemaConfig schemaConfig;
   private final DatasetRetrievalOptions options;
+  private final OptionManager optionManager;
 
   public MaterializedDatasetTableProvider(
       DatasetConfig currentConfig,
@@ -61,14 +65,15 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
       StoragePlugin plugin,
       StoragePluginId pluginId,
       SchemaConfig schemaConfig,
-      DatasetRetrievalOptions options
-  ) {
+      DatasetRetrievalOptions options,
+      OptionManager optionManager) {
     this.currentConfig = currentConfig;
     this.handle = handle;
     this.plugin = plugin;
     this.pluginId = pluginId;
     this.schemaConfig = schemaConfig;
     this.options = options;
+    this.optionManager = optionManager;
   }
 
   @Override
@@ -84,7 +89,7 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
     final boolean timeTravel = options.getTimeTravelRequest() != null;
     return new MaterializedDatasetTable(MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath()), pluginId,
         schemaConfig.getUserName(), datasetConfig, partitionChunks,
-        schemaConfig.getOptions().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT), timeTravel);
+        optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT), timeTravel);
   }
 
   private PartitionChunkListing getPartitionChunkListing() {
@@ -122,7 +127,16 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
         .sum();
 
     final DatasetConfig toReturn = currentConfig != null ? currentConfig :
-        MetadataObjectsUtils.newShallowConfig(handle);
+      MetadataObjectsUtils.newShallowConfig(handle);
+    if (handle instanceof VersionedDatasetHandle) {
+      VersionedDatasetHandle versionedDatasetHandle = handle.unwrap(VersionedDatasetHandle.class);
+      VersionedDatasetId versionedDatasetId = new VersionedDatasetId(
+        handle.getDatasetPath().getComponents(),
+        versionedDatasetHandle.getContentId(),
+        TableVersionContext.of(this.options.versionedDatasetAccessOptions().getVersionContext()));
+      toReturn.setId(new EntityId(versionedDatasetId.asString()));
+
+    }
     final DatasetMetadata datasetMetadata;
     try {
       datasetMetadata = plugin.getDatasetMetadata(handle, listingSupplier.get(),

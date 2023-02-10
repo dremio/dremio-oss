@@ -1,0 +1,38 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Converts a binary string from the given data type to a Dremio type.
+functionCategories:
+- CONVERSION
+name: CONVERT_FROM
+signatures:
+- description: sample signature description
+  parameters:
+  - description: The binary string to convert to a Dremio data type.
+    kind: REGULAR
+    name: value_to_convert
+    type: BYTES
+  - description: The data type of the specified binary string.
+    kind: REGULAR
+    name: name_of_type
+    type: STRING
+  returnType: ANY
+  sampleCodes:
+  - call: SELECT CONVERT_FROM('["apple", "strawberry", "banana"]', 'json')
+    result: "[\"apple\", \"strawberry\", \"banana\"]"
+  - call: SELECT CONVERT_FROM('{"name":"Gnarly", "age":7, "car":null}', 'json')
+    result: '{"name:"Gnarly","age":7}'

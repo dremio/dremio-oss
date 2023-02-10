@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
@@ -63,6 +64,8 @@ import com.dremio.service.job.JobStats;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.StoreJobResultRequest;
 import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.UsedReflections;
+import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobFailureInfo;
@@ -73,7 +76,10 @@ import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.TableDatasetProfile;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -803,7 +809,8 @@ public final class JobsServiceUtil {
       .setStartTime(System.currentTimeMillis())
       .setDatasetPathList(jobRequest.getVersionedDataset().getPathList())
       .setResultMetadataList(new ArrayList<ArrowFileMetadata>())
-      .setContextList(jobRequest.getSqlQuery().getContextList());
+      .setContextList(jobRequest.getSqlQuery().getContextList())
+      .setQueryLabel(JobsProtoUtil.toStuff(jobRequest.getQueryLabel()));
 
     if (jobRequest.hasDownloadSettings()) {
       jobInfo.setDownloadInfo(new DownloadInfo()
@@ -853,5 +860,39 @@ public final class JobsServiceUtil {
   static AttemptEvent.State getLastEventState(JobSummary jobSummary) {
     int lastIndex = jobSummary.getStateListList().size() -1;
     return jobSummary.getStateList(lastIndex).getState();
+  }
+
+  static IndexKey getIndexKey(UsedReflections.UsageType usageType) {
+    if (usageType == UsedReflections.UsageType.CONSIDERED) {
+      return JobIndexKeys.CONSIDERED_REFLECTION_IDS;
+    } else if (usageType == UsedReflections.UsageType.MATCHED) {
+      return JobIndexKeys.MATCHED_REFLECTION_IDS;
+    } else {
+      return JobIndexKeys.CHOSEN_REFLECTION_IDS;
+    }
+  }
+
+  static SearchQuery getDatasetFilter(VersionedDatasetPath datasetPath) {
+    final NamespaceKey namespaceKey = new NamespaceKey(datasetPath.getPathList());
+    Preconditions.checkNotNull(namespaceKey);
+
+    final ImmutableList.Builder<SearchQuery> builder = ImmutableList.<SearchQuery>builder()
+      .add(SearchQueryUtils.newTermQuery(JobIndexKeys.ALL_DATASETS, namespaceKey.toString()))
+      .add(JobIndexKeys.UI_EXTERNAL_JOBS_FILTER);
+
+    if (!Strings.isNullOrEmpty(datasetPath.getVersion())) {
+      final DatasetVersion datasetVersion =  new DatasetVersion(datasetPath.getVersion());
+      builder.add(SearchQueryUtils.newTermQuery(JobIndexKeys.DATASET_VERSION, datasetVersion.getVersion()));
+    }
+    return SearchQueryUtils.and(builder.build());
+  }
+
+  static SearchQuery getReflectionIdFilter(String reflectionId, IndexKey indexKey) {
+    final ImmutableList.Builder<SearchQuery> builder = ImmutableList.<SearchQuery>builder()
+      .add(SearchQueryUtils.newTermQuery(indexKey, new StringBuilder(reflectionId).reverse().toString()))
+      .add(SearchQueryUtils.or(
+        JobIndexKeys.UI_EXTERNAL_JOBS_FILTER,
+        JobIndexKeys.ACCELERATION_JOBS_FILTER));
+    return SearchQueryUtils.and(builder.build());
   }
 }

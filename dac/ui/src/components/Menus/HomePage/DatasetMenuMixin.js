@@ -19,7 +19,7 @@ import DividerHr from "components/Menus/DividerHr";
 import MenuItemLink from "components/Menus/MenuItemLink";
 
 import AnalyzeMenuItem from "components/Menus/HomePage/AnalyzeMenuItem";
-
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { abilities } from "utils/datasetUtils";
 
 export default function (input) {
@@ -41,7 +41,7 @@ export default function (input) {
         <Menu>
           {
             <MenuItemLink
-              href={entity.getIn(["links", "query"])}
+              href={wrapBackendLink(entity.getIn(["links", "query"]))}
               text={la("Query")}
               closeMenu={closeMenu}
             />
@@ -59,7 +59,7 @@ export default function (input) {
 
           {canEdit && (
             <MenuItemLink
-              href={entity.getIn(["links", "edit"])}
+              href={wrapBackendLink(entity.getIn(["links", "edit"]))}
               text={la("Edit")}
             />
           )}

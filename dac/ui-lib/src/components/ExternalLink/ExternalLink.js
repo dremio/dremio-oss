@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from "react";
+import React, { forwardRef } from "react";
 import PropTypes from "prop-types";
 
 import { noop } from "lodash";
 
-const ExternalLink = (props) => {
+const ExternalLink = forwardRef((props, ref) => {
   const { href, children, className, disableRedirect, onClick, ...otherProps } =
     props;
   return disableRedirect ? (
-    <span className={className}>{children}</span>
+    <span ref={ref} className={className}>
+      {children}
+    </span>
   ) : (
     <a
+      ref={ref}
       href={href}
       target="_blank"
       rel="noopener noreferrer"
@@ -35,7 +38,7 @@ const ExternalLink = (props) => {
       {children}
     </a>
   );
-};
+});
 
 ExternalLink.propTypes = {
   href: PropTypes.string.isRequired,

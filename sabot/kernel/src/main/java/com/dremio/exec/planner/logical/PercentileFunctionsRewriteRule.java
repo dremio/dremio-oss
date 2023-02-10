@@ -106,7 +106,6 @@ import com.google.common.collect.ImmutableList;
  * </pre>
  */
 public class PercentileFunctionsRewriteRule extends RelOptRule {
-  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PercentileFunctionsRewriteRule.class);
   public static final RelOptRule INSTANCE = new PercentileFunctionsRewriteRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   private static final String TOTAL_COUNT = "TotalCount";

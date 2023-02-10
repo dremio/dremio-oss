@@ -17,6 +17,7 @@ package com.dremio.service.jobtelemetry.server;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -52,13 +53,14 @@ final class ProfileMerger {
   }
 
   private List<MajorFragmentProfile.Builder> createEmptyPhaseProfiles() {
+    Map<Integer, Integer> phaseWeights = executorQueryProfiles.stream()
+      .flatMap(executorProfile -> executorProfile.getNodeStatus().getPhaseStatusList().stream())
+      .collect(Collectors.toMap(NodePhaseStatus::getMajorFragmentId,
+        (v) -> (v.hasPhaseWeight() ? v.getPhaseWeight() : -1), (v1, v2) -> v1 >= 0 ? v1 : v2));
+
     // find the max major fragment id.
     // this should work even if the phase list, and the fragment list are inconsistent.
-    int maxPhaseId = executorQueryProfiles.stream()
-      .flatMap(executorProfile -> executorProfile.getNodeStatus().getPhaseStatusList().stream())
-      .mapToInt(NodePhaseStatus::getMajorFragmentId)
-      .max()
-      .orElse(-1);
+    int maxPhaseId = phaseWeights.keySet().stream().mapToInt(x -> x).max().orElse(-1);
 
     int maxFragmentPhaseId = executorQueryProfiles.stream()
       .flatMap(executorProfile -> executorProfile.getFragmentsList().stream())
@@ -71,11 +73,14 @@ final class ProfileMerger {
     // create empty profiles for all phases.
     List<MajorFragmentProfile.Builder> phaseList = new ArrayList<>();
     for (int i = 0; i <= maxPhaseId; i++) {
-      phaseList.add(
-        MajorFragmentProfile
-          .newBuilder()
-          .setMajorFragmentId(i)
-      );
+      final int phaseWeight = phaseWeights.getOrDefault(i, -1);
+      MajorFragmentProfile.Builder mfb = MajorFragmentProfile
+        .newBuilder()
+        .setMajorFragmentId(i);
+      if (phaseWeight > 0) {
+        mfb = mfb.setPhaseWeight(phaseWeight);
+      }
+      phaseList.add(mfb);
     }
     return phaseList;
   }

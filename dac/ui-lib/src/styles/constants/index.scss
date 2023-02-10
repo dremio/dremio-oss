@@ -54,7 +54,7 @@ $input-height: 32px;
 $input-border-radius: 4px;
 
 @mixin input-size {
-  height: 32px !important;
+  height: 30px !important;
   border: solid 1px $border-color !important;
   border-radius: 4px !important;
   min-width: 100px !important;

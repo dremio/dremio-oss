@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import {
   tag,
   selected,
@@ -89,7 +89,7 @@ export class Tag extends Component {
 
     return (
       <div {...props} ref={onRef} style={style}>
-        <span className={textWrapper}>
+        <span className={`${textWrapper} tag__textWrapper`}>
           <span className={textClass}>{text}</span>
         </span>
         {isDeletable && (

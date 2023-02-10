@@ -37,7 +37,6 @@ import io.netty.buffer.NettyArrowBuf;
  * query as long as all fields of the old schema are part of the new schema with the same exact types.
  */
 class ExternalAttemptHandler  extends BaseAttemptHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReAttemptHandler.class);
 
   /** schema sent to the client */
   private Map<String, MajorType> schemaFields;

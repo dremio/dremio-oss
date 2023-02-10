@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import moize from "moize";
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { type UserDetails } from "./UserDetails.type";
 import { joinName } from "../../utilities/joinName";
 
@@ -26,11 +26,8 @@ export const userDetailsUrl = (params: GetUserParams) =>
 
 export const getUserDetails = moize(
   (params: GetUserParams): Promise<UserDetails> => {
-    return fetch(userDetailsUrl(params), {
-      headers: {
-        Authorization: localStorageUtils!.getAuthToken(),
-      },
-    })
+    return getApiContext()
+      .fetch(userDetailsUrl(params))
       .then((res) => res.json())
       .then((userDetails) => {
         return {
@@ -39,5 +36,5 @@ export const getUserDetails = moize(
         };
       });
   },
-  { isPromise: true, isDeepEqual: true, infinite: true }
+  { isPromise: true, isDeepEqual: true, maxSize: Infinity }
 );

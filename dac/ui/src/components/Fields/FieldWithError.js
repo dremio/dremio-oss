@@ -22,7 +22,7 @@ import { Tooltip } from "components/Tooltip";
 import { FormValidationMessage, HoverHelp } from "dremio-ui-lib";
 
 import forms from "uiTheme/radium/forms";
-import classNames from "classnames";
+import classNames from "clsx";
 
 class FieldWithError extends Component {
   static defaultProps = {

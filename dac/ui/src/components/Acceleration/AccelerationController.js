@@ -36,6 +36,7 @@ export class AccelerationController extends Component {
     reflections: PropTypes.instanceOf(Immutable.Map),
     canAlter: PropTypes.any,
     canSubmit: PropTypes.bool,
+    location: PropTypes.object,
 
     getReflections: PropTypes.func.isRequired,
     getDataset: PropTypes.func.isRequired,
@@ -115,11 +116,19 @@ export class AccelerationController extends Component {
   };
 
   makeReflectionsCall() {
-    const { getReflections, datasetId } = this.props;
-    return getReflections(
-      { viewId: VIEW_ID },
-      { path: `dataset/${encodeURIComponent(datasetId)}/reflection` }
-    );
+    const { datasetId, getReflections, isModal = true, location } = this.props;
+    const { modal } = location?.state || {};
+
+    // only refreshes a dataset's reflection info if the modal is open
+    // exception to this is the Reflections tab in the Explore Page since it doesn't have a modal
+    if (modal || !isModal) {
+      return getReflections(
+        { viewId: VIEW_ID },
+        { path: `dataset/${encodeURIComponent(datasetId)}/reflection` }
+      );
+    } else {
+      return false;
+    }
   }
 
   loadReflections = () => {

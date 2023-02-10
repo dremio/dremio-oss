@@ -32,9 +32,8 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.exceptions.RuntimeIOException;
-import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.io.FilterIterator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -42,6 +41,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
@@ -72,7 +72,7 @@ public class ManifestFileProcessor implements AutoCloseable {
   private ManifestEntryWrapper<?> currentManifestEntry;
   private CloseableIterator<? extends ManifestEntryWrapper<?>> iterator;
   private ManifestReader<?> manifestReader;
-  private Expression icebergAnyColExpression;
+  private ManifestScanFilters manifestScanFilters;
   private Map<Integer, PartitionSpec> partitionSpecMap;
 
   public ManifestFileProcessor(FragmentExecutionContext fec,
@@ -98,13 +98,8 @@ public class ManifestFileProcessor implements AutoCloseable {
     }
     this.manifestContent = functionContext.getManifestContent();
 
-    try {
-      this.icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(((ManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getIcebergAnyColExpression());
-    } catch (IOException e) {
-      throw new RuntimeIOException(e, "failed to deserialize Iceberg Expression");
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException("failed to deserialize Iceberg Expression", e);
-    }
+    this.manifestScanFilters = ((ManifestScanTableFunctionContext) functionConfig.getFunctionContext())
+      .getManifestScanFilters();
   }
 
   public void setup(VectorAccessible incoming, VectorContainer outgoing) {
@@ -113,12 +108,36 @@ public class ManifestFileProcessor implements AutoCloseable {
 
   public void setupManifestFile(ManifestFile manifestFile) {
     manifestReader = getManifestReader(manifestFile);
-    if (icebergAnyColExpression != null) {
-      manifestReader.filterRows(icebergAnyColExpression);
+    if (manifestScanFilters.doesIcebergAnyColExpressionExists()) {
+      manifestReader.filterRows(manifestScanFilters.getIcebergAnyColExpressionDeserialized());
     }
 
     iterator = DremioManifestReaderUtils.liveManifestEntriesIterator(manifestReader).iterator();
+    applyManifestScanFilters(manifestFile);
+
     manifestEntryProcessor.initialise(manifestReader.spec());
+  }
+
+  private void applyManifestScanFilters(ManifestFile manifestFile) {
+    // Primarily used by the compaction operation (OPTIMIZE TABLE), to filter down rewritable files.
+    if (manifestScanFilters == null) {
+      return;
+    }
+
+    if (manifestScanFilters.doesMinPartitionSpecIdExist() &&
+      manifestFile.partitionSpecId() < manifestScanFilters.getMinPartitionSpecId()) {
+      return; //Read all files as they belong to an old partition.
+    }
+
+    // Skip the data files if they fall within the given range
+    if (manifestScanFilters.doesSkipDataFileSizeRangeExist()) {
+      iterator = new FilterIterator<ManifestEntryWrapper<?>>((CloseableIterator<ManifestEntryWrapper<?>>) iterator) {
+        @Override
+        protected boolean shouldKeep(ManifestEntryWrapper<?> dataFile) {
+          return manifestScanFilters.getSkipDataFileSizeRange().isNotInRange(dataFile.file().fileSizeInBytes());
+        }
+      };
+    }
   }
 
   public int process(int startOutIndex, int maxOutputCount) throws Exception {

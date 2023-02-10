@@ -36,7 +36,7 @@ export const TagList = (props) => {
         return (
           <Tag
             onClick={onTagClick ? () => onTagClick(tag) : null}
-            className={classes["tag"]}
+            className={`${classes["tag"]} tag-list__tag`}
             text={tag}
             title
             key={tag}

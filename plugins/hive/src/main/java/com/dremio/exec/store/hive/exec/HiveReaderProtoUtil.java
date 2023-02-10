@@ -19,6 +19,7 @@ import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,7 +33,6 @@ import com.dremio.hive.proto.HiveReaderProto.HiveTableXattrOrBuilder;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.PropertyCollectionType;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -259,12 +259,12 @@ public final class HiveReaderProtoUtil {
    */
   public static Optional<String> getTableInputFormat(final HiveTableXattr tableXattr) {
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.hasInputFormat() ? Optional.of(tableXattr.getInputFormat()) : Optional.<String>absent();
+      return tableXattr.hasInputFormat() ? Optional.of(tableXattr.getInputFormat()) : Optional.empty();
     }
 
     return tableXattr.hasTableInputFormatSubscript()
         ? Optional.of(tableXattr.getInputFormatDictionary(tableXattr.getTableInputFormatSubscript()))
-        : Optional.<String>absent();
+        : Optional.empty();
   }
 
   /**
@@ -275,12 +275,12 @@ public final class HiveReaderProtoUtil {
    */
   public static Optional<String> getTableStorageHandler(final HiveTableXattr tableXattr) {
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.hasStorageHandler() ? Optional.of(tableXattr.getStorageHandler()) : Optional.<String>absent();
+      return tableXattr.hasStorageHandler() ? Optional.of(tableXattr.getStorageHandler()) : Optional.empty();
     }
 
     return tableXattr.hasTableStorageHandlerSubscript()
         ? Optional.of(tableXattr.getStorageHandlerDictionary(tableXattr.getTableStorageHandlerSubscript()))
-        : Optional.<String>absent();
+        : Optional.empty();
   }
 
   /**
@@ -293,12 +293,12 @@ public final class HiveReaderProtoUtil {
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
       return tableXattr.hasSerializationLib()
           ? Optional.of(tableXattr.getSerializationLib())
-          : Optional.<String>absent();
+          : Optional.empty();
     }
 
     return tableXattr.hasTableSerializationLibSubscript()
         ? Optional.of(tableXattr.getSerializationLibDictionary(tableXattr.getTableSerializationLibSubscript()))
-        : Optional.<String>absent();
+        : Optional.empty();
   }
 
   /**
@@ -347,14 +347,14 @@ public final class HiveReaderProtoUtil {
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
       return tableXattr.getPartitionXattrs(partitionId).hasInputFormat()
           ? Optional.of(tableXattr.getPartitionXattrs(partitionId).getInputFormat())
-          : Optional.<String>absent();
+          : Optional.empty();
     }
 
     return tableXattr.getPartitionXattrs(partitionId).hasInputFormatSubscript()
         ? Optional.of(tableXattr.getInputFormatDictionary(
         tableXattr.getPartitionXattrs(partitionId)
             .getInputFormatSubscript()))
-        : Optional.<String>absent();
+        : Optional.empty();
   }
 
   /**
@@ -385,14 +385,14 @@ public final class HiveReaderProtoUtil {
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
       return tableXattr.getPartitionXattrs(partitionId).hasStorageHandler()
           ? Optional.of(tableXattr.getPartitionXattrs(partitionId).getStorageHandler())
-          : Optional.<String>absent();
+          : Optional.empty();
     }
 
     return tableXattr.getPartitionXattrs(partitionId).hasStorageHandlerSubscript()
         ? Optional.of(tableXattr.getStorageHandlerDictionary(
         tableXattr.getPartitionXattrs(partitionId)
             .getStorageHandlerSubscript()))
-        : Optional.<String>absent();
+        : Optional.empty();
   }
 
   /**
@@ -423,14 +423,14 @@ public final class HiveReaderProtoUtil {
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
       return tableXattr.getPartitionXattrs(partitionId).hasSerializationLib()
           ? Optional.of(tableXattr.getPartitionXattrs(partitionId).getSerializationLib())
-          : Optional.<String>absent();
+          : Optional.empty();
     }
 
     return tableXattr.getPartitionXattrs(partitionId).hasSerializationLibSubscript()
         ? Optional.of(tableXattr.getSerializationLibDictionary(
         tableXattr.getPartitionXattrs(partitionId)
             .getSerializationLibSubscript()))
-        : Optional.<String>absent();
+        : Optional.empty();
   }
 
   /**

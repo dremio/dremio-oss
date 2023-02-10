@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import * as adminPaths from "dremio-ui-common/paths/admin.js";
 
 export default function () {
   return Promise.resolve(
@@ -20,27 +21,27 @@ export default function () {
       {
         icon: "settings/node-activity",
         title: "Admin.Engines.NodeActivity",
-        url: "/admin/nodeActivity",
+        url: adminPaths.nodeActivity.link(),
       },
       {
         icon: "settings/engines",
         title: "Admin.Engines.ElasticEngines",
-        url: "/admin/provisioning",
+        url: adminPaths.engines.link(),
       },
       {
         icon: "settings/support",
         title: "Admin.Engines.Support",
-        url: "/admin/support",
+        url: adminPaths.support.link(),
       },
       {
         icon: "settings/queue-control",
         title: "Admin.Engines.QueueControl",
-        url: "/admin/advanced",
+        url: adminPaths.advanced.link(),
       },
       {
         icon: "settings/users",
         title: "Admin.UserManagement.Users",
-        url: "/admin/users",
+        url: adminPaths.users.link(),
       },
     ].filter(Boolean)
   );

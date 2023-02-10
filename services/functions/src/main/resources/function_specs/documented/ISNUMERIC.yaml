@@ -1,0 +1,38 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Determines whether an expression is a valid numeric type (DECIMAL, DOUBLE,
+  INT, BIGINT, VARBINARY).
+functionCategories:
+- BOOLEAN
+name: ISNUMERIC
+signatures:
+- description: null
+  parameters:
+  - description: Can be a general expression of any Dremio-supported data type.
+    kind: REGULAR
+    name: expression
+    type: ANY
+  returnType: BOOLEAN
+  sampleCodes:
+  - call: SELECT ISNUMERIC('13579')
+    result: true
+  - call: SELECT ISNUMERIC('Hello World!')
+    result: false
+  - call: "SELECT ISNUMERIC(passenger_count)\nFROM \"Samples\".\"samples.dremio.com\"\
+      .\"NYC-taxi-trips\"\nLIMIT 1 \n"
+    result: true

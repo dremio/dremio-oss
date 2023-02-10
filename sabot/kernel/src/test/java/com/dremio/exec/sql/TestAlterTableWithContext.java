@@ -110,4 +110,29 @@ public class TestAlterTableWithContext extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void addDropPartitionwithPath() throws Exception {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+    String path = "Path";
+      String tableName = "addDropPartitionwithPath";
+      try (AutoCloseable c = enableIcebergTables()) {
+        final String createTableQuery = String.format("CREATE TABLE %s.%s.%s as " +
+                        "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+                testSchema, path, tableName);
+        test(createTableQuery);
+
+        final String useSchemaQuery = "USE  " + testSchema;
+        test(useSchemaQuery);
+
+        String addPartitionQuery = String.format("ALTER TABLE %s.%s ADD PARTITION FIELD n_regionkey", path, tableName);
+        String dropPartitionQuery = String.format("ALTER TABLE %s.%s DROP PARTITION FIELD n_regionkey", path, tableName);
+
+        test(addPartitionQuery);
+        test(dropPartitionQuery);
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
+
 }

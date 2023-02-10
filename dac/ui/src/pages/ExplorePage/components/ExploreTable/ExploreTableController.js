@@ -25,7 +25,8 @@ import exploreTransforms from "utils/exploreTransforms";
 import jobsUtils from "@app/utils/jobsUtils.js";
 
 import { LIST, MAP, STRUCT } from "@app/constants/DataTypes";
-import * as PATHS from "@app/exports/paths";
+import * as jobPaths from "dremio-ui-common/paths/jobs.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 import {
   getPeekData,
@@ -77,6 +78,7 @@ import apiUtils from "@app/utils/apiUtils/apiUtils";
 import DropdownForSelectedText from "./DropdownForSelectedText";
 import ExploreCellLargeOverlay from "./ExploreCellLargeOverlay";
 import ExploreTable from "./ExploreTable";
+import ExploreTableJobDiagram from "./ExploreTableJobDiagram";
 
 export class ExploreTableController extends PureComponent {
   static propTypes = {
@@ -482,6 +484,7 @@ export class ExploreTableController extends PureComponent {
 
   renderButtonsForJobsList(status, jobId) {
     const { cancelJob } = this.props;
+    const projectId = getSonarContext().getSelectedProjectId?.();
 
     return (
       <div className="sqlEditor__jobsTable__actionButtonContainer">
@@ -500,7 +503,7 @@ export class ExploreTableController extends PureComponent {
           tooltip="Job.Open.External"
           onClick={() => {
             const jobTabPath = jobsUtils.isNewJobsPage()
-              ? PATHS.job({ jobId })
+              ? jobPaths.job.link({ jobId, projectId })
               : `/jobs#${jobId}`;
             window.open(jobTabPath, "_blank");
           }}
@@ -534,7 +537,12 @@ export class ExploreTableController extends PureComponent {
       return {
         data: {
           jobStatus: { node: () => {} },
-          sql: { tabIndex: sql[1], node: () => sql[0] },
+          sql: {
+            tabIndex: sql[1],
+            node: () => (
+              <div className="dremio-typography-monospace">{sql[0]}</div>
+            ),
+          },
           buttons: {
             rowIndex: sql[1] - 1,
             node: () => this.renderButtonsForSqlList(sql[1] - 1),
@@ -611,12 +619,6 @@ export class ExploreTableController extends PureComponent {
       currentJobsMap[queryTabNumber - 1] &&
       !!currentJobsMap[queryTabNumber - 1].jobId;
 
-    let tableWidth = 0;
-    pendingSQLJobs.forEach((column) => {
-      tableWidth = tableWidth + column.width;
-    });
-    tableWidth = tableWidth + 160;
-
     let jobTableContent;
 
     if (currentTab) {
@@ -629,12 +631,22 @@ export class ExploreTableController extends PureComponent {
             style={{ padding: "0 8px" }}
           />
         </>
-      ) : (
+      ) : Object.keys(currentTab).length === 1 && currentTab.showGraph ? (
+        // if job was submitted but is not in the RUNNING state, only show the diagram
         <div className="sqlEditor__pendingTable">
-          <div className="sqlEditor__pendingTable__statusMessage">
-            {currentTab.renderIcon && renderJobStatus(currentTab.renderIcon)}
-            {currentTab.text}
-          </div>
+          <ExploreTableJobDiagram />
+        </div>
+      ) : (
+        // if a job was submitted and is in the RUNNING state, show graph + button
+        <div className="sqlEditor__pendingTable">
+          {currentTab.buttonText === "Cancel Job" ? (
+            <ExploreTableJobDiagram />
+          ) : (
+            <div className="sqlEditor__pendingTable__statusMessage">
+              {currentTab.renderIcon && renderJobStatus(currentTab.renderIcon)}
+              {currentTab.text}
+            </div>
+          )}
           {currentTab.buttonFunc && (
             <Button
               className="sqlEditor__pendingTable__button"
@@ -730,7 +742,6 @@ export class ExploreTableController extends PureComponent {
                 <StatefulTableViewer
                   virtualized
                   rowHeight={40}
-                  tableWidth={tableWidth}
                   columns={pendingSQLJobs}
                   tableData={this.processPendingJobs(sqlList)}
                   enableHorizontalScroll

@@ -30,30 +30,35 @@ import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { setReference } from "@app/actions/nessie/nessie";
 import { useDispatch } from "react-redux";
 import { Tag } from "@app/services/nessie/client";
+import { useIntl } from "react-intl";
 
 import * as classes from "./ArcticCatalogTags.module.less";
 
 type ArcticCatalogTagsProps = WithRouterProps;
 
 function ArcticCatalogTags(props: ArcticCatalogTagsProps) {
+  const { formatMessage } = useIntl()
   const { router } = props;
   const [searchFilter, setSearchFilter] = useState("");
   const { baseUrl, source } = useNessieContext();
   const { isCatalog } = useArcticCatalogContext() ?? {};
   const dispatch = useDispatch();
 
-  const getPath = (tag: { type: "TAG" } & Tag, tab: ArcticCatalogTabsType) => {
-    dispatch(setReference({ reference: tag }, source.name));
-    return constructArcticUrl({
+  const getPath = (tab: ArcticCatalogTabsType, tag: { type: "TAG" } & Tag) =>
+    constructArcticUrl({
       type: isCatalog ? "catalog" : "source",
       baseUrl,
       tab,
       namespace: tag.name,
     });
-  };
 
-  const handlePush = (tag: { type: "TAG" } & Tag, tab: ArcticCatalogTabsType) =>
-    router.push(getPath(tag, tab));
+  const handleTabNavigation = (
+    tab: ArcticCatalogTabsType,
+    tag: { type: "TAG" } & Tag
+  ) => {
+    dispatch(setReference({ reference: tag }, source.name));
+    return router.push(getPath(tab, tag));
+  };
 
   const [data, , status, refetch] = useArcticCatalogTags(searchFilter);
 
@@ -62,14 +67,16 @@ function ArcticCatalogTags(props: ArcticCatalogTagsProps) {
       <ArcticTableHeader
         placeholder="ArcticCatalog.Tags.SearchPlaceholder"
         onSearchChange={setSearchFilter}
+        loading={!!data && isSmartFetchLoading(status)}
+        name={formatMessage({ id: "ArcticCatalog.Tags.Header"})}
       />
-      {isSmartFetchLoading(status) ? (
+      {!data && isSmartFetchLoading(status) ? (
         <Spinner className={classes["arctic-tags-spinner"]} />
       ) : (
         <ArcticCatalogTagsTable
           references={data?.references ?? []}
           refetch={() => refetch({ search: searchFilter })}
-          handlePush={handlePush}
+          goToDataTab={handleTabNavigation}
         />
       )}
     </div>

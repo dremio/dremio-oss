@@ -30,6 +30,13 @@ public interface PrivilegeCatalog {
   void validatePrivilege(NamespaceKey key, Privilege privilege);
 
   /**
+   * Check whehter user has a privilege.
+   * @param key
+   * @param privilege
+   */
+  boolean hasPrivilege(NamespaceKey key, Privilege privilege);
+
+  /**
    * Validate user's ownership.
    * @param key
    */

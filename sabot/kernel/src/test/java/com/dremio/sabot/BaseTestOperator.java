@@ -436,7 +436,7 @@ public class BaseTestOperator extends ExecTest {
           ImmutableList.of(),
           null,
           endpointsIndex,
-              null, expressionSplitCache);
+              null, expressionSplitCache, null);
     }
 
     public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {

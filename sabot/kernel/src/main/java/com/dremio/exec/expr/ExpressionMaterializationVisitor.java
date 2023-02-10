@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 
 import org.apache.arrow.vector.complex.FieldIdUtil2;
@@ -77,7 +78,6 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -426,12 +426,9 @@ class ExpressionMaterializationVisitor
       boolean containsNullExpr = allExpressions.stream().anyMatch(input -> input instanceof NullExpression);
 
       if (containsNullExpr) {
-        Optional<LogicalExpression> nonNullExpr = Iterables.tryFind(allExpressions, new Predicate<LogicalExpression>() {
-          @Override
-          public boolean apply(LogicalExpression input) {
-            return !input.getCompleteType().toMinorType().equals(MinorType.NULL);
-          }
-        });
+        Optional<LogicalExpression> nonNullExpr = allExpressions.stream()
+          .filter(input -> !input.getCompleteType().toMinorType().equals(MinorType.NULL))
+          .findFirst();
 
         if (nonNullExpr.isPresent()) {
           CompleteType type = nonNullExpr.get().getCompleteType();
@@ -507,12 +504,9 @@ class ExpressionMaterializationVisitor
     });
 
     if (containsNullExpr) {
-      Optional<LogicalExpression> nonNullExpr = Iterables.tryFind(allExpressions, new Predicate<LogicalExpression>() {
-        @Override
-        public boolean apply(LogicalExpression input) {
-          return !input.getCompleteType().toMinorType().equals(MinorType.NULL);
-        }
-      });
+      Optional<LogicalExpression> nonNullExpr = allExpressions.stream()
+        .filter(input -> !input.getCompleteType().toMinorType().equals(MinorType.NULL))
+        .findFirst();
 
       if (nonNullExpr.isPresent()) {
         CompleteType type = nonNullExpr.get().getCompleteType();

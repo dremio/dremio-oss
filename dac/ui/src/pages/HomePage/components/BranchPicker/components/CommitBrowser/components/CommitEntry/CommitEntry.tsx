@@ -21,11 +21,13 @@ import {
   formatDateSince,
 } from "@app/utils/date";
 import { Tooltip } from "@mui/material";
-import classNames from "classnames";
+import classNames from "clsx";
 import { useRef } from "react";
 
 import CommitHash from "../CommitHash/CommitHash";
 import UserIcon from "../UserIcon/UserIcon";
+import { Reference } from "@app/types/nessie";
+
 import "./CommitEntry.less";
 
 function CommitEntryTooltip({
@@ -39,7 +41,7 @@ function CommitEntryTooltip({
   anchorRef: any;
   commit: CommitMeta;
   children: any;
-  branch: string;
+  branch: Reference;
 }) {
   const intl = useIntl();
   return (
@@ -85,7 +87,7 @@ function CommitEntry({
   logEntry: LogEntry;
   onClick?: (arg: LogEntry) => void;
   isSelected?: boolean;
-  branch: string;
+  branch: Reference;
   disabled?: boolean;
 }) {
   const commit = logEntry.commitMeta;

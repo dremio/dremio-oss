@@ -126,6 +126,15 @@ public final class InvalidViewRel extends SingleRel implements SelfFlatteningRel
                 sourceName,
                 sqlConverter.getSession().getSessionVersionForSource(sourceName)
               );
+              //try to repair the view but only of the current versionContext is a branch
+              if (resolvedVersionContext.getType() != ResolvedVersionContext.Type.BRANCH) {
+                Exception e =  new UnsupportedOperationException("Versioned view update can only be performed when"
+                  +" current version context is of type BRANCH. The current version context is of type: "
+                  +resolvedVersionContext.getType());
+                suppressed.add(new VDSOutOfDate(view.getPath(), e));
+                failed.add(view.getPath().toString());
+                break;
+              }
               currVersionContext = VersionContext.ofBranch(resolvedVersionContext.getRefName());
               viewOptions = new ViewOptions.ViewOptionsBuilder()
                 .viewUpdate(true)

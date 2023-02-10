@@ -82,6 +82,7 @@ export class DetailsWizard extends PureComponent {
     activeScript: PropTypes.object,
     queryTabNumber: PropTypes.number,
     queryStatuses: PropTypes.array,
+    joinReference: PropTypes.object,
     setQuerySelections: PropTypes.func,
     setQueryStatuses: PropTypes.func,
     setPreviousAndCurrentSql: PropTypes.func,
@@ -132,8 +133,34 @@ export class DetailsWizard extends PureComponent {
     this.goToExplorePage();
   };
 
+  generateReferencesList = () => {
+    const { joinReference } = this.props;
+
+    if (joinReference) {
+      const catalogName = Object.keys(joinReference)[0];
+
+      const referencesList = [
+        {
+          sourceName: catalogName,
+          reference: joinReference[catalogName],
+        },
+      ];
+
+      return referencesList;
+    }
+
+    return undefined;
+  };
+
   handleTransformPeek = (values, submitType) => {
     const { dataset, detailType } = this.props;
+
+    const referencesList = this.generateReferencesList();
+
+    if (detailType === "JOIN") {
+      values = { ...values, referencesList };
+    }
+
     return this.props.transformPeek(
       dataset,
       values,
@@ -181,6 +208,12 @@ export class DetailsWizard extends PureComponent {
 
   handleApply = (values) => {
     const { dataset, detailType, tableData, activeScript } = this.props;
+
+    const referencesList = this.generateReferencesList();
+
+    if (detailType === "JOIN") {
+      values = { ...values, referencesList };
+    }
 
     return this.props
       .runTableTransform(
@@ -423,6 +456,7 @@ function mapStateToProps(state, props) {
     activeScript: getActiveScript(state),
     queryTabNumber: explorePageState.view.queryTabNumber,
     queryStatuses: explorePageState.view.queryStatuses,
+    joinReference: explorePageState.join.get("joinReference"),
   };
 }
 

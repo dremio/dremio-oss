@@ -52,7 +52,7 @@ public class IcebergMetadataHandler implements OrphanageEntryHandler {
 
 
   private void runDropQuery(String query, String user, String queryType) throws Exception {
-    sabotContext.getJobsRunner().get().runQueryAsJob(query, user, queryType);
+    sabotContext.getJobsRunner().get().runQueryAsJob(query, user, queryType, "DML");
   }
 
 

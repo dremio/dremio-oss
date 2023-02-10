@@ -46,6 +46,7 @@ import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 
+import io.opentelemetry.extension.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 /**
@@ -116,7 +117,7 @@ public class DatasetSaverImpl implements DatasetSaver {
             datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled() == null ||
             !datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled(),
             "Found a dataset with Iceberg metadata in non-Iceberg refresh." +
-                    " Please forget metadata for dataset '{}'", canonicalKey);
+                    " Please forget metadata for dataset '%s'", canonicalKey);
 
     saveUsingV1Flow(handle, options, datasetConfig, sourceMetadata,
             opportunisticSave, datasetMutator, canonicalKey, attributes);
@@ -143,6 +144,7 @@ public class DatasetSaverImpl implements DatasetSaver {
     save(datasetConfig, handle, sourceMetadata, opportunisticSave, options, Function.identity(), attributes);
   }
 
+  @WithSpan("metadata-refresh-unlimited-splits")
   private boolean saveUsingInternalRefreshDatasetQuery(DatasetConfig datasetConfig,
                                                         DatasetHandle handle,
                                                         DatasetRetrievalOptions options,
@@ -229,6 +231,7 @@ public class DatasetSaverImpl implements DatasetSaver {
     return SystemUser.SYSTEM_USERNAME;
   }
 
+  @WithSpan("metadata-refresh-old")
   private void saveUsingV1Flow(DatasetHandle handle,
                                DatasetRetrievalOptions options,
                                DatasetConfig datasetConfig,

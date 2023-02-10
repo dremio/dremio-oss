@@ -21,12 +21,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 import org.apache.calcite.rel.core.JoinRelType;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;

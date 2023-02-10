@@ -19,7 +19,7 @@ import Immutable from "immutable";
 import { AutoSizer, List } from "react-virtualized";
 
 import { SearchField } from "components/Fields";
-import classNames from "classnames";
+import classNames from "clsx";
 import { rowMargin } from "@app/uiTheme/less/forms.less";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 

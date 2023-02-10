@@ -24,17 +24,17 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceService;
 
 /**
  * Resource to create PBIDS files for a given dataset
@@ -43,7 +43,7 @@ import com.dremio.service.namespace.NamespaceService;
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
-@Path("/powerbi/{datasetId}")
+@Path("/powerbi/{path: .*}")
 @Options
 public class PowerBIResource extends BaseBIToolResource {
   // Special option for enabling the Power BI PBIDS endpoint.
@@ -52,10 +52,12 @@ public class PowerBIResource extends BaseBIToolResource {
 
   @Inject
   public PowerBIResource(
-      NamespaceService namespace,
-      ProjectOptionManager optionManager,
-      @PathParam("datasetId") String datasetId) {
-    super(namespace, optionManager, datasetId);
+    ProjectOptionManager optionManager,
+    DatasetCatalog datasetCatalog,
+    @PathParam("path") String path,
+    @QueryParam("refType") String refType,
+    @QueryParam("refValue") String refValue) {
+    super(optionManager, datasetCatalog, path, refType, refValue);
   }
 
   /**
@@ -64,7 +66,7 @@ public class PowerBIResource extends BaseBIToolResource {
    */
   @GET
   @Produces(APPLICATION_PBIDS)
-  public Response get(@HeaderParam(HttpHeaders.HOST) String host) throws DatasetNotFoundException, NamespaceException {
+  public Response get(@HeaderParam(HttpHeaders.HOST) String host) throws DatasetNotFoundException {
     return getWithHostHelper(host);
   }
 

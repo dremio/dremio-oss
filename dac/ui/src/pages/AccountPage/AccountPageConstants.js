@@ -14,14 +14,21 @@
  * limitations under the License.
  */
 import { intl } from "@app/utils/intl";
+import * as adminPaths from "dremio-ui-common/paths/admin.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
-export const accountSection = {
+export const accountSection = () => ({
   title: "Account.Title", //todo loc
   icon: "settings/users",
   items: [
-    { name: "Account.GeneralInformation", url: "/account/info" }, //todo loc
+    {
+      name: "Account.GeneralInformation",
+      url: adminPaths.info.link({
+        projectId: getSonarContext()?.getSelectedProjectId?.(),
+      }),
+    }, //todo loc
   ],
-};
+});
 
 export const accountSectionNavItems = [
   [

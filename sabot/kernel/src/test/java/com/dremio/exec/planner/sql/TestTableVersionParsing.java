@@ -67,7 +67,6 @@ import org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.Util;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -152,7 +151,6 @@ public class TestTableVersionParsing {
     parseAndValidate("SELECT * FROM my.table1 AT COMMIT hash1", ImmutableList.of(expected));
   }
 
-  @Ignore("DX-51980")
   @Test
   public void testTableWithLiteralTimestampVersion() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
@@ -169,7 +167,6 @@ public class TestTableVersionParsing {
       ImmutableList.of(expected));
   }
 
-  @Ignore("DX-51980")
   @Test
   public void testTableWithTimestampExpressionVersion() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
@@ -186,7 +183,6 @@ public class TestTableVersionParsing {
       "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')", ImmutableList.of(expected));
   }
 
-  @Ignore("DX-51980")
   @Test
   public void testTableWithInvalidTimestampExpressionVersionFails() {
     assertThatThrownBy(() -> parseAndValidate(
@@ -294,7 +290,6 @@ public class TestTableVersionParsing {
       ImmutableList.of(expected));
   }
 
-  @Ignore("DX-51980")
   @Test
   public void testTableMacroWithLiteralTimestampVersion() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
@@ -311,7 +306,6 @@ public class TestTableVersionParsing {
       ImmutableList.of(expected));
   }
 
-  @Ignore("DX-51980")
   @Test
   public void testTableMacroWithTimestampExpressionVersion() throws Exception {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
@@ -364,6 +358,26 @@ public class TestTableVersionParsing {
     String sqlString = writer.toString();
     Assert.assertEquals(sqlString, expectedUnparsedString);
   }
+
+  @Test
+  public void testUnparseTableWithHashCommit() throws Exception {
+    final SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
+    final TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_FILES_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.COMMIT_HASH_ONLY, "hash1"));
+    final String expectedUnparsedString = "SELECT *\nFROM my.table1 AT COMMIT \"hash1\"";
+    final SqlNode rootNode =
+        parseAndValidate(
+            "SELECT * FROM TABLE(table_files('my.table1')) AT COMMIT \"hash1\"",
+            ImmutableList.of(expected),
+            true);
+
+    rootNode.unparse(writer, 0, 0);
+    Assert.assertEquals(writer.toString(), expectedUnparsedString);
+  }
+
   @Test
   public void testUnparseTableMacroWithSnapshotVersion() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
@@ -382,7 +396,6 @@ public class TestTableVersionParsing {
     Assert.assertEquals(sqlString, expectedUnparsedString);
   }
 
-  @Ignore("DX-51980")
   @Test
   public void testUnparseTableWithLiteralTimestampVersion() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
@@ -407,7 +420,6 @@ public class TestTableVersionParsing {
     Assert.assertEquals(sqlString, expectedUnparsedString);
   }
 
-  @Ignore("DX-51980")
   @Test
   public void testUnparseTableWithTimestampExpressionVersion() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);

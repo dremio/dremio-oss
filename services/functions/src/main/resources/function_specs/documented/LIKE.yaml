@@ -1,0 +1,55 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Tests whether an expression matches a pattern. The comparison is case-sensitive.
+functionCategories:
+- CHARACTER
+name: LIKE
+signatures:
+- description: Returns true if expression matches pattern. False otherwise.
+  parameters:
+  - description: The expression to compare.
+    kind: REGULAR
+    name: expression
+    type: CHARACTERS
+  - description: The pattern that is compared to the expression.
+    kind: REGULAR
+    name: pattern
+    type: CHARACTERS
+  returnType: BOOLEAN
+  sampleCodes:
+  - call: SELECT 'pancake' LIKE '%cake'
+    result: true
+- description: Returns true if expression matches pattern. False otherwise.
+  parameters:
+  - description: The expression to compare.
+    kind: REGULAR
+    name: expression
+    type: CHARACTERS
+  - description: The pattern that is compared to the expression.
+    kind: REGULAR
+    name: pattern
+    type: CHARACTERS
+  - description: Putting *escape_character* before a wildcard in *pattern* makes LIKE
+      treat the wildcard as a regular character when it appears in *expression*.
+    kind: REGULAR
+    name: escape_character
+    type: CHARACTERS
+  returnType: BOOLEAN
+  sampleCodes:
+  - call: SELECT '50%_Off' LIKE '%50!%%' ESCAPE '!'
+    result: true

@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-button-group {
-  display: inline-flex;
-  flex-direction: row;
-  gap: var(--dremio--button-group--gap);
-}
+@use "../../base/components/button-group";
 
 .dremio-button-group {
   --dremio--button-group--gap: var(--dremio--spacing--1);

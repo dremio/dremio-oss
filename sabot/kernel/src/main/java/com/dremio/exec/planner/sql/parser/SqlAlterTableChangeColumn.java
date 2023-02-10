@@ -46,14 +46,14 @@ public class SqlAlterTableChangeColumn extends SqlAlterTable {
           pos,
           (SqlIdentifier) operands[0],
           (SqlIdentifier) operands[1],
-          (SqlColumnDeclaration) operands[2]);
+          (DremioSqlColumnDeclaration) operands[2]);
     }
   };
 
   protected final SqlIdentifier column;
-  protected final SqlColumnDeclaration newColumnSpec;
+  protected final DremioSqlColumnDeclaration newColumnSpec;
 
-  public SqlAlterTableChangeColumn(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier column, SqlColumnDeclaration newColumnSpec) {
+  public SqlAlterTableChangeColumn(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier column, DremioSqlColumnDeclaration newColumnSpec) {
     super(pos, tblName);
     this.column = column;
     this.newColumnSpec = newColumnSpec;
@@ -81,7 +81,7 @@ public class SqlAlterTableChangeColumn extends SqlAlterTable {
     return column.getSimple();
   }
 
-  public SqlColumnDeclaration getNewColumnSpec() {
+  public DremioSqlColumnDeclaration getNewColumnSpec() {
     return newColumnSpec;
   }
 }

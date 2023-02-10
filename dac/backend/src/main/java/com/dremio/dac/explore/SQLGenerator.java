@@ -103,10 +103,14 @@ import com.dremio.dac.proto.model.dataset.MeasureType;
 import com.dremio.dac.proto.model.dataset.Order;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.ReplaceType;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.SplitRule;
 import com.dremio.dac.proto.model.dataset.TrimType;
+import com.dremio.dac.proto.model.dataset.VersionContext;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.exec.catalog.VersionedPlugin;
+import com.dremio.exec.store.CatalogService;
 import com.google.common.base.Joiner;
 
 
@@ -126,7 +130,11 @@ class SQLGenerator {
   private static final long MAX_VARCHAR = 2048;
 
   public static String generateSQL(VirtualDatasetState vss){
-   return new SQLGenerator().innerGenerateSQL(vss);
+    return new SQLGenerator().innerGenerateSQL(vss, false, null);
+  }
+
+  public static String generateSQL(VirtualDatasetState vss, boolean isTransform, CatalogService catalogService){
+    return new SQLGenerator().innerGenerateSQL(vss, isTransform, catalogService);
   }
 
   public SQLGenerator(){}
@@ -336,7 +344,7 @@ class SQLGenerator {
     }
   }
 
-  private String innerGenerateSQL(VirtualDatasetState state) {
+  private String innerGenerateSQL(VirtualDatasetState state, boolean isTransform, CatalogService catalogService) {
     try (TimedBlock b = time("genSQL")) {
       String tableName = getTableAlias(state.getFrom());
       final List<String> evaledCols = new ArrayList<>();
@@ -386,7 +394,7 @@ class SQLGenerator {
       final List<String> joins = new ArrayList<>();
       if (state.getJoinsList() != null) {
         for (Join join : state.getJoinsList()) {
-          String evald = evalJoin(tableName, join, join.getJoinAlias());
+          String evald = evalJoin(tableName, join, join.getJoinAlias(), state, catalogService, isTransform);
           joins.add(evald);
         }
       }
@@ -404,13 +412,35 @@ class SQLGenerator {
           for (String component : datasetPath.toPathList()) {
             path.add(quoteIdentifier(component));
           }
-          String table = Joiner.on(".").join(path) + (name.getAlias() == null ? "" : " AS " + quoteIdentifier(name.getAlias()));
+          String referenceSyntax = getReferenceSyntaxForLeftTable(path);
+          String table = Joiner.on(".").join(path) + referenceSyntax + (name.getAlias() == null ? "" : " AS " + quoteIdentifier(name.getAlias()));
           return formatSQL(evaledCols, orders, table, joins, evaledFilters, groupBys);
+        }
+
+        /**
+         * Add the proper syntax for Versioned source for Left table in case of Join
+         *
+         * @param path
+         * @return
+         */
+        public String getReferenceSyntaxForLeftTable(List<String> path) {
+          String referenceSyntax = "";
+          if (isTransform && state.getReferenceList() != null && catalogService != null) {
+            if (isVersionedPluginSource(path.get(0), catalogService)) {
+              for (SourceVersionReference sourceVersionReference: state.getReferenceList()) {
+                if (sourceVersionReference.getSourceName().equals(path.get(0))) {
+                  referenceSyntax = getReferenceSyntax(sourceVersionReference);
+                  break;
+                }
+              }
+            }
+          }
+          return referenceSyntax;
         }
 
         @Override
         public String visit(FromSubQuery subQuery) throws Exception {
-          String sql = innerGenerateSQL(subQuery.getSuqQuery());
+          String sql = innerGenerateSQL(subQuery.getSuqQuery(), isTransform, catalogService);
           return formatSQLWithSubQuery(sql, subQuery.getAlias(), false);
         }
 
@@ -434,6 +464,15 @@ class SQLGenerator {
           return "  " + Joiner.on("\n  ").join(sql.split("\n"));
         }
       });
+    }
+  }
+
+  public boolean isVersionedPluginSource(String sourceName, CatalogService catalogService) {
+    try {
+      return catalogService.getSource(sourceName) instanceof VersionedPlugin;
+    } catch (UserException ignored) {
+      // Source not found [For e.g: In case of spaces, home space]
+      return false;
     }
   }
 
@@ -590,7 +629,12 @@ class SQLGenerator {
     return sql.toString();
   }
 
-  private String evalJoin(String table, Join join, String joinAlias) {
+  private String evalJoin(String table,
+                          Join join,
+                          String joinAlias,
+                          VirtualDatasetState state,
+                          CatalogService catalogService,
+                          boolean isTransform) {
     StringBuilder sql = new StringBuilder("");
     switch (join.getJoinType()) {
       case Inner:
@@ -608,7 +652,9 @@ class SQLGenerator {
       default:
         throw new IllegalArgumentException("Unknown join type " + join.getJoinType().name());
     }
-    sql.append(join.getRightTable()).append(" AS ").append(quoteIdentifier(joinAlias)).append(" ON ");
+    // Add the proper syntax for Versioned source for Right table
+    String referenceSyntax = getReferenceSyntaxForRightTable(join.getRightTable(), state.getReferenceList(), catalogService, isTransform);
+    sql.append(join.getRightTable()).append(referenceSyntax).append(" AS ").append(quoteIdentifier(joinAlias)).append(" ON ");
     List<String> conds = new ArrayList<>();
     for (JoinCondition c : join.getJoinConditionsList()) {
       conds.add(format("%s.%s = %s.%s",
@@ -620,6 +666,52 @@ class SQLGenerator {
     }
     sql.append(Joiner.on(" AND ").join(conds));
     return sql.toString();
+  }
+
+  /**
+   * Only if the join is made with Versioned source (right table), payload will have the corresponding source version map
+   * and syntax will add the corresponding reference
+   * @param joinRightTable
+   * @param sourceVersionReferenceList
+   * @param catalogService
+   *
+   * @return
+   */
+  public String getReferenceSyntaxForRightTable(String joinRightTable,
+                                                List<SourceVersionReference> sourceVersionReferenceList,
+                                                CatalogService catalogService,
+                                                boolean isTransform) {
+    String referenceSyntax = "";
+    String []datasetPaths = joinRightTable.split("\\.");  //first one is always the source name
+    if (isTransform && catalogService != null && isVersionedPluginSource(datasetPaths[0], catalogService)) {
+      if (sourceVersionReferenceList != null && !sourceVersionReferenceList.isEmpty()) {
+        return getReferenceSyntax(sourceVersionReferenceList.get(0));
+      }
+    }
+    return referenceSyntax;
+  }
+
+  /**
+   * Adds the corresponding reference for versioned sources
+   *
+   * @param sourceVersionReference
+   * @return
+   */
+  public String getReferenceSyntax(SourceVersionReference sourceVersionReference) {
+    String referenceSyntax = "";
+    if (sourceVersionReference != null) {
+      VersionContext versionContext = sourceVersionReference.getReference();
+      switch (versionContext.getType()) {
+        case BRANCH:
+        case TAG:
+        case COMMIT:
+          referenceSyntax = " AT " + versionContext.getType().name() + " \"" + versionContext.getValue() + "\"";
+          break;
+        default:
+          throw new UnsupportedOperationException("Unrecognized versionContextType: " + versionContext.getType());
+      }
+    }
+    return referenceSyntax;
   }
 
   private String formatSQL(List<String> evaledCols, List<String> orders,

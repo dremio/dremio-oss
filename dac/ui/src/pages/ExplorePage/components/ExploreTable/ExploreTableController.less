@@ -97,6 +97,7 @@
       &--withPendingTable {
         height: 100%;
         overflow: auto;
+        margin: 0 8px;
 
         .ReactVirtualized__Table__headerRow.ReactVirtualized__Table--noZebraStripesRows {
           display: none;
@@ -157,5 +158,13 @@
       height: 40px;
       width: 100%;
     }
+  }
+
+  .virtualized-table-viewer {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .virtualized-table-viewer::-webkit-scrollbar {
+    display: none;
   }
 }

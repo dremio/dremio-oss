@@ -23,15 +23,30 @@
     display: block;
   }
 
+  .card-container {
+    color: var(--dremio--color--link);
+    border: none;
+    background-color: transparent;
+    block-size: 100%;
+    inline-size: 100%;
+    padding: 0;
+    &:focus {
+      outline: none;
+    }
+  }
+
   :global {
     .dremio-card {
       min-height: 230px;
+      &__header {
+        height: 48px; // #YOUSIF: TO REMOVE ONCE WE FIGURE OUT A BETTER DESIGN APPROACH
+      }
     }
   }
 
   > li,
   > li > a,
-  > li a > * {
+  > li > a > * {
     height: 100%;
   }
 }

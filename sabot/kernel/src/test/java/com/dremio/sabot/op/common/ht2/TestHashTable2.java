@@ -19,13 +19,13 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.commons.io.Charsets;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -333,10 +333,10 @@ public class TestHashTable2 extends DremioTest {
           for (int i = 0; i < expectedOrdinals.length; i++) {
             int newLen = LBlockHashTable.VAR_OFFSET_SIZE * 2 + LBlockHashTable.VAR_LENGTH_SIZE;
             if (col1Arr[i] != null) {
-              newLen += col1Arr[i].getBytes(Charsets.UTF_8).length;
+              newLen += col1Arr[i].getBytes(StandardCharsets.UTF_8).length;
             }
             if (col2Arr[i] != null) {
-              newLen += col2Arr[i].getBytes(Charsets.UTF_8).length;
+              newLen += col2Arr[i].getBytes(StandardCharsets.UTF_8).length;
             }
 
             if (col1Arr[i] == null && col2Arr[i] == null && col3Arr[i] == null && nullOrdinal != -1) {

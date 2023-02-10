@@ -20,7 +20,10 @@ import {
   NessieRootActionTypes,
   SET_REF,
   SET_REFS,
+  NESSIE_RESET_STATE,
+  REMOVE_ENTRY,
 } from "@app/actions/nessie/nessie";
+import { ARCTIC_STATE_PREFIX, NESSIE_REF_PREFIX } from "@app/constants/nessie";
 import { NessieRootState, NessieState } from "@app/types/nessie";
 import nessieErrorReducer from "./nessieErrorReducer";
 import nessieLoadingReducer from "./nessieLoadingReducer";
@@ -87,6 +90,21 @@ function nessieRootReducer(
     return { ...state, ...initializeRefState(state) };
   } else if (action.type === SET_REFS) {
     return { ...state, ...initializeDatasetRefs(state, action.payload) };
+  } else if (action.type === NESSIE_RESET_STATE) {
+    return {};
+  } else if (action.type === REMOVE_ENTRY) {
+    //Remove `CatalogName` and `ref/CatalogName` and `__ARCTIC/CatalogName` entries from state
+    const {
+      [action.payload]: omit,
+      [`${NESSIE_REF_PREFIX}${action.payload}`]: refOmit,
+      [`${ARCTIC_STATE_PREFIX}${action.payload}`]: arcticOmit,
+      ...newState
+    } = state;
+    if (omit || refOmit || arcticOmit) {
+      return { ...newState };
+    } else {
+      return state;
+    }
   } else {
     const { source } = action;
     return {

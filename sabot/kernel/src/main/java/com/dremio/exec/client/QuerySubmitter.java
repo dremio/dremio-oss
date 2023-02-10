@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.client;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -28,7 +30,6 @@ import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
@@ -109,7 +110,7 @@ public class QuerySubmitter {
 
       String plan;
       if (queryString == null) {
-        plan = Charsets.UTF_8.decode(ByteBuffer.wrap(Files.readAllBytes(Paths.get(planLocation)))).toString();
+        plan = UTF_8.decode(ByteBuffer.wrap(Files.readAllBytes(Paths.get(planLocation)))).toString();
       } else {
         plan = queryString;
       }

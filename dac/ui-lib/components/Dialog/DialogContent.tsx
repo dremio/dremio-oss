@@ -17,21 +17,43 @@
 import * as React from "react";
 import { forwardRef } from "react";
 import clsx from "clsx";
+import { useDetectScroll } from "../utilities/useDetectScroll";
 
-type DialogContentProps = {
+export type DialogContentProps = {
   actions?: JSX.Element[] | JSX.Element;
   className?: string;
   children: JSX.Element | JSX.Element[];
-  title?: string;
+  error?: JSX.Element;
+  expanded?: boolean;
+  title?: JSX.Element | string;
   icon?: JSX.Element;
   toolbar?: JSX.Element;
 };
 
+/**
+ * DialogContent is a building block for more complete patterns in dremio-ui-common
+ * such as MessageDialog and ConfirmationDialog.
+ */
 export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
   (props, ref) => {
+    const { scrolledDirections, scrollContainerRef } = useDetectScroll([
+      "top",
+      "bottom",
+    ]);
     return (
-      <div className={clsx("dremio-dialog-content", props.className)} ref={ref}>
-        <header className="dremio-dialog-content__header">
+      <div
+        className={clsx("dremio-dialog-content", props.className, {
+          "dremio-dialog-content--expanded": props.expanded,
+        })}
+        ref={ref}
+      >
+        <div className="dremio-dialog-content-notifications"></div>
+        <header
+          className={clsx(
+            "dremio-dialog-content__header dremio-scroll-shadow dremio-scroll-shadow--top",
+            { "--scrolled": scrolledDirections.has("top") }
+          )}
+        >
           {props.icon && (
             <span className="dremio-dialog-content__header-icon">
               {props.icon}
@@ -48,8 +70,21 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
             </div>
           )}
         </header>
-        <div className="dremio-dialog-content__main">{props.children}</div>
-        <footer className="dremio-dialog-content__footer">
+        {props.error && (
+          <div className="dremio-dialog-content__error">{props.error}</div>
+        )}
+        <div ref={scrollContainerRef} className="dremio-dialog-content__main">
+          {props.children}
+        </div>
+        <footer
+          className={clsx(
+            "dremio-dialog-content__footer",
+            "dremio-scroll-shadow dremio-scroll-shadow--bottom",
+            {
+              "--scrolled": scrolledDirections.has("bottom"),
+            }
+          )}
+        >
           {props.actions && (
             <div className="dremio-dialog-content__footer-actions">
               <div className="dremio-button-group">{props.actions}</div>

@@ -32,12 +32,12 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.sql.JoinType;
+import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCollation;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -514,12 +514,10 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
 
   protected static SqlNode getVarcharWithPrecision(DremioSqlDialect dialect, RelDataType type, int precision) {
     return new SqlDataTypeSpec(
-      new SqlIdentifier(type.getSqlTypeName().name(), SqlParserPos.ZERO),
-      precision,
-      type.getScale(),
+      new SqlBasicTypeNameSpec(type.getSqlTypeName(), precision,
       type.getCharset() != null && dialect.supportsCharSet()
         ? type.getCharset().name() : null,
-      null,
+      SqlParserPos.ZERO),
       SqlParserPos.ZERO);
   }
 }

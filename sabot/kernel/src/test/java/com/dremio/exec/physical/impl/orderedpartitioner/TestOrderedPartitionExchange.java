@@ -29,7 +29,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.util.FileUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
@@ -39,9 +38,7 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 
 /**
  * Tests the OrderedPartitionExchange SqlOperatorImpl
@@ -70,8 +67,7 @@ public class TestOrderedPartitionExchange extends PopUnitTestBase {
       bit2.run();
       client.connect();
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-          Files.toString(FileUtils.getResourceAsFile("/sender/ordered_exchange.json"),
-              Charsets.UTF_8));
+        readResourceAsString("/sender/ordered_exchange.json"));
       int count = 0;
       List<Integer> partitionRecordCounts = Lists.newArrayList();
       for(QueryDataBatch b : results) {

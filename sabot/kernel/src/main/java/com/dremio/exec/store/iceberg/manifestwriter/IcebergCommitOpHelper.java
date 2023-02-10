@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -65,6 +66,7 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
+import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -75,229 +77,253 @@ import com.google.protobuf.ByteString;
  * Helper class for flushing out commits
  */
 public class IcebergCommitOpHelper implements AutoCloseable {
-    private static final Logger logger = LoggerFactory.getLogger(IcebergCommitOpHelper.class);
+  private static final Logger logger = LoggerFactory.getLogger(IcebergCommitOpHelper.class);
 
-    protected final WriterCommitterPOP config;
-    protected final OperatorContext context;
-    protected VarBinaryVector icebergMetadataVector;
-    protected IntVector operationTypeVector;
-    protected VarCharVector pathVector;
-    protected ListVector partitionDataVector;
-    protected IcebergOpCommitter icebergOpCommitter;
-    private final Set<IcebergPartitionData> addedPartitions = new HashSet<>(); // partitions with new files
-    private final Set<IcebergPartitionData> deletedPartitions = new HashSet<>(); // partitions with deleted files
-    private final Set<String> partitionPaths;
-    private final Set<String> partitionPathsWithDeletedFiles = new HashSet<>();
-    protected Predicate<String> partitionExistsPredicate = path -> true;
-    private FileSystem fsToCheckIfPartitionExists;
-    protected ReadSignatureProvider readSigProvider = (added, deleted) -> ByteString.EMPTY;
-    protected List<ManifestFile> icebergManifestFiles = new ArrayList<>();
-    protected boolean success;
-    private final DremioFileIO dremioFileIO;
+  private static final Set<IcebergCommandType> CUSTOM_OUTPUT_COMMANDS = ImmutableSet.of(IcebergCommandType.OPTIMIZE);
 
-    public static IcebergCommitOpHelper getInstance(OperatorContext context, WriterCommitterPOP config) {
-        if (config.getIcebergTableProps() == null) {
-            return new NoOpIcebergCommitOpHelper(context, config);
-        } else if (config.getIcebergTableProps().isDetectSchema()) {
-            return new SchemaDiscoveryIcebergCommitOpHelper(context, config);
-        } else {
-            return new IcebergCommitOpHelper(context, config);
-        }
+  protected final WriterCommitterPOP config;
+  protected final OperatorContext context;
+  protected VarBinaryVector icebergMetadataVector;
+  protected IntVector operationTypeVector;
+  protected VarCharVector pathVector;
+  protected ListVector partitionDataVector;
+  protected IcebergOpCommitter icebergOpCommitter;
+  private final Set<IcebergPartitionData> addedPartitions = new HashSet<>(); // partitions with new files
+  private final Set<IcebergPartitionData> deletedPartitions = new HashSet<>(); // partitions with deleted files
+  private final Set<String> partitionPaths;
+  private final Set<String> partitionPathsWithDeletedFiles = new HashSet<>();
+  protected Predicate<String> partitionExistsPredicate = path -> true;
+  private FileSystem fsToCheckIfPartitionExists;
+  protected ReadSignatureProvider readSigProvider = (added, deleted) -> ByteString.EMPTY;
+  protected List<ManifestFile> icebergManifestFiles = new ArrayList<>();
+  protected boolean success;
+  private final DremioFileIO dremioFileIO;
+
+  public static IcebergCommitOpHelper getInstance(OperatorContext context, WriterCommitterPOP config) {
+    if (config.getIcebergTableProps() == null) {
+      return new NoOpIcebergCommitOpHelper(context, config);
+    } else if (config.getIcebergTableProps().isDetectSchema()) {
+      return new SchemaDiscoveryIcebergCommitOpHelper(context, config);
+    } else {
+      return new IcebergCommitOpHelper(context, config);
     }
+  }
 
-    protected IcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config) {
-        this.config = config;
-        this.context = context;
-        this.dremioFileIO = new DremioFileIO(config.getPlugin().getFsConfCopy(), config.getPlugin());
-        this.partitionPaths = createPartitionPathsSet(config);
+  protected IcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config) {
+    this.config = config;
+    this.context = context;
+    this.dremioFileIO = new DremioFileIO(config.getPlugin().getFsConfCopy(), config.getPlugin());
+    this.partitionPaths = createPartitionPathsSet(config);
+  }
+
+  public void setup(VectorAccessible incoming) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
+    IcebergTableProps icebergTableProps = config.getIcebergTableProps();
+
+    final IcebergModel icebergModel;
+    final IcebergTableIdentifier icebergTableIdentifier;
+    final SupportsIcebergMutablePlugin icebergMutablePlugin = (SupportsIcebergMutablePlugin) config.getPlugin();
+    icebergModel = icebergMutablePlugin.getIcebergModel(icebergTableProps, config.getProps().getUserName(), context, null);
+    icebergTableIdentifier = icebergModel.getTableIdentifier(icebergMutablePlugin.getTableLocation(icebergTableProps));
+
+    TypedFieldId metadataFileId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
+    TypedFieldId operationTypeId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE_COLUMN));
+    TypedFieldId pathId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.PATH_COLUMN));
+    icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, metadataFileId.getFieldIds()).getValueVector();
+    operationTypeVector = incoming.getValueAccessorById(IntVector.class, operationTypeId.getFieldIds()).getValueVector();
+    pathVector = incoming.getValueAccessorById(VarCharVector.class, pathId.getFieldIds()).getValueVector();
+    partitionDataVector = (ListVector) VectorUtil.getVectorFromSchemaPath(incoming, RecordWriter.PARTITION_DATA_COLUMN);
+
+    switch (icebergTableProps.getIcebergOpType()) {
+      case CREATE:
+        icebergOpCommitter = icebergModel.getCreateTableCommitter(
+          icebergTableProps.getTableName(),
+          icebergTableIdentifier,
+          icebergTableProps.getFullSchema(),
+          icebergTableProps.getPartitionColumnNames(),
+          context.getStats(),
+          icebergTableProps.getPartitionSpec() != null ?
+            IcebergSerDe.deserializePartitionSpec(deserializedJsonAsSchema(icebergTableProps.getIcebergSchema()),
+              icebergTableProps.getPartitionSpec().toByteArray()) : null
+        );
+        break;
+      case INSERT:
+        icebergOpCommitter = icebergModel.getInsertTableCommitter(
+          icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+          context.getStats()
+        );
+        break;
+      case UPDATE:
+      case DELETE:
+      case MERGE:
+        icebergOpCommitter = icebergModel.getDmlCommitter(
+          context.getStats(),
+          icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+          config.getDatasetConfig().get());
+        break;
+      case OPTIMIZE:
+        icebergOpCommitter = icebergModel.getOptimizeCommitter(
+          context.getStats(),
+          icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+          config.getDatasetConfig().get(),
+          config.getTableFormatOptions().getMinInputFilesBeforeOptimize(),
+          icebergTableProps,
+          getFS(config));
+        break;
+      case FULL_METADATA_REFRESH:
+        createReadSignProvider(icebergTableProps, true);
+        icebergOpCommitter = icebergModel.getFullMetadataRefreshCommitter(
+          icebergTableProps.getTableName(),
+          config.getDatasetPath().getPathComponents(),
+          icebergTableProps.getDataTableLocation(),
+          icebergTableProps.getUuid(),
+          icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+          icebergTableProps.getFullSchema(),
+          icebergTableProps.getPartitionColumnNames(),
+          config.getDatasetConfig().get(),
+          context.getStats(),
+          null
+        );
+        break;
+      case INCREMENTAL_METADATA_REFRESH:
+        createReadSignProvider(icebergTableProps, false);
+        icebergOpCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(
+          context,
+          icebergTableProps.getTableName(),
+          config.getDatasetPath().getPathComponents(),
+          icebergTableProps.getDataTableLocation(),
+          icebergTableProps.getUuid(),
+          icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+          icebergTableProps.getPersistedFullSchema(),
+          icebergTableProps.getPartitionColumnNames(),
+          false,
+          config.getDatasetConfig().get()
+        );
+        icebergOpCommitter.updateSchema(icebergTableProps.getFullSchema());
+        break;
     }
+    addMetricStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_SETUP_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+  }
 
-    public void setup(VectorAccessible incoming) {
-      Stopwatch stopwatch = Stopwatch.createStarted();
-        // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
-      IcebergTableProps icebergTableProps = config.getIcebergTableProps();
+  private List<String> getPartitionPaths() {
+    return config.getIcebergTableProps().getPartitionPaths();
+  }
 
-      final IcebergModel icebergModel;
-      final IcebergTableIdentifier icebergTableIdentifier;
-      final SupportsIcebergMutablePlugin icebergMutablePlugin = (SupportsIcebergMutablePlugin)config.getPlugin();
-      icebergModel = icebergMutablePlugin.getIcebergModel(icebergTableProps, config.getProps().getUserName(), context, null);
-      icebergTableIdentifier = icebergModel.getTableIdentifier(icebergMutablePlugin.getTableLocation(icebergTableProps));
-
-        TypedFieldId metadataFileId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
-        TypedFieldId operationTypeId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE_COLUMN));
-        TypedFieldId pathId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.PATH_COLUMN));
-        icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, metadataFileId.getFieldIds()).getValueVector();
-        operationTypeVector = incoming.getValueAccessorById(IntVector.class, operationTypeId.getFieldIds()).getValueVector();
-        pathVector = incoming.getValueAccessorById(VarCharVector.class, pathId.getFieldIds()).getValueVector();
-        partitionDataVector = (ListVector) VectorUtil.getVectorFromSchemaPath(incoming, RecordWriter.PARTITION_DATA_COLUMN);
-
-        switch (icebergTableProps.getIcebergOpType()) {
-            case CREATE:
-                icebergOpCommitter = icebergModel.getCreateTableCommitter(
-                        icebergTableProps.getTableName(),
-                        icebergTableIdentifier,
-                        icebergTableProps.getFullSchema(),
-                        icebergTableProps.getPartitionColumnNames(),
-                        context.getStats(),
-                        icebergTableProps.getPartitionSpec() != null ?
-                                IcebergSerDe.deserializePartitionSpec(deserializedJsonAsSchema(icebergTableProps.getIcebergSchema()),
-                                        icebergTableProps.getPartitionSpec().toByteArray()) : null
-                );
-                break;
-            case INSERT:
-                icebergOpCommitter = icebergModel.getInsertTableCommitter(
-                        icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
-                        context.getStats()
-                );
-                break;
-            case UPDATE:
-            case DELETE:
-            case MERGE:
-                icebergOpCommitter = icebergModel.getDmlCommitter(
-                  context.getStats(),
-                  icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
-                  config.getDatasetConfig().get());
-                break;
-          case FULL_METADATA_REFRESH:
-            createReadSignProvider(icebergTableProps, true);
-            icebergOpCommitter = icebergModel.getFullMetadataRefreshCommitter(
-                  icebergTableProps.getTableName(),
-                  config.getDatasetPath().getPathComponents(),
-                  icebergTableProps.getDataTableLocation(),
-                  icebergTableProps.getUuid(),
-                  icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
-                  icebergTableProps.getFullSchema(),
-                  icebergTableProps.getPartitionColumnNames(),
-                  config.getDatasetConfig().get(),
-                  context.getStats(),
-                  null
-                );
-                break;
-            case INCREMENTAL_METADATA_REFRESH:
-              createReadSignProvider(icebergTableProps, false);
-              icebergOpCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(
-                    context,
-                    icebergTableProps.getTableName(),
-                    config.getDatasetPath().getPathComponents(),
-                    icebergTableProps.getDataTableLocation(),
-                    icebergTableProps.getUuid(),
-                    icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
-                    icebergTableProps.getPersistedFullSchema(),
-                    icebergTableProps.getPartitionColumnNames(),
-                    false,
-                    config.getDatasetConfig().get()
-                );
-                icebergOpCommitter.updateSchema(icebergTableProps.getFullSchema());
-                break;
-        }
-      addMetricStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_SETUP_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+  public boolean hasCustomOutput() {
+    if (config.getIcebergTableProps() == null) {
+      return false;
     }
-
-    private List<String> getPartitionPaths() {
-        return config.getIcebergTableProps().getPartitionPaths();
-    }
+    IcebergCommandType icebergCommandType = config.getIcebergTableProps().getIcebergOpType();
+    return icebergCommandType != null && CUSTOM_OUTPUT_COMMANDS.contains(icebergCommandType);
+  }
 
   public void consumeData(int records) throws Exception {
-        for (int i = 0; i < records; ++i) {
-            OperationType operationType = getOperationType(i);
-            switch (operationType) {
-                case ADD_MANIFESTFILE:
-                    consumeManifestFile(getManifestFile(i));
-                    consumeManifestPartitionData(i);
-                    break;
-                case DELETE_DATAFILE:
-                    if (isDmlCommandType()) {
-                        consumeDeleteDataFilePath(i);
-                    } else {
-                        consumeDeletedDataFile(getDeleteDataFile(i));
-                    }
-                    consumeDeletedDataFilePartitionData(i);
-                    break;
-                default:
-                    throw new Exception("Unsupported File Type: " + operationType);
-            }
-        }
-    }
-
-    protected void consumeManifestFile(ManifestFile manifestFile) {
-        logger.debug("Adding manifest file: {}", manifestFile.path());
-        icebergManifestFiles.add(manifestFile);
-        icebergOpCommitter.consumeManifestFile(manifestFile);
-    }
-
-    protected void consumeDeletedDataFile(DataFile deletedDataFile) {
-      logger.debug("Removing data file: {}", deletedDataFile.path());
-      icebergOpCommitter.consumeDeleteDataFile(deletedDataFile);
-
-      // Record the partition paths for deleted files during incremental metadata refresh - this will help limit the
-      // number of existence checks we need to perform when updating the read signature.
-      // TODO: DX-58354: Logic for managing the read signature needs to be refactored into the IcebergOpCommitter
-      // implementations.
-      if (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH) {
-        String partitionPath = getPartitionPathFromFilePath(deletedDataFile.path().toString());
-        if (partitionPath != null) {
-          partitionPathsWithDeletedFiles.add(partitionPath);
-        } else {
-          // Just log and ignore the case where we can't match the deleted data file to a known partition path.
-          // For well-formed tables this should not occur.
-          logger.warn("Failed to find a corresponding partition path for deleted data file {}",
-              deletedDataFile.path());
-        }
+    for (int i = 0; i < records; ++i) {
+      OperationType operationType = getOperationType(i);
+      switch (operationType) {
+        case ADD_MANIFESTFILE:
+          consumeManifestFile(getManifestFile(i));
+          consumeManifestPartitionData(i);
+          break;
+        case DELETE_DATAFILE:
+          if (isDmlCommandType()) {
+            consumeDeleteDataFilePath(i);
+          } else {
+            consumeDeletedDataFile(getDeleteDataFile(i));
+          }
+          consumeDeletedDataFilePartitionData(i);
+          break;
+        case ADD_DATAFILE:
+          // Consuming operations: OPTIMIZE TABLE
+          DataFile addedFile = IcebergSerDe.deserializeDataFile(getIcebergMetadataInformation(i).getIcebergMetadataFileByte());
+          icebergOpCommitter.consumeAddDataFile(addedFile);
+          break;
+        default:
+          throw new Exception("Unsupported File Type: " + operationType);
       }
     }
+  }
 
-    protected void consumeDeleteDataFilePath(int row) {
-        // For Dml commands, the data file paths to be deleted are carried in through RecordWriter.Path field.
-        Preconditions.checkNotNull(pathVector);
-        // For inserted rows in MERGE, we don't have a deleted data file path but is passed here as null. As a result, we need to do a null check.
-        byte[] filePath = pathVector.get(row);
-        if (filePath == null) {
-          return;
-        }
-        Text text = new Text(pathVector.get(row));
-        String deletedDataFilePath = text.toString();
-        icebergOpCommitter.consumeDeleteDataFilePath(deletedDataFilePath);
-    }
+  protected void consumeManifestFile(ManifestFile manifestFile) {
+    logger.debug("Adding manifest file: {}", manifestFile.path());
+    icebergManifestFiles.add(manifestFile);
+    icebergOpCommitter.consumeManifestFile(manifestFile);
+  }
 
-    protected IcebergMetadataInformation getIcebergMetadataInformation(int row) throws IOException, ClassNotFoundException {
-        return IcebergSerDe.deserializeFromByteArray(icebergMetadataVector.get(row));
-    }
+  protected void consumeDeletedDataFile(DataFile deletedDataFile) {
+    logger.debug("Removing data file: {}", deletedDataFile.path());
+    icebergOpCommitter.consumeDeleteDataFile(deletedDataFile);
 
-    protected ManifestFile getManifestFile(int row) throws IOException, ClassNotFoundException {
-        return IcebergSerDe.deserializeManifestFile(getIcebergMetadataInformation(row).getIcebergMetadataFileByte());
-    }
-
-    protected DataFile getDeleteDataFile(int row) throws IOException, ClassNotFoundException {
-        return IcebergSerDe.deserializeDataFile(getIcebergMetadataInformation(row).getIcebergMetadataFileByte());
-    }
-
-    protected boolean isDmlCommandType() {
-        IcebergCommandType commandType = config.getIcebergTableProps().getIcebergOpType();
-        return commandType == IcebergCommandType.DELETE || commandType == IcebergCommandType.UPDATE
-          || commandType == IcebergCommandType.MERGE;
-    }
-
-    protected OperationType getOperationType(int row) {
-      return OperationType.valueOf(operationTypeVector.get(row));
-    }
-
-    public void commit() throws Exception {
-        if (icebergOpCommitter == null) {
-            logger.warn("Skipping iceberg commit because opCommitter isn't initialized");
-            return;
-        }
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        ByteString newReadSignature = readSigProvider.compute(addedPartitions, deletedPartitions);
-        addMetricStat(WriterCommitterOperator.Metric.READ_SIGNATURE_COMPUTE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
-        icebergOpCommitter.updateReadSignature(newReadSignature);
-      try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
-            icebergOpCommitter.commit();
-        } catch (Exception ex) {
-        icebergOpCommitter.cleanup(dremioFileIO);
-        throw ex;
+    // Record the partition paths for deleted files during incremental metadata refresh - this will help limit the
+    // number of existence checks we need to perform when updating the read signature.
+    // TODO: DX-58354: Logic for managing the read signature needs to be refactored into the IcebergOpCommitter
+    // implementations.
+    if (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH) {
+      String partitionPath = getPartitionPathFromFilePath(deletedDataFile.path().toString());
+      if (partitionPath != null) {
+        partitionPathsWithDeletedFiles.add(partitionPath);
+      } else {
+        // Just log and ignore the case where we can't match the deleted data file to a known partition path.
+        // For well-formed tables this should not occur.
+        logger.warn("Failed to find a corresponding partition path for deleted data file {}",
+            deletedDataFile.path());
       }
-      success = true;
     }
+  }
+
+  protected void consumeDeleteDataFilePath(int row) {
+    // For Dml commands, the data file paths to be deleted are carried in through RecordWriter.Path field.
+    Preconditions.checkNotNull(pathVector);
+    // For inserted rows in MERGE, we don't have a deleted data file path but is passed here as null. As a result, we need to do a null check.
+    byte[] filePath = pathVector.get(row);
+    if (filePath == null) {
+      return;
+    }
+    Text text = new Text(pathVector.get(row));
+    String deletedDataFilePath = text.toString();
+    icebergOpCommitter.consumeDeleteDataFilePath(deletedDataFilePath);
+  }
+
+  protected IcebergMetadataInformation getIcebergMetadataInformation(int row) throws IOException, ClassNotFoundException {
+    return IcebergSerDe.deserializeFromByteArray(icebergMetadataVector.get(row));
+  }
+
+  protected ManifestFile getManifestFile(int row) throws IOException, ClassNotFoundException {
+    return IcebergSerDe.deserializeManifestFile(getIcebergMetadataInformation(row).getIcebergMetadataFileByte());
+  }
+
+  protected DataFile getDeleteDataFile(int row) throws IOException, ClassNotFoundException {
+    return IcebergSerDe.deserializeDataFile(getIcebergMetadataInformation(row).getIcebergMetadataFileByte());
+  }
+
+  protected boolean isDmlCommandType() {
+    IcebergCommandType commandType = config.getIcebergTableProps().getIcebergOpType();
+    return commandType == IcebergCommandType.DELETE || commandType == IcebergCommandType.UPDATE
+      || commandType == IcebergCommandType.MERGE;
+  }
+
+  protected OperationType getOperationType(int row) {
+    return OperationType.valueOf(operationTypeVector.get(row));
+  }
+
+  public void commit(WriterCommitterOutputHandler outputHandler) throws Exception {
+    if (icebergOpCommitter == null) {
+      logger.warn("Skipping iceberg commit because opCommitter isn't initialized");
+      return;
+    }
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    ByteString newReadSignature = readSigProvider.compute(addedPartitions, deletedPartitions);
+    addMetricStat(WriterCommitterOperator.Metric.READ_SIGNATURE_COMPUTE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    icebergOpCommitter.updateReadSignature(newReadSignature);
+    try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
+      icebergOpCommitter.commit(outputHandler);
+    } catch (Exception ex) {
+      icebergOpCommitter.cleanup(dremioFileIO);
+      throw ex;
+    }
+    success = true;
+  }
 
   protected void createReadSignProvider(IcebergTableProps icebergTableProps, boolean isFullRefresh) {
     if (config.isReadSignatureEnabled()) {
@@ -328,69 +354,78 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     }
   }
 
-    protected List<IcebergPartitionData> getPartitionData(int i) {
-      List<IcebergPartitionData> partitionDataList = new ArrayList<>();
-      UnionListReader partitionDataVectorReader = partitionDataVector.getReader();
-      partitionDataVectorReader.setPosition(i);
-      int size = partitionDataVectorReader.size();
-      FieldReader partitionDataBinaryReader = partitionDataVectorReader.reader();
-      for (int j = 0; j < size; j++) {
-        partitionDataBinaryReader.setPosition(j);
-        byte[] bytes = partitionDataBinaryReader.readByteArray();
-        IcebergPartitionData ipd = IcebergSerDe.deserializePartitionData(bytes);
-        if (ipd.get(0) != null) {
-          partitionDataList.add(ipd);
+  protected List<IcebergPartitionData> getPartitionData(int i) {
+    List<IcebergPartitionData> partitionDataList = new ArrayList<>();
+    UnionListReader partitionDataVectorReader = partitionDataVector.getReader();
+    partitionDataVectorReader.setPosition(i);
+    int size = partitionDataVectorReader.size();
+    FieldReader partitionDataBinaryReader = partitionDataVectorReader.reader();
+    for (int j = 0; j < size; j++) {
+      partitionDataBinaryReader.setPosition(j);
+      byte[] bytes = partitionDataBinaryReader.readByteArray();
+      IcebergPartitionData ipd = IcebergSerDe.deserializePartitionData(bytes);
+      if (ipd.get(0) != null) {
+        partitionDataList.add(ipd);
+      }
+    }
+    return partitionDataList;
+  }
+
+  protected void createPartitionExistsPredicate(WriterCommitterPOP config, boolean isFullRefresh) {
+    partitionExistsPredicate = (path) ->
+    {
+      // We need to check existence of partition dirs in two cases:
+      // 1. Full refresh - even if Hive reports a partition directory as part of the table, it can be deleted, and
+      //    in that case we need to exclude it from the read signature.
+      // 2. Incremental refresh for directories where we found deleted data files - in these cases we need to
+      //    check whether the entire directory was removed.
+      // For other directories during incremental refresh, we skip existence checks as they can be expensive.  If
+      // we did not find any deleted files in a partition directory, it must still exist.
+      if (isFullRefresh || partitionPathsWithDeletedFiles.contains(path)) {
+        try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
+          return getFS(path, config).exists(Path.of(path));
+        } catch (Exception e) {
+          throw UserException.ioExceptionError(e).buildSilently();
         }
       }
-      return partitionDataList;
-    }
 
-    protected void createPartitionExistsPredicate(WriterCommitterPOP config, boolean isFullRefresh) {
-      partitionExistsPredicate = (path) ->
-      {
-        // We need to check existence of partition dirs in two cases:
-        // 1. Full refresh - even if Hive reports a partition directory as part of the table, it can be deleted, and
-        //    in that case we need to exclude it from the read signature.
-        // 2. Incremental refresh for directories where we found deleted data files - in these cases we need to
-        //    check whether the entire directory was removed.
-        // For other directories during incremental refresh, we skip existence checks as they can be expensive.  If
-        // we did not find any deleted files in a partition directory, it must still exist.
-        if (isFullRefresh || partitionPathsWithDeletedFiles.contains(path)) {
-          try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
-            return getFS(path, config).exists(Path.of(path));
-          } catch (Exception e) {
-            throw UserException.ioExceptionError(e).buildSilently();
-          }
+      return true;
+    };
+  }
+
+  private FileSystem getFS(WriterCommitterPOP config) {
+    try {
+      return config.getPlugin().createFS(Optional.ofNullable(config.getTempLocation()).orElse(config.getFinalLocation()),
+        config.getProps().getUserName(), context);
+    } catch (IOException ioe) {
+      throw UserException.ioExceptionError(ioe).buildSilently();
+    }
+  }
+
+  protected FileSystem getFS(String path, WriterCommitterPOP config) throws IOException {
+    if (fsToCheckIfPartitionExists == null) {
+      Stopwatch stopwatch = Stopwatch.createStarted();
+      fsToCheckIfPartitionExists = config.getSourceTablePlugin().createFS(path, config.getProps().getUserName(), context);
+      addMetricStat(WriterCommitterOperator.Metric.FILE_SYSTEM_CREATE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    }
+    return fsToCheckIfPartitionExists;
+  }
+
+  public void cleanUpManifestFiles(FileSystem fs) throws IOException, ClassNotFoundException {
+    if (icebergMetadataVector == null) {
+      return;
+    }
+    for (int i = 0; i < icebergMetadataVector.getValueCount(); i++) {
+      IcebergMetadataInformation information = getIcebergMetadataInformation(i);
+      OperationType operationType = getOperationType(i);
+      if (operationType == OperationType.ADD_MANIFESTFILE) {
+        Path p = Path.of(IcebergSerDe.deserializeManifestFile(information.getIcebergMetadataFileByte()).path());
+        if (fs.exists(p)) {
+          fs.delete(p, false);
         }
-
-        return true;
-      };
-    }
-
-    protected FileSystem getFS(String path, WriterCommitterPOP config) throws IOException {
-      if (fsToCheckIfPartitionExists == null) {
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        fsToCheckIfPartitionExists = config.getSourceTablePlugin().createFS(path, config.getProps().getUserName(), context);
-        addMetricStat(WriterCommitterOperator.Metric.FILE_SYSTEM_CREATE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
       }
-      return fsToCheckIfPartitionExists;
     }
-
-    public void cleanUpManifestFiles(FileSystem fs) throws IOException, ClassNotFoundException {
-        if (icebergMetadataVector == null) {
-            return;
-        }
-        for(int i = 0; i < icebergMetadataVector.getValueCount(); i++) {
-            IcebergMetadataInformation information = getIcebergMetadataInformation(i);
-            OperationType operationType = getOperationType(i);
-            if(operationType == OperationType.ADD_MANIFESTFILE) {
-              Path p = Path.of(IcebergSerDe.deserializeManifestFile(information.getIcebergMetadataFileByte()).path());
-              if(fs.exists(p)) {
-                fs.delete(p, false);
-              }
-            }
-        }
-    }
+  }
 
   @VisibleForTesting
   IcebergOpCommitter getIcebergOpCommitter() {
@@ -431,11 +466,11 @@ public class IcebergCommitOpHelper implements AutoCloseable {
       // ManifestFiles.readPaths requires snapshotId not null, created manifestFile has null snapshot id
       // use a NonNullSnapshotIdManifestFileWrapper to provide a non-null dummy snapshotId
       ManifestFile nonNullSnapshotIdManifestFile =
-        manifestFile.snapshotId()==null ? GenericManifestFile.copyOf(manifestFile).withSnapshotId(-1L).build():manifestFile;
+        manifestFile.snapshotId() == null ? GenericManifestFile.copyOf(manifestFile).withSnapshotId(-1L).build() : manifestFile;
       CloseableIterable<String> dataFiles = ManifestFiles.readPaths(nonNullSnapshotIdManifestFile, dremioFileIO);
       dataFiles.forEach(f -> dremioFileIO.deleteFile(f));
     } catch (Exception e) {
-      logger.warn(String.format("Failed to delete up data files in manifestFile %s" , manifestFile), e);
+      logger.warn(String.format("Failed to delete up data files in manifestFile %s", manifestFile), e);
     }
   }
 

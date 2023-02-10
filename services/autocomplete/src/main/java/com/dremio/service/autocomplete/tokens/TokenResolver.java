@@ -17,7 +17,9 @@ package com.dremio.service.autocomplete.tokens;
 
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 
+import com.dremio.exec.planner.sql.parser.impl.ParseException;
+import com.dremio.exec.planner.sql.parser.impl.Token;
 import com.dremio.service.autocomplete.functions.TokenTypeDetector;
 import com.dremio.service.autocomplete.parsing.BaseSqlNodeParser;
 import com.google.common.base.Preconditions;
@@ -40,7 +44,7 @@ import software.amazon.awssdk.utils.Either;
 public final class TokenResolver {
   private static final DremioTokenNGramFrequencyTable N_GRAM_FREQUENCY_TABLE = DremioTokenNGramFrequencyTable.create("markov_chain_queries.sql", 4);
   // Token that never occurs in the real query.
-  private static final DremioToken invalidToken = new DremioToken(0, "dummy42\07");
+  private static final DremioToken invalidToken = new DremioToken(0, "\07");
 
   private TokenResolver() {}
 
@@ -109,7 +113,7 @@ public final class TokenResolver {
       boolean isIdentifierPossible = false;
       ImmutableList.Builder<Integer> expectedTokensBuilder = new ImmutableList.Builder<>();
       for (Integer tokenKind : tokenKinds) {
-        if (tokenKind== IDENTIFIER) {
+        if (tokenKind == IDENTIFIER ) {
           isIdentifierPossible = true;
         }
 
@@ -143,31 +147,39 @@ public final class TokenResolver {
     SqlParseException sqlParseException,
     ImmutableList<DremioToken> corpus) {
     if (sqlParseException.getExpectedTokenSequences() != null) {
-      /*
-      Returns a list of the token kinds which could have legally occurred at this point.
-      If some of the alternatives contain multiple tokens,
-      returns the last token of only these longest sequences.
-      (This occurs when the parser is maintaining more than the usual lookup.)
-      For instance, if the possible tokens are:
-        {"IN"}
-        {"BETWEEN"}
-        {"LIKE"}
-        {"=", "<IDENTIFIER>"}
-        {"=", "USER"}
+      // We get a list of expected tokens from the parse exception.
+      // The way the parse exception is formatted is that it gives:
+      //  1) A cursor for where the query hit an error
+      //  2) What token sequences can come after that to complete the query.
+      //
+      // Now for autocomplete we have a limitation ...
+      // We can't ask the user to back up the cursor in order to complete their query.
+      // So the solution is to take the list of results from the parse exception
+      // and filter the possible sequences down to only the ones that match the tokens the user has already submitted.
+      ParseException parseException = (ParseException) sqlParseException.getCause();
+      Token startOfUserPath = parseException.currentToken.next;
 
-        returns
-        "<IDENTIFIER>"
-        "USER"
-      */
-      int maxLength = 0;
-      for (int[] expectedTokenSequence : sqlParseException.getExpectedTokenSequences()) {
-        maxLength = Math.max(expectedTokenSequence.length, maxLength);
+      List<Integer> pathUserHasChosen = new ArrayList<>();
+      while (startOfUserPath != null) {
+        boolean skipToken = (startOfUserPath.kind == EOF) || (startOfUserPath.kind == BEL);
+        if (!skipToken) {
+          pathUserHasChosen.add(startOfUserPath.kind);
+        }
+
+        startOfUserPath = startOfUserPath.next;
       }
 
-      int finalMaxLength = maxLength;
-      return Arrays.stream(sqlParseException.getExpectedTokenSequences())
-        .filter(seq -> seq.length == finalMaxLength)
-        .map(seq -> seq[seq.length - 1])
+      return Arrays
+        .stream(sqlParseException.getExpectedTokenSequences())
+        .map(intarray -> Arrays
+          .stream(intarray)
+          // <HINT_BEG> is not a useful autocomplete recommendation.
+          .filter(tokenKind -> tokenKind != HINT_BEG)
+          .boxed()
+          .collect(ImmutableList.toImmutableList()))
+        .filter(sequence -> sequenceStartsWithPrefix(sequence, pathUserHasChosen))
+        // We only want to provide the next token to the user instead of the whole chain of tokens.
+        .map(sequence -> sequence.get(pathUserHasChosen.size()))
         .collect(Collectors.toSet());
     }
 
@@ -191,6 +203,20 @@ public final class TokenResolver {
     throw new RuntimeException(
       "FAILED TO GET TOKENS FROM TOKEN RESOLVER. Corpus: " + SqlQueryUntokenizer.untokenize(corpus),
       sqlParseException);
+  }
+
+  private static boolean sequenceStartsWithPrefix(List<Integer> sequence, List<Integer> prefix) {
+    if (prefix.size() >= sequence.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < prefix.size(); i++) {
+      if (!sequence.get(i).equals(prefix.get(i))) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private static ImmutableList<DremioToken> getTokensInCurrentStatement(ImmutableList<DremioToken> tokens) {

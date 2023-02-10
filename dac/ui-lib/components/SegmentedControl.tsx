@@ -19,6 +19,10 @@
 import * as React from "react";
 import { forwardRef, useState, useCallback } from "react";
 import clsx from "clsx";
+//@ts-ignore
+import invariant from "invariant";
+import { Tooltip } from "./Tooltip/Tooltip";
+import { type Placement } from "@floating-ui/react-dom-interactions";
 
 type SegmentedControlProps<T extends string = string> = {
   children: JSX.Element[];
@@ -52,7 +56,7 @@ export const SegmentedControl = forwardRef(
         ref={ref}
         className={clsx("dremio-segmented-control", className)}
       >
-        {React.Children.map(children, (child) => {
+        {React.Children.map(children, (child: any) => {
           return React.cloneElement(child, {
             onSelected: handleOptionSelection,
             selected: value === child.props.value,
@@ -68,11 +72,23 @@ SegmentedControl.displayName = "SegmentedControl";
 type SegmentedControlOptionProps<T extends string = string> = {
   onSelected: (value: T) => void;
   selected: boolean;
+  tooltip: JSX.Element | string;
+  tooltipPlacement?: Placement;
   value: T;
 } & React.DetailedHTMLProps<
   React.HTMLAttributes<HTMLButtonElement>,
   HTMLButtonElement
 >;
+
+const validateOptionProps = (props: SegmentedControlOptionProps) => {
+  //@ts-ignore
+  if (process.env.NODE_ENV === "production") return;
+
+  invariant(
+    !!props.tooltip,
+    "SegmentedControlOption: The `tooltip` prop is required"
+  );
+};
 
 export const SegmentedControlOption = forwardRef(
   (
@@ -86,23 +102,31 @@ export const SegmentedControlOption = forwardRef(
       value,
       onSelected,
       onClick,
+      tooltip,
+      tooltipPlacement,
       ...rest
     } = props;
+    validateOptionProps(props);
     return (
-      <button
-        {...rest}
-        ref={ref}
-        className={clsx("dremio-segmented-control-option", className)}
-        role="button"
-        aria-pressed={selected ? "true" : "false"}
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick?.(e);
-          onSelected(value);
-        }}
-      >
-        {children}
-      </button>
+      <Tooltip content={tooltip} placement={tooltipPlacement}>
+        {(tooltipContent) => (
+          <button
+            {...rest}
+            ref={ref}
+            className={clsx("dremio-segmented-control-option", className)}
+            role="button"
+            aria-pressed={selected ? "true" : "false"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick?.(e);
+              onSelected(value);
+            }}
+          >
+            {children}
+            {tooltipContent}
+          </button>
+        )}
+      </Tooltip>
     );
   }
 );

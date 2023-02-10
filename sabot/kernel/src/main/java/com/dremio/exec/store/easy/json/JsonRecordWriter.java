@@ -327,4 +327,14 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     recordCount = 0;
     fileSize = 0;
   }
+
+  @Override
+  public FileSystem getFs(){
+    return fs;
+  }
+
+  @Override
+  public Path getLocation(){
+    return Path.of(location);
+  }
 }

@@ -17,6 +17,7 @@
 import { type FunctionComponent } from "react";
 import { Card } from "dremio-ui-lib/dist-esm";
 import classes from "./ServiceCard.less";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 
 type ServiceCardProps = {
   action: JSX.Element;
@@ -24,31 +25,51 @@ type ServiceCardProps = {
   serviceIconName: string;
   serviceName: string;
   showcaseImage: JSX.Element;
+  href?: string;
+};
+
+const LinkWrapper = ({
+  href,
+  children,
+  className,
+}: {
+  href?: string;
+  className: string;
+  children: any;
+}) => {
+  if (!href) return children;
+  return (
+    <LinkWithRef className={className} to={href}>
+      {children}
+    </LinkWithRef>
+  );
 };
 
 export const ServiceCard: FunctionComponent<ServiceCardProps> = (props) => {
   return (
     <Card className={classes["service-card"]}>
-      <div className={classes["service-card__content"]}>
-        <div className={classes["service-card__showcase-container"]}>
-          {props.showcaseImage}
-        </div>
+      <LinkWrapper className={classes["service-card__link"]} href={props.href}>
+        <div className={classes["service-card__content"]}>
+          <div className={classes["service-card__showcase-container"]}>
+            {props.showcaseImage}
+          </div>
 
-        <div className={classes["service-card__title"]}>
-          <dremio-icon
-            name={props.serviceIconName}
-            class={classes["service-card__icon"]}
-            alt=""
-          ></dremio-icon>
-          {props.serviceName}
-        </div>
+          <div className={classes["service-card__title"]}>
+            <dremio-icon
+              name={props.serviceIconName}
+              class={classes["service-card__icon"]}
+              alt=""
+            ></dremio-icon>
+            {props.serviceName}
+          </div>
 
-        <div className={classes["service-card__description"]}>
-          {props.description}
-        </div>
+          <div className={classes["service-card__description"]}>
+            {props.description}
+          </div>
 
-        <div className={classes["service-card__action"]}>{props.action}</div>
-      </div>
+          <div className={classes["service-card__action"]}>{props.action}</div>
+        </div>
+      </LinkWrapper>
     </Card>
   );
 };

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
@@ -56,7 +58,6 @@ import com.dremio.exec.store.easy.excel.ColumnNameHandler;
 import com.dremio.exec.store.easy.excel.ExcelFormatPluginConfig;
 import com.dremio.exec.store.easy.excel.ExcelParser;
 import com.dremio.exec.store.easy.excel.SheetNotFoundException;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -547,7 +548,7 @@ public class XlsRecordProcessor implements ExcelParser {
   }
 
   private void writeVarChar(final String columnName, final String value) {
-    final byte[] b = value.getBytes(Charsets.UTF_8);
+    final byte[] b = value.getBytes(UTF_8);
     FieldSizeLimitExceptionHelper.checkSizeLimit(b.length, maxCellSize, columnName, logger);
 
     managedBuf = managedBuf.reallocIfNeeded(b.length);

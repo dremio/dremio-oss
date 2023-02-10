@@ -33,6 +33,9 @@ export function modalFormProps(props) {
     error: props.error,
     submitting: props.submitting,
     done: props.done,
+    hideCancel: props.hideCancel,
+    confirmText: props.confirmText,
+    canSubmit: props.canSubmit,
   };
 }
 class ModalForm extends Component {
@@ -59,16 +62,19 @@ class ModalForm extends Component {
     hideError: PropTypes.bool,
     leftAlignFooter: PropTypes.bool,
     hideCancel: PropTypes.bool,
+    showSpinnerAndText: PropTypes.bool,
   };
 
   static defaultProps = {
     // todo: loc
+    hideCancel: false,
     canSubmit: true,
     canCancel: true,
     confirmText: "Save",
     cancelText: "Cancel",
     isNestedForm: false,
     isModal: true,
+    showSpinnerAndText: false,
   };
 
   state = {
@@ -119,6 +125,8 @@ class ModalForm extends Component {
       isModal,
       leftAlignFooter,
       hideCancel,
+      showSpinnerAndText,
+      confirmButtonStyle,
     } = this.props;
 
     const formBodyStyle = this.props.formBodyStyle || {};
@@ -158,6 +166,8 @@ class ModalForm extends Component {
         confirm={this.handleSubmissionEvent}
         leftAlign={leftAlignFooter}
         hideCancel={hideCancel}
+        showSpinnerAndText={showSpinnerAndText}
+        confirmButtonStyle={confirmButtonStyle}
       />,
     ];
 

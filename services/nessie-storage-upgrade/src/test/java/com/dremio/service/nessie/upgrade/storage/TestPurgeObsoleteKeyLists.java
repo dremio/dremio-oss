@@ -19,26 +19,18 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
-import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 
-class TestPurgeObsoleteKeyLists {
-
-  private static final ScanResult scanResult = ClassPathScanner.fromPrescan(SabotConfig.create());
+class TestPurgeObsoleteKeyLists extends AbstractNessieUpgradeTest {
 
   private PurgeObsoleteKeyLists task;
   private LocalKVStoreProvider storeProvider;
-  private DatabaseAdapter adapter;
 
   @BeforeEach
   void createKVStore() throws Exception {
@@ -55,11 +47,11 @@ class TestPurgeObsoleteKeyLists {
     NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
       .builder()
       .build();
-    adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+    new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConfig(adapterCfg)
       .withConnector(nessieDatastore)
-      .build(new TableCommitMetaStoreWorker());
-    adapter.initializeRepo("main");
+      .build()
+      .initializeRepo("main");
   }
 
   @AfterEach

@@ -85,7 +85,7 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
         try {
           currentSchema = currentSchema.mergeWithUpPromotion(newSchema, this);
         } catch (NoSupportedUpPromotionOrCoercionException e) {
-          throw UserException.unsupportedError().message(e.getMessage()).build();
+          throw UserException.unsupportedError(e).message(e.getMessage()).build();
         }
         if (currentSchema.getTotalFieldCount() > columnLimit) {
           throw new ColumnCountTooLargeException(columnLimit);
@@ -149,7 +149,8 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
     PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
         Schema icebergSchema = null;
         if (writerOptions.getExtendedProperty()!=null) {
-            icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), currentSchema, writerOptions.getIcebergTableProps().getTableName());
+            icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), currentSchema,
+              writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getTableName());
         }
 
         return IcebergUtils.getIcebergPartitionSpec(currentSchema, partitionColumns, icebergSchema);

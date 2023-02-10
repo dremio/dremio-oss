@@ -18,9 +18,12 @@
  * Identical to String.at(), but works across all browsers
  * See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at#browser_compatibility
  */
-export const charIfExists = (str: string, index: number): string | undefined => {
+export const charIfExists = (
+  str: string,
+  index: number
+): string | undefined => {
   if (index < 0 || index >= str.length) {
     return undefined;
   }
   return str[index];
-}
+};

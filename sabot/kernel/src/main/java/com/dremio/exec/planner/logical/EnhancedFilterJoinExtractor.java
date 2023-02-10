@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -23,6 +24,7 @@ import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.rules.FilterJoinRule;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -129,7 +131,7 @@ public final class EnhancedFilterJoinExtractor {
     // Extract the join condition
     Pair<RexNode, RexNode> joinConditionExtraction =
       extractJoinCondition(inputConditionPruned, JoinRelType.INNER);
-    RexNode joinCondition = joinConditionExtraction.getKey();
+    RexNode joinCondition = fixUpNullability(joinConditionExtraction.getKey());
     RexNode remainingFilter = joinConditionExtraction.getValue();
 
     // Extract left pushdown predicate
@@ -149,6 +151,23 @@ public final class EnhancedFilterJoinExtractor {
     return new EnhancedFilterJoinExtraction(inputFilterConditionPruned, inputJoinConditionPruned,
       joinCondition, leftPushdownPredicate, rightPushdownPredicate, remainingFilter,
       JoinRelType.INNER);
+  }
+
+  /** Fixes up the type of all Rex nodes in an
+   * expression to match differences in nullability.
+   *
+   * Throws if there any greater inconsistencies of type. */
+
+  private RexNode fixUpNullability(RexNode joinFilter){
+
+    final ImmutableList<RelDataType> fieldTypes =
+      ImmutableList.<RelDataType>builder()
+        .addAll(RelOptUtil.getFieldTypeList(joinRel.getLeft().getRowType()))
+        .addAll(RelOptUtil.getFieldTypeList(joinRel.getRight().getRowType())).build();
+
+    return RexUtil.composeConjunction(rexBuilder,
+      RexUtil.fixUp(rexBuilder, Arrays.asList(joinFilter), fieldTypes),
+      false);
   }
 
   /**

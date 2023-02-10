@@ -19,7 +19,7 @@ import shallowEqual from "shallowequal";
 import $ from "jquery";
 import Immutable from "immutable";
 import { connect } from "react-redux";
-import { getIsExplorePreviewMode, getIsDatasetMetadataLoaded } from "reducers";
+import { getIsDatasetMetadataLoaded } from "reducers";
 import { Column, Table } from "fixed-data-table-2";
 import { AutoSizer } from "react-virtualized";
 import { injectIntl } from "react-intl";
@@ -44,7 +44,6 @@ const SCROLL_BAR_WIDTH = 16;
 const DISABLE_BACK_ON_SCROLL_CLASSNAME = "disable-back-on-scroll";
 
 const mapStateToProps = (state) => ({
-  isPreviewMode: getIsExplorePreviewMode(state),
   tableViewState: getViewState(state, EXPLORE_TABLE_ID),
   isDatasetMetadataLoaded: getIsDatasetMetadataLoaded(state),
   previousMultiSql: getExploreState(state)?.view.previousMultiSql,
@@ -92,7 +91,6 @@ export class ExploreTableView extends PureComponent {
     location: PropTypes.object,
 
     // connect properties
-    isPreviewMode: PropTypes.bool,
     isDatasetMetadataLoaded: PropTypes.bool,
     previousMultiSql: PropTypes.string,
     loadNextRows: PropTypes.func.isRequired,
@@ -496,7 +494,6 @@ export class ExploreTableView extends PureComponent {
     const {
       pageType,
       intl,
-      isPreviewMode,
       dataset,
       isDatasetMetadataLoaded,
       isMultiSql,
@@ -506,13 +503,10 @@ export class ExploreTableView extends PureComponent {
     } = this.props;
     const showMessage = pageType === "default" && !isMultiSql;
     const viewState = this.getViewState();
-    const noDataMessageId = isPreviewMode
-      ? "Dataset.NoPreviewData"
-      : "Dataset.NoData";
     const messageId =
       dataset.get("isNewQuery") || !rows || previousMultiSql == null
         ? "Dataset.NewQueryNoData"
-        : noDataMessageId;
+        : "Dataset.NoData";
 
     // we should not block header if it is presented and actual metadata is loaded
     const maskStyle =

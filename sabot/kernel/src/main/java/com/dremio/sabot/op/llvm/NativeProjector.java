@@ -45,12 +45,12 @@ public class NativeProjector implements AutoCloseable {
   private final Set<ReferencedField> referencedFields;
   private final boolean optimize;
   private final boolean targetHostCPU;
-  private final boolean secondaryCacheEnabled;
+  private GandivaSecondaryCacheWithStats secondaryCache;
   private double exprComplexity;
   private final double exprComplexityThreshold;
 
   NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize, boolean targetHostCPU,
-                  boolean secondaryCacheEnabled, double exprComplexityThreshold) {
+                  GandivaSecondaryCacheWithStats secondaryCache, double exprComplexityThreshold) {
     this.incoming = incoming;
     this.schema = schema;
     this.functionContext = functionContext;
@@ -58,7 +58,7 @@ public class NativeProjector implements AutoCloseable {
     referencedFields =Sets.newLinkedHashSet();
     this.optimize = optimize;
     this.targetHostCPU = targetHostCPU;
-    this.secondaryCacheEnabled = secondaryCacheEnabled;
+    this.secondaryCache = secondaryCache;
     this.exprComplexityThreshold = exprComplexityThreshold;
     this.exprComplexity = 0.0;
   }
@@ -69,7 +69,7 @@ public class NativeProjector implements AutoCloseable {
     columnExprList.add(tree);
 
     // only use secondary cache if expression is sufficiently complex
-    if (secondaryCacheEnabled) {
+    if (secondaryCache != null) {
       exprComplexity += expr.accept(new ExpressionWorkEstimator(), null);
     }
   }
@@ -79,11 +79,13 @@ public class NativeProjector implements AutoCloseable {
     ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
       .withOptimize(optimize)
       .withTargetCPU(targetHostCPU);
-    if (secondaryCacheEnabled && exprComplexity > exprComplexityThreshold) {
-      // enable secondary cache
-    }
     referencedFields.clear();
-    projector = Projector.make(root.getSchema(), columnExprList, configOptions);
+    if (secondaryCache != null && exprComplexity >= exprComplexityThreshold) {
+      // enable the secondary cache
+      projector = Projector.make(root.getSchema(), columnExprList, configOptions, secondaryCache);
+    } else {
+      projector = Projector.make(root.getSchema(), columnExprList, configOptions);
+    }
     columnExprList.clear();
   }
 

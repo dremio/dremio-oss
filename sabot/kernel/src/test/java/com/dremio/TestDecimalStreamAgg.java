@@ -15,12 +15,12 @@
  */
 package com.dremio;
 
+import static com.dremio.test.UserExceptionAssert.assertThatThrownBy;
+
 import java.math.BigDecimal;
 
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.test.UserExceptionAssert;
 
 /**
  * Tests streaming aggregates when no group by clause is present.
@@ -62,7 +62,7 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
     final String query = "select sum(val) from cp" +
       ".\"parquet/decimals/overflow.parquet\"";
 
-    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+    assertThatThrownBy(() -> test(query))
       .hasMessageContaining("Overflow happened for decimal addition. Max precision is 38.");
   }
 
@@ -86,7 +86,7 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
     final String query = "select $sum0(val) from cp" +
       ".\"parquet/decimals/overflow.parquet\"";
 
-    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+    assertThatThrownBy(() -> test(query))
       .hasMessageContaining("Overflow happened for decimal addition. Max precision is 38.");
   }
 
@@ -191,6 +191,31 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
       .unOrdered()
       .baselineColumns("EXPR$0")
       .baselineValues(37.33064294615946D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalSingleValueAgg_Parquet1() throws Exception {
+
+    final String query = "select SINGLE_VALUE(val) from (select * from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" order by val limit 1)";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("-11.12345678901234567890"))
+      .go();
+  }
+
+  @Test (expected = Exception.class)
+  public void testDecimalSingleValueAgg_Parquet2() throws Exception {
+
+    final String query = "select SINGLE_VALUE(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\"";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
       .go();
   }
 }

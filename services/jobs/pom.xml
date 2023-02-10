@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
   <artifactId>dremio-services-jobs</artifactId>
   <name>Services - Jobs</name>
@@ -174,11 +174,12 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-arrow-flight</artifactId>
+      <artifactId>dremio-services-usersessions</artifactId>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-usersessions</artifactId>
+      <artifactId>dremio-services-arrow-flight-common</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 

@@ -26,13 +26,17 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.exec.heap.HeapLowMemController;
+import com.dremio.sabot.exec.heap.HeapLowMemParticipant;
 import com.dremio.sabot.op.copier.CopierFactory;
+import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
 import com.dremio.sabot.op.join.vhash.PartitionColFilters;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
@@ -73,6 +77,10 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
   private VectorizedProbe probe = null;
   private int buildBatchIndex = 0;
   private boolean switchedToSpilling = false;
+  private HeapLowMemParticipant overheadParticipant = null;
+  private HeapLowMemController memoryController = null;
+  private final String participantId;
+  private final int fieldCount;
 
   MemoryPartition(JoinSetupParams setupParams, CopierFactory copierFactory, int partitionIdx, ArrowBuf sv2, ArrowBuf tableHash4B) {
     this.setupParams = setupParams;
@@ -81,12 +89,21 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
     this.sv2 = sv2;
     this.tableHash4B = tableHash4B;
     this.partitionID = String.format("p_gen_%08d_idx_%08d", setupParams.getGeneration(), partitionIdx);
+    this.fieldCount = setupParams.getCarryAlongSchema().getTotalFieldCount();
+    final ExecProtos.FragmentHandle fragmentHandle = setupParams.getContext().getFragmentHandle();
+    participantId = String.format("joinspill-%s.%s.%s.%s.%s",
+      QueryIdHelper.getQueryId(fragmentHandle.getQueryId()), fragmentHandle.getMajorFragmentId(),
+      fragmentHandle.getMinorFragmentId(), this.setupParams.getOperatorId(), this.partitionID);
+    this.memoryController = this.setupParams.getContext().getHeapLowMemController();
+    if (memoryController != null) {
+      this.overheadParticipant = this.memoryController.addParticipant(participantId, fieldCount);
+    }
   /*
    * build side structures
    */
     try (AutoCloseables.RollbackCloseable rc = new AutoCloseables.RollbackCloseable(true)) {
       this.allocator = rc.add(setupParams.getOpAllocator().newChildAllocator(partitionID, 0, Long.MAX_VALUE));
-      this.pool = rc.add(new PagePool(allocator));
+      this.pool = rc.add(new PagePool(allocator, (int)setupParams.getOptions().getOption(HashJoinOperator.PAGE_SIZE)));
       // linked list to link duplicate records (not collisions)
       this.linkedList = rc.add(new PageListMultimap(pool));
       // slicer to slice and copy incoming build batch into fixed size pages.
@@ -113,6 +130,10 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
   @Override
   public int buildPivoted(int pivotShift, int records) throws Exception {
     Preconditions.checkState(!switchedToSpilling);
+    if (overheadParticipant != null && overheadParticipant.isVictim()) {
+      setupParams.getSpillStats().incrementHeapSpillCount();
+      throw new HeapLowMemoryReachedException();
+    }
     // Add entries into the hash-table and get the hash table ordinals.
     int recordsInserted = table.insertPivoted(sv2, pivotShift, records,
       tableHash4B, setupParams.getPivotedFixedBlock(), setupParams.getPivotedVariableBlock(),
@@ -163,6 +184,9 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
             Integer.MAX_VALUE)
           .build(logger);
       }
+    }
+    if (overheadParticipant != null) {
+      overheadParticipant.addBatches(batchPages.size());
     }
     Preconditions.checkState(numRecordsDone == recordsSliced);
     logger.trace("partition {} processed {} build records", partitionID, numRecordsDone);
@@ -322,6 +346,9 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
 
   @Override
   public void close() throws Exception {
+    if (memoryController != null) {
+      memoryController.removeParticipant(participantId, fieldCount);
+    }
     List<AutoCloseable> autoCloseables = new ArrayList<>();
     autoCloseables.add(hashTableOrdinals4B);
     autoCloseables.add(probe);

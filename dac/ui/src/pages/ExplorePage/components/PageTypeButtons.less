@@ -33,7 +33,12 @@
   position: relative;
   overflow: hidden;
 
-  &::after {
+  &.disabled {
+    cursor: not-allowed;
+    color: var(--dremio--color--text--disabled);
+  }
+
+  &:not(.disabled)::after {
     background-color: @ELM;
     bottom: -4px;
     content: "";
@@ -54,7 +59,7 @@
     }
   }
 
-  &:hover:not(.button-active)::after {
+  &:hover:not(.button-active):not(.disabled)::after {
     background-color: @ELM;
     bottom: 0;
     content: "";

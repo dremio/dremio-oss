@@ -13,75 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* stylelint-disable selector-class-pattern */
-.dremio-dialog-content {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: var(--dremio--dialog-content--color);
-  font-weight: var(--dremio--dialog-content--font-weight);
 
-  &__header,
-  &__footer {
-    align-items: center;
-    display: flex;
-    flex-direction: row;
-    flex-shrink: 0;
-
-    &:empty {
-      display: none;
-    }
-  }
-
-  &__header {
-    border-block-end: var(--dremio--dialog-content--border);
-    block-size: var(--dremio--dialog-content--header--height);
-
-    &-icon {
-      margin-inline-end: var(--dremio--spacing--1);
-      block-size: var(--dremio--dialog-content--icon--size);
-      inline-size: var(--dremio--dialog-content--icon--size);
-      margin-block-start: 0.225em;
-      color: var(--dremio--dialog-content--icon--color);
-    }
-
-    &-title {
-      font-size: var(--dremio--dialog-content--title--font-size);
-      font-weight: var(--dremio--dialog-content--title--font-weight);
-    }
-  }
-
-  &__main {
-    padding-block: var(--dremio--dialog-content--padding);
-    overflow-y: auto;
-  }
-
-  &__footer {
-    border-block-start: var(--dremio--dialog-content--border);
-    display: flex;
-    flex-direction: row;
-    block-size: var(--dremio--dialog-content--footer--height);
-
-    &:empty {
-      display: none;
-    }
-
-    &-actions {
-      margin-inline-start: auto;
-    }
-  }
-
-  &--no-overflow {
-    .dremio-dialog-content__main {
-      display: flex;
-      overflow: hidden;
-    }
-  }
-
-  > * {
-    padding-inline: var(--dremio--dialog-content--padding);
-  }
-}
+@use "../../base/components/dialog-content";
 
 .dremio-dialog-content {
   --dremio--dialog-content--border: 1px solid var(--dremio--color--neutral--150);

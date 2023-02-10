@@ -21,6 +21,8 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
+import com.dremio.common.types.TypeCoercionRules;
 import com.dremio.plugins.elastic.DateFormats;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.fasterxml.jackson.annotation.JacksonInject;
@@ -76,7 +79,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
   private static final Field DOUBLE = CompleteType.DOUBLE.toField("float8");
   private static final Field DOUBLE_LIST = CompleteType.DOUBLE.asList().toField("list");
 
-  private static final Field UNION_LIST(Field...fields){
+  private static Field UNION_LIST(Field...fields){
     return CompleteType.union(fields).asList().toField("list");
   }
 
@@ -197,24 +200,13 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
   }
 
   private static Type maxTemporal(Type t1, Type t2){
-    switch(t1){
-    case DATE:
-      switch(t2){
-        case DATE:
-          return Type.DATE;
-        default:
-          return Type.TIMESTAMP;
-      }
-    case TIME:
-      switch(t2){
-        case TIME:
-          return Type.TIME;
-        default:
-          return Type.TIMESTAMP;
-      }
-    case TIMESTAMP:
-      return Type.TIMESTAMP;
-
+    switch(t1) {
+      case DATE:
+        return t2.equals(Type.DATE) ? Type.DATE : Type.TIMESTAMP;
+      case TIME:
+        return t2.equals(Type.TIME) ? Type.TIME : Type.TIMESTAMP;
+      case TIMESTAMP:
+        return Type.TIMESTAMP;
     }
 
     throw new IllegalStateException("Only temporal types should be compared with this function.");
@@ -293,11 +285,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       // doc values are available for all fields except analyzed ones or where explicitly disabled.
       // https://www.elastic.co/guide/en/elasticsearch/reference/current/doc-values.html
       if(docValues == null){
-        if(type == Type.TEXT || this.indexing == Indexing.ANALYZED){
-          this.docValues = false;
-        }else{
-          this.docValues = true;
-        }
+        this.docValues = type != Type.TEXT && this.indexing != Indexing.ANALYZED;
       }else{
         this.docValues = docValues;
       }
@@ -310,39 +298,52 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     }
 
     public ElasticField merge(ElasticMapping mapping, ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index){
-      if(equals(field)){
+      if (equals(field)){
         return this;
       }
 
-      if(!Objects.equal(name, field.name)) {
+      if (!Objects.equal(name, field.name)) {
         logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         return null;
       }
 
-      if(type != field.type){
-        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
-        this.type = Type.UNKNOWN;
-        field.type = Type.UNKNOWN;
-        return null;
+      final ElasticMappingSet.Type mergedType;
+      if (type != field.type) {
+        // We can handle a non-strict match with numeric types by up-mapping to a common type.
+        if (type.completeType.isNumeric() && field.type.completeType.isNumeric()) {
+          Optional<CompleteType> coercedType = new TypeCoercionRules().getResultantType(type.completeType, field.type.completeType);
+          if (!coercedType.isPresent()) {
+            logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
+            this.type = Type.UNKNOWN;
+            field.type = Type.UNKNOWN;
+            return null;
+          }
+
+          mergedType = ElasticMappingSet.Type.getEquivalentType(coercedType.get());
+        } else {
+          mergedType = type;
+        }
+      } else {
+        mergedType = type;
       }
 
-      if(indexing != field.indexing){
+      if (indexing != field.indexing) {
         logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "indexing schemes", indexing.toString(), field.indexing.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         return null;
       }
 
-      if(!Objects.equal(formats, field.formats)){
+      if (!Objects.equal(formats, field.formats)) {
         logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         return null;
       }
 
-      if(docValues != field.docValues){
+      if (docValues != field.docValues) {
         logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "doc values storage settings", String.valueOf(docValues), String.valueOf(field.docValues));
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
@@ -353,7 +354,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       boolean normalized = this.normalized || field.normalized;
 
       // we just have different fields. Let's merge them.
-      return new ElasticField(name, type, indexing, normalized, formats, docValues, mergeFields(mapping, children, field.children, curr_mapping, other_mapping, curr_index, other_index));
+      return new ElasticField(name, mergedType, indexing, normalized, formats, docValues, mergeFields(mapping, children, field.children, curr_mapping, other_mapping, curr_index, other_index));
     }
 
     public void logDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
@@ -400,24 +401,14 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         return type.completeType.toField(name);
       }
 
-      switch(type){
+      switch(type) {
       case NESTED:
-        return CompleteType.struct(FluentIterable.from(children).transform(new Function<ElasticField, Field>(){
-          @Override
-          public Field apply(ElasticField input) {
-            return input.toArrowField();
-          }})).toField(name);
       case OBJECT:
-        return CompleteType.struct(FluentIterable.from(children).transform(new Function<ElasticField, Field>(){
-          @Override
-          public Field apply(ElasticField input) {
-            return input.toArrowField();
-          }})).toField(name);
+        return CompleteType.struct(children.stream().map(ElasticField::toArrowField).collect(Collectors.toList())).toField(name);
       default:
-        throw new UnsupportedOperationException("Unable to handle field " + this.toString());
+        throw new UnsupportedOperationException("Unable to handle field " + this);
       }
     }
-
 
     public boolean hasDocValues(){
       return docValues;
@@ -712,12 +703,36 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       this.completeType = completeType;
     }
 
+    public static Type getEquivalentType(CompleteType completeType) {
+      if (completeType == CompleteType.INT) {
+        return Type.INTEGER;
+      } else if (completeType == CompleteType.BIGINT) {
+        return Type.LONG;
+      } else if (completeType == CompleteType.FLOAT) {
+        return Type.FLOAT;
+      } else if (completeType == CompleteType.DOUBLE) {
+        return Type.DOUBLE;
+      } else if (completeType == CompleteType.BIT) {
+        return Type.BOOLEAN;
+      } else if (completeType == CompleteType.VARBINARY) {
+        return Type.BINARY;
+      } else if (completeType == CompleteType.VARCHAR) {
+        return Type.STRING;
+      } else if (completeType == CompleteType.DATE) {
+        return Type.DATE;
+      } else if (completeType == CompleteType.TIME) {
+        return Type.TIME;
+      } else if (completeType == CompleteType.TIMESTAMP) {
+        return Type.TIMESTAMP;
+      }
+      return Type.UNKNOWN;
+    }
   }
 
   public static class CurentNameInjectable extends InjectableValues {
     public static final String CURRENT_NAME = "CURRENT_NAME";
 
-    public static InjectableValues INSTANCE = new CurentNameInjectable(new InjectableValues.Std());
+    public static InjectableValues INSTANCE = new CurentNameInjectable(new Std());
 
     private final InjectableValues delegate;
 
@@ -729,7 +744,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     @Override
     public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty,
         Object beanInstance) throws JsonMappingException {
-      if(valueId != null && CURRENT_NAME.equals(valueId)){
+      if (CURRENT_NAME.equals(valueId)) {
         return ctxt.getParser().getParsingContext().getCurrentName();
       }
       return delegate.findInjectableValue(valueId, ctxt, forProperty, beanInstance);

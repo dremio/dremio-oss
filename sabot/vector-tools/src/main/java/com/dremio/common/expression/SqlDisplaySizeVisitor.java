@@ -103,17 +103,17 @@ public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
 
   @Override
   public Integer visit(Date paramDate) {
-    return 10; // hh-mm-ss
+    return 10; // yyyy-mm-dd
   }
 
   @Override
   public Integer visit(Time paramTime) {
-    return 8; // hh-mm-ss
+    return 12; // hh-mm-ss.SSS
   }
 
   @Override
   public Integer visit(Timestamp paramTimestamp) {
-    return 23; // yyyy-mm-ddThh:mm:ss
+    return 23; // yyyy-mm-ddThh:mm:ss.SSS
   }
 
   @Override

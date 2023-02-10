@@ -29,3 +29,7 @@ export function isVersionedSource(type: string) {
       return false;
   }
 }
+
+export function isArcticSource(type?: string) {
+  return type === ARCTIC;
+}

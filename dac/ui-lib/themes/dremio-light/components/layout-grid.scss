@@ -14,11 +14,4 @@
  * limitations under the License.
  */
 
-.dremio-layout-grid {
-  display: grid;
-  grid-gap: var(--gap-size);
-  grid-template-columns: repeat(
-    var(--fill-mode, auto-fit),
-    minmax(min(var(--min-size, min-content), 100%), 1fr)
-  );
-}
+@use "../../base/components/layout-grid";

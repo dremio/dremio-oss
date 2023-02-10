@@ -63,8 +63,10 @@ export class DropdownForSelectedTextView extends PureComponent {
   }
 
   copyText = () => {
+    const { dropPositions } = this.props;
+    const text = dropPositions.getIn(["textWrap", "text"]);
     exploreUtils.copySelection(
-      ReactDOM.findDOMNode(this.selectedContentRef.current) // eslint-disable-line react/no-find-dom-node
+      text ?? ReactDOM.findDOMNode(this.selectedContentRef.current) // eslint-disable-line react/no-find-dom-node
     );
     this.props.hideDrop();
   };
@@ -112,10 +114,10 @@ export class DropdownForSelectedTextView extends PureComponent {
         >
           {dropPositions.get("textWrap").get("text")}
         </div>
-        <i
-          className="fa fa-angle-down"
-          style={{ height: textStyle.height }}
-        ></i>
+        <dremio-icon
+          name="interface/down-chevron"
+          style={{ height: 14, width: 14 }}
+        />
       </span>
     ) : null;
     return (

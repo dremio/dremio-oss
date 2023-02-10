@@ -15,10 +15,13 @@
  */
 package com.dremio.dac.explore.model;
 
+import java.util.List;
+
 import com.dremio.dac.model.common.Acceptor;
 import com.dremio.dac.model.common.EnumTypeIdResolver;
 import com.dremio.dac.model.common.TypesEnum;
 import com.dremio.dac.model.common.VisitorException;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformAddCalculatedField;
 import com.dremio.dac.proto.model.dataset.TransformConvertCase;
@@ -97,5 +100,9 @@ public abstract class TransformBase  {
 
   public static Converter<TransformBase, Transform> converter() {
     return acceptor.converter();
+  }
+
+  public List<SourceVersionReference> getReferencesList() {
+    return null;
   }
 }

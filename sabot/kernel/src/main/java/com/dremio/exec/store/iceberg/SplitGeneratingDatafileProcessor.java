@@ -51,7 +51,6 @@ import org.apache.iceberg.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.amazonaws.util.CollectionUtils;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.PathUtils;
@@ -152,7 +151,7 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
     icebergPartitionSpec = partitionSpec;
     fileSchema = icebergPartitionSpec.schema();
     colToIDMap = getColToIDMap();
-    if (CollectionUtils.isNullOrEmpty(partitionCols)) {
+    if (partitionCols == null || partitionCols.isEmpty()) {
       logger.debug("Partition columns are null or empty.");
       return;
     }

@@ -231,8 +231,13 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
    * Checks if credentials are valid using GetCallerIdentity API call.
    */
   protected void verifyCredentials(Configuration conf) throws RuntimeException {
-      AwsCredentialsProvider awsCredentialsProvider = getAsync2Provider(conf);
-      final StsClientBuilder stsClientBuilder = StsClient.builder()
+    final AwsCredentialsProvider awsCredentialsProvider;
+    try {
+      awsCredentialsProvider = getAsync2Provider(conf);
+    } catch (IOException e) {
+      throw new RuntimeException("Credential lookup failed.");
+    }
+    final StsClientBuilder stsClientBuilder = StsClient.builder()
         // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
         .credentialsProvider(awsCredentialsProvider)
         .region(getAWSRegionFromConfigurationOrDefault(conf));
@@ -399,11 +404,11 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   // AwsCredentialsProvider might also implement SdkAutoCloseable
   // Make sure to close if using directly (or let client close it for you).
   @VisibleForTesting
-  protected AwsCredentialsProvider getAsync2Provider(Configuration config) {
+  protected AwsCredentialsProvider getAsync2Provider(Configuration config) throws IOException {
     switch(config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(
-          config.get(Constants.ACCESS_KEY), config.get(Constants.SECRET_KEY)));
+          new String(config.getPassword(Constants.ACCESS_KEY)), new String(config.getPassword(Constants.SECRET_KEY))));
       case EC2_METADATA_PROVIDER:
         return new SharedInstanceProfileCredentialsProvider();
       case NONE_PROVIDER:
@@ -475,12 +480,9 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
               targetEndpoint = (regionEndpoint != null) ? regionEndpoint : fallbackEndpoint;
 
             } catch (AmazonS3Exception aex) {
-              if (aex.getStatusCode() == 403) {
-                throw UserException.permissionError(aex)
-                  .message(S3_PERMISSION_ERROR_MSG)
-                  .build(logger);
-              }
-              throw aex;
+              throw UserException.permissionError(aex)
+                .message(translateForbiddenMessage(bucketName, aex))
+                .build(logger);
             } catch (Exception e) {
               logger.error("Error while creating container holder", e);
               throw new RuntimeException(e);
@@ -494,6 +496,16 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         }
       });
     }
+  }
+
+  /**
+   * Convert 403 Forbidden HTTP status with user-actionable messages.
+   */
+  @VisibleForTesting
+  String translateForbiddenMessage(String bucketName, AmazonS3Exception s3Exception) {
+    return String.format("S3 request failed on resource %s - %s. (HTTP %d:%s) ",
+      bucketName, s3Exception.getErrorMessage(), s3Exception.getStatusCode(),s3Exception.getErrorCode());
+
   }
 
   /**
@@ -585,8 +597,12 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   private <T extends AwsAsyncClientBuilder<T,?> & S3BaseClientBuilder<T,?>> T asyncConfigClientBuilder(T builder, String bucket) {
 
-    builder.asyncConfiguration(b -> b.advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, threadPool))
-      .credentialsProvider(getAsync2Provider(getConf()));
+    try {
+      builder.asyncConfiguration(b -> b.advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, threadPool))
+        .credentialsProvider(getAsync2Provider(getConf()));
+    } catch (IOException e) {
+      throw UserException.dataReadError(e).build(logger);
+    }
     if (!isCompatMode()) {
       // normal s3/govcloud mode.
       builder.region(getAWSBucketRegion(bucket));
@@ -609,8 +625,12 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     final Configuration conf = getConf();
 
     // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
-    builder.credentialsProvider(getAsync2Provider(conf))
-            .httpClientBuilder(ApacheHttpConnectionUtil.initConnectionSettings(conf));
+    try {
+      builder.credentialsProvider(getAsync2Provider(conf))
+              .httpClientBuilder(ApacheHttpConnectionUtil.initConnectionSettings(conf));
+    } catch (IOException e) {
+      throw UserException.dataReadError(e).build(logger);
+    }
     Optional<String> endpoint = getEndpoint(conf);
 
     endpoint.ifPresent(e -> {

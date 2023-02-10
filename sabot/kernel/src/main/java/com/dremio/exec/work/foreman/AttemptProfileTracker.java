@@ -17,6 +17,7 @@ package com.dremio.exec.work.foreman;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -30,6 +31,8 @@ import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.visitor.QueryProfileProcessor;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.UserBitShared;
@@ -234,7 +237,13 @@ class AttemptProfileTracker {
     }
   }
 
-  // add planner related details to the profile builder.
+  /**
+   * Adds planner related details to the profile builder.
+   * This method is continuously called until planning is done.
+   * @param builder
+   * @throws UserException
+   * @throws com.dremio.common.exceptions.UserCancellationException
+   */
   private void addPlanningDetails(UserBitShared.QueryProfile.Builder builder) throws UserException, com.dremio.common.exceptions.UserCancellationException {
     builder.setQuery(queryDescription);
     builder.setUser(queryContext.getQueryUserName());
@@ -274,6 +283,17 @@ class AttemptProfileTracker {
         builder.setJsonPlan(planJson);
       }
 
+      // Scrape Final Physical Plan into a usable API
+      final Prel finalPrel = capturer.getFinalPrel();
+      if (finalPrel != null && queryContext.getOptions().getOption(PlannerSettings.PRETTY_PLAN_SCRAPING)) {
+        try {
+          Map<String, UserBitShared.RelNodeInfo> prettyRelProcessor = QueryProfileProcessor.process(finalPrel);
+          builder.putAllRelInfoMap(prettyRelProcessor);
+        } catch (Exception e) {
+          logger.warn("Failed to serialize the pretty Plan info", e);
+        }
+      }
+
       final String fullSchema = capturer.getFullSchema();
       if (fullSchema != null) {
         builder.setFullSchema(fullSchema);
@@ -292,7 +312,11 @@ class AttemptProfileTracker {
       builder.setAccelerationProfile(capturer.getAccelerationProfile());
     }
 
-    // get stats from schema tree provider
+    // Adds final planning stats for catalog access
+    if (endPlanningTime > 0) {
+      queryContext.getCatalog().addCatalogStats();
+    }
+    // Adds stats for individual table access (does not include versioned sources)
     builder.addAllPlanPhases(queryContext.getCatalog().getMetadataStatsCollector().getPlanPhaseProfiles());
 
     if (prepareId != null) {
@@ -344,6 +368,9 @@ class AttemptProfileTracker {
       }
       if (schedulingProperties.getRoutingTag() != null) {
         resourcePropsBuilder.setTag(schedulingProperties.getRoutingTag());
+      }
+      if (schedulingProperties.getQueryLabel() != null) {
+        resourcePropsBuilder.setQueryLabel(schedulingProperties.getQueryLabel());
       }
       resourceBuilder.setSchedulingProperties(resourcePropsBuilder);
     }

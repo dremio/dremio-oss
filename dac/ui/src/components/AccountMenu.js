@@ -19,7 +19,6 @@ import { connect } from "react-redux";
 import config from "dyn-load/utils/config";
 import { injectIntl } from "react-intl";
 
-import fileABug from "utils/fileABug";
 import { logoutUser } from "@inject/actions/account";
 
 import Menu from "components/Menus/Menu";
@@ -44,13 +43,10 @@ export class AccountMenu extends Component {
     router: PropTypes.object.isRequired,
   };
 
-  state = {
-    showIntercom: false,
-  };
+  state = {};
 
   onAccountSettings = () => {
     this.props.closeMenu();
-    this.context.router.push({ pathname: "/account/info" });
   };
 
   onLogOut = (doChangesCheckFn) => {
@@ -68,11 +64,6 @@ export class AccountMenu extends Component {
     }
   };
 
-  onFileABug = () => {
-    this.props.closeMenu();
-    fileABug();
-  };
-
   render() {
     const { intl } = this.props;
 
@@ -84,9 +75,6 @@ export class AccountMenu extends Component {
               <span style={styles.menuInformation}>
                 {intl.formatMessage({ id: "HeaderMenu.InternalBuild" })}
               </span>
-            </MenuItem>
-            <MenuItem onClick={this.onFileABug}>
-              {intl.formatMessage({ id: "HeaderMenu.FileABug" })}
             </MenuItem>
             <DividerHr />
           </>

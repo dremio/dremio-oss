@@ -98,6 +98,8 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
 
   @Tag(19)
   public String sharedAccessKey = null;
+  //Tag has been deprecated please do not use.
+
   @Override
   public Path getPath() {
     return Path.of(path);
@@ -174,11 +176,6 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
   }
 
   @Override
-  public String getSharedAccessKey() {
-    return sharedAccessKey;
-  }
-
-  @Override
   public MayBeDistFileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new MayBeDistFileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
@@ -207,10 +204,6 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
         this.clientSecret = dataCredentials.getClientAccess().getClientSecret();
         this.accountName = dataCredentials.getClientAccess().getAccountName();
         this.accountKind = dataCredentials.getClientAccess().getAccountKind();
-      } else if (dataCredentials.hasSharedAccessKey()) {
-        this.sharedAccessKey = dataCredentials.getSharedAccessKey().getAccessKey();
-        this.accountName = dataCredentials.getSharedAccessKey().getAccountName();
-        this.accountKind = dataCredentials.getSharedAccessKey().getAccountKind();
       }
     }
   }

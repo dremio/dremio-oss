@@ -16,6 +16,8 @@
 
 package com.dremio.exec.planner.sql.handlers;
 
+import java.util.Optional;
+
 import org.apache.calcite.tools.RuleSet;
 
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -25,7 +27,6 @@ import com.dremio.exec.planner.acceleration.MaterializationList;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.sql.SqlConverter;
-import com.google.common.base.Optional;
 
 
 public class SqlHandlerConfig {
@@ -53,13 +54,13 @@ public class SqlHandlerConfig {
   }
 
   public Optional<MaterializationList> getMaterializations() {
-    return Optional.fromNullable(materializations);
+    return Optional.ofNullable(materializations);
   }
 
   public RuleSet getRules(PlannerPhase phase) {
     return PlannerPhase.mergedRuleSets(
         context.getInjectedRules(phase),
-        phase.getRules(context),
+        phase.getRules(context, converter),
         context.getCatalogService().getStorageRules(context, phase));
   }
 

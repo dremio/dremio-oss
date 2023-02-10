@@ -27,8 +27,7 @@ import HeaderButtonsMixin from "dyn-load/pages/HomePage/components/HeaderButtons
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import HeaderButtonAddActions from "./HeaderButtonAddActions.tsx";
-import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
-
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import * as classes from "./HeaderButtonAddActions.module.less";
 
 @HeaderButtonsMixin
@@ -45,7 +44,7 @@ export class HeaderButtons extends Component {
     rightTreeVisible: PropTypes.bool,
     intl: PropTypes.object.isRequired,
     canUploadFile: PropTypes.bool,
-    isSonarSource: PropTypes.bool,
+    isVersionedSource: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -64,16 +63,17 @@ export class HeaderButtons extends Component {
   }
 
   getSourceButtons() {
-    const { entity } = this.props;
+    const { entity, isVersionedSource } = this.props;
     const buttons = [];
 
     if (entity.get("isPhysicalDataset")) {
       buttons.push({
         qa: "query-folder",
         iconType: "navigation-bar/sql-runner",
-        to: entity.getIn(["links", "query"]),
+        to: wrapBackendLink(entity.getIn(["links", "query"])),
       });
     } else if (
+      !isVersionedSource &&
       entity.get("fileSystemFolder") &&
       (entity.getIn("permissions", "canEditFormatSettings") === true ||
         localStorageUtils.isUserAnAdmin())
@@ -153,12 +153,10 @@ export class HeaderButtons extends Component {
   }
 
   shouldShowAddButton(rootEntityType, entity) {
-    const { isSonarSource } = this.props;
-    const entityType = entity?.get("entityType");
+    const { isVersionedSource } = this.props;
     const showAddButton =
       [ENTITY_TYPES.home, ENTITY_TYPES.space].includes(rootEntityType) ||
-      (isSonarSource && entityType === ENTITY_TYPES.folder) ||
-      (entityType === ENTITY_TYPES.source && entity.get("type") === NESSIE);
+      isVersionedSource;
 
     const hasPermissionToAdd =
       localStorageUtils.isUserAnAdmin() ||
@@ -170,11 +168,9 @@ export class HeaderButtons extends Component {
   }
 
   render() {
-    const { rootEntityType, entity } = this.props;
+    const { rootEntityType, entity, isVersionedSource } = this.props;
 
     const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
-
-    const entityType = entity?.get("entityType");
 
     const shouldShowAddButton = this.shouldShowAddButton(
       rootEntityType,
@@ -203,10 +199,7 @@ export class HeaderButtons extends Component {
               <HeaderButtonAddActions
                 context={this.context}
                 allowFileUpload={rootEntityType === ENTITY_TYPES.home}
-                allowTable={
-                  entityType === ENTITY_TYPES.source &&
-                  [NESSIE, ARCTIC].includes(entity.get("type"))
-                }
+                allowTable={isVersionedSource}
                 canUploadFile={canAddInHomeSpace}
               />
             }

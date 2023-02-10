@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -133,7 +134,6 @@ import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
@@ -581,7 +581,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public Optional<ExternalReflection> getExternalReflectionById(String id) {
-    return Optional.fromNullable(externalReflectionStore.get(id));
+    return Optional.ofNullable(externalReflectionStore.get(id));
   }
 
   @Override
@@ -657,21 +657,16 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public Optional<ReflectionEntry> getEntry(ReflectionId reflectionId) {
-    return Optional.fromNullable(internalStore.get(reflectionId));
+    return Optional.ofNullable(internalStore.get(reflectionId));
   }
 
   @Override
   public Optional<ReflectionGoal> getGoal(ReflectionId reflectionId) {
     final ReflectionGoal goal = userStore.get(reflectionId);
     if (goal == null || goal.getState() == ReflectionGoalState.DELETED) {
-      return Optional.absent();
+      return Optional.empty();
     }
     return Optional.of(goal);
-  }
-
-  @Override
-  public MaterializationMetrics getMetrics(Materialization materialization) {
-    return materializationStore.getMetrics(materialization);
   }
 
   @Override
@@ -720,18 +715,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   @Override
-  public long getTotalReflectionSize(ReflectionId reflectionId) {
-    Iterable<Refresh> refreshes = materializationStore.getRefreshesByReflectionId(reflectionId);
-    long size = 0;
-    for (Refresh refresh : refreshes) {
-      if (refresh.getMetrics() != null) {
-        size += Optional.fromNullable(refresh.getMetrics().getFootprint()).or(0L);
-      }
-    }
-    return size;
-  }
-
-  @Override
   public Iterable<ReflectionGoal> getReflectionsByDatasetPath(NamespaceKey path) {
     try {
       DatasetConfig config = namespaceService.get().getDataset(path);
@@ -770,7 +753,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   public Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId) {
     final Materialization materialization = materializationStore.getLastMaterializationDone(reflectionId);
     if (materialization == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
     return Optional.of(materialization);
   }
@@ -811,7 +794,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public Optional<Materialization> getMaterialization(MaterializationId materializationId) {
-    return Optional.fromNullable(materializationStore.get(materializationId));
+    return Optional.ofNullable(materializationStore.get(materializationId));
   }
 
   @Override
@@ -876,15 +859,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   @Override
-  public long getReflectionSize(ReflectionId reflectionId) {
-    Optional<Materialization> m = getLastDoneMaterialization(reflectionId);
-    if (m.isPresent()) {
-      return getMetrics(m.get()).getFootprint();
-    }
-    return -1;
-  }
-
-  @Override
   public boolean isReflectionIncremental(ReflectionId reflectionId) {
     Optional<ReflectionEntry> entry = getEntry(reflectionId);
     if (entry.isPresent()) {
@@ -919,7 +893,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
     final ReflectionEntry entry = internalStore.get(materialization.getReflectionId());
 
-    MaterializationMetrics metrics = materializationStore.getMetrics(materialization);
+    MaterializationMetrics metrics = materializationStore.getMetrics(materialization).left;
 
     return materializationDescriptorFactory.getMaterializationDescriptor(
         goal,
@@ -1020,7 +994,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         if (!datasetConfig.getType().equals(DatasetType.VIRTUAL_DATASET) || datasetConfig.getVirtualDataset() == null) {
           return false;
         }
-        return Optional.fromNullable(datasetConfig.getVirtualDataset().getDefaultReflectionEnabled()).or(true);
+        return Optional.ofNullable(datasetConfig.getVirtualDataset().getDefaultReflectionEnabled()).orElse(true);
       } catch (NamespaceException e) {
         logger.debug("Dataset {} not found", path);
         return false;
@@ -1195,7 +1169,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     try (ExpansionHelper helper = expansionHelper.get()){
       SqlHandlerConfig config = new SqlHandlerConfig(helper.getContext(), helper.getConverter(), AttemptObservers.of(), null);
       ReflectionPlanGenerator generator = new ReflectionPlanGenerator(config, namespaceService.get(), sabotContext.get().getConfig(), goal,
-        entry, materialization, reflectionSettings, materializationStore, false, Optional.fromNullable(materialization.getStripVersion()).or(StrippingFactory.NO_STRIP_VERSION));
+        entry, materialization, reflectionSettings, materializationStore, false, Optional.ofNullable(materialization.getStripVersion()).orElse(StrippingFactory.NO_STRIP_VERSION));
       generator.generateNormalizedPlan();
       ByteString logicalPlanBytes = generator.getRefreshDecision().getLogicalPlan();
       materialization.setLogicalPlan(logicalPlanBytes);

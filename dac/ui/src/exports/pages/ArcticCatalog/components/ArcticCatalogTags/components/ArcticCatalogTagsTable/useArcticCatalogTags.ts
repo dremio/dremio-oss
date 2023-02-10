@@ -24,15 +24,17 @@ export const useArcticCatalogTags = (searchFilter: string) => {
   const { api } = useNessieContext();
 
   const ArcticCatalogTagsResource = useRef(
-    new SmartResource(({ search }) =>
-      api.getAllReferences({
-        fetch: FetchOption.All,
-        filter: search
-          ? `refType == 'TAG' && ref.name.matches('(?i)${search}')`
-          : "refType == 'TAG'",
-        // endpoint doesn't respect the maxRecords param, virtual rendering/infinite scroll will be used for now
-        // maxRecords: 10,
-      })
+    new SmartResource(
+      ({ search }) =>
+        api.getAllReferences({
+          fetch: FetchOption.All,
+          filter: search
+            ? `refType == 'TAG' && ref.name.matches('(?i)${search}')`
+            : "refType == 'TAG'",
+          // endpoint doesn't respect the maxRecords param, virtual rendering/infinite scroll will be used for now
+          // maxRecords: 10,
+        }),
+      { mode: "takeEvery" }
     )
   );
 

@@ -18,6 +18,7 @@ package com.dremio.service.autocomplete.statements.grammar;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.ALTER;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.DELETE;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.DROP;
+import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.OPTIMIZE;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SELECT;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SEMICOLON;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.UPDATE;
@@ -71,6 +72,8 @@ public final class StatementList extends Statement {
       return UpdateStatement.parse(subBuffer);
     case ALTER:
       return AlterStatement.parse(subBuffer);
+    case OPTIMIZE:
+      return OptimizeStatement.parse(subBuffer);
     default:
       return UnknownStatement.parse(subBuffer);
     }

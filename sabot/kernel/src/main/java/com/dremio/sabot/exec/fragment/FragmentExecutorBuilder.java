@@ -71,6 +71,7 @@ import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.context.StatusHandler;
 import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
+import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
@@ -123,7 +124,8 @@ public class FragmentExecutorBuilder {
   private final NodeDebugContextProvider nodeDebugContextProvider;
   private final SpillService spillService;
   private final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider;
-  private Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
+  private final Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
+  private final HeapLowMemController heapLowMemController;
 
   public FragmentExecutorBuilder(
     QueriesClerk clerk,
@@ -149,7 +151,8 @@ public class FragmentExecutorBuilder {
     Set<ClusterCoordinator.Role> roles,
     Provider<JobResultsClientFactory> jobResultsClientFactoryProvider,
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
-    ExpressionSplitCache expressionSplitCache) {
+    ExpressionSplitCache expressionSplitCache,
+    HeapLowMemController heapLowMemController) {
     this.clerk = clerk;
     this.fragmentExecutors = fragmentExecutors;
     this.nodeEndpoint = nodeEndpoint;
@@ -174,6 +177,7 @@ public class FragmentExecutorBuilder {
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.spillService = spillService;
     this.jobResultsClientFactoryProvider = jobResultsClientFactoryProvider;
+    this.heapLowMemController = heapLowMemController;
   }
 
   public FragmentExecutors getFragmentExecutors() { return fragmentExecutors; }
@@ -299,7 +303,6 @@ public class FragmentExecutorBuilder {
         final StatusHandler handler = new StatusHandler(exception);
         final FileCursorManagerFactory fileCursorManagerFactory = maestroProxy.getFileCursorMangerFactory(fragment.getHandle().getQueryId());
         int outstandingRPCsPerTunnel = (int) optionManager.getOption(ExecConstants.OUTSTANDING_RPCS_PER_TUNNEL);
-        logger.info("Setting outStandingRPCsPerTunnel:{}", outstandingRPCsPerTunnel);
         final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP),
           fileCursorManagerFactory, outstandingRPCsPerTunnel);
 
@@ -325,7 +328,8 @@ public class FragmentExecutorBuilder {
             cachedReader.getPlanFragmentsIndex().getEndpointsIndex(),
             nodeEndpointProvider,
             major.getExtFragmentAssignmentsList(),
-            expressionSplitCache
+            expressionSplitCache,
+            heapLowMemController
           );
 
         final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), schedulingWeight, stats,

@@ -30,9 +30,15 @@ import static org.junit.Assert.fail;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.quality.Strictness;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -68,21 +74,28 @@ import com.dremio.dac.proto.model.dataset.OrderDirection;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.ReplaceSelectionType;
 import com.dremio.dac.proto.model.dataset.ReplaceType;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.TransformFilter;
 import com.dremio.dac.proto.model.dataset.TransformGroupBy;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
-import com.google.common.base.Optional;
 
 /**
  * SQLGenerator tests
  */
 public class TestSQLGenerator {
+  @Rule
+  public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+
+  @Mock
+  private CatalogService catalogService;
+
   private From nameDSRef = new FromTable("myspace.parentDS").wrap();
   private From sqlDSRef = new FromSQL("select * from myspace.parentDS").wrap();
 
@@ -163,6 +176,11 @@ public class TestSQLGenerator {
     assertEquals(expectedSQL, sql);
   }
 
+  private void validateForTranformRelatedCalls(String expectedSQL, VirtualDatasetState state) {
+    String sql = SQLGenerator.generateSQL(state, true, catalogService);
+    assertEquals(expectedSQL, sql);
+  }
+
   @Test
   public void testUser() {
     // user is a special keyword
@@ -185,7 +203,7 @@ public class TestSQLGenerator {
         .setFrom(nameDSRef);
 
     Expression column = new ExpColumnReference("count").wrap();
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT count\n" +
         "FROM myspace.parentDS\n" +
         " WHERE (5 <= count AND 20 > count) AND (10 >= count OR 15 < count)",
@@ -210,7 +228,7 @@ public class TestSQLGenerator {
         .setFrom(nameDSRef);
 
     Expression column = new ExpColumnReference("count").wrap();
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT count\nFROM myspace.parentDS\n " +
         "WHERE 5 <= count",
       state
@@ -220,7 +238,7 @@ public class TestSQLGenerator {
           .setKeepNull(false)))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT count\nFROM myspace.parentDS\n " +
         "WHERE 5 < count",
       state
@@ -230,7 +248,7 @@ public class TestSQLGenerator {
           .setKeepNull(false)))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT count\nFROM myspace.parentDS\n " +
         "WHERE 5 < count AND 10 >= count",
       state
@@ -241,7 +259,7 @@ public class TestSQLGenerator {
           .setKeepNull(false)))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT count\nFROM myspace.parentDS\n " +
         "WHERE 5 < count AND 10 > count",
       state
@@ -252,7 +270,7 @@ public class TestSQLGenerator {
           .setKeepNull(false)))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT count\nFROM myspace.parentDS\n " +
         "WHERE 10 > count",
       state
@@ -271,7 +289,7 @@ public class TestSQLGenerator {
 
     Expression column = new ExpColumnReference("user").wrap();
 
-    validate(
+    validateForTranformRelatedCalls(
         "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
             "WHERE parentDS.\"user\" NOT IN ('foo', 'bar')",
         state
@@ -281,7 +299,7 @@ public class TestSQLGenerator {
             ).setExclude(true).setKeepNull(false)))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
             "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
                     "WHERE regexp_like(parentDS.\"user\", '.*?\\Qbar\\E.*?') OR parentDS.\"user\" IS NULL ",
             state
@@ -303,7 +321,7 @@ public class TestSQLGenerator {
 
     Expression column = new ExpColumnReference("user").wrap();
 
-    validate(
+    validateForTranformRelatedCalls(
         "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
             "WHERE parentDS.\"user\" NOT IN ('foo', 'bar')",
         state
@@ -313,7 +331,7 @@ public class TestSQLGenerator {
             ))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
         "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
             "WHERE parentDS.\"user\" = 'foo'",
         state
@@ -323,7 +341,7 @@ public class TestSQLGenerator {
             ))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
         "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
             "WHERE parentDS.\"user\" <> 'bar' OR parentDS.\"user\" IS NULL ",
         state
@@ -339,7 +357,7 @@ public class TestSQLGenerator {
     VirtualDatasetState state = new VirtualDatasetState()
         .setFrom(nameDSRef);
 
-    validate(
+    validateForTranformRelatedCalls(
         "SELECT *\n" +
             "FROM myspace.parentDS\n" +
             " INNER JOIN \"space\".foo AS join_1 ON parentDS.bar = join_1.bar",
@@ -347,7 +365,7 @@ public class TestSQLGenerator {
                 .setJoinConditionsList(asList(new JoinCondition("bar", "bar")))))
     );
 
-    validate(
+    validateForTranformRelatedCalls(
         "SELECT *\n" +
             "FROM myspace.parentDS\n" +
             " LEFT JOIN \"space\".foo AS join_1 ON parentDS.foo = join_1.bar\n" +
@@ -463,7 +481,7 @@ public class TestSQLGenerator {
         .setFrom(new FromTable("myhome.tables.1234.test").wrap())
         // user is a reserved keyword, make sure it is escaped in generated SQL
         .setOrdersList(asList(new Order("user", OrderDirection.ASC)));
-    validate("SELECT *\nFROM myhome.\"tables\".\"1234\".test\nORDER BY \"user\" ASC", state);
+    validateForTranformRelatedCalls("SELECT *\nFROM myhome.\"tables\".\"1234\".test\nORDER BY \"user\" ASC", state);
   }
 
   @Test
@@ -472,7 +490,7 @@ public class TestSQLGenerator {
         .setFrom(new FromTable("myhome.tables.1234.test").wrap())
         // home.dir contains a special identifier character, make sure it is escaped in generated SQL
         .setOrdersList(asList(new Order("home.dir", OrderDirection.DESC), new Order("join_date", OrderDirection.ASC)));
-    validate("SELECT *\nFROM myhome.\"tables\".\"1234\".test\nORDER BY \"home.dir\" DESC, join_date ASC", state);
+    validateForTranformRelatedCalls("SELECT *\nFROM myhome.\"tables\".\"1234\".test\nORDER BY \"home.dir\" DESC, join_date ASC", state);
   }
 
   @Test
@@ -496,7 +514,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
   }
 
   @Test
@@ -520,7 +538,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
   }
 
   @Test
@@ -544,7 +562,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
   }
 
   @Test
@@ -570,7 +588,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
   }
 
   @Test
@@ -595,7 +613,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
   }
 
   @Test
@@ -619,7 +637,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
   }
 
   @Test
@@ -643,7 +661,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
   }
 
   @Test
@@ -663,7 +681,7 @@ public class TestSQLGenerator {
 
       Expression exp = new ExpFieldTransformation(transf1.wrap(), exp0).wrap();
 
-      SQLGenerator.generateSQL(state.setColumnsList(asList(new Column("foo", exp))));
+      SQLGenerator.generateSQL(state.setColumnsList(asList(new Column("foo", exp))), true, catalogService);
       fail("not expected to reach here");
     } catch (UserException e) {
       exThrown = true;
@@ -692,7 +710,7 @@ public class TestSQLGenerator {
     // Expecting it to replace everything with given value
     String expQuery = "SELECT DATE '2016-11-05' AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     // range includes everything except nulls
     transf1.setKeepNull(true);
@@ -704,7 +722,7 @@ public class TestSQLGenerator {
         "  ELSE NULL\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     // range includes everything and replace them with null
     transf1.setKeepNull(false);
@@ -716,7 +734,7 @@ public class TestSQLGenerator {
         "  ELSE NULL\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     // has lower bound
     transf1.setReplacementValue("2016-11-05");
@@ -729,7 +747,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     transf1.setReplacementValue("2016-11-05");
     transf1.setLowerBound("1971-01-01");
@@ -742,7 +760,7 @@ public class TestSQLGenerator {
       "  ELSE bar\n" +
       "END AS foo\n" +
       "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     // has upper bound
     transf1.setLowerBound(null);
@@ -755,7 +773,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     // expecting an upper bound condition inclusive
     transf1.setUpperBoundInclusive(true);
@@ -764,7 +782,7 @@ public class TestSQLGenerator {
       "  ELSE bar\n" +
       "END AS foo\n" +
       "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     // has upper and lower bounds
     transf1.setLowerBound("1971-01-01");
@@ -779,7 +797,7 @@ public class TestSQLGenerator {
         "  ELSE bar\n" +
         "END AS foo\n" +
         "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
     // has upper and lower bounds
     transf1.setLowerBound("1971-01-01");
@@ -794,14 +812,14 @@ public class TestSQLGenerator {
       "  ELSE bar\n" +
       "END AS foo\n" +
       "FROM myspace.parentDS";
-    validate(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
+    validateForTranformRelatedCalls(expQuery, state.setColumnsList(asList(new Column("foo", exp))));
 
   }
 
   private TransformResult transform(TransformBase tb, VirtualDatasetState state) {
     QueryExecutor executor = new QueryExecutor(null, null, null){
       @Override
-      public List<String> getColumnList(String username, DatasetPath path) {
+      public List<String> getColumnList(String username, DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
         return asList("bar", "baz");
       }
     };
@@ -865,7 +883,7 @@ public class TestSQLGenerator {
       "SELECT a, SUM(b) AS Sum_b\n" +
       "FROM myspace.parentDS\n" +
       "GROUP BY a";
-    validate(expSumQuery, state);
+    validateForTranformRelatedCalls(expSumQuery, state);
 
     TransformResult keeponlyTransform = transform( new TransformFilter("Sum_b", new FilterDefinition(FilterType.Range)
       .setRange(new FilterRange(DataType.INTEGER).setLowerBound("1"))), state);
@@ -879,7 +897,7 @@ public class TestSQLGenerator {
       "  GROUP BY a\n" +
       ") nested_0\n" +
       " WHERE 1 < Sum_b";
-    validate(expQuery, filtState);
+    validateForTranformRelatedCalls(expQuery, filtState);
   }
 
   @Test
@@ -890,7 +908,7 @@ public class TestSQLGenerator {
     Expression column = new ExpColumnReference("user").wrap();
 
     //exclude null and multiple non-null values
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
         "WHERE parentDS.\"user\" IS NOT NULL AND parentDS.\"user\" NOT IN ('foo', 'bar')",
       state
@@ -901,7 +919,7 @@ public class TestSQLGenerator {
     );
 
     //exclude null and a single non-null value
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
         "WHERE parentDS.\"user\" IS NOT NULL AND parentDS.\"user\" <> 'foo'",
       state
@@ -912,7 +930,7 @@ public class TestSQLGenerator {
     );
 
     //exclude just null (and no other values)
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
         "WHERE parentDS.\"user\" IS NOT NULL",
       state
@@ -923,7 +941,7 @@ public class TestSQLGenerator {
     );
 
     //keeponly null and multiple non-null values
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
         "WHERE parentDS.\"user\" IS NULL OR parentDS.\"user\" IN ('foo', 'bar')",
       state
@@ -934,7 +952,7 @@ public class TestSQLGenerator {
     );
 
     //keeponly null and a single non-null value
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
         "WHERE parentDS.\"user\" IS NULL OR parentDS.\"user\" = 'foo'",
       state
@@ -945,7 +963,7 @@ public class TestSQLGenerator {
     );
 
     //keeponly just null (and no other values)
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
         "WHERE parentDS.\"user\" IS NULL",
       state
@@ -966,7 +984,7 @@ public class TestSQLGenerator {
     VirtualDatasetState state = new VirtualDatasetState()
       .setFrom(new FromTable("\"space\".\"t1\"").setAlias("t1").wrap());
 
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT t1.id AS id, t2.id AS id0, t1.a AS a, t2.A AS A_0\n" +
         "FROM space.t1 AS t1\n" +
         " INNER JOIN \"space\".t2 AS t2 ON t1.id = t2.id",
@@ -1025,7 +1043,7 @@ public class TestSQLGenerator {
       sColumns += col.makeSelectionString();
     }
 
-    validate(
+    validateForTranformRelatedCalls(
       "SELECT " +
         String.format("%s\n",sColumns) +
         String.format("FROM space.%s AS %s\n", t1, t1) +

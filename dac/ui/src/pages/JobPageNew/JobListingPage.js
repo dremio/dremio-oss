@@ -41,7 +41,9 @@ import { isEqual, isEmpty } from "lodash";
 import { parseQueryState } from "utils/jobsQueryState";
 
 import JobsContent from "./components/JobsContent";
-import * as PATHS from "@app/exports/paths";
+import * as jobPaths from "dremio-ui-common/paths/jobs.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import "./JobPageNew.less";
 
@@ -88,10 +90,10 @@ const JobListingPage = (props) => {
   }, [queryState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    const loc = rmProjectBase(location.pathname);
     if (
       isEmpty(location.query?.filters) &&
-      (location.pathname === "/jobs" ||
-        location.pathname.startsWith("/jobs/job"))
+      (loc === "/jobs" || loc.startsWith("/jobs/job"))
     ) {
       if (!queryState.equals(prevQueryState)) {
         dispatchUpdateQueryState(
@@ -116,10 +118,11 @@ const JobListingPage = (props) => {
 
   const changePages = (data) => {
     const { state: locationState } = location;
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     const currentJobId = data && data.rowData.data.job.value;
     const selectedJob = jobList.find((job) => job.get("id") === currentJobId);
     const attempts = selectedJob ? selectedJob.get("totalAttempts") : 1;
-    const currentJobURL = PATHS.job({ jobId: currentJobId });
+    const currentJobURL = jobPaths.job.link({ projectId, jobId: currentJobId });
     if (data !== null && location.pathname !== currentJobURL) {
       router.push({
         ...location,

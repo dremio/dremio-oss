@@ -196,7 +196,7 @@ public class TestPromotion extends BaseTestServer {
       new GenericType<Folder>() {
       }
     );
-    assertEquals(folder.getChildren().size(), 20);
+    assertEquals(folder.getChildren().size(), 21);
 
     String fileId = null;
 
@@ -261,7 +261,7 @@ public class TestPromotion extends BaseTestServer {
       new GenericType<Folder>() {
       }
     );
-    assertEquals(folder.getChildren().size(), 20);
+    assertEquals(folder.getChildren().size(), 21);
 
     doc("unpromote file");
     expectSuccess(

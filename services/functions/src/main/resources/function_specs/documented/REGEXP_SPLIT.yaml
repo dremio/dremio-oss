@@ -1,0 +1,58 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Splits an input string by using a regular expression according to a keyword
+  and an integer value.
+functionCategories:
+- CHARACTER
+name: REGEXP_SPLIT
+signatures:
+- description: Returns an array.
+  parameters:
+  - description: The string that you want to split by means of the regular expression.
+    kind: REGULAR
+    name: input
+    type: CHARACTERS
+  - description: The regular expression to use to split the string.
+    kind: REGULAR
+    name: regex
+    type: CHARACTERS
+  - description: The keyword that determines where or how many times to use the regular
+      expression to split the string. Can be FIRST, LAST, INDEX, or ALL.
+    kind: REGULAR
+    name: keyword
+    type: CHARACTERS
+  - description: The value specified for the keyword.
+    kind: REGULAR
+    name: integer
+    type: INT
+  returnType: LIST
+  sampleCodes:
+  - call: SELECT regexp_split('REGULAR AIR', 'R', 'FIRST', -1) AS R_LESS_SHIPMENT_TYPE
+    result: "['', 'EGULAR AIR']"
+  - call: SELECT regexp_split('REGULAR AIR', 'R', 'LAST', -1) AS R_LESS_SHIPMENT_TYPE
+    result: "['REGULAR AI', '']"
+  - call: SELECT regexp_split('REGULAR AIR', 'R', 'INDEX', 1) AS R_LESS_SHIPMENT_TYPE
+    result: "['REGULA', ' AIR']"
+  - call: SELECT regexp_split('REGULAR AIR', 'R', 'ALL', 1) AS R_LESS_SHIPMENT_TYPE
+    result: "['']"
+  - call: SELECT regexp_split('REGULAR AIR', 'R', 'ALL', 2) AS R_LESS_SHIPMENT_TYPE
+    result: "['', 'EGULA']"
+  - call: SELECT regexp_split('REGULAR AIR', 'R', 'ALL', 3) AS R_LESS_SHIPMENT_TYPE
+    result: "['', 'EGULA', ' AI']"
+  - call: SELECT regexp_split('REGULAR AIR', 'R', 'ALL', 4) AS R_LESS_SHIPMENT_TYPE
+    result: "['', 'EGULA', ' AI', '']"

@@ -82,14 +82,13 @@ public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions
       Optional<Field> fieldFromParquet = Optional.empty();
       if (arrowSchema != null) {
         // We're reading a parquet file written by Dremio
-        Field field;
         try {
-          field = arrowSchema.findField(name);
+          fieldFromParquet = Optional.ofNullable(arrowSchema.findField(name));
         } catch (Exception e) {
-          field = null;
+          logger.debug("Column {} not found in arrow schema {}", name, arrowSchema);
         }
-        fieldFromParquet = Optional.ofNullable(field);
-      } else if (parquetType != null) {
+      }
+      if (!fieldFromParquet.isPresent() && parquetType != null) {
         fieldFromParquet = ParquetTypeHelper.toField(parquetType, schemaHelper);
       }
 

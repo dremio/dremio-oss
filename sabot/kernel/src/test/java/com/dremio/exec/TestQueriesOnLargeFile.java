@@ -29,11 +29,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestQueriesOnLargeFile extends BaseTestQuery {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestQueriesOnLargeFile.class);
@@ -94,8 +91,8 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
   @Ignore("DX-3872")
   @Test
   public void testMergingReceiver() throws Exception {
-    String plan = Files.toString(FileUtils.getResourceAsFile("/largefiles/merging_receiver_large_data.json"),
-        Charsets.UTF_8).replace("#{TEST_FILE}", escapeJsonString(dataFile.getPath()));
+    String plan = readResourceAsString("/largefiles/merging_receiver_large_data.json")
+      .replace("#{TEST_FILE}", escapeJsonString(dataFile.getPath()));
     List<QueryDataBatch> results = testPhysicalWithResults(plan);
 
     int recordsInOutput = 0;

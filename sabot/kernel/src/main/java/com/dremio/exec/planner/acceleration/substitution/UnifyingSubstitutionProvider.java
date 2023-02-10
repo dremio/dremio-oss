@@ -47,8 +47,7 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
 
   @Override
   public SubstitutionStream findSubstitutions(final RelNode query) {
-    final List<DremioMaterialization> materializations =
-      SubstitutionUtils.findApplicableMaterializations(query, getMaterializations());
+    final List<DremioMaterialization> materializations = buildApplicableMaterializations(query);
 
     final List<Substitution> substitutions = Lists.newArrayList(Substitution.createRootEquivalent(query));
     for (final DremioMaterialization materialization : materializations) {

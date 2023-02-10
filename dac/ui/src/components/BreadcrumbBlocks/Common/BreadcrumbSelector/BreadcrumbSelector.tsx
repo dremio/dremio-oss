@@ -21,10 +21,12 @@ import * as classes from "./BreadcrumbSelector.module.less";
 type BreadcrumbSelectorProps = {
   defaultValue: string;
   options: { label: any; value: string }[];
+  refetchOnOpen?: () => void;
 };
 const BreadcrumbSelector = ({
   options,
   defaultValue,
+  refetchOnOpen,
 }: BreadcrumbSelectorProps) => {
   const [value, setValue] = useState(defaultValue);
   return (
@@ -34,6 +36,7 @@ const BreadcrumbSelector = ({
         options={options}
         role="breadcrumb"
         onChange={(e: any) => setValue(e.target.value)}
+        onOpen={refetchOnOpen}
       />
     </div>
   );

@@ -15,11 +15,12 @@
  */
 package com.dremio.service.reflection.analysis;
 
+import java.util.Optional;
+
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import com.dremio.service.reflection.analysis.ReflectionAnalyzer.RField;
-import com.google.common.base.Optional;
 
 /**
  * Utility methods used to inspect sql types.
@@ -88,7 +89,7 @@ public final class TypeUtils {
     try {
       return Optional.of(SqlTypeFamily.valueOf(field.getTypeFamily()));
     } catch (final IllegalArgumentException ex) {
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 

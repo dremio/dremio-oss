@@ -1,0 +1,53 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns the population covariance for non-NULL pairs across all input
+  values.
+functionCategories:
+- AGGREGATE
+- WINDOW
+name: COVAR_POP
+signatures:
+- description: null
+  parameters:
+  - description: An expression that evaluates to a numeric type. This parameter is
+      the dependent value.
+    kind: REGULAR
+    name: expression1
+    type: NUMERIC
+  - description: An expression that evaluates to a numeric type. This parameter is
+      the independent value.
+    kind: REGULAR
+    name: expression2
+    type: NUMERIC
+  returnType: DOUBLE
+  sampleCodes:
+  - call: 'SELECT COVAR_POP(trip_distance_mi, fare_amount)
+
+      FROM Samples."samples.dremio.com"."NYC-taxi-trips"
+
+      '
+    result: 31.70536771189994
+  - call: 'SELECT COVAR_POP(DISTINCT trip_distance_mi, fare_amount)
+
+      FROM Samples."samples.dremio.com"."NYC-taxi-trips"
+
+      '
+    result: 302.59280681444307
+  - call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\n\
+      FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+    result: 1.5543122344752192e-15

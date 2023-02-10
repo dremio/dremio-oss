@@ -34,11 +34,11 @@ import java.net.URI;
 import java.nio.file.DirectoryStream;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.compress.utils.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -163,18 +163,15 @@ public class DremioFileSystem extends FileSystem {
   }
 
   void updateOAuthConfig(Configuration conf, String accountName, String accountNameWithoutSuffix) {
-    final String CLIENT_ID = "dremio.azure.clientId";
-    final String TOKEN_ENDPOINT = "dremio.azure.tokenEndpoint";
-    final String CLIENT_SECRET = "dremio.azure.clientSecret";
     String refreshToken = getValueForProperty(conf, FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT,
       accountName, accountNameWithoutSuffix, "OAuth Client Endpoint not found.");
     String clientId = getValueForProperty(conf, FS_AZURE_ACCOUNT_OAUTH_CLIENT_ID, accountName,
       accountNameWithoutSuffix, "OAuth Client Id not found.");
     String password = getValueForProperty(conf, FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET, accountName,
       accountNameWithoutSuffix ,"OAuth Client Password not found.");
-    conf.set(CLIENT_ID, clientId);
-    conf.set(TOKEN_ENDPOINT, refreshToken);
-    conf.set(CLIENT_SECRET, password);
+    conf.set(FSConstants.AZURE_CLIENT_ID, clientId);
+    conf.set(FSConstants.AZURE_TOKEN_ENDPOINT, refreshToken);
+    conf.set(FSConstants.AZURE_CLIENT_SECRET, password);
   }
 
   private String getValueForProperty(Configuration conf, String propertyName,
@@ -326,7 +323,7 @@ public class DremioFileSystem extends FileSystem {
 
   @Override
   public FileStatus[] listStatus(Path path) throws FileNotFoundException, IOException {
-    final List<FileStatus> fileStatusList = Lists.newArrayList();
+    final List<FileStatus> fileStatusList = new ArrayList<>();
     com.dremio.io.file.Path dremioPath = com.dremio.io.file.Path.of(path.toUri());
     DirectoryStream<FileAttributes> attributes = null;
     long defaultBlockSize;

@@ -15,9 +15,10 @@
  */
 import { Component, createRef, PureComponent } from "react";
 import { connect } from "react-redux";
-import classNames from "classnames";
+import classNames from "clsx";
 import Immutable from "immutable";
 import { Tooltip } from "dremio-ui-lib";
+import { withRouter } from "react-router";
 
 import PropTypes from "prop-types";
 
@@ -36,6 +37,7 @@ import ContainerDatasetCountV3, {
 
 import ResourcePin from "./ResourcePin";
 import EllipsedText from "./EllipsedText";
+
 import "./FinderNavItem.less";
 
 const mapStateToPropsV3 = (state, { entityId }) => {
@@ -100,6 +102,7 @@ class FinderNavItem extends Component {
       ENTITY_TYPES.space,
     ]).isRequired,
     renderExtra: PropTypes.any,
+    params: PropTypes.object,
   };
 
   constructor(props) {
@@ -153,7 +156,7 @@ class FinderNavItem extends Component {
 
   itemRef = createRef(null);
   render() {
-    const { style, entityType, renderExtra, isHomeActive } = this.props;
+    const { style, entityType, renderExtra, isHomeActive, params } = this.props;
 
     const { id, name, numberOfDatasets, disabled, datasetCountBounded } =
       this.props.item;
@@ -161,6 +164,7 @@ class FinderNavItem extends Component {
     const itemClass = classNames("finder-nav-item", {
       withExtra: !!renderExtra,
     });
+    const isActiceArcticSource = name === params?.sourceId; // sourceId is param for when in Arctic Source history URL
 
     return (
       <li
@@ -184,7 +188,7 @@ class FinderNavItem extends Component {
               entityId={id}
               activeClassName="active"
               className={`finder-nav-item-link ${
-                isHomeActive ? "active" : ""
+                isHomeActive || isActiceArcticSource ? "active" : ""
               } `}
             >
               <EntityIcon entityId={id} />
@@ -226,7 +230,7 @@ class FinderNavItem extends Component {
   }
 }
 
-export default connect(mapStateToProps)(FinderNavItem);
+export default withRouter(connect(mapStateToProps)(FinderNavItem));
 
 const styles = {
   disabled: {

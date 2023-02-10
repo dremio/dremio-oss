@@ -25,6 +25,7 @@ import static org.apache.parquet.hadoop.ParquetFileWriter.MAGIC;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,6 +43,7 @@ import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.options.TimeTravelOption;
+import com.dremio.exec.hadoop.HadoopCompressionCodecFactory;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -50,6 +52,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.dfs.FileCountTooLargeException;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSelectionProcessor;
@@ -70,6 +73,7 @@ import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.Streams;
+import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -85,6 +89,8 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
   private static final Logger logger = LoggerFactory.getLogger(DeltaLakeFormatPlugin.class);
   private static final String DEFAULT_NAME = "delta";
   private static final boolean IS_COMPRESSIBLE = true;
+
+  private static final String NOT_SUPPORT_METASTORE_TABLE_MSG = "This folder does not contain a filesystem-based Delta Lake table.";
 
   private final SabotContext context;
   private final String name;
@@ -263,7 +269,7 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
                 if (easyXAttr.getPath().endsWith("json")) {
                   deltaRecordReader =  getCommitJsonRecordReader(fs, opCtx, easyScanConfig, addWithPartitionCols, easyXAttr, innerFields);
                 } else {
-                  deltaRecordReader = parquetSplitReaderCreator.getParquetRecordReader(input, addWithPartitionCols);
+                  deltaRecordReader = parquetSplitReaderCreator.getParquetRecordReader(fs, input, addWithPartitionCols);
                 }
                 //Wrap the record reader to have the version column as additional columns
                 return new AdditionalColumnsRecordReader(opCtx, deltaRecordReader, Arrays.asList(new ConstantColumnPopulators.BigIntNameValuePair(VERSION, version)), context.getAllocator());
@@ -293,6 +299,13 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
   private RecordReader getCommitJsonRecordReader(FileSystem fs, OperatorContext opCtx, EasySubScan easyScanConfig,
                                                  boolean addWithPartitionCols, EasyProtobuf.EasyDatasetSplitXAttr easyXAttr,
                                                  List<SchemaPath> innerFields) {
+    String path = easyXAttr.getPath();
+    if (fs != null && !fs.supportsPathsWithScheme()) {
+      path = Path.getContainerSpecificRelativePath(Path.of(path));
+    }
+    final JSONRecordReader jsonRecordReader = new JSONRecordReader(opCtx, path, getCodecFactory(), fs, innerFields);
+    jsonRecordReader.resetSpecialSchemaOptions();
+
     if (addWithPartitionCols) {
       // Fetch list of partition columns from add.partitionValues_parsed
       final List<Field> partitionCols = easyScanConfig.getFullSchema().findField(DELTA_FIELD_ADD).getChildren().stream()
@@ -308,16 +321,25 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
       projectedCols.removeIf(p -> p.equals(partitionValuesPath) || p.equals(partitionValuesParsedPath));
       partitionCols.forEach(p -> projectedCols.add(partitionValuesPath.getChild(p.getName())));
 
-      final JSONRecordReader jsonRecordReader = new JSONRecordReader(opCtx, easyXAttr.getPath(),
-              getFsPlugin().getCompressionCodecFactory(), fs, innerFields);
-      jsonRecordReader.resetSpecialSchemaOptions();
-
       return new DeltaLogCommitJsonRecordReader(opCtx, jsonRecordReader, partitionCols);
     } else {
-      final JSONRecordReader jsonRecordReader = new JSONRecordReader(opCtx, easyXAttr.getPath(),
-              getFsPlugin().getCompressionCodecFactory(), fs, innerFields);
-      jsonRecordReader.resetSpecialSchemaOptions();
       return jsonRecordReader;
     }
   }
+
+  private CompressionCodecFactory getCodecFactory() {
+    return getFsPlugin() != null ? getFsPlugin().getCompressionCodecFactory() : HadoopCompressionCodecFactory.DEFAULT;
+  }
+
+  @Override
+  public DirectoryStream<FileAttributes> getFilesForSamples(
+    FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path) throws IOException, FileCountTooLargeException {
+    if (!formatMatcher.isDeltaLakeTable(fs, path.toString())) {
+      throw UserException.unsupportedError()
+        .message(NOT_SUPPORT_METASTORE_TABLE_MSG)
+        .buildSilently();
+    }
+    return super.getFilesForSamples(fs, fsPlugin, path);
+  }
+
 }

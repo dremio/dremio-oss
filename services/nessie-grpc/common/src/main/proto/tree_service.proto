@@ -34,8 +34,8 @@ service TreeService {
   rpc deleteReference (DeleteReferenceRequest) returns (Empty) {}
   rpc getCommitLog (CommitLogRequest) returns (CommitLogResponse) {}
   rpc getEntries (EntriesRequest) returns (EntriesResponse) {}
-  rpc transplantCommitsIntoBranch (TransplantRequest) returns (Empty) {}
-  rpc mergeRefIntoBranch (MergeRequest) returns (Empty) {}
+  rpc transplantCommitsIntoBranch (TransplantRequest) returns (MergeResponse) {}
+  rpc mergeRefIntoBranch (MergeRequest) returns (MergeResponse) {}
   rpc commitMultipleOperations (CommitRequest) returns (Branch) {}
 }
 
@@ -131,6 +131,42 @@ message CommitLogResponse {
   optional string token = 3;
 }
 
+message MergeResponse {
+  bool wasApplied = 1;
+  bool wasSuccessful = 2;
+  string targetBranchName = 3;
+  string effectiveTargetHash = 4;
+  optional string expectedHash = 5;
+  optional string resultantTargetHash = 6;
+  optional string commonAncestorHash = 7;
+  repeated CommitLogEntry sourceCommits = 8;
+  optional CommitLogEntries targetCommits = 9; // using sub-message to properly support null target commit lists
+  repeated ContentKeyDetails details = 10;
+}
+
+message CommitLogEntries {
+  repeated CommitLogEntry entries = 1;
+}
+
+message ContentKeyDetails {
+  ContentKey contentKey = 1;
+  MergeBehavior mergeBehavior = 2;
+  ContentKeyConflict conflictType = 3;
+  repeated string sourceCommitHashes = 4;
+  repeated string targetCommitHashes = 5;
+}
+
+enum ContentKeyConflict {
+  NONE = 0;
+  UNRESOLVABLE = 1;
+}
+
+enum MergeBehavior {
+  NORMAL = 0;
+  FORCE = 1;
+  DROP = 2;
+}
+
 message CommitLogEntry {
   CommitMeta commitMeta = 1;
   optional string parentCommitHash = 2;
@@ -183,6 +219,11 @@ message TransplantRequest {
   string fromRefName = 4;
   repeated string hashesToTransplant = 5;
   optional bool keepIndividualCommits = 6;
+  optional bool dryRun = 7;
+  optional bool returnConflictAsResult = 8;
+  optional bool fetchAdditionalInfo = 9;
+  optional MergeBehavior defaultKeyMergeMode = 10;
+  repeated MergeKeyBehavior mergeModes = 11;
 }
 
 message MergeRequest {
@@ -191,6 +232,16 @@ message MergeRequest {
   string expectedHash = 3;
   string fromRefName = 4;
   optional bool keepIndividualCommits = 5;
+  optional bool dryRun = 7;
+  optional bool returnConflictAsResult = 8;
+  optional bool fetchAdditionalInfo = 9;
+  optional MergeBehavior defaultKeyMergeMode = 10;
+  repeated MergeKeyBehavior mergeModes = 11;
+}
+
+message MergeKeyBehavior {
+  ContentKey key = 1;
+  MergeBehavior mergeBehavior = 2;
 }
 
 message CommitRequest {

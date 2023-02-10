@@ -22,6 +22,7 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NOT_DISTINCT_FRO
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NULL;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.NOT;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.OR;
+import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
 import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -34,6 +35,7 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 import org.junit.Assert;
@@ -54,6 +56,8 @@ public class TestEnhancedFilterJoinExtractor {
   private static final RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
   private static final RelDataType intColumnType = typeFactory.createTypeWithNullability(
     typeFactory.createSqlType(INTEGER), true);
+
+  private static final RelDataType intColumn =  typeFactory.createSqlType(INTEGER);
   private static final RexBuilder rexBuilder = new DremioRexBuilder(typeFactory);
   private static final RelBuilder relBuilder = makeRelBuilder();
 
@@ -70,6 +74,33 @@ public class TestEnhancedFilterJoinExtractor {
     typeFactory.createSqlType(INTEGER), false);
   private static final RexNode intLit40 = rexBuilder.makeLiteral(40,
     typeFactory.createSqlType(INTEGER), false);
+
+
+  @Test
+  public void testEnhancedFilterJoinExtractorTypeMisMatch(){
+    RexCall filter = (RexCall) rexBuilder.makeCall(EQUALS,
+      rexBuilder.makeCast(intColumn,rexBuilder.makeInputRef(typeFactory.createSqlType(DOUBLE),0)),
+      col_R_b
+    );
+    Join joinRel = (Join) relBuilder
+      .values(new String[] {"a"}, 1.2)
+      .values(new String[] {"b"}, 2, 1)
+      .join(JoinRelType.INNER, rexBuilder.makeLiteral(true))
+      .build();
+    Filter filterRel = (Filter) relBuilder
+      .push(joinRel)
+      .filter(filter)
+      .build();
+
+    EnhancedFilterJoinExtraction enhancedFilterJoinExtraction = new EnhancedFilterJoinExtractor(filterRel, joinRel,
+      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM).extract();
+
+    RexCall joinCond = (RexCall) enhancedFilterJoinExtraction.getJoinCondition();
+    Assert.assertFalse(filter.operands.get(0).getType()==filter.operands.get(1).getType());
+    Assert.assertTrue(joinCond.operands.get(0).getType()==joinCond.operands.get(1).getType());
+    Assert.assertTrue(joinCond.operands.get(1).getType()==intColumn);
+
+  }
 
   @Test
   public void testExtractJoinCondition() {

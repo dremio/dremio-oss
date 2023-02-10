@@ -25,9 +25,6 @@ import org.junit.Test;
 import com.dremio.exec.DremioSystemTestBase;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
-
 
 @Ignore
 public class DremioClientSystemTest extends DremioSystemTestBase {
@@ -37,8 +34,7 @@ public class DremioClientSystemTest extends DremioSystemTestBase {
   @BeforeClass
   public static void setUp() throws Exception {
     DremioSystemTestBase.setUp();
-    plan = Resources.toString(Resources.getResource("simple_plan.json"), Charsets.UTF_8);
-
+    plan = readResourceAsString("simple_plan.json");
   }
 
   @After

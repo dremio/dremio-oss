@@ -22,6 +22,8 @@ import org.apache.hadoop.conf.Configuration;
 
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.deltalake.DeltaLakeFormatConfig;
+import com.dremio.exec.store.deltalake.DeltaLakeFormatPlugin;
 import com.dremio.exec.store.dfs.AsyncStreamConf;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
@@ -56,7 +58,7 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
   }
 
   protected final void runQuery(final String query, final String userName, final String queryType) throws Exception {
-    sabotContext.getJobsRunner().get().runQueryAsJob(query, userName, queryType);
+    sabotContext.getJobsRunner().get().runQueryAsJob(query, userName, queryType, null);
   }
 
   @Override
@@ -74,6 +76,9 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
       IcebergFormatPlugin icebergFormatPlugin = new IcebergFormatPlugin("iceberg", sabotContext, (IcebergFormatConfig) formatConfig, null);
       icebergFormatPlugin.initialize((IcebergFormatConfig) formatConfig, this);
       return icebergFormatPlugin;
+    }
+    if (formatConfig instanceof DeltaLakeFormatConfig) {
+      return new DeltaLakeFormatPlugin("delta", sabotContext, (DeltaLakeFormatConfig) formatConfig, null);
     }
     throw new UnsupportedOperationException("Format plugins for non iceberg use cases are not supported.");
   }

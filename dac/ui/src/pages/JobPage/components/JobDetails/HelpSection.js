@@ -29,7 +29,7 @@ import { addNotification } from "actions/notification";
 import { getViewState } from "selectors/resources";
 import tokenUtils from "@inject/utils/tokenUtils";
 import APICall from "@app/core/APICall";
-import classNames from "classnames";
+import classNames from "clsx";
 import jobsUtils from "utils/jobsUtils";
 import config from "dyn-load/utils/config";
 

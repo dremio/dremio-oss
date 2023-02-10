@@ -16,6 +16,7 @@
 package com.dremio.telemetry.api.tracing.http;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,10 +29,13 @@ import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.container.ResourceInfo;
 import javax.ws.rs.core.MultivaluedMap;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.logging.StructuredLogger;
 import com.dremio.telemetry.api.Telemetry;
+import com.dremio.telemetry.api.log.RequestTracingLogProtobuf.RequestTracingLog;
 
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -55,6 +59,12 @@ public class ServerTracingFilter implements ContainerRequestFilter, ContainerRes
   private static Tracer tracer;
   public static final String TRACING_SCOPE_CONTEXT_PROPERTY = "tracing-scope";
   public static final String TRACING_SPAN_CONTEXT_PROPERTY = "tracing-span";
+  public static final String REQUEST_ID_CONTEXT_PROPERTY = "request_id";
+  public static final String REQUEST_ID_HEADER = "X-Request-ID";
+  public static final String REQUEST_TRACING_LOGGER = "tracing.logger";
+
+  private static final StructuredLogger structuredLogger =
+      StructuredLogger.get(RequestTracingLog.class, ServerTracingFilter.class.getName());
 
   @javax.ws.rs.core.Context
   private ResourceInfo resourceInfo;
@@ -131,6 +141,12 @@ public class ServerTracingFilter implements ContainerRequestFilter, ContainerRes
     requestContext.setProperty(TRACING_SPAN_CONTEXT_PROPERTY, span);
 
     requestContext.setProperty(TRACING_SCOPE_CONTEXT_PROPERTY, span.makeCurrent());
+
+    if (shouldHandleRequestId(span)) {
+      String requestId = getOrCreateRequestId(requestContext);
+      requestContext.setProperty(REQUEST_ID_CONTEXT_PROPERTY, requestId);
+      logRequestTraceInfo(requestId, span);
+    }
   }
 
   @Override
@@ -142,6 +158,11 @@ public class ServerTracingFilter implements ContainerRequestFilter, ContainerRes
       span.setAttribute(SemanticAttributes.HTTP_STATUS_CODE, responseStatus);
       span.end();
       scope.close();
+    }
+
+    if (shouldHandleRequestId(span)) {
+      final String requestId = (String) requestContext.getProperty(REQUEST_ID_CONTEXT_PROPERTY);
+      attachRequestIdToResponseIfNotExists(responseContext, requestId);
     }
   }
 
@@ -164,5 +185,40 @@ public class ServerTracingFilter implements ContainerRequestFilter, ContainerRes
     return GlobalOpenTelemetry.get().getPropagators()
       .getTextMapPropagator()
       .extract(Context.current(), requestContext, getter);
+  }
+
+  private void attachRequestIdToResponseIfNotExists(ContainerResponseContext responseContext, String requestId) {
+    if (StringUtils.isBlank(responseContext.getHeaderString(REQUEST_ID_HEADER))) {
+      responseContext.getHeaders().add(REQUEST_ID_HEADER, requestId);
+    }
+  }
+
+  private void logRequestTraceInfo(String requestId, Span span) {
+    String traceId = span.getSpanContext().getTraceId();
+    String spanId = span.getSpanContext().getSpanId();
+    structuredLogger.info(RequestTracingLog.newBuilder()
+                .setRequestId(requestId)
+                .setTraceId(traceId)
+                .setSpanId(spanId)
+                .build(),
+            "Using request id [{}]; trace id [{}]; span id [{}] for the request.",
+            requestId,
+            traceId,
+            traceId);
+  }
+
+  private boolean shouldHandleRequestId(Span span) {
+    return span != null && span.getSpanContext().isSampled();
+  }
+
+  private String getOrCreateRequestId(ContainerRequestContext requestContext) {
+    final String requestId = requestContext.getHeaderString(REQUEST_ID_HEADER);
+    if (StringUtils.isNotBlank(requestId)) {
+      return requestId;
+    }
+    // this is fallback
+    final String newRequestId =  UUID.randomUUID().toString();
+    logger.debug("Request ID header is missing on the request. Generating new on instead: {}", newRequestId);
+    return newRequestId;
   }
 }

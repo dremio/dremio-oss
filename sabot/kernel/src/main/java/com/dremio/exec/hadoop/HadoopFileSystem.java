@@ -84,6 +84,11 @@ import com.google.common.collect.Maps;
 public class HadoopFileSystem
   implements FileSystem, OpenFileTracker {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopFileSystem.class);
+
+  // This provider path property is a comma separated list of one or more credential provider URIs that is traversed while trying to resolve a credential alias.
+  public static final String HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH = "hadoop.security.credential.provider.path";
+  public static final String DREMIO_CREDENTIAL_PROVIDER_PATH = "dremio:///";
+
   private static final boolean TRACKING_ENABLED = VM.areAssertsEnabled();
 
   private static final String FORCE_REFRESH_LEVELS = "dremio.fs.force_refresh_levels";
@@ -100,6 +105,7 @@ public class HadoopFileSystem
   private final boolean enableAsync;
 
   public static FileSystem get(URI uri, Configuration fsConf, boolean enableAsync) throws IOException {
+    fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.get(uri, fsConf);
     return get(fs, null, enableAsync);
   }
@@ -109,6 +115,7 @@ public class HadoopFileSystem
     // we are passing the conf as map<string,string> to work around
     // Configuration objects being loaded by different class loaders.
     Configuration fsConf = new Configuration();
+    fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     while (conf.hasNext()) {
       Map.Entry<String, String> property = conf.next();
       fsConf.set(property.getKey(), property.getValue());
@@ -118,21 +125,25 @@ public class HadoopFileSystem
   }
 
   public static FileSystem get(Path path, Configuration fsConf) throws IOException {
+    fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = toHadoopPath(path).getFileSystem(fsConf);
     return get(fs);
   }
 
   public static FileSystem get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {
+    fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = toHadoopPath(path).getFileSystem(fsConf);
     return get(fs, stats, false);
   }
 
   public static FileSystem get(Path path, Configuration fsConf, OperatorStats stats, boolean enableAsync) throws IOException {
+    fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = toHadoopPath(path).getFileSystem(fsConf);
     return get(fs, stats, enableAsync);
   }
 
   public static FileSystem getLocal(Configuration fsConf) throws IOException {
+    fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.getLocal(fsConf);
     return get(fs);
   }
@@ -145,6 +156,7 @@ public class HadoopFileSystem
    * @throws IOException
    */
   public static FileSystem getRawLocal(Configuration fsConf) throws IOException {
+    fsConf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, DREMIO_CREDENTIAL_PROVIDER_PATH);
     org.apache.hadoop.fs.LocalFileSystem fs = org.apache.hadoop.fs.FileSystem.getLocal(fsConf);
     return get(fs.getRaw());
   }

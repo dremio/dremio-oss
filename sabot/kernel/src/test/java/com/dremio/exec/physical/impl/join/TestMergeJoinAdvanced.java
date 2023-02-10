@@ -32,13 +32,10 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.resource.GroupResourceInformation;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Rule
@@ -262,20 +259,20 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
 
   @Test
   public void testMergeJoinInnerEmptyBatch() throws Exception {
-    String plan = Files.toString(FileUtils.getResourceAsFile("/join/merge_join_empty_batch.json"), Charsets.UTF_8).replace("${JOIN_TYPE}", "INNER");
+    String plan = readResourceAsString("/join/merge_join_empty_batch.json").replace("${JOIN_TYPE}", "INNER");
     assertEquals(0, testPhysical(plan));
   }
 
   @Test
   public void testMergeJoinLeftEmptyBatch() throws Exception {
-    final String plan = Files.toString(FileUtils.getResourceAsFile("/join/merge_join_empty_batch.json"), Charsets.UTF_8)
+    final String plan = readResourceAsString("/join/merge_join_empty_batch.json")
         .replace("${JOIN_TYPE}", "LEFT");
     assertEquals(50, testPhysical(plan));
   }
 
   @Test
   public void testMergeJoinRightEmptyBatch() throws Exception {
-    final String plan = Files.toString(FileUtils.getResourceAsFile("/join/merge_join_empty_batch.json"), Charsets.UTF_8)
+    final String plan = readResourceAsString("/join/merge_join_empty_batch.json")
         .replace("${JOIN_TYPE}", "RIGHT");
     assertEquals(0, testPhysical(plan));
   }
@@ -283,7 +280,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Ignore("DX-12609: parquet file format has changed, test case to be upgraded")
   @Test
   public void testMergeJoinExprInCondition() throws Exception {
-    final String plan = Files.toString(FileUtils.getResourceAsFile("/join/mergeJoinExpr.json"), Charsets.UTF_8)
+    final String plan = readResourceAsString("/join/mergeJoinExpr.json")
         .replace("${JOIN_TYPE}", "RIGHT");
     assertEquals(10, testPhysical(plan));
   }

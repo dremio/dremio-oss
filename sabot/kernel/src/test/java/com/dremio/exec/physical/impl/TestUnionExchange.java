@@ -22,15 +22,12 @@ import java.util.List;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestUnionExchange extends PopUnitTestBase {
@@ -47,8 +44,7 @@ public class TestUnionExchange extends PopUnitTestBase {
       bit2.run();
       client.connect();
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-          Files.toString(FileUtils.getResourceAsFile("/sender/union_exchange.json"),
-              Charsets.UTF_8));
+        readResourceAsString("/sender/union_exchange.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {

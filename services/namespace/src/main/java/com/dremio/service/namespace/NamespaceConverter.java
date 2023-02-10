@@ -30,6 +30,7 @@ import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_NAME;
 import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_SCHEMA;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.flatbuf.Schema;
@@ -50,7 +51,6 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
@@ -92,7 +92,7 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
         final DatasetConfig datasetConfig = container.getDataset();
 
         // last modified is a new field so support old entries which only have a createdAt.
-        Long modified = Optional.fromNullable(datasetConfig.getCreatedAt()).or(0L);
+        Long modified = Optional.ofNullable(datasetConfig.getCreatedAt()).orElse(0L);
 
         if (datasetConfig.getLastModified() != null && datasetConfig.getLastModified() > 0) {
           modified = datasetConfig.getLastModified();
@@ -214,7 +214,7 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
       for (FieldOrigin fieldOrigin : fieldOrigins) {
         for (Origin origin : listNotNull(fieldOrigin.getOriginsList())) {
           // DX-3999: fix this in calcite
-          final List<String> path = Optional.fromNullable(origin.getTableList()).or(empty);
+          final List<String> path = Optional.ofNullable(origin.getTableList()).orElse(empty);
           if (path.isEmpty()) {
             continue;
           }

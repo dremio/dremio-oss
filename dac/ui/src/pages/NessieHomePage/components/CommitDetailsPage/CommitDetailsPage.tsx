@@ -58,7 +58,10 @@ function CommitDetailsPage({ params }: { params: any }) {
       <PageBreadcrumbHeader hasBranchPicker={false} />
       {isReqLoading(status) && <Spinner />}
       {commitMeta && (
-        <CommitDetails branch={branchName} commitMeta={commitMeta} />
+        <CommitDetails
+          branch={{ name: branchName, hash: commitHash, type: "BRANCH" }}
+          commitMeta={commitMeta}
+        />
       )}
     </div>
   );

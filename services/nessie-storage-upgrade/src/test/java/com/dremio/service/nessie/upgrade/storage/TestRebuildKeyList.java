@@ -16,12 +16,14 @@
 package com.dremio.service.nessie.upgrade.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.projectnessie.versioned.CommitMetaSerializer.METADATA_SERIALIZER;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +31,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.IcebergTable;
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Key;
@@ -45,20 +46,16 @@ import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
+import org.projectnessie.versioned.store.DefaultStoreWorker;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.protobuf.ByteString;
 
-class TestRebuildKeyList {
-  private static final ScanResult scanResult = ClassPathScanner.fromPrescan(SabotConfig.create());
+class TestRebuildKeyList extends AbstractNessieUpgradeTest {
 
-  private final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
   private final RebuildKeyList task = new RebuildKeyList();
   private LocalKVStoreProvider storeProvider;
   private DatabaseAdapter adapter;
@@ -83,7 +80,7 @@ class TestRebuildKeyList {
     adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConnector(nessieDatastore)
       .withConfig(adapterCfg)
-      .build(worker);
+      .build();
     adapter.initializeRepo("main");
   }
 
@@ -98,28 +95,29 @@ class TestRebuildKeyList {
     IcebergTable table = IcebergTable.of(key.toString() + "-loc", 1, 2, 3, 4, UUID.randomUUID().toString());
 
     ContentId contentId = ContentId.of(UUID.randomUUID().toString());
-    adapter.commit(ImmutableCommitParams.builder()
+    ImmutableCommitParams.Builder commit = ImmutableCommitParams.builder();
+    adapter.commit(commit
       .toBranch(BranchName.of("main"))
-      .commitMetaSerialized(worker.getMetadataSerializer().toBytes(CommitMeta.fromMessage("test-" + key)))
-      .addPuts(KeyWithBytes.of(key, contentId, worker.getPayload(table),
-        worker.toStoreOnReferenceState(table)))
-      .putGlobal(contentId, worker.toStoreGlobalState(table))
+      .commitMetaSerialized(METADATA_SERIALIZER.toBytes(CommitMeta.fromMessage("test-" + key)))
+      .addPuts(KeyWithBytes.of(key, contentId, DefaultStoreWorker.payloadForContent(table),
+        DefaultStoreWorker.instance().toStoreOnReferenceState(table, commit::addAttachments)))
       .build());
   }
 
   private void validateActiveKeys(Collection<Key> activeKeys) throws ReferenceNotFoundException {
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
-    assertThat(adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL).map(KeyListEntry::getKey))
-      .containsExactlyInAnyOrderElementsOf(activeKeys);
+    try (Stream<KeyListEntry> keys = adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL)) {
+      assertThat(keys.map(KeyListEntry::getKey)).containsExactlyInAnyOrderElementsOf(activeKeys);
+    }
 
-    Map<Key, ContentAndState<ByteString>> values = adapter.values(main.getHash(), activeKeys,
-      KeyFilterPredicate.ALLOW_ALL);
+    Map<Key, ContentAndState> values = adapter.values(main.getHash(), activeKeys, KeyFilterPredicate.ALLOW_ALL);
 
     assertThat(values).hasSize(activeKeys.size());
     activeKeys.forEach(k -> {
-      ContentAndState<ByteString> value = values.get(k);
+      ContentAndState value = values.get(k);
       ByteString refState = value.getRefState();
-      IcebergTable table = (IcebergTable) worker.valueFromStore(refState, value::getGlobalState);
+      IcebergTable table = (IcebergTable) DefaultStoreWorker.instance().valueFromStore(
+        value.getPayload(), refState, () -> null, keys -> Stream.empty());
       assertThat(table.getMetadataLocation()).isEqualTo(k.toString() + "-loc");
     });
   }

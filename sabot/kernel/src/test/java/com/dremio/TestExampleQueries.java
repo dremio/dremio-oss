@@ -2437,4 +2437,25 @@ public class TestExampleQueries extends PlanTestBase {
       .build()
       .run();
   }
+
+  @Test // DX-60099
+  public void TestCoalesceOnSameColJava() throws Exception {
+    String query = "select\n" +
+      "  COALESCE(amount_dollars,0) as c1\n" +
+      " ,COALESCE(score,0)*amount_dollars as c2\n" +
+      " ,COALESCE(amount_dollars,0) as c3\n" +
+      "FROM cp.\"parquet/coalesce_same_col.parquet\"";
+    testBuilder()
+      .unOrdered()
+      .optionSettingQueriesForTestQuery("alter system set \"exec.preferred.codegenerator\" = 'java'")
+      .sqlQuery(query)
+      .baselineColumns("c1", "c2", "c3")
+      .baselineValues(new BigDecimal("0.0"), null, new BigDecimal("0.0"))
+      .baselineValues(new BigDecimal("0.0"), null, new BigDecimal("0.0"))
+      .baselineValues(new BigDecimal("7000.0"), 575.7124242453957, new BigDecimal("7000.0"))
+      .baselineValues(new BigDecimal("4000.0"), 627.8740198036597, new BigDecimal("4000.0"))
+      .baselineValues(new BigDecimal("0.0"), null, new BigDecimal("0.0"))
+      .build()
+      .run();
+  }
 }

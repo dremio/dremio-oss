@@ -94,6 +94,17 @@ public interface StructuredLogger<T> {
   }
 
   /**
+   * Get a structured Logger instance for Protobuf Objects.
+   * @param clazz - Instance of the Specific Protobuf Class.
+   * @param loggerClass - logger class.
+   * @param <V> The specific type of protobuf.
+   * @return an instance of structred Logger.
+   */
+  static <V extends Message> StructuredLogger<V> get(Class<V> clazz, Class<?> loggerClass) {
+    return get(clazz, loggerClass.getName());
+  }
+
+  /**
    * Helper method to convert the message to a different type and log that.
    * @param mapper to convert the source type <code>U</code> to structured type <code>T</code> to be logged.
    * @param <U> The source type data being generated in.
@@ -134,7 +145,7 @@ public interface StructuredLogger<T> {
 
     @Override
     public void error(T data, String message) {
-      parentLogger.debug(mapper.apply(data), message);
+      parentLogger.error(mapper.apply(data), message);
     }
 
     @Override
@@ -154,7 +165,7 @@ public interface StructuredLogger<T> {
 
     @Override
     public void error(T data, String message, Object... args) {
-      parentLogger.debug(mapper.apply(data), message, args);
+      parentLogger.error(mapper.apply(data), message, args);
     }
   }
 }

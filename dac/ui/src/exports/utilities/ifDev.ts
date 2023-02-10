@@ -18,5 +18,8 @@
  * Returns the argument if development === true, otherwise returns
  * undefined.
  */
+
+import { isDev } from "./isDev";
+
 export const ifDev = <T extends unknown>(val: T): T | undefined =>
-  (process.env.NODE_ENV === "development" && val) || undefined;
+  (isDev && val) || undefined;

@@ -54,6 +54,7 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.Serializer;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
@@ -181,7 +182,7 @@ public class CatalogImpl implements Catalog {
     this.versionContextResolverImpl = versionContextResolverImpl;
     this.datasets = new DatasetManager(pluginRetriever, userNamespaceService, optionManager, userName,
         identityResolver, versionContextResolverImpl);
-    this.iscDelegate = new InformationSchemaCatalogImpl(userNamespaceService, pluginRetriever);
+    this.iscDelegate = new InformationSchemaCatalogImpl(userNamespaceService, pluginRetriever, optionManager);
 
     this.selectedSources = ConcurrentHashMap.newKeySet();
     this.crossSourceSelectDisable = optionManager.getOption(CatalogOptions.DISABLE_CROSS_SOURCE_SELECT);
@@ -330,17 +331,17 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     final NamespaceKey resolvedKey = resolveToDefault(key);
 
     if (resolvedKey != null) {
-      final DremioTranslatableTable table = getTableSnapshotHelper(resolvedKey, context);
+      final DremioTable table = getTableSnapshotHelper(resolvedKey, context);
       if (table != null) {
         return table;
       }
     }
 
-    final DremioTranslatableTable table = getTableSnapshotHelper(key, context);
+    final DremioTable table = getTableSnapshotHelper(key, context);
     if (table == null) {
       throw UserException.validationError()
           .message("Table '%s' not found", key)
@@ -350,7 +351,7 @@ public class CatalogImpl implements Catalog {
     return table;
   }
 
-  private DremioTranslatableTable getTableSnapshotHelper(NamespaceKey key, TableVersionContext context) {
+  private DremioTable getTableSnapshotHelper(NamespaceKey key, TableVersionContext context) {
     final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), false);
     if (plugin == null) {
       return null;
@@ -363,7 +364,7 @@ public class CatalogImpl implements Catalog {
     }
   }
 
-  private DremioTranslatableTable getTableSnapshotForVersionedSource(
+  private DremioTable getTableSnapshotForVersionedSource(
       ManagedStoragePlugin plugin,
       NamespaceKey canonicalKey,
       TableVersionContext context
@@ -387,9 +388,9 @@ public class CatalogImpl implements Catalog {
     if (handle.get() instanceof ViewHandle) {
       final String accessUserName = options.getSchemaConfig().getUserName();
       final VersionedDatasetAdapter versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
-        .setVersionedTableKey(canonicalKey.toString())
+        .setVersionedTableKey(canonicalKey.getPathComponents())
         .setVersionContext(versionContextResolverImpl.resolveVersionContext(
-          plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot())))
+          plugin.getName().getRoot(), context.asVersionContext()))
         .setStoragePlugin(plugin.getPlugin())
         .setStoragePluginId(plugin.getId())
         .setOptionManager(optionManager)
@@ -402,7 +403,7 @@ public class CatalogImpl implements Catalog {
       return ((ViewTable) viewTable).withVersionContext(getVersionContext(canonicalKey, context));
     }
     return handle.map(datasetHandle -> new MaterializedDatasetTableProvider(null, datasetHandle,
-        plugin.getPlugin(), plugin.getId(), options.getSchemaConfig(), retrievalOptions)
+        plugin.getPlugin(), plugin.getId(), options.getSchemaConfig(), retrievalOptions, optionManager)
         .get()).orElse(null);
   }
 
@@ -439,7 +440,7 @@ public class CatalogImpl implements Catalog {
 
     Preconditions.checkArgument(handle.isPresent());
     return new MaterializedDatasetTableProvider(currentConfig, handle.get(),
-        plugin.getPlugin(), plugin.getId(), options.getSchemaConfig(), retrievalOptions)
+        plugin.getPlugin(), plugin.getId(), options.getSchemaConfig(), retrievalOptions, optionManager)
         .get();
   }
 
@@ -523,6 +524,11 @@ public class CatalogImpl implements Catalog {
       logger.warn("Unable to get extended properties for {}", table.getPath(), e);
       return null;
     }
+  }
+
+  @Override
+  public boolean supportsVersioning(NamespaceKey namespaceKey) {
+    return CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, this);
   }
 
   @Override
@@ -628,16 +634,17 @@ public class CatalogImpl implements Catalog {
       // For some sources, some folders aren't automatically existing in namespace, let's be more invasive...
 
       // let's check for a dataset in this path. We're looking for a dataset who either has this path as the schema of it or has a schema that starts with this path.
-      if(!Iterables.isEmpty(namespaceService.find(new LegacyFindByCondition().setCondition(
-        SearchQueryUtils.and(
-          SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName(), NameSpaceContainer.Type.DATASET.getNumber()),
-          SearchQueryUtils.or(
-            SearchQueryUtils.newTermQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.asLowerCase().toUnescapedString()),
-            SearchQueryUtils.newPrefixQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA.getIndexFieldName(),
-              path.asLowerCase().toUnescapedString() + ".")
-          )
+
+      SearchTypes.SearchQuery searchQuery  =  SearchQueryUtils.and(
+        SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName(), Type.DATASET.getNumber()),
+        SearchQueryUtils.or(
+          SearchQueryUtils.newTermQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.asLowerCase().toUnescapedString()),
+          SearchQueryUtils.newPrefixQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA.getIndexFieldName(),
+            path.asLowerCase().toUnescapedString() + ".")
         )
-      )))) {
+      );
+
+      if(!Iterables.isEmpty(namespaceService.find(new LegacyFindByCondition().setCondition(searchQuery).setKeySortRequired(false)))) {
         return true;
       }
 
@@ -1249,6 +1256,18 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
+  public void rollbackTable(NamespaceKey key, DatasetConfig datasetConfig, RollbackOption rollbackOption, TableMutationOptions tableMutationOptions) {
+    MutablePlugin mutablePlugin = asMutable(key, "does not support rollback table");
+    mutablePlugin.rollbackTable(key, datasetConfig, options.getSchemaConfig(), rollbackOption, tableMutationOptions);
+  }
+
+  @Override
+  public void vacuumTable(NamespaceKey key, DatasetConfig datasetConfig, VacuumOption vacuumOption, TableMutationOptions tableMutationOptions) {
+    MutablePlugin mutablePlugin = asMutable(key, "does not support vacuum table");
+    mutablePlugin.vacuumTable(key, datasetConfig, options.getSchemaConfig(), vacuumOption, tableMutationOptions);
+  }
+
+  @Override
   public void addColumns(NamespaceKey key, DatasetConfig datasetConfig, List<Field> colsToAdd, TableMutationOptions tableMutationOptions) {
     MutablePlugin mutablePlugin = asMutable(key, "does not support dropping tables");
     mutablePlugin.addColumns(key, datasetConfig, options.getSchemaConfig(), colsToAdd,
@@ -1589,6 +1608,10 @@ public class CatalogImpl implements Catalog {
           .buildSilently();
     }
 
+    if(CatalogUtil.requestedPluginSupportsVersionedTables(key, this)) {
+      return UpdateStatus.UNCHANGED;
+    }
+
     return plugin.refreshDataset(key, retrievalOptions);
   }
 
@@ -1742,6 +1765,12 @@ public class CatalogImpl implements Catalog {
   @Override
   public void validatePrivilege(NamespaceKey key, SqlGrant.Privilege privilege) {
     // For the default implementation, don't validate privilege.
+  }
+
+  @Override
+  public boolean hasPrivilege(NamespaceKey key, SqlGrant.Privilege privilege) {
+    // For the default implementation, return 'true'.
+    return true;
   }
 
   @Override

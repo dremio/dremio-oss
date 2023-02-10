@@ -91,6 +91,7 @@ class MainInfoItemName extends Component {
         <DatasetItemLabel
           name={item.get("name")}
           item={item}
+          showSummaryOverlay={!isIceberg}
           fullPath={
             item.get("fullPathList") ||
             item.getIn(["fileFormat", "fullPath"]) ||

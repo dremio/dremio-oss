@@ -25,9 +25,10 @@ import NamespaceSettings from "../NamespaceSettings/NamespaceSettings";
 import PageBreadcrumbHeader from "../PageBreadcrumbHeader/PageBreadcrumbHeader";
 import { useNessieContext } from "../../utils/context";
 import NessieLink from "../NessieLink/NessieLink";
+import { parseNamespaceUrl } from "@app/utils/nessieUtils";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import "./NamespaceTable.less";
-import { parseNamespaceUrl } from "@app/utils/nessieUtils";
 
 function NamespaceTable({
   location,
@@ -61,7 +62,8 @@ function NamespaceTable({
         },
       ];
   const path = useMemo(() => {
-    return parseNamespaceUrl(location.pathname, "namespace");
+    const loc = rmProjectBase(location.pathname);
+    return parseNamespaceUrl(loc, "namespace");
   }, [location]);
 
   const [err, data, status] = useNamespaceList({

@@ -46,7 +46,7 @@ public class TestIcebergSnapshotFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("operation"), Types.required(TypeProtos.MinorType.VARCHAR)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("manifest_list"), Types.required(TypeProtos.MinorType.VARCHAR)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("summary"), Types.required(TypeProtos.MinorType.LIST)));
-    expectedSchema(expectedSchema,"SELECT * FROM table(table_snapshot('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    expectedSchema(expectedSchema,String.format("SELECT * FROM table(table_snapshot('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME));
   }
 
   @Test
@@ -58,19 +58,26 @@ public class TestIcebergSnapshotFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("operation"), Types.required(TypeProtos.MinorType.VARCHAR)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("manifest_list"), Types.required(TypeProtos.MinorType.VARCHAR)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("summary"), Types.required(TypeProtos.MinorType.STRUCT))); //Struct instead of List
-    assertThatThrownBy(() -> expectedSchema(expectedSchema,"SELECT * FROM table(table_snapshot('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath()))
+    assertThatThrownBy(() -> expectedSchema(expectedSchema,String.format("SELECT * FROM table(table_snapshot('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME)))
       .hasMessageContaining("Schema path or type mismatch for")
       .isInstanceOf(Exception.class);
   }
 
   @Test
   public void testTableSnapshots() throws Exception {
-    expectedSnapshotsResult("SELECT committed_at,snapshot_id,parent_id,operation,manifest_list FROM table(table_snapshot('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    Iterable<Snapshot> snapshots = getSnapshots();
+    Snapshot snapshot1 = snapshots.iterator().next();
+    LocalDateTime dateTime = Instant.ofEpochMilli(snapshot1.timestampMillis())
+      .atZone(ZoneId.systemDefault()) // default zone
+      .toLocalDateTime();
+    String[] expectedColumns = {"committed_at","snapshot_id","parent_id","operation","manifest_list"};
+    Object[] values = {JodaDateUtility.javaToJodaLocalDateTime(dateTime), snapshot1.snapshotId(), snapshot1.parentId(), snapshot1.operation(), snapshot1.manifestListLocation()};
+    queryAndMatchResults(String.format("SELECT committed_at,snapshot_id,parent_id,operation,manifest_list FROM table(table_snapshot('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME), expectedColumns, values);
   }
 
   @Test
   public void testTableSnapshotsCount() throws Exception {
-    expectedSnapshotsCount("SELECT count(*) as k FROM table(table_snapshot('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    queryAndMatchResults(String.format("SELECT count(*) as snapshot_count FROM table(table_snapshot('\"%s\".\"%s\"'))", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME), new String[]{"snapshot_count"}, new Object[]{1L});
   }
 
   @Test
@@ -78,41 +85,6 @@ public class TestIcebergSnapshotFunction extends IcebergMetadataTestTable {
     String query = "SELECT count(*) as k FROM table(table_snapshot('blah'))";
     assertThatThrownBy(() -> runSQL(query))
       .hasMessageContaining("not found");
-  }
-
-  private void expectedSnapshotsResult(String query, Object... args) throws Exception {
-    Iterable<Snapshot> snapshots = table.snapshots();
-    Snapshot snapshot1 = snapshots.iterator().next();
-    LocalDateTime dateTime = Instant.ofEpochMilli(snapshot1.timestampMillis())
-      .atZone(ZoneId.systemDefault()) // default zone
-      .toLocalDateTime();
-    //TODO: find a way to match summary column
-    testBuilder()
-      .sqlQuery(query, args)
-      .unOrdered()
-      .baselineColumns("committed_at","snapshot_id","parent_id","operation","manifest_list")
-      .baselineValues(
-        JodaDateUtility.javaToJodaLocalDateTime(dateTime),
-        snapshot1.snapshotId(),
-        snapshot1.parentId(),
-        snapshot1.operation(),
-        snapshot1.manifestListLocation())
-      .build()
-      .run();
-  }
-
-  private void expectedSnapshotsCount(String query, Object... args) throws Exception {
-    long count = 0;
-    for (Snapshot snapshot : table.snapshots()) {
-      count++;
-    }
-    testBuilder()
-      .sqlQuery(query, args)
-      .unOrdered()
-      .baselineColumns("k")
-      .baselineValues(count)
-      .build()
-      .run();
   }
 
 }

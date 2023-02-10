@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DremioCollectors;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.service.reflection.proto.ReflectionDetails;
@@ -37,7 +39,7 @@ import io.protostuff.ByteString;
  * Handles logic related to writer options
  */
 public class WriterOptionManager {
-  public static final Logger logger = LoggerFactory.getLogger(WriterOptionManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(WriterOptionManager.class);
   public static final WriterOptionManager Instance = new WriterOptionManager();
 
   public WriterOptions buildWriterOptionForReflectionGoal(
@@ -72,10 +74,10 @@ public class WriterOptionManager {
       .collect(DremioCollectors.uniqueGrouping(String::toLowerCase));
 
     // For Iceberg write, set CREATE or INSERT option.
-    WriterOptions.IcebergWriterOperation icebergWriterOperation =
-      WriterOptions.IcebergWriterOperation.NONE;
+    ImmutableTableFormatWriterOptions.Builder tableFormatOptionsBuilder = new ImmutableTableFormatWriterOptions.Builder();
     if (isIcebergDataset) {
-      icebergWriterOperation = isCreate ? WriterOptions.IcebergWriterOperation.CREATE : WriterOptions.IcebergWriterOperation.INSERT;
+      tableFormatOptionsBuilder.setOperation(isCreate ?
+        TableFormatOperation.CREATE : TableFormatOperation.INSERT);
     }
 
     return new WriterOptions(
@@ -87,7 +89,7 @@ public class WriterOptionManager {
       null,
       false,
       Long.MAX_VALUE,
-      icebergWriterOperation,
+      tableFormatOptionsBuilder.build(),
       extendedByteString
     );
   }

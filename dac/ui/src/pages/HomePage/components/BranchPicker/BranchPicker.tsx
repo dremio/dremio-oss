@@ -22,6 +22,7 @@ import {
   bindPopper,
 } from "material-ui-popup-state/hooks";
 import { Popover } from "@mui/material";
+import ClickAwayListener from "react-click-away-listener";
 import { FormattedMessage } from "react-intl";
 import DatePicker, { ReactDatePicker } from "react-datepicker";
 
@@ -32,7 +33,7 @@ import {
   setReference as setReferenceAction,
   type SetReferenceAction,
 } from "@app/actions/nessie/nessie";
-import { LogEntry } from "@app/services/nessie/client";
+import { LogEntry, LogResponse } from "@app/services/nessie/client";
 import { Reference } from "@app/types/nessie";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
@@ -45,6 +46,7 @@ import CommitBrowser from "./components/CommitBrowser/CommitBrowser";
 import BranchPickerTag from "./components/BranchPickerTag/BranchPickerTag";
 import RefIcon from "./components/RefIcon/RefIcon";
 import { useBranchPickerContext } from "./utils";
+import { getShortHash } from "@app/utils/nessieUtils";
 
 import "./BranchPicker.less";
 
@@ -110,8 +112,8 @@ function BranchPicker({
     setFormVal(RADIO_HEAD);
   }
 
-  function setHash(logEntry: LogEntry) {
-    const newHash = logEntry.commitMeta?.hash;
+  function setHash(logEntry: LogEntry | undefined) {
+    const newHash = logEntry?.commitMeta?.hash;
     if (newHash) {
       setRefState({ reference, hash: newHash });
     }
@@ -135,7 +137,9 @@ function BranchPicker({
   function onFormChange(value: string) {
     setFormVal(value);
     if (value === RADIO_HEAD) {
-      changeReference(state.reference); //Not sure what this does
+      changeReference(reference);
+    } else if (value === RADIO_COMMIT && !refState.hash) {
+      setHash(firstCommit.current);
     }
   }
 
@@ -154,6 +158,11 @@ function BranchPicker({
     }
   }
 
+  const firstCommit = useRef<LogEntry>();
+  function commitListLoaded(data: LogResponse | undefined) {
+    firstCommit.current = data?.logEntries?.[0];
+  }
+
   useEffect(() => {
     if (!popupState.isOpen) return;
     setFormVal(state.hash ? RADIO_COMMIT : RADIO_HEAD);
@@ -164,18 +173,18 @@ function BranchPicker({
 
   return (
     <div
-      onClick={(e: any) => {
+      onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
       }}
-      onContextMenu={(e: any) => {
+      onContextMenu={(e) => {
         e.stopPropagation();
       }}
     >
       <div
         className="branchPicker"
         {...toggleProps}
-        onClick={(e: any) => {
+        onClick={(e) => {
           toggleProps.onClick(e);
         }}
       >
@@ -187,111 +196,119 @@ function BranchPicker({
         />
       </div>
       {reference && state.defaultReference && (
-        <Popover
-          {...bindPopper(popupState)}
-          transitionDuration={200}
-          {...position}
-          {...(getAnchorEl && { anchorEl: getAnchorEl })}
-        >
-          <div className="branchPicker-popup">
-            <DialogContent
-              actions={
-                <>
-                  <Button variant="secondary" onClick={closeDialog}>
-                    <FormattedMessage id="Common.Cancel" />
-                  </Button>
-                  <Button variant="primary" onClick={submitForm}>
-                    <FormattedMessage id="Common.Apply" />
-                  </Button>
-                </>
-              }
-              title={state.reference.name}
-              icon={
-                <RefIcon
-                  reference={state.reference}
-                  hash={state.hash}
-                  style={{}}
-                />
-              }
+        <ClickAwayListener onClickAway={closeDialog}>
+          <Popover
+            {...bindPopper(popupState)}
+            transitionDuration={200}
+            {...position}
+            {...(getAnchorEl && { anchorEl: getAnchorEl })}
+            onClose={closeDialog}
+          >
+            <div
+              className="branchPicker-popup"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
             >
-              <div className="branchesView">
-                <div className="branchesView-left">
-                  <BranchList
-                    defaultReference={state.defaultReference}
-                    currentReference={reference}
-                    onClick={changeReference}
+              <DialogContent
+                actions={
+                  <>
+                    <Button variant="secondary" onClick={closeDialog}>
+                      <FormattedMessage id="Common.Cancel" />
+                    </Button>
+                    <Button variant="primary" onClick={submitForm}>
+                      <FormattedMessage id="Common.Apply" />
+                    </Button>
+                  </>
+                }
+                title={
+                  state.hash ? getShortHash(state.hash) : state.reference.name
+                }
+                icon={
+                  <RefIcon
+                    reference={state.reference}
+                    hash={state.hash}
+                    style={{}}
                   />
-                </div>
-                <div className="branchesView-right">
-                  {!!reference && (
-                    <FormControl
-                      component="fieldset"
-                      className="branchesView-radios"
-                    >
-                      <RadioGroup
-                        value={formVal}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onChange={({ target: { value } }: any) => {
-                          onFormChange(value);
-                        }}
+                }
+              >
+                <div className="branchesView">
+                  <div className="branchesView-left">
+                    <BranchList
+                      defaultReference={state.defaultReference}
+                      currentReference={reference}
+                      onClick={changeReference}
+                    />
+                  </div>
+                  <div className="branchesView-right">
+                    {!!reference && (
+                      <FormControl
+                        component="fieldset"
+                        className="branchesView-radios"
                       >
-                        <FormControlLabel
-                          className="branchesView-radioLabel"
-                          value={RADIO_HEAD}
-                          control={<Radio />}
-                          label="Head"
-                        />
-                        <FormControlLabel
-                          onClick={showPicker}
-                          className="branchesView-radioLabel"
-                          value={RADIO_DATE}
-                          control={<Radio />}
-                          label={
-                            <div className="branchesView-datePicker">
-                              <FormattedMessage id="BranchPicker.ChooseTime" />
-                              <DatePicker
-                                ref={pickerRef}
-                                disabled={formVal !== "date"}
-                                showTimeSelect
-                                selected={date}
-                                onChange={onChooseDate}
-                                popperPlacement="bottom-start"
-                                customInput={<SearchField showIcon={false} />}
-                                dateFormat="M/d/yyyy hh:mm aa"
-                              />
-                            </div>
-                          }
-                        />
-                        <FormControlLabel
-                          className="branchesView-radioLabel branchesView-commitBrowserContainer"
-                          value={RADIO_COMMIT}
-                          control={<Radio />}
-                          label={
-                            <>
-                              <span className="branchesView-commitLabel">
-                                <FormattedMessage id="Common.Commit" />
-                              </span>
-                              <CommitBrowser
-                                disabled={formVal !== "commit"}
-                                key={reference.name}
-                                branch={reference}
-                                onClick={setHash}
-                                selectedHash={hash}
-                                api={api}
-                              />
-                            </>
-                          }
-                        />
-                      </RadioGroup>
-                    </FormControl>
-                  )}
+                        <RadioGroup
+                          value={formVal}
+                          onChange={({ target: { value } }: any) => {
+                            onFormChange(value);
+                          }}
+                        >
+                          <FormControlLabel
+                            className="branchesView-radioLabel"
+                            value={RADIO_HEAD}
+                            control={<Radio />}
+                            label="Head"
+                          />
+                          <FormControlLabel
+                            onClick={showPicker}
+                            className="branchesView-radioLabel"
+                            value={RADIO_DATE}
+                            control={<Radio />}
+                            label={
+                              <div className="branchesView-datePicker">
+                                <FormattedMessage id="BranchPicker.ChooseTime" />
+                                <DatePicker
+                                  ref={pickerRef}
+                                  disabled={formVal !== "date"}
+                                  showTimeSelect
+                                  selected={date}
+                                  onChange={onChooseDate}
+                                  popperPlacement="bottom-start"
+                                  customInput={<SearchField showIcon={false} />}
+                                  dateFormat="M/d/yyyy hh:mm aa"
+                                />
+                              </div>
+                            }
+                          />
+                          <FormControlLabel
+                            className="branchesView-radioLabel branchesView-commitBrowserContainer"
+                            value={RADIO_COMMIT}
+                            control={<Radio />}
+                            label={
+                              <>
+                                <span className="branchesView-commitLabel">
+                                  <FormattedMessage id="Common.Commit" />
+                                </span>
+                                <CommitBrowser
+                                  onDataChange={commitListLoaded}
+                                  disabled={formVal !== "commit"}
+                                  key={reference.name}
+                                  branch={reference}
+                                  onClick={setHash}
+                                  selectedHash={hash}
+                                  api={api}
+                                />
+                              </>
+                            }
+                          />
+                        </RadioGroup>
+                      </FormControl>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </div>
-        </Popover>
+              </DialogContent>
+            </div>
+          </Popover>
+        </ClickAwayListener>
       )}
     </div>
   );

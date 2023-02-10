@@ -47,12 +47,16 @@
   }
 
   .add-join {
+    height: 32px;
     display: flex;
     align-items: center;
     gap: var(--dremio--spacing--05);
     padding: var(--dremio--spacing--1);
+    border-radius: var(--dremio--radius--1);
+    margin-top: var(--dremio--spacing--05);
     margin-left: 239px;
     color: var(--dremio--color--link);
+    transition: background-color 125ms ease-in-out;
 
     .add-text {
       font-size: 14px;
@@ -60,7 +64,7 @@
     }
 
     &:hover {
-      text-decoration: underline;
+      background-color: var(--dremio--color--primary--150);
       cursor: pointer;
     }
   }

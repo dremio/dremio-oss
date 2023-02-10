@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import { PrevalidatedTextField } from "components/Fields";
 import FieldWithError from "components/Fields/FieldWithError";
 import Checkbox from "components/Fields/Checkbox";

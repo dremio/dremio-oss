@@ -26,7 +26,7 @@ import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
 import { formLabel } from "uiTheme/radium/typography";
 
-import classNames from "classnames";
+import classNames from "clsx";
 import {
   typeToIconType,
   BINARY,

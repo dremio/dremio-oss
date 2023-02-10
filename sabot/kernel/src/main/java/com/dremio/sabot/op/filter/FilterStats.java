@@ -27,7 +27,15 @@ public class FilterStats {
     GANDIVA_EXECUTE_TIME,
     JAVA_EXPRESSIONS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "Maximum number of expressions evaluated completely in Java"),
     GANDIVA_EXPRESSIONS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "Maximum number of expressions evaluated completely in Gandiva"),
-    MIXED_SPLITS;
+    MIXED_SPLITS,
+    PERSISTENT_CACHE_READ_TIME,
+    /**
+     * This metric could take one of these 3 values:
+     * 0 for built from primary cache
+     * 1 for built from secondary cache
+     * 2 for code generated using gandiva
+     */
+    BUILT_FROM_GANDIVA_CACHE;
 
     private final DisplayType displayType;
     private final AggregationType aggregationType;

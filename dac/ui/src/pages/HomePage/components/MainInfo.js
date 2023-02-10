@@ -48,6 +48,9 @@ import { getSourceByName } from "@app/utils/nessieUtils";
 import ProjectHistoryButton from "@app/exports/pages/ArcticCatalog/components/ProjectHistoryButton";
 import { selectState } from "@app/selectors/nessie/nessie";
 import { constructArcticUrl } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
+import { isVersionedSource as checkIsVersionedSource } from "@app/utils/sourceUtils";
+import { fetchSupportFlagsDispatch } from "@inject/actions/supportFlags";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 const folderPath = "/folder/";
 
@@ -77,9 +80,10 @@ export class MainInfoView extends Component {
     fetchWiki: PropTypes.func, // (entityId) => Promise
     source: PropTypes.instanceOf(Immutable.Map),
     canUploadFile: PropTypes.bool,
-    isSonarSource: PropTypes.bool,
+    isVersionedSource: PropTypes.bool,
     rootEntityType: PropTypes.string,
     nessieState: PropTypes.object,
+    dispatchFetchSupportFlags: PropTypes.func,
   };
 
   static defaultProps = {
@@ -92,6 +96,7 @@ export class MainInfoView extends Component {
 
   componentDidMount() {
     this.fetchWiki();
+    this.fetchUploadFlag();
   }
 
   componentDidUpdate(prevProps) {
@@ -104,6 +109,12 @@ export class MainInfoView extends Component {
     if (newId && oldId !== newId && !this.isArctic()) {
       this.props.fetchWiki(newId);
     }
+  }
+
+  fetchUploadFlag() {
+    const { dispatchFetchSupportFlags } = this.props;
+
+    dispatchFetchSupportFlags?.("ui.upload.allow");
   }
 
   getActionCell(item) {
@@ -128,6 +139,7 @@ export class MainInfoView extends Component {
   }
 
   getFolderActionButtons(folder) {
+    const { isVersionedSource } = this.props;
     const isFileSystemFolder = !!folder.get("fileSystemFolder");
     const isQueryAble = folder.get("queryable");
     const permissions = folder.get("permissions")
@@ -156,7 +168,10 @@ export class MainInfoView extends Component {
             },
           },
         }),
-        this.getSettingsBtnByType(<FolderMenu folder={folder} />, folder),
+        this.getSettingsBtnByType(
+          <FolderMenu folder={folder} isVersionedSource={isVersionedSource} />,
+          folder
+        ),
       ];
     } else if (
       isAdmin ||
@@ -166,7 +181,10 @@ export class MainInfoView extends Component {
           permissions.canEditAccessControlList ||
           permissions.canDelete))
     ) {
-      return this.getSettingsBtnByType(<FolderMenu folder={folder} />, folder);
+      return this.getSettingsBtnByType(
+        <FolderMenu folder={folder} isVersionedSource={isVersionedSource} />,
+        folder
+      );
     } else {
       return;
     }
@@ -206,6 +224,7 @@ export class MainInfoView extends Component {
 
   // this method is targeted for dataset like entities: PDS, VDS and queriable files
   getShortcutButtons(item, entityType) {
+    const { isVersionedSource } = this.props;
     const allBtns = this.getShortcutButtonsData(
       item,
       entityType,
@@ -229,7 +248,11 @@ export class MainInfoView extends Component {
           </IconButton>
         )),
       this.getSettingsBtnByType(
-        <DatasetMenu entity={item} entityType={entityType} />,
+        <DatasetMenu
+          entity={item}
+          entityType={entityType}
+          isVersionedSource={isVersionedSource}
+        />,
         item
       ),
     ];
@@ -240,7 +263,7 @@ export class MainInfoView extends Component {
   }
 
   getWikiButtonLink(item) {
-    const url = item.getIn(["links", "query"]);
+    const url = wrapBackendLink(item.getIn(["links", "query"]));
     const parseUrl = urlParse(url);
     return `${parseUrl.pathname}/wiki${parseUrl.query}`;
   }
@@ -272,13 +295,15 @@ export class MainInfoView extends Component {
       data: {
         [name.key]: {
           node: () => (
-            <MainInfoItemNameAndTag item={item} isIceberg={isArcticSource} />
+            <MainInfoItemNameAndTag isIceberg={isArcticSource} item={item} />
           ),
           value: item.get("name"),
         },
         [jobs.key]: {
           node: () => (
-            <Link to={item.getIn(["links", "jobs"])}>{jobsCount}</Link>
+            <Link to={wrapBackendLink(item.getIn(["links", "jobs"]))}>
+              {jobsCount}
+            </Link>
           ),
           value: jobsCount,
         },
@@ -290,21 +315,29 @@ export class MainInfoView extends Component {
   }
 
   getTableColumns() {
-    const { intl } = this.props;
+    const {
+      intl: { formatMessage },
+      entity,
+    } = this.props;
+
+    const showJobsColumn = entity && this.isNeitherNessieOrArctic();
 
     return [
       {
         key: "name",
-        label: intl.formatMessage({ id: "Common.Name" }),
+        label: formatMessage({ id: "Common.Name" }),
         infoContent: <TagsAlert />,
         flexGrow: 1,
       },
       {
         key: "jobs",
-        label: intl.formatMessage({ id: "Job.Jobs" }),
-        style: tableStyles.digitColumn,
+        label: formatMessage({ id: "Job.Jobs" }),
+        style: showJobsColumn ? tableStyles.digitColumn : { display: "none" },
         columnAlignment: "alignRight",
-        headerStyle: { justifyContent: "flex-end" },
+        headerStyle: {
+          justifyContent: "flex-end",
+          display: showJobsColumn ? "flex" : "none",
+        },
         isFixedWidth: true,
         width: 66,
       },
@@ -337,6 +370,7 @@ export class MainInfoView extends Component {
       contents.get("files").forEach(appendRow);
       contents.get("physicalDatasets").forEach(appendRow);
     }
+
     return rows;
   }
 
@@ -394,7 +428,7 @@ export class MainInfoView extends Component {
     const { source, nessieState = {} } = this.props;
     const { hash, reference } = nessieState;
     const { pathname } = this.context.location;
-    let namespace = "";
+    let namespace = reference?.name || "";
     if (pathname.includes(folderPath)) {
       namespace = pathname.substring(
         pathname.indexOf(folderPath) + folderPath.length,
@@ -441,8 +475,13 @@ export class MainInfoView extends Component {
   };
 
   render() {
-    const { canUploadFile, entity, viewState, isSonarSource, rootEntityType } =
-      this.props;
+    const {
+      canUploadFile,
+      entity,
+      viewState,
+      isVersionedSource,
+      rootEntityType,
+    } = this.props;
     const { pathname } = this.context.location;
     const showWiki =
       entity && !entity.get("fileSystemFolder") && !this.isArctic(); // should be removed when DX-13804 would be fixed
@@ -454,7 +493,7 @@ export class MainInfoView extends Component {
         rightTreeVisible={this.props.rightTreeVisible}
         toggleVisibility={this.toggleRightTree}
         canUploadFile={canUploadFile}
-        isSonarSource={isSonarSource}
+        isVersionedSource={isVersionedSource}
       />
     );
 
@@ -504,15 +543,16 @@ ActionWrap.propTypes = {
 
 function mapStateToProps(state, props) {
   const rootEntityType = getRootEntityType(
-    props.entity?.getIn(["links", "self"])
+    wrapBackendLink(props.entity?.getIn(["links", "self"]))
   );
 
-  let isSonarSource = false;
+  let isVersionedSource = false;
+  const entityType = props.entity?.get("entityType");
   const sources = getSortedSources(state);
   if (
     sources &&
     rootEntityType === ENTITY_TYPES.source &&
-    props.entity?.get("entityType") === ENTITY_TYPES.folder
+    entityType === ENTITY_TYPES.folder
   ) {
     const entityJS = props.entity.toJS();
     const parentSource = getSourceByName(
@@ -520,14 +560,16 @@ function mapStateToProps(state, props) {
       sources.toJS()
     );
 
-    isSonarSource = [NESSIE, ARCTIC].includes(parentSource?.type);
+    isVersionedSource = checkIsVersionedSource(parentSource?.type);
+  } else if (entityType === ENTITY_TYPES.source) {
+    isVersionedSource = checkIsVersionedSource(props.entity.get("type"));
   }
 
   const nessieState = selectState(state.nessie, props.source?.get("name"));
 
   return {
     rootEntityType,
-    isSonarSource,
+    isVersionedSource,
     canUploadFile: state.privileges?.project?.canUploadFile,
     nessieState,
   };
@@ -535,4 +577,5 @@ function mapStateToProps(state, props) {
 
 export default connect(mapStateToProps, (dispatch) => ({
   fetchWiki: loadWiki(dispatch),
+  dispatchFetchSupportFlags: fetchSupportFlagsDispatch?.(dispatch),
 }))(MainInfoView);

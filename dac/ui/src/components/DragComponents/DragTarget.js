@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { DropTarget } from "react-dnd";
 import { findDOMNode } from "react-dom";
-import classNames from "classnames";
+import classNames from "clsx";
 import { base } from "@app/uiTheme/less/DragComponents/DragTarget.less";
 
 const DEFAULT_TYPE = "groupBy";
@@ -25,7 +25,8 @@ const DEFAULT_TYPE = "groupBy";
 const target = {
   drop(props, monitor) {
     const hasDroppedOnChild = monitor.didDrop();
-    if (props.onDrop && (props.canDropOnChild || !hasDroppedOnChild)) {
+    if (props.canDropOnChild && hasDroppedOnChild) return; //Child onDrop has been called already
+    if (props.onDrop) {
       props.onDrop(monitor.getItem(), monitor);
     }
   },

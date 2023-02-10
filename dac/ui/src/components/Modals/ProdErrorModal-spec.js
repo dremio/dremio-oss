@@ -47,16 +47,6 @@ describe("ProdErrorModal", () => {
     );
   });
 
-  it.skip("should render file a bug if config.shouldEnableBugFiling", () => {
-    expect(wrapper.find("SimpleButton").length).to.equal(1);
-
-    wrapper.setProps({ showFileABug: true });
-    expect(wrapper.find("SimpleButton").length).to.equal(2);
-    expect(wrapper.find("SimpleButton").at(0).props().children).to.contain(
-      "File a Bug"
-    );
-  });
-
   it.skip('should render "Go Home" if props.showGoHome', () => {
     expect(wrapper.find("SimpleButton").length).to.equal(1);
     wrapper.setProps({ showGoHome: true });

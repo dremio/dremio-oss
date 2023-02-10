@@ -61,6 +61,10 @@ import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VersionedPlugin;
+import com.dremio.exec.physical.base.IcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
@@ -158,7 +162,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
         cluster = config.getConverter().getCluster();
         traitSet = cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
         catalog = config.getContext().getCatalog();
-        tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshDataset.getTable().names));
+        tableNSKey = resolveNamespaceKey(sqlRefreshDataset);
         logger.debug("Setting up refresh plan for {}", tableNSKey);
         plugin = getPlugin(catalog, tableNSKey);
         userName = config.getContext().getQueryUserName();
@@ -171,7 +175,10 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     }
 
     protected DatasetConfig setupDatasetConfig() {
-        DatasetConfig datasetConf = metadataProvider.getDatasetConfig();
+      return setupDatasetConfig(metadataProvider.getDatasetConfig(), tableNSKey);
+    }
+
+    public static DatasetConfig setupDatasetConfig(DatasetConfig datasetConf, NamespaceKey tableNSKey) {
         if (datasetConf == null) {
           datasetConf = new DatasetConfig();
           datasetConf.setId(new EntityId(UUID.randomUUID().toString()));
@@ -230,7 +237,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
   public Prel getDataFileListingPrel() {
       Prel dirListingScanPrel =  new DirListingScanPrel(
         cluster, traitSet, table, storagePluginId, refreshExecTableMetadata, getRowCountAdjustment(),
-        true, x -> getRowCountEstimates("DirList"), ImmutableList.of());
+        ImmutableList.of(), true, x -> getRowCountEstimates("DirList"), ImmutableList.of());
 
       RexBuilder rexBuilder = cluster.getRexBuilder();
       RexNode isRemoved = rexBuilder.makeLiteral(false);
@@ -274,8 +281,12 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
 
     protected Prel getWriterPrel(Prel childPrel) {
       IcebergTableProps icebergTableProps = getIcebergTableProps();
+      IcebergWriterOptions icebergOptions = new ImmutableIcebergWriterOptions.Builder()
+        .setIcebergTableProps(icebergTableProps).build();
+      TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
+        .setIcebergSpecificOptions(icebergOptions).build();
       final WriterOptions writerOptions = new WriterOptions(null, null, null, null,
-          null, false, Long.MAX_VALUE, null, null, icebergTableProps, readSignatureEnabled);
+          null, false, Long.MAX_VALUE, tableFormatOptions, null, readSignatureEnabled);
       final CreateTableEntry fsCreateTableEntry = new CreateParquetTableEntry(userName, metaStoragePlugin,
         icebergTableProps.getTableLocation(), icebergTableProps, writerOptions, tableNSKey, storagePluginId);
 
@@ -325,15 +336,29 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
         null /* Since we want a project to hash the expression */);
     }
 
-    private SupportsInternalIcebergTable getPlugin(Catalog catalog, NamespaceKey key) {
+    public static SupportsInternalIcebergTable getPlugin(Catalog catalog, NamespaceKey key) {
         StoragePlugin plugin = catalog.getSource(key.getRoot());
         if (plugin instanceof SupportsInternalIcebergTable) {
             return (SupportsInternalIcebergTable) plugin;
         } else {
             throw UserException.validationError()
-                    .message("Source identified was invalid type. REFRESH DATASET is only supported on sources that can contain files or folders")
+                    .message("Source identified was invalid type. Only sources that can contain files or folders are supported ")
                     .build(logger);
         }
+    }
+
+    private NamespaceKey resolveNamespaceKey(SqlRefreshDataset sqlRefreshDataset) {
+      // If the metadataProvider found the dataset, then just create a new NamespaceKey with it.
+      // This will resolve it if the casing from the input query was incorrect.
+      if (metadataProvider.getDatasetConfig() != null) {
+        return new NamespaceKey(metadataProvider.getDatasetConfig().getFullPathList());
+      }
+
+      // Many tests still rely on this code, because they do not set up the
+      // metadataProvider so a DatasetConfig would not be found. Instead, preserve the
+      // below logic for testing, and any incorrect dataset names will eventually
+      // return an INVALID_DATASET_METADATA error anyway.
+      return catalog.resolveSingle(new NamespaceKey(sqlRefreshDataset.getTable().names));
     }
 
     protected static RelDataType getRowTypeFromProjectedCols(BatchSchema outputSchema, List<SchemaPath> projectedColumns, RelOptCluster cluster) {

@@ -18,7 +18,7 @@ import { getUserDetails } from "./getUserDetails";
 
 import { type UserDetails } from "./UserDetails.type";
 
-type GetUsersDetailsParams = {
+export type GetUsersDetailsParams = {
   ids: string[];
 };
 

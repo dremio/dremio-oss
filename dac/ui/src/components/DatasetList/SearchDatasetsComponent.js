@@ -27,13 +27,16 @@ const SearchDatasetsComponent = (props) => {
     clearFilter,
     dataQa,
     closeVisible,
+    onFocus,
+    onBlur,
+    onFocusRef
   } = props;
   const placeholder = placeholderText
     ? placeholderText
     : intl.formatMessage({ id: "Explore.SearchDatasets" });
 
   return (
-    <div className="searchDatasetsPopover">
+    <div className="searchDatasetsPopover" ref={onFocusRef}>
       <FontIcon key="icon" type="Search" theme={styles.fontIcon} />
       <input
         key="textInput"
@@ -43,6 +46,8 @@ const SearchDatasetsComponent = (props) => {
         onInput={onInput}
         className={"searchInput"}
         data-qa={dataQa}
+        onFocus={onFocus}
+        onBlur={onBlur}
       />
       {closeVisible && (
         <FontIcon type="XBig" theme={styles.clearIcon} onClick={clearFilter} />
@@ -59,6 +64,9 @@ SearchDatasetsComponent.propTypes = {
   intl: PropTypes.object.isRequired,
   placeholderText: PropTypes.string,
   dataQa: PropTypes.string,
+  onFocus: PropTypes.func,
+  onFocusRef: PropTypes.any,
+  onBlur: PropTypes.func
 };
 
 const styles = {

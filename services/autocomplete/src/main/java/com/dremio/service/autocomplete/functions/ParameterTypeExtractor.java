@@ -32,6 +32,8 @@ import com.dremio.service.autocomplete.parsing.SqlNodeParser;
 import com.dremio.service.autocomplete.statements.grammar.TableReference;
 import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.service.autocomplete.tokens.QueryBuilder;
+import com.dremio.service.functions.model.ParameterType;
+import com.dremio.service.functions.model.SqlTypeNameToParameterType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;

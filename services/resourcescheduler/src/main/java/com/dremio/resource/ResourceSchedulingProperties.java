@@ -29,6 +29,7 @@ public class ResourceSchedulingProperties {
   private String routingTag;
   private String routingEngine;
   private String ruleSetEngine;
+  private String queryLabel;
 
   public ResourceSchedulingProperties() {
 
@@ -76,6 +77,15 @@ public class ResourceSchedulingProperties {
 
   public ResourceSchedulingProperties setQueryType(String queryType) {
     this.queryType = queryType;
+    return this;
+  }
+
+  public String getQueryLabel() {
+    return queryLabel;
+  }
+
+  public ResourceSchedulingProperties setQueryLabel(String queryLabel) {
+    this.queryLabel = queryLabel;
     return this;
   }
 

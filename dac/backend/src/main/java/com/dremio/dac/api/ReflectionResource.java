@@ -18,6 +18,7 @@ package com.dremio.dac.api;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.ConcurrentModificationException;
+import java.util.Optional;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -40,7 +41,6 @@ import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.ReflectionNotFound;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.service.reflection.proto.ReflectionGoal;
-import com.google.common.base.Optional;
 
 /**
  * Reflection API resource.

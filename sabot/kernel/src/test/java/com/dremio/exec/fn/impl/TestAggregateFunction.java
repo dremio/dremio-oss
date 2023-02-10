@@ -25,13 +25,10 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestAggregateFunction extends BaseTestQuery {
@@ -39,7 +36,7 @@ public class TestAggregateFunction extends BaseTestQuery {
   public void runTest(Object[] values, String planPath, String dataPath) throws Throwable {
 
     List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL,
-        Files.toString(FileUtils.getResourceAsFile(planPath), Charsets.UTF_8).replace("#{TEST_FILE}", dataPath));
+      readResourceAsString(planPath).replace("#{TEST_FILE}", dataPath));
     try (RecordBatchLoader batchLoader = new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
       QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));

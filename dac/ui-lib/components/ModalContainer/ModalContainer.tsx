@@ -17,11 +17,16 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import mergeRefs from "react-merge-refs";
+import clsx from "clsx";
+import dialogPolyfill from "dialog-polyfill";
 
-type ModalContainerProps = {
+export type ModalContainerProps = {
   isOpen: boolean;
   open: () => void;
   close: () => void;
+  children: JSX.Element | JSX.Element[];
+  className?: string;
 };
 
 export const ModalContainer = forwardRef<
@@ -29,19 +34,24 @@ export const ModalContainer = forwardRef<
   ModalContainerProps
 >((props, ref) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { open, close, isOpen, ...rest } = props;
-
-  return isOpen
-    ? createPortal(
-        <dialog className="dremio-modal-container" ref={ref} {...rest} />,
-        window.document.body
-      )
-    : null;
-});
-
-export const useModalContainer = () => {
+  const { open, close, isOpen, className, ...rest } = props;
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const dialogEl = dialogRef.current;
+    if (!dialogEl) {
+      return;
+    }
+    dialogPolyfill.registerDialog(dialogEl);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      dialogRef.current?.close();
+    } else {
+      dialogRef.current?.showModal();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const dialogEl = dialogRef.current;
@@ -50,16 +60,36 @@ export const useModalContainer = () => {
       return;
     }
 
-    if (!isOpen) {
-      dialogEl.close();
-    } else {
-      dialogEl.showModal();
-    }
+    const closeHandler: EventListener = (event) => {
+      event.preventDefault();
+      close();
+    };
+
+    dialogEl.addEventListener("cancel", closeHandler);
 
     return () => {
-      dialogEl.close();
+      dialogEl.removeEventListener("cancel", closeHandler);
     };
-  }, [isOpen]);
+  }, [close, isOpen]);
+
+  return isOpen
+    ? createPortal(
+        <dialog
+          className={clsx("dremio-modal-container", className)}
+          ref={mergeRefs([ref, dialogRef])}
+          style={{ overflow: "visible" }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          {...rest}
+        />,
+        window.document.body
+      )
+    : null;
+});
+
+export const useModalContainer = () => {
+  const [isOpen, setIsOpen] = useState(false);
 
   return {
     open: useCallback(() => {
@@ -68,7 +98,6 @@ export const useModalContainer = () => {
     close: useCallback(() => {
       setIsOpen(false);
     }, []),
-    ref: dialogRef,
     isOpen,
   };
 };

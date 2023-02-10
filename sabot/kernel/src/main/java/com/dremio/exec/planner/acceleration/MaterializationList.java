@@ -18,39 +18,35 @@ package com.dremio.exec.planner.acceleration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
-import org.apache.calcite.plan.RelOptMaterialization;
+import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.acceleration.substitution.MaterializationProvider;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 /**
- * An abstraction used to maintain available materializations alongside a mapping from materialization handle to
- * {@link MaterializationDescriptor materialization} itself.
+ * MaterializationList contains a deep copy of DremioMaterialization instances that are used for the lifetime
+ * of a single command or query.  The actual list of DremioMaterialization instances are lazily built during logical planning phase.
+ * When materialization cache is enabled, we can trim the DremioMaterialization instances to only those that
+ * overlap between the user query and scan, views and external queries within the materializations.
  */
 public class MaterializationList implements MaterializationProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationList.class);
 
   private final Map<TablePath, MaterializationDescriptor> mapping = Maps.newHashMap();
-  private final Supplier<List<DremioMaterialization>> factory = Suppliers.memoize(new Supplier<List<DremioMaterialization>>() {
-    @Override
-    public List<DremioMaterialization> get() {
-      return build(provider);
-    }
-  });
+  private List<DremioMaterialization> materializations = ImmutableList.of();
 
   private final MaterializationDescriptorProvider provider;
   private final SqlConverter converter;
@@ -64,14 +60,11 @@ public class MaterializationList implements MaterializationProvider {
   }
 
   /**
-   * Returns list of available materializations.
-   *
-   * Note that {@link MaterializationDescriptor descriptors} are converted to {@link RelOptMaterialization materializations}
-   * lazily and cached when this method is called the very first time.
+   * Returns list of applicable materializations.
    */
   @Override
-  public List<DremioMaterialization> getMaterializations() {
-    return factory.get();
+  public List<DremioMaterialization> getApplicableMaterializations() {
+    return Preconditions.checkNotNull(materializations);
   }
 
   @Override
@@ -85,17 +78,15 @@ public class MaterializationList implements MaterializationProvider {
 
   public Optional<MaterializationDescriptor> getDescriptor(final TablePath path) {
     final MaterializationDescriptor descriptor = mapping.get(path);
-    return Optional.fromNullable(descriptor);
+    return Optional.ofNullable(descriptor);
   }
 
-  /**
-   * Builds materialization table from the given provider and returns list of available materializations.
-   *
-   * @param provider  materialization provider.
-   * @return materializations used by planner
-   */
-  @VisibleForTesting
-  protected List<DremioMaterialization> build(final MaterializationDescriptorProvider provider) {
+  @Override
+  public List<DremioMaterialization> buildApplicableMaterializations(RelNode userQueryNode) {
+    final Set<List<String>> queryTablesUsed = SubstitutionUtils.findTables(userQueryNode);
+    final Set<List<String>> queryVdsUsed = SubstitutionUtils.findExpansionNodes(userQueryNode);
+    final Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries = SubstitutionUtils.findExternalQueries(userQueryNode);
+
     final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
     final Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
     final boolean hasInclusions = !inclusions.isEmpty();
@@ -114,7 +105,9 @@ public class MaterializationList implements MaterializationProvider {
         if (session.getSubstitutionSettings().isExcludeFileBasedIncremental() && descriptor.getIncrementalUpdateSettings().isFileBasedUpdate()) {
           continue;
         }
-
+        if (!descriptor.isApplicable(queryTablesUsed, queryVdsUsed, externalQueries)) {
+          continue;
+        }
         final DremioMaterialization materialization = descriptor.getMaterializationFor(converter);
         if (materialization == null) {
           continue;
@@ -126,6 +119,7 @@ public class MaterializationList implements MaterializationProvider {
         logger.warn("failed to expand materialization {}", descriptor.getMaterializationId(), e);
       }
     }
+    this.materializations = materializations;
     return materializations;
   }
 
@@ -163,8 +157,8 @@ public class MaterializationList implements MaterializationProvider {
     return java.util.Optional.empty();
   }
 
-  static class TablePath {
-    public final List<String> path;
+  static final class TablePath {
+    private final List<String> path;
 
     private TablePath(final List<String> path) {
       this.path = path;

@@ -45,7 +45,7 @@
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
         <!-- exclude native libraries -->
-        <exclude>*:*:jar:*:linux</exclude>
+        <exclude>*:*:jar:linux:*</exclude>
       </excludes>
       <unpack>true</unpack>
       <unpackOptions>
@@ -114,7 +114,7 @@
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
         <!-- include native libraries -->
-        <include>*:*:jar:*:linux</include>
+        <include>*:*:jar:linux:*</include>
       </includes>
       <unpack>true</unpack>
       <unpackOptions>

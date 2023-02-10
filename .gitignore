@@ -36,4 +36,4 @@ jetbrains_config.js
 .factorypath
 .cproject
 CTestTestfile.cmake
-tsconfig.json
+.python-version

@@ -18,7 +18,8 @@ import PropTypes from "prop-types";
 import { Link } from "react-router";
 
 import jobsUtils from "@app/utils/jobsUtils.js";
-import * as PATHS from "@app/exports/paths";
+import * as jobPaths from "dremio-ui-common/paths/jobs.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 import Menu from "./Menu";
 import MenuItem from "./MenuItem";
@@ -38,13 +39,17 @@ export class JobStatusMenu extends PureComponent {
 
   render() {
     const { isCancellable, jobId } = this.props;
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     const isNewJobsPage = jobsUtils.isNewJobsPage();
+
     return (
       <Menu>
         <MenuItem key="job-details">
           <Link
             to={{
-              pathname: isNewJobsPage ? PATHS.job({ jobId }) : "/jobs",
+              pathname: isNewJobsPage
+                ? jobPaths.job.link({ jobId, projectId })
+                : jobPaths.jobs.link({ projectId }),
               hash: isNewJobsPage ? null : `#${jobId}`,
               state: {
                 selectedJobId: jobId,

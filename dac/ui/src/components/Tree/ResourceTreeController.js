@@ -244,12 +244,12 @@ class ResourceTreeController extends PureComponent {
       // see notes there for info why this code is here right now
       const findOpenChildren = (node) => {
         const resources = node.get("resources");
-        if (!resources) return; // DS leaf OR unloaded part of tree
         nodeIdsToClose.add(
           tabRendered.startsWith(starTabNames.starred)
             ? branchId + ResourceTreeController.formatIdFromNode(node)
             : ResourceTreeController.formatIdFromNode(node)
         );
+        if (!resources) return;
         resources.forEach(findOpenChildren);
       };
       findOpenChildren(clickedNode);

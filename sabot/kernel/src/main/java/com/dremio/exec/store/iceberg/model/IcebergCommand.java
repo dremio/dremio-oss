@@ -29,6 +29,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
+import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.record.BatchSchema;
 
 /**
@@ -65,9 +66,18 @@ public interface IcebergCommand {
      */
     Snapshot finishOverwrite();
 
+
+  /**
+   * Performs rewrite operation and commits the transaction
+   * @param removedFiles
+   * @param addedFiles
+   * @return updated snapshot
+   */
+    Snapshot rewriteDataFiles(Set<DataFile> removedFiles, Set<DataFile> addedFiles);
+
     /**
      * Consumes list of deleted data files using Overwrite
-     * @param filesList list of DataFile entries
+     * @param filePathsList list of DataFile entries
      */
     void consumeDeleteDataFilesWithOverwriteByPaths(List<String> filePathsList);
 
@@ -98,10 +108,15 @@ public interface IcebergCommand {
     Snapshot finishInsert();
 
     /**
-     * consumes list of snapshot ids that expire the current transaction
-     * @param snapshotIds list of snapshot ids
+     * Remove older snapshots and their files which are no longer needed.
      */
-    void expireSnapshots(Set<Long> snapshotIds);
+    Snapshot expireSnapshots(Long olderThanInMillis, int retainLast);
+
+    /**
+     * Roll a table's data back to a specific snapshot identified either by id or before a given timestamp.
+     * @param rollbackOption rollback table option
+     */
+    void rollback(RollbackOption rollbackOption);
 
     /**
      * consumes list of Manifest files as part of the current transaction

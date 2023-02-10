@@ -15,6 +15,7 @@
  */
 package com.dremio.service.flight.auth;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -32,7 +33,6 @@ import org.mockito.AdditionalMatchers;
 
 import com.dremio.service.flight.BasicFlightAuthenticationTest;
 import com.dremio.service.users.UserLoginException;
-import com.google.common.base.Charsets;
 
 /**
  * Unit tests for DremioFlightServerAuthValidator
@@ -56,7 +56,7 @@ public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticati
   @Test
   public void getTokenWithValidCredentials() throws Exception {
     // Arrange
-    final byte[] expectedToken = TOKEN.getBytes(Charsets.UTF_8);
+    final byte[] expectedToken = TOKEN.getBytes(UTF_8);
 
     // Act
     final byte[] actualToken = dremioFlightServerAuthValidator.getToken(USERNAME, PASSWORD);
@@ -81,7 +81,7 @@ public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticati
   @Test
   public void isValidWithValidTokenReturnsUserName() {
     // Arrange
-    final byte[] token = TOKEN.getBytes(Charsets.UTF_8);
+    final byte[] token = TOKEN.getBytes(UTF_8);
     when(getMockTokenManager().validateToken(eq(TOKEN))).thenReturn(TOKEN_DETAILS);
 
     // Act
@@ -94,7 +94,7 @@ public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticati
   @Test
   public void isValidWithInvalidTokenReturnsEmptyOptionalString() {
     // Arrange
-    final byte[] token = "INVALID_TOKEN".getBytes(Charsets.UTF_8);
+    final byte[] token = "INVALID_TOKEN".getBytes(UTF_8);
     final Optional<String> expectedResult = Optional.empty();
     doThrow(IllegalArgumentException.class).when(getMockTokenManager()).validateToken(anyString());
 

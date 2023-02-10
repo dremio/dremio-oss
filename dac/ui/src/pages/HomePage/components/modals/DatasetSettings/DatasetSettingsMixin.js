@@ -15,6 +15,8 @@
  */
 import { abilities } from "utils/datasetUtils";
 import datasetSettingsConfig from "@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig";
+import { isVersionedSource } from "@app/utils/sourceUtils";
+import { NESSIE } from "@app/constants/sourceTypes";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -29,14 +31,7 @@ export default function (input) {
       return pathname && pathname.endsWith("/reflections");
     },
     getTabs() {
-      const {
-        entity,
-        intl,
-        arcticProjectId,
-        isIcebergTable,
-        isAdmin,
-        enableCompaction,
-      } = this.props;
+      const { entity, intl, source, isAdmin, enableCompaction } = this.props;
 
       if (!entity) {
         return new Immutable.OrderedMap();
@@ -61,23 +56,24 @@ export default function (input) {
       }
 
       const isReflectionsPage = this.isReflectionsFullPage();
+      const isVersioned = isVersionedSource(source?.type);
       map.push(
         ["overview", intl.formatMessage({ id: "Common.Overview" })],
         format,
-        !arcticProjectId &&
+        !isVersioned &&
           !isReflectionsPage && [
             "acceleration",
             intl.formatMessage({ id: "Reflection.Reflections" }),
           ],
-        !arcticProjectId &&
+        !isVersioned &&
           canSetAccelerationUpdates && [
             "accelerationUpdates",
             intl.formatMessage({ id: "Acceleration.RefreshPolicy" }),
           ],
         enableCompaction &&
           isAdmin &&
-          arcticProjectId &&
-          isIcebergTable && [
+          source?.type === NESSIE &&
+          entity.get("entityType") === "physicalDataset" && [
             "dataOptimization",
             intl.formatMessage({ id: "Data.Optimization" }),
           ]

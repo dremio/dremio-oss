@@ -46,7 +46,7 @@ import com.google.common.cache.CacheBuilder;
  * Manages user sessions in an in memory hash with the peerIdentity as the key.
  */
 public class TokenCacheFlightSessionManager implements DremioFlightSessionsManager {
-  private static final Logger logger = LoggerFactory.getLogger(DremioFlightSessionsManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(TokenCacheFlightSessionManager.class);
 
   private final Cache<String, UserSession> userSessions;
   private final Provider<SabotContext> sabotContextProvider;

@@ -43,6 +43,8 @@ import "./HomePage.less";
 import HomePageActivating from "@inject/pages/HomePage/HomePageActivating";
 import { intl } from "@app/utils/intl";
 import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
+import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
+import { isSonarUrlabilityEnabled } from "@app/exports/utilities/featureFlags";
 
 const PROJECT_CONTEXT = "projectContext";
 const DATA_OPTIMIZATION = "data_optimization";
@@ -59,6 +61,7 @@ class HomePage extends Component {
     children: PropTypes.node,
     style: PropTypes.object,
     isProjectInactive: PropTypes.bool,
+    orgLandingFlag: PropTypes.bool,
   };
 
   state = {
@@ -71,12 +74,20 @@ class HomePage extends Component {
 
   componentDidMount() {
     isDcsEdition() && this.props.fetchFeatureFlag(DATA_OPTIMIZATION);
+    isDcsEdition() && this.props.fetchFeatureFlag(ORGANIZATION_LANDING);
     this.setStateWithSourceTypesFromServer();
   }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.sourcesViewState.get("invalidated")) {
       nextProps.loadSourceListData();
+    }
+  }
+
+  componentDidUpdate(prevProps) {
+    const { isProjectInactive } = this.props;
+    if (prevProps.isProjectInactive && !isProjectInactive) {
+      this.props.loadSourceListData();
     }
   }
 
@@ -105,16 +116,18 @@ class HomePage extends Component {
 
   // Note were are getting the "ref" to the SearchBar React object.
   render() {
-    const { isProjectInactive } = this.props;
+    const { isProjectInactive, orgLandingFlag } = this.props;
     const homePageSearchClass = showHomePageTop()
       ? " --withSearch"
       : " --withoutSearch";
 
-    const homePageNavCrumbClass = showNavCrumbs ? " --withNavCrumbs" : "";
+    const homePageNavCrumbClass =
+      showNavCrumbs && orgLandingFlag ? " --withNavCrumbs" : "";
 
+    const storage = isSonarUrlabilityEnabled() ? sessionStorage : localStorage;
     const projectName =
-      localStorage.getItem(PROJECT_CONTEXT) &&
-      JSON.parse(localStorage.getItem(PROJECT_CONTEXT)).name;
+      storage.getItem(PROJECT_CONTEXT) &&
+      JSON.parse(storage.getItem(PROJECT_CONTEXT)).name;
 
     return (
       <div id="home-page" style={page}>
@@ -169,6 +182,7 @@ function mapStateToProps(state) {
     sources: getSortedSources(state),
     userInfo: state.home.config.get("userInfo"),
     sourcesViewState: getViewState(state, "AllSources"),
+    orgLandingFlag: state.featureFlag?.organization_landing_ui === "ENABLED",
   };
 }
 

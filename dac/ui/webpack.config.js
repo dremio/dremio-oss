@@ -20,6 +20,8 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackTagsPlugin = require("html-webpack-tags-plugin");
 const SentryCliPlugin = require("@sentry/webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const TerserPlugin = require("terser-webpack-plugin");
 const { getVersion, getEdition } = require("./scripts/versionUtils");
 const dynLoader = require("./dynLoader");
 const {
@@ -36,7 +38,7 @@ const isProductionBuild = process.env.NODE_ENV === "production";
 const isBeta = process.env.DREMIO_BETA === "true";
 const skipSourceMapUpload = process.env.SKIP_SENTRY_STEP === "true";
 const dremioVersion = getVersion();
-const devtool = isProductionBuild ? "source-map" : "eval-source-map"; // chris says: '#cheap-eval-source-map' is really great for debugging
+const devtool = isProductionBuild ? "hidden-source-map" : "eval-source-map"; // chris says: '#cheap-eval-source-map' is really great for debugging
 const isStaticDremioConfig = process.env.STATIC_DREMIO_CONFIG === "true";
 const stripComments = process.env.DREMIO_STRIP_COMMENTS === "true";
 
@@ -144,50 +146,26 @@ const rules = [
   },
   {
     test: /\.png$/,
-    use: {
-      loader: "url-loader",
-      options: {
-        limit: 10000,
-        mimetype: "image/png",
-      },
-    },
+    type: "asset/resource",
   },
   {
-    // for font-awesome and legacy
-    test: /(font-awesome|components|pages)\/.*\.svg(\?.*)?$/,
-    use: {
-      loader: "url-loader",
-      options: {
-        limit: 10000,
-        mimetype: "image/svg+xml",
-      },
-    },
+    // for legacy
+    test: /(components|pages)\/.*\.svg(\?.*)?$/,
+    type: "asset/resource",
   },
   {
     test: /(ui-lib)\/.*\.svg(\?.*)?$/,
-    use: {
-      loader: "url-loader",
-      options: {
-        limit: 10000,
-        mimetype: "image/svg+xml",
-      },
-    },
+    type: "asset/resource",
   },
   {
     test: /\.(woff(2)?|ttf|eot|gif)(\?.*)?$/,
-    use: {
-      loader: "url-loader",
-      options: {
-        limit: 1,
-      },
-    },
+    type: "asset/resource",
   },
 ];
 
-const getName = (ext) =>
-  `[name]${isProductionBuild ? ".[contenthash]" : ""}.${ext}`;
-const outFileNameTemplate = getName("js");
-const cssFileNameTemplate = getName("css");
+const outFilenameJsTemplate = "static/js/[name].[contenthash:8].js";
+const outFilenameJsChunkTemplate = "static/js/[name].[contenthash:8].chunk.js";
+const outFilenameCssTemplate = "static/css/[name].[contenthash:8].css";
 
 const config = {
   // abort process on errors
@@ -199,9 +177,10 @@ const config = {
   output: {
     publicPath: "/",
     path: outputPath,
-    filename: outFileNameTemplate,
-    chunkFilename: outFileNameTemplate,
+    filename: outFilenameJsTemplate,
+    chunkFilename: outFilenameJsChunkTemplate,
     sourceMapFilename: "sourcemaps/[file].map",
+    assetModuleFilename: "static/media/[name].[hash][ext]",
   },
   stats: {
     assets: false,
@@ -227,8 +206,8 @@ const config = {
     new MiniCssExtractPlugin({
       // Options similar to the same options in webpackOptions.output
       // all options are optional
-      filename: cssFileNameTemplate,
-      chunkFilename: cssFileNameTemplate,
+      filename: outFilenameCssTemplate,
+      chunkFilename: outFilenameCssTemplate,
       ignoreOrder: false, // Enable to remove warnings about conflicting order
     }),
     new webpack.BannerPlugin(require(dynLoader.path + "/webpackBanner")),
@@ -238,8 +217,8 @@ const config = {
       filename: indexFilename,
       cache: false, // make sure rebuilds kick BuildInfo too
       files: {
-        css: [cssFileNameTemplate],
-        js: [outFileNameTemplate],
+        css: [outFilenameCssTemplate],
+        js: [outFilenameJsTemplate],
       },
       minify: {
         removeComments: stripComments,
@@ -281,7 +260,6 @@ const config = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "src/favicon/favicons" },
         {
           from: `node_modules/monaco-editor/${
             isProductionBuild ? "min" : "dev"
@@ -289,8 +267,10 @@ const config = {
           to: "vs",
         },
         {
-          from: "public/static",
-          to: "static",
+          from: "public",
+        },
+        getEdition() === "ee" && {
+          from: path.join(process.env.DREMIO_DYN_LOADER_PATH, "../public"),
         },
         {
           from: "node_modules/jsplumb/dist/js/jsPlumb-2.1.4-min.js",
@@ -300,8 +280,12 @@ const config = {
           from: `node_modules/dremio-ui-lib/icons`,
           to: "static/icons",
         },
-        process.env.ENABLE_MSW && {
-          from: "public/mockServiceWorker.js",
+        {
+          from: `node_modules/dremio-ui-lib/images`,
+          to: "static/images",
+        },
+        process.env.ENABLE_MSW === "true" && {
+          from: "src/mockServiceWorker.js",
           to: "mockServiceWorker.js",
         },
       ].filter(Boolean),
@@ -331,6 +315,7 @@ const config = {
         },
       },
     },
+    minimizer: [new TerserPlugin(), new CssMinimizerPlugin()],
   },
   resolve: {
     extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
@@ -343,9 +328,7 @@ const config = {
     // them manually.
     fallback: {
       path: require.resolve("path-browserify"),
-      stream: require.resolve("stream-browserify"),
-      url: require.resolve("url"),
-      util: require.resolve("util"),
+      assert: require.resolve("assert"),
     },
     alias: {
       ...(dcsPath

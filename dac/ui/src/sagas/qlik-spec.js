@@ -21,6 +21,7 @@ import * as Actions from "actions/explore/download";
 import { SHOW_CONFIRMATION_DIALOG } from "actions/confirmation";
 import * as QlikActions from "actions/qlik";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import FileUtils from "@app/utils/FileUtils";
 
 import {
   checkDsnList,
@@ -86,9 +87,13 @@ describe("qlik saga", () => {
       if (localStorageUtils) {
         headers.append("Authorization", localStorageUtils.getAuthToken());
       }
+      const path = FileUtils.getDatasetPathForClientTools(dataset);
       expect(JSON.stringify(next.value)).to.eql(
         JSON.stringify(
-          call(fetch, `${API_URL_V2}/qlik/testid`, { method: "GET", headers })
+          call(fetch, `${API_URL_V2}/qlik/${path}`, {
+            method: "GET",
+            headers,
+          })
         )
       );
 

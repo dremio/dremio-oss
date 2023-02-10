@@ -1,0 +1,98 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Converts the input expressions to the corresponding date.
+functionCategories:
+- DATETIME
+- CONVERSION
+name: TO_DATE
+signatures:
+- description: The value is returned in the date format.
+  parameters:
+  - description: The date is extracted from the timestamp.
+    kind: REGULAR
+    name: in
+    type: TIMESTAMP
+  returnType: DATE
+  sampleCodes:
+  - call: SELECT TO_DATE(TIMESTAMP '2022-05-17 19:15:00.000')
+    result: 2022-05-17
+- description: The value is returned in the date format.
+  parameters:
+  - description: A Unix epoch timestamp.
+    kind: REGULAR
+    name: numeric_expression
+    type: INT
+  returnType: DATE
+  sampleCodes:
+  - call: SELECT TO_DATE(1640131200)
+    result: 2021-12-22
+- description: The value is returned in the date format.
+  parameters:
+  - description: A Unix epoch timestamp.
+    kind: REGULAR
+    name: numeric_expression
+    type: FLOAT
+  returnType: DATE
+  sampleCodes:
+  - call: SELECT TO_DATE(1665131223.69)
+    result: 2022-10-07
+- description: The value is returned in the date format.
+  parameters:
+  - description: The string from which to extract the date.
+    kind: REGULAR
+    name: string_expression
+    type: CHARACTERS
+  - description: String to specify <a href="../../DATE_TIME/#datetime-formatting">format</a>
+      of the date.
+    kind: REGULAR
+    name: format
+    type: CHARACTERS
+  - description: If 0, the function will fail when given malformed input. If 1, the
+      function will return NULL when given the malformed input.
+    kind: REGULAR
+    name: replaceErrorWithNull
+    type: INT
+  returnType: DATE
+  sampleCodes:
+  - call: SELECT TO_DATE('2022-07-22.23', 'YYYY-MM-DD', 1)
+    result: 'NULL'
+- description: The value is returned in the date format.
+  parameters:
+  - description: String from which to extract the date.
+    kind: REGULAR
+    name: string_expression
+    type: CHARACTERS
+  - description: String to specify <a href="../../DATE_TIME/#datetime-formatting">format</a>
+      of the date.
+    kind: REGULAR
+    name: format
+    type: CHARACTERS
+  returnType: DATE
+  sampleCodes:
+  - call: SELECT TO_DATE('05/24/22', 'MM/DD/YY')
+    result: 2022-05-24
+- description: The value is returned in the date format.
+  parameters:
+  - description: A Unix epoch timestamp.
+    kind: REGULAR
+    name: numeric_expression
+    type: DOUBLE
+  returnType: DATE
+  sampleCodes:
+  - call: SELECT TO_DATE(1665131223.69)
+    result: 2022-10-07

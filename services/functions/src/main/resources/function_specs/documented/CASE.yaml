@@ -1,0 +1,63 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Evaluates a list of conditions and returns the first resulting true expression.
+  If a true expression is not found, will return the `ELSE` statement, if present,
+  or else will return `NULL`.
+functionCategories:
+- CONDITIONAL
+name: CASE
+signatures:
+- description: null
+  parameters:
+  - description: A valid SQL expression, typically, a column name.
+    kind: REGULAR
+    name: expression
+    type: ANY
+  - description: A boolean expression. If `condition` is true, then return `result`.
+    kind: REGULAR
+    name: condition
+    type: BOOLEAN
+  - description: A valid SQL expression.
+    kind: REGULAR
+    name: result
+    type: ANY
+  returnType: ANY
+  sampleCodes:
+  - call: "SELECT\nCASE categories\n     WHEN 'Restaurants' THEN 'food'\n     WHEN\
+      \ 'Hotels' THEN 'travel'\n     ELSE 'no result'\nEND\nFROM table-name\n"
+    result: 'food
+
+      '
+- description: null
+  parameters:
+  - description: A boolean expression. If `expression=condition` is true, then return
+      `result`.
+    kind: REGULAR
+    name: condition
+    type: BOOLEAN
+  - description: A valid SQL expression.
+    kind: REGULAR
+    name: result
+    type: ANY
+  returnType: ANY
+  sampleCodes:
+  - call: "SELECT\nCASE\n     WHEN categories='Restaurants' THEN 'food'\n     WHEN\
+      \ categories='Hotels' THEN 'travel'\n     ELSE 'no result'\nEND\nFROM table-name\n"
+    result: 'food
+
+      '

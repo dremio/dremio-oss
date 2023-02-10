@@ -166,11 +166,6 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
    */
   boolean isSourceConfigMetadataImpacting(SourceConfig sourceConfig);
 
-  /**
-   * @return boolean
-   */
-  boolean isComplexTypeSupport();
-
   ManagedStoragePlugin getManagedSource(String name);
 
   /**

@@ -39,6 +39,7 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.filter.FilterStats.Metric;
+import com.dremio.sabot.op.llvm.GandivaSecondaryCacheWithStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
@@ -58,6 +59,7 @@ public class FilterOperator implements SingleInputOperator {
   private TransferPair[] tx;
   private Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
   private Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
+  private GandivaSecondaryCacheWithStats secondaryCache = null;
   private ExpressionSplitter splitter;
 
   public FilterOperator(Filter pop, OperatorContext context) throws OutOfMemoryException {
@@ -148,6 +150,10 @@ public class FilterOperator implements SingleInputOperator {
     stats.addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
     stats.addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     stats.addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    if (secondaryCache != null) {
+      stats.addLongStat(Metric.PERSISTENT_CACHE_READ_TIME, secondaryCache.getReadTime());
+      stats.addLongStat(Metric.BUILT_FROM_GANDIVA_CACHE, secondaryCache.getBuiltFromCache().ordinal());
+    }
     stats.setProfileDetails(OperatorProfileDetails
       .newBuilder()
       .addAllSplitInfos(splitter.getSplitInfos())
@@ -169,9 +175,13 @@ public class FilterOperator implements SingleInputOperator {
 
   private void setupSplitter(VectorAccessible accessible) throws Exception {
     final LogicalExpression materializedExp = context.getClassProducer().materializeAndAllowComplex(config.getExpr(), input, true);
+    if (context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE)) {
+      // enable the secondary cache
+      secondaryCache = GandivaSecondaryCacheWithStats.createCache();
+    }
     splitter = new ExpressionSplitter(context, accessible, filterOptions,
       context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
-    splitter.setupFilter(output, new NamedExpression(materializedExp, new FieldReference("_filter_")), javaCodeGenWatch, gandivaCodeGenWatch);
+    splitter.setupFilter(output, new NamedExpression(materializedExp, new FieldReference("_filter_")), javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
   }
 
   private void doTransfers(){

@@ -27,6 +27,8 @@ import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCa
 import { useArcticCommitDetails } from "./useArcticCommitDetails";
 import { useArcticCommitTags } from "./useArcticCommitTags";
 import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
+import { useDispatch } from "react-redux";
+import { setReference } from "@app/actions/nessie/nessie";
 
 import * as classes from "./ArcticCommitDetails.module.less";
 
@@ -35,24 +37,54 @@ type ArcticCommitDetailsProps = WithRouterProps;
 function ArcticCommitDetails({ router, params }: ArcticCommitDetailsProps) {
   const {
     state: { reference, hash },
+    source,
     baseUrl,
   } = useNessieContext();
   const { reservedNamespace, isCatalog } = useArcticCatalogContext() ?? {};
+  const dispatch = useDispatch();
 
-  const getPath = (tab: ArcticCatalogTabsType) =>
-    constructArcticUrl({
+  const getPath = (tab: ArcticCatalogTabsType) => {
+    const toHash = tab === "data" ? params.commitId : hash;
+    let toNamespace = reservedNamespace ?? "";
+    if (!toNamespace.includes(params.branchName)) {
+      toNamespace = params.branchName;
+    }
+
+    return constructArcticUrl({
       type: isCatalog ? "catalog" : "source",
       baseUrl,
       tab,
-      namespace: reservedNamespace ?? "",
-      hash: hash ? `?hash=${hash}` : "",
+      namespace: toNamespace,
+      hash: toHash ? `?hash=${toHash}` : "",
     });
+  };
 
-  const handlePush = (tab: ArcticCatalogTabsType) => router.push(getPath(tab));
+  const handleReference = (tab: ArcticCatalogTabsType) => {
+    if (tab === "data" && reference?.name) {
+      dispatch(
+        setReference(
+          {
+            reference: {
+              name: reference.name,
+              hash: params.commitId,
+              type: "BRANCH",
+            },
+            hash: params.commitId,
+          },
+          source.name
+        )
+      );
+    }
+  };
+
+  const handleTabNavigation = (tab: ArcticCatalogTabsType) => {
+    handleReference(tab);
+    return router.push(getPath(tab));
+  };
 
   const [data, , status] = useArcticCommitDetails(
     params.commitId,
-    reference?.name
+    params.branchName
   );
 
   const [tags, , tagStatus, refetch] = useArcticCommitTags(params.commitId);
@@ -62,7 +94,7 @@ function ArcticCommitDetails({ router, params }: ArcticCommitDetailsProps) {
       <ArcticCommitDetailsHeader
         commitId={params.commitId}
         reference={reference}
-        handlePush={handlePush}
+        handleTabNavigation={handleTabNavigation}
       />
       {isSmartFetchLoading(status) || isSmartFetchLoading(tagStatus) ? (
         <Spinner className={classes["arctic-commit-details__spinner"]} />

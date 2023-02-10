@@ -36,6 +36,10 @@ import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.physical.base.IcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.Rel;
@@ -46,6 +50,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPrel;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.ImmutableList;
@@ -155,7 +160,8 @@ public class WriterPrule extends Prule {
    */
   public static RelNode getManifestWriterPrelIfNeeded(RelNode child, RelTraitSet oldTraits, RelNode writer, CreateTableEntry fileEntry, MutablePlugin plugin,
                                                       DistributionTrait childDist) {
-    if(fileEntry.getIcebergTableProps() == null) {
+    //For OPTIMIZE TABLE command IcebergManifestWriterPrel is not required.
+    if(fileEntry.getIcebergTableProps() == null || fileEntry.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.OPTIMIZE) {
       return convert(child, oldTraits);
     } else {
       DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(RecordWriter.SCHEMA.getFields().indexOf(RecordWriter.ICEBERG_METADATA));
@@ -232,8 +238,12 @@ public class WriterPrule extends Prule {
 
   public static CreateTableEntry getCreateTableEntryForManifestWriter(CreateTableEntry fileEntry, MutablePlugin plugin, BatchSchema writeTableSchema, IcebergTableProps icebergTableProps) {
     WriterOptions oldOptions = fileEntry.getOptions();
+    IcebergWriterOptions icebergOptions = new ImmutableIcebergWriterOptions.Builder()
+      .setIcebergTableProps(icebergTableProps).build();
+    TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
+      .setIcebergSpecificOptions(icebergOptions).build();
     WriterOptions manifestWriterOption = new WriterOptions(null, null, null, null,
-      null, false, oldOptions.getRecordLimit(), null, oldOptions.getExtendedProperty(), icebergTableProps, false);
+      null, false, oldOptions.getRecordLimit(), tableFormatOptions, oldOptions.getExtendedProperty(), false);
     // IcebergTableProps is the only obj we need in manifestWriter
     return fileEntry.cloneWithFields(manifestWriterOption);
   }

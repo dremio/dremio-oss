@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.fn.hive;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -29,16 +30,13 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
 
 public class TestHiveUDFs extends BaseTestQuery {
 
   @Test
   public void testGenericUDF() throws Throwable {
-
     int numRecords = 0;
-    String planString = Resources.toString(Resources.getResource("functions/hive/GenericUDF.json"), Charsets.UTF_8);
+    String planString = readResourceAsString("functions/hive/GenericUDF.json");
     List<QueryDataBatch> results = testPhysicalWithResults(planString);
 
     RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
@@ -69,24 +67,24 @@ public class TestHiveUDFs extends BaseTestQuery {
         if (str1V.isNull(i)) {
           continue;
         }
-        String in = new String(str1V.get(i), Charsets.UTF_8);
-        String upper = new String(upperStr1V.get(i), Charsets.UTF_8);
+        String in = new String(str1V.get(i), UTF_8);
+        String upper = new String(upperStr1V.get(i), UTF_8);
         assertEquals(in.toUpperCase(), upper);
 
-        String concat = new String(concatV.get(i), Charsets.UTF_8);
+        String concat = new String(concatV.get(i), UTF_8);
         assertEquals(in + "-" + in, concat);
 
         float flt1 = flt1V.get(i);
-        String formatNumber = new String(formatNumberV.get(i), Charsets.UTF_8);
+        String formatNumber = new String(formatNumberV.get(i), UTF_8);
 
         String nullableStr1 = null;
         if (!nullableStr1V.isNull(i)) {
-          nullableStr1 = new String(nullableStr1V.get(i), Charsets.UTF_8);
+          nullableStr1 = new String(nullableStr1V.get(i), UTF_8);
         }
 
         String upperNullableStr1 = null;
         if (!upperNullableStr1V.isNull(i)) {
-          upperNullableStr1 = new String(upperNullableStr1V.get(i), Charsets.UTF_8);
+          upperNullableStr1 = new String(upperNullableStr1V.get(i), UTF_8);
         }
 
         assertEquals(nullableStr1 != null, upperNullableStr1 != null);
@@ -105,7 +103,7 @@ public class TestHiveUDFs extends BaseTestQuery {
   @Test
   public void testUDF() throws Throwable {
     int numRecords = 0;
-    String planString = Resources.toString(Resources.getResource("functions/hive/UDF.json"), Charsets.UTF_8);
+    String planString = readResourceAsString("functions/hive/UDF.json");
     List<QueryDataBatch> results = testPhysicalWithResults(planString);
 
     RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
@@ -133,7 +131,7 @@ public class TestHiveUDFs extends BaseTestQuery {
         if (str1V.isNull(i)) {
           continue;
         }
-        String str1 = new String(str1V.get(i), Charsets.UTF_8);
+        String str1 = new String(str1V.get(i), UTF_8);
         long str1Length = str1LengthV.get(i);
         assertTrue(str1.length() == str1Length);
 

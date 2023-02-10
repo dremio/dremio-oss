@@ -50,7 +50,6 @@ import com.dremio.telemetry.api.metrics.Counter;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 /**
@@ -170,8 +169,14 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
     }
 
     if (throwable instanceof StatusRuntimeException) {
-      if (Status.Code.NOT_FOUND.equals(((StatusRuntimeException) throwable).getStatus().getCode())) {
-        return newGenericErrorMessage(NOT_FOUND, throwable, stackTrace);
+      switch (((StatusRuntimeException) throwable).getStatus().getCode()) {
+        case NOT_FOUND:
+          logger.debug("Not Found for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+          return newGenericErrorMessage(NOT_FOUND, throwable, stackTrace);
+        case PERMISSION_DENIED:
+          logger.debug("Permission denied for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+          return newGenericErrorMessage(FORBIDDEN, throwable, stackTrace);
+        default:
       }
     }
 

@@ -50,4 +50,8 @@ public class DremioScalarUserDefinedFunction implements ScalarFunction {
   @Override public RelDataType getReturnType(RelDataTypeFactory relDataTypeFactory) {
     return CalciteArrowHelper.wrap(userDefinedFunction.getReturnType()).toCalciteType(relDataTypeFactory, true);
   }
+
+  public String getName(){
+    return userDefinedFunction.getName();
+  }
 }

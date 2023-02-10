@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg.manifestwriter;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
 
 /**
  * Iceberg is disabled, overrides ensure no operations done
@@ -37,7 +38,7 @@ public class NoOpIcebergCommitOpHelper extends IcebergCommitOpHelper {
     }
 
     @Override
-    public void commit() throws Exception {
+    public void commit(WriterCommitterOutputHandler outputHandler) throws Exception {
     }
 
     @Override

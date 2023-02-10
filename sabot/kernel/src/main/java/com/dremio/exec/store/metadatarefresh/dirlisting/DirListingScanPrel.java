@@ -25,6 +25,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.common.expression.SchemaPath;
@@ -57,21 +58,22 @@ public class DirListingScanPrel extends ScanPrelBase implements RowCountEstimato
 
 
   public DirListingScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata tableMetadata, double observedRowcountAdjustment, boolean allowRecursiveListing,
-                            Function<RelMetadataQuery, Double> estimateRowCountFn, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment, runtimeFilters);
+                            TableMetadata tableMetadata, double observedRowcountAdjustment, List<RelHint> hints,
+                            boolean allowRecursiveListing, Function<RelMetadataQuery, Double> estimateRowCountFn,
+                            List<Info> runtimeFilters) {
+    super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment, hints, runtimeFilters);
     this.allowRecursiveListing = allowRecursiveListing;
     this.estimateRowCountFn = estimateRowCountFn;
   }
 
   @Override
   public DirListingScanPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
+    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, hints, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
+    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, hints, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
   }
 
   @Override

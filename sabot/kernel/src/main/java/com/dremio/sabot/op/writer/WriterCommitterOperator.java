@@ -18,8 +18,8 @@ package com.dremio.sabot.op.writer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 import org.apache.arrow.vector.ValueVector;
 import org.slf4j.Logger;
@@ -27,14 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.FunctionCall;
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.expression.ValueExpressions;
-import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
@@ -49,12 +43,9 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 
 
 /**
@@ -86,10 +77,28 @@ public class WriterCommitterOperator implements SingleInputOperator {
     MAX_IO_WRITE_TIME, // Maximum IO write time
     AVG_IO_WRITE_TIME, // Avg IO write time
     NUM_IO_WRITE,      // Total Number of IO writes
+    SNAPSHOT_COMMIT_STATUS, // Set to -1 when skipped intentionally, 1 when committed a snapshot, 0 by default
+    CLEAR_ORPHANS_TIME, // Time taken to clean orphan files during write
     ;
     @Override
     public int metricId() {
       return ordinal();
+    }
+  }
+
+  public enum SnapshotCommitStatus {
+    NONE(0),
+    SKIPPED(-1),
+    COMMITTED(1);
+
+    private long value = 0;
+
+    SnapshotCommitStatus(long value) {
+      this.value = value;
+    }
+
+    public long value() {
+      return this.value;
     }
   }
 
@@ -104,23 +113,23 @@ public class WriterCommitterOperator implements SingleInputOperator {
   private FileSystem fs;
   private final ExecutionControls executionControls;
 
-  private long recordCount;
-  private ProjectOperator project;
   private boolean success = false;
   private final List<ValueVector> vectors = new ArrayList<>();
 
   private final IcebergCommitOpHelper icebergCommitHelper;
+  private WriterCommitterOutputHandler outputHandler;
 
   public WriterCommitterOperator(OperatorContext context, WriterCommitterPOP config) {
     this.config = config;
     this.context = context;
     this.icebergCommitHelper = IcebergCommitOpHelper.getInstance(context, config);
     this.executionControls = context.getExecutionControls();
+    this.outputHandler = WriterCommitterOutputHandler.getInstance(context, config, this.icebergCommitHelper.hasCustomOutput());
   }
 
   @Override
   public State getState() {
-    return project == null ? State.NEEDS_SETUP : project.getState();
+    return outputHandler == null ? State.NEEDS_SETUP : outputHandler.getState();
   }
 
   @Override
@@ -134,45 +143,17 @@ public class WriterCommitterOperator implements SingleInputOperator {
     }
 
     Stopwatch stopwatch = Stopwatch.createStarted();
-    fs = config.getPlugin().createFS(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()),
+    fs = config.getPlugin().createFS(Optional.ofNullable(config.getTempLocation()).orElse(config.getFinalLocation()),
       config.getProps().getUserName(), context);
     addMetricStat(Metric.FILE_SYSTEM_CREATE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-    icebergCommitHelper.setup(accessible);
-
-    // replacement expression.
-    LogicalExpression replacement;
-    if (config.getTempLocation() != null) {
-      replacement = new FunctionCall("REGEXP_REPLACE", ImmutableList.<LogicalExpression>of(
-        SchemaPath.getSimplePath(RecordWriter.PATH.getName()),
-        new ValueExpressions.QuotedString(Pattern.quote(config.getTempLocation())),
-        new ValueExpressions.QuotedString(config.getFinalLocation())
-      ));
-    } else {
-      replacement = SchemaPath.getSimplePath(RecordWriter.PATH.getName());
-    }
-    Project projectConfig = new Project(
-      config.getProps(),
-      null,
-      ImmutableList.of(
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()), new FieldReference(RecordWriter.FRAGMENT.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.RECORDS.getName()), new FieldReference(RecordWriter.RECORDS.getName())),
-        new NamedExpression(replacement, new FieldReference(RecordWriter.PATH.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.METADATA.getName()), new FieldReference(RecordWriter.METADATA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()), new FieldReference(RecordWriter.PARTITION.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()), new FieldReference(RecordWriter.PARTITION_DATA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE.getName()), new FieldReference(RecordWriter.OPERATION_TYPE.getName()))
-      ));
-    this.project = new ProjectOperator(context, projectConfig);
-    return project.setup(accessible);
+    this.icebergCommitHelper.setup(accessible);
+    return this.outputHandler.setup(accessible);
   }
 
   @Override
   public int outputData() throws Exception {
-    return project.outputData();
+    return outputHandler.outputData();
   }
 
   @Override
@@ -190,7 +171,12 @@ public class WriterCommitterOperator implements SingleInputOperator {
     }
     finally {
       final OperatorStats operatorStats = context.getStats();
-      AutoCloseables.close(project, fs, icebergCommitHelper);
+      AutoCloseables.close(outputHandler, fs, icebergCommitHelper);
+
+      // TODO: ProfileDetails not being populated at setup(), rectify and remove this check
+      if (operatorStats.getProfileDetails() == null) {
+        operatorStats.setProfileDetails(UserBitShared.OperatorProfileDetails.newBuilder().build());
+      }
 
       OperatorStats.IOStats readIOStats = operatorStats.getReadIOStats();
       if (readIOStats != null) {
@@ -236,17 +222,17 @@ public class WriterCommitterOperator implements SingleInputOperator {
       }
       addMetricStat(Metric.TABLE_RENAME_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
-    project.noMoreToConsume();
+    outputHandler.noMoreToConsume();
     injector.injectChecked(executionControls, INJECTOR_AFTER_NO_MORETO_CONSUME_ERROR, UnsupportedOperationException.class);
-    icebergCommitHelper.commit();
+    icebergCommitHelper.commit(outputHandler);
+
     success = true;
   }
 
   @Override
   public void consumeData(int records) throws Exception {
-    project.consumeData(records);
+    outputHandler.consumeData(records);
     icebergCommitHelper.consumeData(records);
-    recordCount += records;
   }
 
   public static class WriterCreator implements SingleInputOperator.Creator<WriterCommitterPOP> {
@@ -269,7 +255,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
               config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.CREATE) ) {
       return config.getIcebergTableProps().getTableLocation();
     }
-    return Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation());
+    return Optional.ofNullable(config.getTempLocation()).orElse(config.getFinalLocation());
   }
 
   private void cleanUpFiles() throws IOException, ClassNotFoundException {

@@ -116,6 +116,7 @@ import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.JobResultInfoProvider;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.NodeRegistration;
+import com.dremio.exec.server.ResultsCleanupService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.server.SourceVerifier;
@@ -144,8 +145,8 @@ import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
-import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManager;
-import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManagerImpl;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionService;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionServiceImpl;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ActiveQueryListService;
 import com.dremio.exec.work.protector.ForemenTool;
@@ -154,6 +155,7 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
+import com.dremio.hadoop.security.alias.DremioCredentialProviderFactory;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.plugins.sysflight.SysFlightPluginConfigProvider;
@@ -294,6 +296,9 @@ import com.dremio.service.usersessions.UserSessionService;
 import com.dremio.service.usersessions.UserSessionServiceImpl;
 import com.dremio.service.usersessions.UserSessionServiceOptions;
 import com.dremio.service.usersessions.store.UserSessionStoreProvider;
+import com.dremio.services.credentials.CredentialsServiceImpl;
+import com.dremio.services.credentials.ExecutorCredentialsService;
+import com.dremio.services.credentials.proto.CredentialsServiceGrpc;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.jobresults.common.JobResultsTunnel;
@@ -407,7 +412,6 @@ public class DACDaemonModule implements DACModule {
     final boolean isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
     final boolean isDistributedCoordinator = isMasterless && isCoordinator;
     final boolean isDistributedMaster = isDistributedCoordinator || isMaster;
-
     final Provider<NodeEndpoint> masterEndpoint = new Provider<NodeEndpoint>() {
       private final Provider<MasterStatusListener> masterStatusListener =
           registry.provider(MasterStatusListener.class);
@@ -474,8 +478,8 @@ public class DACDaemonModule implements DACModule {
             bootstrap.getExecutor()
         ));
 
-    com.dremio.services.credentials.CredentialsService credentialsService = com.dremio.services.credentials.CredentialsService.newInstance(config, scanResult);
-    registry.bind(com.dremio.services.credentials.CredentialsService.class, credentialsService);
+    DremioCredentialProviderFactory.configure(
+      registry.provider(com.dremio.services.credentials.CredentialsService.class));
 
     final Optional<SSLEngineFactory> conduitSslEngineFactory;
     try {
@@ -539,6 +543,27 @@ public class DACDaemonModule implements DACModule {
       () -> DatasetCatalogServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
 
     registry.bindProvider(NessieApiV1.class, () -> createNessieClientProvider(config, registry));
+
+    // Bind base credentials on both coordinator and executor
+    com.dremio.services.credentials.CredentialsService credentialsService =
+      com.dremio.services.credentials.CredentialsService.newInstance(config, scanResult);
+    registry.bind(com.dremio.services.credentials.CredentialsService.class, credentialsService);
+
+    if (isCoordinator) {
+      conduitServiceRegistry.registerService(new CredentialsServiceImpl(
+        registry.provider(com.dremio.services.credentials.CredentialsService.class)));
+    }
+    // Only bind on executors, don't bind in c+e cases
+    if (isExecutor && !isCoordinator) {
+      registry.bindProvider(CredentialsServiceGrpc.CredentialsServiceBlockingStub.class,
+        () -> CredentialsServiceGrpc.newBlockingStub(getOrCreateChannelToMaster(registry)));
+
+      registry.replace(com.dremio.services.credentials.CredentialsService.class,
+        new ExecutorCredentialsService(
+          credentialsService,
+          registry.provider(CredentialsServiceGrpc.CredentialsServiceBlockingStub.class),
+          registry.provider(OptionManager.class)));
+    }
 
     registry.bind(
       KVStoreProvider.class,
@@ -638,7 +663,7 @@ public class DACDaemonModule implements DACModule {
       registry.provider(StatisticsService.class),
       registry.provider(StatisticsAdministrationService.Factory.class),
       registry.provider(StatisticsListManager.class),
-      registry.provider(UserDefinedFunctionListManager.class),
+      registry.provider(UserDefinedFunctionService.class),
       registry.provider(RelMetadataQuerySupplier.class),
       registry.provider(SimpleJobRunner.class),
       registry.provider(DatasetCatalogServiceBlockingStub.class),
@@ -874,8 +899,8 @@ public class DACDaemonModule implements DACModule {
         registry.provider(NodeEndpoint.class)));
 
     LocalJobsService localJobsService = null;
+    Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider = getJobResultsStoreConfigProvider(registry);
     if (isCoordinator) {
-      Provider<JobResultsStoreConfig> jobResultsStoreConfigProvider = getJobResultsStoreConfigProvider(registry);
       Provider<LegacyKVStoreProvider> kvStoreProviderProvider = registry.provider(LegacyKVStoreProvider.class);
       BufferAllocator allocator = getChildBufferAllocator(bootstrap.getAllocator());
       Provider<JobResultsStore> jobResultsStoreProvider = getJobResultsStoreProvider(jobResultsStoreConfigProvider,
@@ -1069,6 +1094,7 @@ public class DACDaemonModule implements DACModule {
       registry.bindProvider(WorkStats.class, fragmentWorkManager::getWorkStats);
 
       registry.bindProvider(ExecutorService.class, fragmentWorkManager::getExecutorService);
+      registry.bind(ResultsCleanupService.class, new ResultsCleanupService(registry.provider(SchedulerService.class),jobResultsStoreConfigProvider,registry.provider(OptionManager.class)));
     } else {
       registry.bind(WorkStats.class, WorkStats.NO_OP);
     }
@@ -1154,7 +1180,7 @@ public class DACDaemonModule implements DACModule {
       isCoordinator);
     registry.bind(StatisticsListManager.class, statisticsListManager);
 
-    final UserDefinedFunctionListManager userDefinedFunctionListManager = new UserDefinedFunctionListManagerImpl(
+    final UserDefinedFunctionService userDefinedFunctionListManager = new UserDefinedFunctionServiceImpl(
       namespaceServiceProvider,
       serviceLeaderProvider,
       registry.provider(FabricService.class),
@@ -1162,7 +1188,7 @@ public class DACDaemonModule implements DACModule {
       () -> config,
       isMaster,
       isCoordinator);
-    registry.bind(UserDefinedFunctionListManager.class, userDefinedFunctionListManager);
+    registry.bind(UserDefinedFunctionService.class, userDefinedFunctionListManager);
 
     final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
 
@@ -1220,6 +1246,7 @@ public class DACDaemonModule implements DACModule {
               registry.provider(JobsService.class),
               registry.provider(CatalogService.class),
               registry.provider(ConnectionReader.class),
+              registry.provider(SearchService.class),
               optionsProvider,
               dacConfig.prepopulate,
               dacConfig.addDefaultUser));

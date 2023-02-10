@@ -99,5 +99,5 @@ public interface EntityExplorer {
    * @param context version context
    * @return translatable table
    */
-  DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context);
+  DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context);
 }

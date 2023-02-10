@@ -27,7 +27,6 @@ import org.apache.calcite.schema.Function;
 
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.DremioTranslatableTable;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.VersionContext;
@@ -81,7 +80,7 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
-  public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     throw new UnsupportedOperationException();
   }
 
@@ -163,6 +162,11 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
 
   @Override
   public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean supportsVersioning(NamespaceKey namespaceKey) {
     throw new UnsupportedOperationException();
   }
 

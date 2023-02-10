@@ -32,7 +32,7 @@ import com.dremio.exec.util.ValueListFilterBuilder;
 import com.google.common.base.Preconditions;
 
 public class HashTableFilterUtil {
-  private static Logger logger = LoggerFactory.getLogger(HashTable.class);
+  private static final Logger logger = LoggerFactory.getLogger(HashTableFilterUtil.class);
 
   /**
    * Prepares bloomFilter for the given probe target. BloomFilter and corresponding

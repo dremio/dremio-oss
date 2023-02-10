@@ -15,7 +15,7 @@
  */
 package com.dremio.jdbc.test;
 
-import java.io.IOException;
+
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -44,11 +44,9 @@ import com.dremio.common.logical.data.Union;
 import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.jdbc.JdbcWithServerTestBase;
 import com.dremio.jdbc.test.JdbcAssert.TestDataConnection;
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.google.common.io.Resources;
 
 /** Unit tests for Dremio's JDBC driver. */
 
@@ -59,9 +57,9 @@ public class JdbcDataTest extends JdbcWithServerTestBase {
   private static String EXPECTED;
 
   @BeforeClass
-  public static void setupFixtures() throws IOException {
-    MODEL = Resources.toString(Resources.getResource("test-models.json"), Charsets.UTF_8);
-    EXPECTED = Resources.toString(Resources.getResource("donuts-output-data.txt"), Charsets.UTF_8);
+  public static void setupFixtures() {
+    MODEL = readResourceAsString("test-models.json");
+    EXPECTED = readResourceAsString("donuts-output-data.txt");
   }
 
   /**

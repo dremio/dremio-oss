@@ -17,9 +17,9 @@ package com.dremio.sabot.op.join.vhash.spill.slicer;
 
 import java.util.List;
 
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.FieldVector;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
 

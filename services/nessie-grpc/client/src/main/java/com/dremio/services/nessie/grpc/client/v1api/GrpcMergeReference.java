@@ -15,6 +15,7 @@
  */
 package com.dremio.services.nessie.grpc.client.v1api;
 
+import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
@@ -22,6 +23,7 @@ import org.projectnessie.client.api.MergeReferenceBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.ImmutableMerge;
+import org.projectnessie.model.MergeResponse;
 
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
@@ -55,6 +57,24 @@ final class GrpcMergeReference implements MergeReferenceBuilder {
   }
 
   @Override
+  public MergeReferenceBuilder dryRun(boolean dryRun) {
+    merge.isDryRun(dryRun);
+    return this;
+  }
+
+  @Override
+  public MergeReferenceBuilder fetchAdditionalInfo(boolean fetchAdditionalInfo) {
+    merge.isFetchAdditionalInfo(fetchAdditionalInfo);
+    return this;
+  }
+
+  @Override
+  public MergeReferenceBuilder returnConflictAsResult(boolean returnConflictAsResult) {
+    merge.isReturnConflictAsResult(returnConflictAsResult);
+    return this;
+  }
+
+  @Override
   public MergeReferenceBuilder branchName(String branchName) {
     this.branchName = branchName;
     return this;
@@ -67,8 +87,10 @@ final class GrpcMergeReference implements MergeReferenceBuilder {
   }
 
   @Override
-  public void merge() throws NessieNotFoundException, NessieConflictException {
-    handle(
-      () -> stub.mergeRefIntoBranch(toProto(branchName, hash, merge.build())));
+  public MergeResponse merge() throws NessieNotFoundException, NessieConflictException {
+    return handle(
+      () -> fromProto(
+        stub.mergeRefIntoBranch(
+          toProto(branchName, hash, merge.build()))));
   }
 }

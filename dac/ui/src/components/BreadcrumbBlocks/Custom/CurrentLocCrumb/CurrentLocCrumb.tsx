@@ -20,8 +20,19 @@ import { withRouter, WithRouterProps } from "react-router";
 import { intl } from "@app/utils/intl";
 import * as PATHS from "@app/exports/paths";
 //@ts-ignore
-import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
+import * as commonPaths from "dremio-ui-common/paths/common";
+//@ts-ignore
+import * as adminPaths from "dremio-ui-common/paths/admin";
+//@ts-ignore
+import * as jobPaths from "dremio-ui-common/paths/jobs";
+//@ts-ignore
+import * as orgPaths from "dremio-ui-common/paths/organization";
+//@ts-ignore
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { parseResourceId } from "utils/pathUtils";
+
 type CurrentLocCrumbProps = {
   branch?: Record<string, any>;
   user: any;
@@ -31,25 +42,29 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
   let text, to, iconName;
   const { formatMessage } = intl;
   const {
-    location: { pathname },
+    location: { pathname: curPath },
     branch,
     user,
   } = props;
+  const pathname = rmProjectBase(curPath) || "/";
   const splitPath = pathname.split("/").slice(1);
   const branchName = branch?.reference?.name;
-  const currentProject = useProjectContext();
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
 
   const getNewQueryHref = () => {
     const resourceId = parseResourceId(
       location.pathname,
       user?.get("userName")
     );
-    return "/new_query?context=" + encodeURIComponent(resourceId);
+    return sqlPaths.newQuery.link({
+      resourceId,
+      projectId,
+    });
   };
 
   // Dataset Paths
   if (
-    pathname === "/" ||
+    curPath.startsWith(commonPaths.projectBase.link({ projectId })) ||
     pathname.indexOf("/home") === 0 ||
     pathname.indexOf("/sources") === 0 ||
     pathname.indexOf("/source") === 0 ||
@@ -57,7 +72,7 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
     pathname.indexOf("/spaces") === 0
   ) {
     text = formatMessage({ id: "Common.Datasets" });
-    to = PATHS.datasets({ projectId: currentProject?.id });
+    to = commonPaths.projectBase.link({ projectId });
     iconName = "navigation-bar/dataset";
   }
 
@@ -69,12 +84,15 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
   }
 
   // Jobs paths
-  if (pathname === "/jobs" || pathname.indexOf("/job") === 0) {
+  if (
+    curPath.startsWith(jobPaths.jobs.link({ projectId })) ||
+    pathname.indexOf("/job") === 0
+  ) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { attempts: _, ...query } = props.location.query || {};
     text = formatMessage({ id: "Job.Jobs" });
     to = {
-      pathname: PATHS.jobs(),
+      pathname: jobPaths.jobs.link({ projectId }),
       hash: props.location.hash,
       query,
     };
@@ -82,16 +100,16 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
   }
 
   // Project settings path
-  if (splitPath[0] === "admin") {
+  if (splitPath[0] === "settings") {
     text = formatMessage({ id: "Admin.Settings.Projects" });
-    to = `/admin/general`;
+    to = adminPaths.general.link({ projectId });
     iconName = "interface/settings";
   }
 
   // Org settings path
-  if (splitPath[0] === "setting") {
+  if (splitPath[1] === "settings") {
     text = formatMessage({ id: "Admin.Organization.Setting" });
-    to = `/setting/organization`;
+    to = orgPaths.general.link();
     iconName = "interface/settings";
   }
 

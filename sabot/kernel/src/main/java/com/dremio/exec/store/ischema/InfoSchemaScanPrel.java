@@ -23,6 +23,7 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -51,10 +52,12 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
       SearchQuery query,
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
+      List<RelHint> hints,
       List<Info> runtimeFilters
       ) {
 
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
+    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
+          hints, runtimeFilters);
     this.pluginId = dataset.getStoragePluginId();
     this.table = Preconditions.checkNotNull(
       InfoSchemaStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
@@ -105,12 +108,14 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     Preconditions.checkArgument(inputs == null || inputs.size() == 0);
-    return new InfoSchemaScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), query, getProjectedColumns(), getCostAdjustmentFactor(), getRuntimeFilters());
+    return new InfoSchemaScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), query, getProjectedColumns(),
+                                  getCostAdjustmentFactor(), getHints(), getRuntimeFilters());
   }
 
   @Override
   public InfoSchemaScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new InfoSchemaScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), query, projection, getCostAdjustmentFactor(), getRuntimeFilters());
+    return new InfoSchemaScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), query, projection,
+                                  getCostAdjustmentFactor(), getHints(), getRuntimeFilters());
   }
 
 }

@@ -25,14 +25,21 @@
 
 .primaryButtonPsuedoClasses {
   &:hover {
-    border-color: @PRIMARY_600 !important;
-    background-color: @PRIMARY_600 !important;
+    border-color: var(--dremio--color--primary--600) !important;
+    background-color: var(--dremio--color--primary--600) !important;
   }
 }
 
 .secondaryButtonPsuedoClasses {
   &:hover {
     background-color: var(--dremio--color--neutral--100) !important;
+    outline: none !important;
+  }
+}
+
+.dangerButtonPsuedoClasses {
+  &:hover {
+    background-color: var(--dremio--color--status--delete--background) !important;
     outline: none !important;
   }
 }

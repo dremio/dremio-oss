@@ -26,12 +26,14 @@ import {
 import { APIV2Call } from "@app/core/APICall";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { UNSAVED_DATASET_PATH } from "@app/constants/explorePage/paths";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 
 export const RUN_TABLE_TRANSFORM_START = "RUN_TABLE_TRANSFORM_START";
 export const RUN_TABLE_TRANSFORM_SUCCESS = "RUN_TABLE_TRANSFORM_SUCCESS";
 export const RUN_TABLE_TRANSFORM_FAILURE = "RUN_TABLE_TRANSFORM_FAILURE";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 /**
  * common helper for different table operations
@@ -74,7 +76,7 @@ export function postDatasetOperation({
       types: [
         { type: RUN_TABLE_TRANSFORM_START, meta: { ...meta, ...metas[0] } },
         schemaUtils.getSuccessActionTypeWithSchema(
-          RUN_TABLE_TRANSFORM_SUCCESS,
+          RUN_TABLE_TRANSFORM_SUCCESS, // this action doesn't do anything, but leaving here as a placeholder
           schema,
           { ...successMeta, ...metas[1] },
           uiPropsForEntity
@@ -112,11 +114,13 @@ export function navigateToNextDataset(
     changePathname,
     renderScriptTab,
     isTransform,
+    newJobId,
   } = {}
 ) {
   return (dispatch, getStore) => {
     changePathname = isSaveAs || changePathname;
     const location = getStore().routing.locationBeforeTransitions;
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     const historyItem =
       getStore().resources.entities.get("historyItem") || new Immutable.Map({});
     const history =
@@ -179,12 +183,21 @@ export function navigateToNextDataset(
     const nextVersion = nextDataset.get("datasetVersion");
 
     let link =
-      (nextDataset && nextDataset.getIn(["links", linkName || "self"])) || "";
-    if (goToSqlRunner) link = `${UNSAVED_DATASET_PATH}?version=${nextVersion}`;
+      (nextDataset &&
+        wrapBackendLink(nextDataset.getIn(["links", linkName || "self"]))) ||
+      "";
+    if (goToSqlRunner)
+      link = `${sqlPaths.unsavedDatasetPath.link({
+        projectId,
+      })}?version=${nextVersion}`;
 
     const parsedLink = urlParse(link, true);
 
-    const nextPath = goToSqlRunner ? UNSAVED_DATASET_PATH : location.pathname;
+    const nextPath = goToSqlRunner
+      ? sqlPaths.unsavedDatasetPath.link({
+          projectId,
+        })
+      : location.pathname;
     let pathname = changePageTypeInUrl(
       changePathname ? parsedLink.pathname : nextPath,
       targetPageType
@@ -207,7 +220,7 @@ export function navigateToNextDataset(
     const query = {
       ...(keepQuery ? location.query : {}), // Initial dataset request will navigate. Need to not clobber graph query params.
       ...parsedLink.query,
-      ...(jobId ? { jobId } : {}),
+      ...(jobId ? { jobId } : newJobId ? { jobId: newJobId } : {}),
       ...(mode ? { mode } : {}),
       ...(isUnsavedWithDataset && create ? { create } : {}),
       version: nextVersion,

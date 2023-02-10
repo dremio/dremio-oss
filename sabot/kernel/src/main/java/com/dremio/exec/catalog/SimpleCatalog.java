@@ -97,6 +97,8 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    */
   Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
 
+  boolean supportsVersioning(NamespaceKey namespaceKey) ;
+
   enum FunctionType {
     SCALAR,
     TABLE

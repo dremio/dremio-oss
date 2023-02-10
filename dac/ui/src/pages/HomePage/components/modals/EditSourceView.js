@@ -92,6 +92,8 @@ export class EditSourceView extends PureComponent {
     this.state = {
       isConfigLoaded: false,
       selectedFormType: {},
+      didLoadFail: false,
+      errorMessage: "Failed to load source configuration.",
     };
   }
 
@@ -100,12 +102,8 @@ export class EditSourceView extends PureComponent {
     router: PropTypes.object.isRequired,
   };
 
-  state = {
-    didLoadFail: false,
-    errorMessage: "Failed to load source configuration.",
-  };
-
   async componentDidMount() {
+    this.isPreviewEngineRequired = false;
     const { sourceName, sourceType } = this.props;
     await this.props.loadSource(sourceName, VIEW_ID);
     this.fetchData();
@@ -128,6 +126,11 @@ export class EditSourceView extends PureComponent {
         );
 
         const isFileSystemSource = combinedConfig.metadataRefresh;
+        if (this.props.setPreviewEngine) {
+          this.props.setPreviewEngine(json.previewEngineRequired, "Edit");
+          this.isPreviewEngineRequired = json.previewEngineRequired;
+        }
+
         this.setState({
           isTypeSelected: true,
           isConfigLoaded: true,
@@ -172,6 +175,14 @@ export class EditSourceView extends PureComponent {
           throw error;
         });
       });
+  };
+
+  handleCustomSubmit = (values) => {
+    const submitFn = this.submitEdit;
+    const closeFn = this.props.hide;
+    this.props.handleSubmit(values, submitFn, closeFn).catch((err) => {
+      return err;
+    });
   };
 
   submitEdit = (form) => {
@@ -238,6 +249,7 @@ export class EditSourceView extends PureComponent {
   }
 
   render() {
+    const { didLoadFail } = this.state;
     const {
       updateFormDirtyState,
       initialFormValues,
@@ -246,6 +258,19 @@ export class EditSourceView extends PureComponent {
       viewState,
       hide,
     } = this.props;
+
+    //HOC Props
+    const {
+      hideCancel,
+      hasError,
+      showSpinnerAndText,
+      confirmButtonStyle,
+      confirmText,
+      canSubmit,
+      isSubmitting,
+      onDismissError,
+    } = this.props;
+
     const initValues = mergeWith(
       source && source.size > 1 ? source.toJS() : {},
       initialFormValues,
@@ -254,20 +279,33 @@ export class EditSourceView extends PureComponent {
 
     let vs = viewState;
 
-    if (this.state.didLoadFail) {
+    if (didLoadFail || hasError) {
       vs = new Immutable.fromJS({
         isFailed: true,
-        error: { message: this.state.errorMessage },
+        error: { message: hasError || errorMessage },
       });
     }
 
     return (
-      <ViewStateWrapper viewState={vs} className={viewStateWrapper}>
+      <ViewStateWrapper
+        viewState={vs}
+        className={viewStateWrapper}
+        hideChildrenWhenFailed={false}
+        onDismissError={onDismissError}
+      >
         {this.renderMessages()}
         {this.state.isConfigLoaded && (
           <ConfigurableSourceForm
+            hideCancel={hideCancel}
+            confirmText={confirmText}
+            canSubmit={canSubmit}
+            isSubmitting={isSubmitting}
             sourceFormConfig={this.state.selectedFormType}
-            onFormSubmit={this.submitEdit}
+            onFormSubmit={
+              this.isPreviewEngineRequired
+                ? this.handleCustomSubmit
+                : this.submitEdit
+            }
             onCancel={hide}
             key={sourceType}
             editing
@@ -279,6 +317,8 @@ export class EditSourceView extends PureComponent {
             initialValues={initValues}
             permissions={source.get("permissions")}
             EntityType="source"
+            showSpinnerAndText={showSpinnerAndText}
+            confirmButtonStyle={confirmButtonStyle}
           />
         )}
       </ViewStateWrapper>

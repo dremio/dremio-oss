@@ -8,6 +8,7 @@
     "module": "es2020",
     "moduleResolution": "nodenext",
     "noEmit": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2019"

@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   margin-right: 10px;
-  width: 87.5%;
+  width: 80%;
   &-container {
     display: flex;
     justify-content: space-between;
@@ -28,7 +28,7 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    margin-left: 8px;
+    margin-left: var(--dremio--spacing--1);
     font-weight: 600;
     color: var(--dremio--color--text--main);
   }
@@ -53,10 +53,9 @@
         .dremio-icon-button {
           padding: 0;
           width: 20px;
-          // This needs to be removed once the other icon is added. #YOUSIF
-          // &:first-of-type {
-          //   padding-right: 4px;
-          // }
+          &:first-of-type {
+            margin-right: var(--dremio--spacing--1);
+          }
         }
       }
     }

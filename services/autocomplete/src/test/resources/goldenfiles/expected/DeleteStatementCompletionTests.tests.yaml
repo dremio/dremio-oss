@@ -87,12 +87,18 @@
       label: "WHERE"
      -
       kind: "Keyword"
+      label: "."
+     -
+      kind: "Keyword"
+      label: "AS"
+     -
+      kind: "Keyword"
       label: ";"
      -
       kind: "Keyword"
       label: "USING"
     functionContext: null
-    hasMoreResults: false
+    hasMoreResults: true
  -
   description: "DELETE + FROM + TABLE + AS"
   input: "DELETE FROM EMP AS ^"

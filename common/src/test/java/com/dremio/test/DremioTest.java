@@ -182,6 +182,10 @@ public class DremioTest {
     }
   }
 
+  protected static String readResourceAsString(String fileName) {
+    return TestTools.readTestResourceAsString(fileName);
+  }
+
   private static class SystemManager {
 
     private final BufferPoolMXBean directBean;

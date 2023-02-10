@@ -19,8 +19,13 @@ import static com.dremio.exec.ExecConstants.COORDINATOR_ENABLE_HEAP_MONITORING;
 import static com.dremio.exec.ExecConstants.COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
 import static com.dremio.exec.ExecConstants.COORDINATOR_HEAP_MONITOR_DELAY_MILLIS;
 import static com.dremio.exec.ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING;
+import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_AGGRESSIVE_WIDTH_LOWER_BOUND;
 import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_LOW_MEM_THRESH_PERCENTAGE;
 import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITOR_DELAY_MILLIS;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.inject.Provider;
 
@@ -40,11 +45,14 @@ public class HeapMonitorManager implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HeapMonitorManager.class);
   private final Provider<OptionManager> optionManagerProvider;
   private final HeapClawBackStrategy heapClawBackStrategy;
+  private final List<HeapLowMemListener> lowMemListeners;
   private HeapMonitorThread heapMonitorThread;
-  private AdminBooleanValidator enableHeapMonitoringOption;
-  private RangeLongValidator clawBackThresholdOption;
-  private RangeLongValidator heapMonitorDelayOption;
-  private Role role;
+  private final AdminBooleanValidator enableHeapMonitoringOption;
+  private final RangeLongValidator clawBackThresholdOption;
+  private final RangeLongValidator lowMemThresholdOption;
+  private final RangeLongValidator aggressiveWidthOption;
+  private final RangeLongValidator heapMonitorDelayOption;
+  private final Role role;
 
   public HeapMonitorManager(Provider<OptionManager> optionManagerProvider,
                             HeapClawBackStrategy heapClawBackStrategy,
@@ -54,16 +62,22 @@ public class HeapMonitorManager implements Service {
     this.optionManagerProvider = optionManagerProvider;
     this.heapClawBackStrategy = heapClawBackStrategy;
     this.role = role;
+    this.lowMemListeners = new ArrayList<>();
 
     switch(role) {
       case COORDINATOR:
         this.enableHeapMonitoringOption = COORDINATOR_ENABLE_HEAP_MONITORING;
         this.clawBackThresholdOption = COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+        // As of now, low memory signalling is only for spilling operators in executors
+        this.lowMemThresholdOption = null;
+        this.aggressiveWidthOption = null;
         this.heapMonitorDelayOption = COORDINATOR_HEAP_MONITOR_DELAY_MILLIS;
         break;
       case EXECUTOR:
         this.enableHeapMonitoringOption = EXECUTOR_ENABLE_HEAP_MONITORING;
         this.clawBackThresholdOption = EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+        this.lowMemThresholdOption = EXECUTOR_HEAP_MONITORING_LOW_MEM_THRESH_PERCENTAGE;
+        this.aggressiveWidthOption = EXECUTOR_HEAP_MONITORING_AGGRESSIVE_WIDTH_LOWER_BOUND;
         this.heapMonitorDelayOption = EXECUTOR_HEAP_MONITOR_DELAY_MILLIS;
         break;
       default:
@@ -71,19 +85,40 @@ public class HeapMonitorManager implements Service {
     }
   }
 
+  /**
+   * Registers dremio low memory notification listeners.
+   *<p>
+   * Must be called before starting the {@code HeapMonitorManager}.
+   *</p>
+   * @param lowMemListener  any dremio component that wishes to receive low memory notifications.
+   */
+  public void addLowMemListener(HeapLowMemListener lowMemListener) {
+    if (lowMemThresholdOption != null) {
+      lowMemListeners.add(lowMemListener);
+    } else {
+      throw new UnsupportedOperationException("Low memory notifications are not supported by this manager");
+    }
+  }
+
   public void start() {
     OptionManager optionManager = optionManagerProvider.get();
     startHeapMonitorThread(optionManager.getOption(enableHeapMonitoringOption),
       optionManager.getOption(clawBackThresholdOption),
+      lowMemThresholdOption != null ? optionManager.getOption(lowMemThresholdOption) : 0,
+      aggressiveWidthOption != null ? optionManager.getOption(aggressiveWidthOption) : 0,
       optionManager.getOption(heapMonitorDelayOption));
     optionManager.addOptionChangeListener(new HeapOptionChangeListener(optionManager));
   }
 
   // Start heap monitor thread, if heap monitoring is enabled
-  private void startHeapMonitorThread(boolean enableHeapMonitoring, long thresholdPercentage, long heapMonitorDelayMillis) {
+  private void startHeapMonitorThread(boolean enableHeapMonitoring, long thresholdPercentage,
+                                      long lowMemThreshold, long aggressiveWidthLowerBound,
+                                      long heapMonitorDelayMillis) {
     if (enableHeapMonitoring) {
       logger.info("Starting heap monitor thread in " + role.name().toLowerCase());
-      heapMonitorThread = new HeapMonitorThread(heapClawBackStrategy, thresholdPercentage, heapMonitorDelayMillis, role);
+      lowMemListeners.forEach((x) -> x.changeLowMemOptions(lowMemThreshold, aggressiveWidthLowerBound));
+      heapMonitorThread = new HeapMonitorThread(heapClawBackStrategy, thresholdPercentage, lowMemThreshold,
+        heapMonitorDelayMillis, role, lowMemListeners);
       heapMonitorThread.start();
     }
   }
@@ -96,14 +131,19 @@ public class HeapMonitorManager implements Service {
   private class HeapOptionChangeListener implements OptionChangeListener {
     private boolean enableHeapMonitoring;
     private long thresholdPercentage;
+    private long lowMemThreshold;
+    private long aggressiveWidthLowerBound;
     private long heapMonitorDelayMillis;
-    private OptionManager optionManager;
+    private final OptionManager optionManager;
 
     public HeapOptionChangeListener(OptionManager optionManager) {
       this.optionManager = optionManager;
       this.enableHeapMonitoring = optionManager.getOption(enableHeapMonitoringOption);
       this.thresholdPercentage = optionManager.getOption(clawBackThresholdOption);
       this.heapMonitorDelayMillis = optionManager.getOption(heapMonitorDelayOption);
+      this.lowMemThreshold = (lowMemThresholdOption != null) ? optionManager.getOption(lowMemThresholdOption) : 0;
+      this.aggressiveWidthLowerBound = (aggressiveWidthOption != null) ?
+        optionManager.getOption(aggressiveWidthOption) : 0;
     }
 
     @Override
@@ -111,14 +151,22 @@ public class HeapMonitorManager implements Service {
       boolean newEnableHeapMonitoring = optionManager.getOption(enableHeapMonitoringOption);
       long newThresholdPercentage = optionManager.getOption(clawBackThresholdOption);
       long newHeapMonitorDelayMillis = optionManager.getOption(heapMonitorDelayOption);
-      if (newEnableHeapMonitoring != enableHeapMonitoring ||
-        newThresholdPercentage != thresholdPercentage || newHeapMonitorDelayMillis != heapMonitorDelayMillis) {
+      long newLowMemThreshold = (lowMemThresholdOption != null) ?
+        optionManager.getOption(lowMemThresholdOption) : 0;
+      long newAggressiveWidthLowerBound = (aggressiveWidthOption != null) ?
+        optionManager.getOption(aggressiveWidthOption) : 0;
+      if (newEnableHeapMonitoring != enableHeapMonitoring || newThresholdPercentage != thresholdPercentage ||
+        newLowMemThreshold != lowMemThreshold || newHeapMonitorDelayMillis != heapMonitorDelayMillis ||
+        newAggressiveWidthLowerBound != aggressiveWidthLowerBound) {
         logger.info("Heap monitor options changed.");
         stopHeapMonitorThread();
         enableHeapMonitoring = newEnableHeapMonitoring;
         thresholdPercentage = newThresholdPercentage;
         heapMonitorDelayMillis = newHeapMonitorDelayMillis;
-        startHeapMonitorThread(enableHeapMonitoring, thresholdPercentage, heapMonitorDelayMillis);
+        lowMemThreshold = newLowMemThreshold;
+        aggressiveWidthLowerBound = newAggressiveWidthLowerBound;
+        startHeapMonitorThread(enableHeapMonitoring, thresholdPercentage, lowMemThreshold, aggressiveWidthLowerBound,
+          heapMonitorDelayMillis);
       }
     }
   }

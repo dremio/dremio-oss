@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { cloneElement, createRef, PureComponent } from "react";
-import classNames from "classnames";
+import classNames from "clsx";
 import PropTypes from "prop-types";
 import Popover from "@mui/material/Popover";
 import { Tooltip } from "dremio-ui-lib";

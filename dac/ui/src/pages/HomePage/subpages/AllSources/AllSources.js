@@ -50,11 +50,11 @@ export class AllSources extends PureComponent {
 
   render() {
     const { location, sources, intl } = this.props;
-    const isExternalSource = location.pathname === "/sources/external/list";
-    const isDataPlaneSource = location.pathname === "/sources/dataplane/list";
-    const isObjectStorageSource =
-      location.pathname === "/sources/objectStorage/list";
-    const isMetastoreSource = location.pathname === "/sources/metastore/list";
+    const loc = location.pathname;
+    const isExternalSource = loc.includes("/sources/external/list");
+    const isDataPlaneSource = loc.includes("/sources/dataplane/list");
+    const isObjectStorageSource = loc.includes("/sources/objectStorage/list");
+    const isMetastoreSource = loc.includes("/sources/metastore/list");
 
     /*eslint no-nested-ternary: "off"*/
     const headerId = isExternalSource

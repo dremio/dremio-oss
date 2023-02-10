@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -33,6 +34,7 @@ import java.util.function.Function;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,26 +135,23 @@ public final class GoldenFileTestBuilder<I, O> {
         actualInputAndOutputList.add(inputAndOutput);
       }
 
-      // Calculate the file name
-      String callingMethodName = GoldenFileTestBuilder.getCallingMethodName();
-      String callingClassName = GoldenFileTestBuilder.getCallingClassName();
-      String fileName = callingClassName + "." + callingMethodName;
+
 
       // Write the actual values, so user's can diff with the expected and overwrite the golden file if the change is acceptable.
-      Path goldenFileActualPath = getGoldenFileActualPath(fileName);
+      Path goldenFileActualPath = getGoldenFileActualPath();
       writeActualGoldenFile(goldenFileActualPath, actualInputAndOutputList);
 
-      List<InputAndOutput<I, O>> expectedInputAndOutputList = readExpectedFile(fileName);
+      List<InputAndOutput<I, O>> expectedInputAndOutputList = readExpectedFile();
 
       // Assert equality
-      assertGoldenFilesAreEqual(fileName, expectedInputAndOutputList, actualInputAndOutputList);
+      assertGoldenFilesAreEqual(expectedInputAndOutputList, actualInputAndOutputList);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
   }
 
-  private List<InputAndOutput<I, O>> readExpectedFile(String fileName) {
-    String path = getGoldenFileResource(fileName);
+  private List<InputAndOutput<I, O>> readExpectedFile() {
+    String path = goldenFileResource();
     try {
       return objectMapper.readValue(
           Resources.getResource(path),
@@ -163,37 +162,53 @@ public final class GoldenFileTestBuilder<I, O> {
     }
   }
 
-  private static String getCallingMethodName() {
-    StackTraceElement[] stacktrace = Thread.currentThread().getStackTrace();
-    StackTraceElement e = stacktrace[3];//maybe this number needs to be corrected
-    String methodName = e.getMethodName();
-    return methodName;
+  public static String findFileName() {
+    Pair<String, String> callingClassAndMethod = GoldenFileTestBuilder.findCallingTestClassAndMethod();
+
+    return callingClassAndMethod.getLeft() + "." + callingClassAndMethod.getRight();
   }
 
-  private static String getCallingClassName() {
+  private static Pair<String, String> findCallingTestClassAndMethod() {
     StackTraceElement[] stElements = Thread.currentThread().getStackTrace();
     for (int i=1; i<stElements.length; i++) {
       StackTraceElement ste = stElements[i];
-      if (!ste.getClassName().equals(GoldenFileTestBuilder.class.getName()) && ste.getClassName().indexOf("java.lang.Thread")!=0) {
-        String[] classNamespaceTokens = ste.getClassName().split("\\.");
-        return classNamespaceTokens[classNamespaceTokens.length - 1];
+      if(ste.getClassName().equals(GoldenFileTestBuilder.class.getName())) {
+        continue;
+      } else if(ste.getClassName().indexOf("java.lang.Thread") == 0) {
+        continue;
+      }
+      try {
+        Class<?> clazz = Class.forName(ste.getClassName());
+        for(Method method : clazz.getMethods()) {
+          if(method.getName().equals(ste.getMethodName())
+            && method.getDeclaredAnnotation(Test.class) != null) {
+            String[] classNamespaceTokens = ste.getClassName().split("\\.");
+            return Pair.of(classNamespaceTokens[classNamespaceTokens.length - 1], ste.getMethodName());
+          }
+        }
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException(e);
       }
     }
-
-    return null;
+    throw new RuntimeException("No @Test method found");
   }
 
-  private static Path getGoldenFileActualPath(String fileName) throws IOException {
-    return Paths.get("target","goldenfiles", "actual", fileName + ".yaml");
+  private static Path getGoldenFileActualPath() throws IOException {
+    return Paths.get("target","goldenfiles", "actual", findFileName() + ".yaml");
   }
 
-  private static String getGoldenFileResource(String fileName) {
-    return "goldenfiles/expected/" + fileName + ".yaml";
+  public static String goldenFileResource() {
+    return "goldenfiles/expected/" + findFileName() + ".yaml";
   }
-  private static String messageToFix(String fileName) {
+
+  public static String inputFileResource() {
+    return "goldenfiles/input/" + findFileName() + ".yaml";
+  }
+
+  private static String messageToFix() {
     try {
-      String actualPath = getGoldenFileActualPath(fileName).toString();
-      String goldenPath = "src/test/resources/" + getGoldenFileResource(fileName);
+      String actualPath = getGoldenFileActualPath().toString();
+      String goldenPath = "src/test/resources/" + goldenFileResource();
       return ""
           + "To fix:\n"
           + "\t`cp " + actualPath+ " " + goldenPath + "`\n"
@@ -231,10 +246,9 @@ public final class GoldenFileTestBuilder<I, O> {
   }
 
   private static <I, O> void assertGoldenFilesAreEqual(
-    String fileName,
     List<InputAndOutput<I, O>> expectedInputAndOutputList,
     List<InputAndOutput<I, O>> actualInputAndOutputList) throws JsonProcessingException {
-    String messageToFix = messageToFix(fileName);
+    String messageToFix = messageToFix();
     Assert.assertEquals(messageToFix, expectedInputAndOutputList.size(), actualInputAndOutputList.size());
 
     for (int i = 0; i < expectedInputAndOutputList.size(); i++) {

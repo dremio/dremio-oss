@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.immutables.value.Value;
@@ -85,7 +84,8 @@ public abstract class MetadataRequestOptions {
   }
 
   MetadataRequestOptions cloneWith(String sourceName, VersionContext versionContext) {
-    Map<String, VersionContext> sourceVersionMapping = new HashMap<>(this.getSourceVersionMapping());
+    Map<String, VersionContext> sourceVersionMapping = CaseInsensitiveMap.newHashMap();
+    sourceVersionMapping.putAll(this.getSourceVersionMapping());
     sourceVersionMapping.put(sourceName,versionContext);
     return new ImmutableMetadataRequestOptions.Builder().from(this)
       .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
@@ -110,6 +110,20 @@ public abstract class MetadataRequestOptions {
   public static MetadataRequestOptions of(SchemaConfig schemaConfig) {
     return newBuilder()
       .setSchemaConfig(schemaConfig)
+      .build();
+  }
+
+  /**
+   * Create a new options instance with the given schema config and sourceVersionMapping.
+   *
+   * @param schemaConfig schema config
+   * @param sourceVersionMapping source version map
+   * @return metadata request options
+   */
+  public static MetadataRequestOptions of(SchemaConfig schemaConfig, Map<String, VersionContext> sourceVersionMapping) {
+    return newBuilder()
+      .setSchemaConfig(schemaConfig)
+      .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(sourceVersionMapping))
       .build();
   }
 

@@ -18,23 +18,26 @@ package com.dremio.service.commandpool;
 import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 
+import com.dremio.common.concurrent.ContextMigratingTask;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 
 /**
  * Wraps a {@link CommandPool.Command} to make it both {@link Runnable} and {@link Comparable}
  */
-public class CommandWrapper<T> implements Runnable, Comparable<CommandWrapper<T>> {
+public class CommandWrapper<T> implements ContextMigratingTask, Runnable, Comparable<CommandWrapper<T>> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CommandWrapper.class);
 
   private final String descriptor;
+  private final String spanName;
   private final CommandPool.Priority priority;
   private final long submittedTime;
   private final CommandPool.Command<T> command;
   private final CompletableFuture<T> future = new CompletableFuture<>();
 
-  CommandWrapper(CommandPool.Priority priority, String descriptor, long submittedTime, CommandPool.Command<T> command) {
+  CommandWrapper(CommandPool.Priority priority, String descriptor, String spanName, long submittedTime, CommandPool.Command<T> command) {
     this.descriptor = descriptor;
+    this.spanName = spanName;
     this.priority = priority;
     this.submittedTime = submittedTime;
     this.command = command;
@@ -46,6 +49,11 @@ public class CommandWrapper<T> implements Runnable, Comparable<CommandWrapper<T>
 
   CompletableFuture<T> getFuture() {
     return future;
+  }
+
+  @Override
+  public String getSpanName() {
+    return spanName;
   }
 
   @Override

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import java.nio.charset.StandardCharsets;
+
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BoundsChecking;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
@@ -22,13 +24,10 @@ import org.apache.arrow.vector.holders.VarCharHolder;
 import org.joda.time.chrono.ISOChronology;
 
 import com.dremio.exec.expr.fn.FunctionErrorContext;
-import com.google.common.base.Charsets;
 
 import io.netty.util.internal.PlatformDependent;
 
 public class StringFunctionHelpers {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StringFunctionHelpers.class);
-
   static final int RADIX = 10;
   static final long MAX_LONG = -Long.MAX_VALUE / RADIX;
   static final int MAX_INT = -Integer.MAX_VALUE / RADIX;
@@ -85,7 +84,7 @@ public class StringFunctionHelpers {
   private static int nfeL(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx){
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
-    String value = new String(buf, com.google.common.base.Charsets.UTF_8);
+    String value = new String(buf, StandardCharsets.UTF_8);
     throw errCtx.error()
       .message("Failure while attempting to cast value '%s' to Bigint.", value)
       .build();
@@ -94,7 +93,7 @@ public class StringFunctionHelpers {
   private static int nfeI(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx){
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
-    String value = new String(buf, com.google.common.base.Charsets.UTF_8);
+    String value = new String(buf, StandardCharsets.UTF_8);
     throw errCtx.error()
       .message("Failure while attempting to cast value '%s' to Integer.", value)
       .build();
@@ -206,14 +205,14 @@ public class StringFunctionHelpers {
   public static String toStringFromUTF8(int start, int end, ArrowBuf buffer) {
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
-    String s = new String(buf, Charsets.UTF_8);
+    String s = new String(buf, StandardCharsets.UTF_8);
     return s;
   }
 
   public static String toStringFromUTF16(int start, int end, ArrowBuf buffer) {
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
-    return new String(buf, Charsets.UTF_16);
+    return new String(buf, StandardCharsets.UTF_16);
   }
 
   private static final ISOChronology CHRONOLOGY = org.joda.time.chrono.ISOChronology.getInstanceUTC();

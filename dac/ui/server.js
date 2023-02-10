@@ -64,7 +64,7 @@ const getApiOrigin = (pattern) => {
 //     return {};
 //   }
 // };
-
+const TIMEOUT = 480000;
 // Job profiles load their css/js from /static/*, so redirect those calls as well
 settings.proxyPatterns.forEach((p) => {
   const target = p.target || getApiOrigin(p);
@@ -75,6 +75,8 @@ settings.proxyPatterns.forEach((p) => {
       target,
       changeOrigin: true,
       logLevel: "warn",
+      proxyTimeout: TIMEOUT,
+      timeout: TIMEOUT,
       onProxyRes(proxyRes, _req, res) {
         if (res.writableEnded) {
           return;

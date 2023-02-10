@@ -16,6 +16,7 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
+import static com.dremio.service.reflection.ReflectionUtils.getId;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 
 import java.util.Collection;
@@ -28,6 +29,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
+
+import org.apache.calcite.util.Pair;
 
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogUser;
@@ -48,10 +51,12 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS;
 import com.dremio.service.reflection.ReflectionStatus.CONFIG_STATUS;
+import com.dremio.service.reflection.ReflectionStatus.REFRESH_METHOD;
 import com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionField;
@@ -157,12 +162,12 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         .build());
     DremioTable table = entityExplorer.getTable(goal.getDatasetId());
     Preconditions.checkNotNull(table, "Dataset not present for reflection %s", id.getId());
-    return getReflectionStatus(goal, com.google.common.base.Optional.fromNullable(materializationStore.getLastMaterializationDone(id)), table);
+    return getReflectionStatus(goal, Optional.ofNullable(materializationStore.getLastMaterializationDone(id)), table);
   }
 
   @Override
   public ReflectionStatus getReflectionStatus(ReflectionGoal goal,
-                                              com.google.common.base.Optional<Materialization> lastMaterializationDone,
+                                              Optional<Materialization> lastMaterializationDone,
                                               DremioTable dremioTable) {
     ReflectionId id = goal.getId();
     // should never be called on a deleted reflection
@@ -175,7 +180,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         CONFIG_STATUS.OK,
         REFRESH_STATUS.SCHEDULED,
         AVAILABILITY_STATUS.NONE,
-        0, 0, 0);
+        0, -1, -1,
+        REFRESH_METHOD.NONE,-1);
     }
 
     final Optional<ReflectionEntry> entryOptional = Optional.ofNullable(entriesStore.get(id));
@@ -195,7 +201,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         CONFIG_STATUS.OK,
         refreshStatus,
         AVAILABILITY_STATUS.NONE,
-        0, 0, 0);
+        0, -1, -1,
+        REFRESH_METHOD.NONE,-1);
     }
 
     final ReflectionEntry entry = entryOptional.get();
@@ -229,11 +236,13 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     long lastDataFetch = -1;
     long expiresAt = -1;
+    long lastRefreshDuration = -1;
 
     // if no materialization available, can skip these
     if (lastMaterializationDone.isPresent()) {
       Materialization materialization = lastMaterializationDone.get();
       lastDataFetch = materialization.getLastRefreshFromPds();
+      lastRefreshDuration = materialization.getLastRefreshDurationMillis();
       expiresAt = Optional.ofNullable(materialization.getExpiration()).orElse(0L);
 
       final Set<String> activeHosts = getActiveHosts();
@@ -258,8 +267,22 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     int failureCount = entry.getNumFailures();
 
-    return new ReflectionStatus(true, configStatus, refreshStatus, availabilityStatus, failureCount,
-      lastDataFetch, expiresAt);
+    REFRESH_METHOD refreshMethod = REFRESH_METHOD.NONE;
+    if (entry.getRefreshMethod() != null) {
+      switch (entry.getRefreshMethod()) {
+        case FULL:
+          refreshMethod = REFRESH_METHOD.FULL;
+          break;
+        case INCREMENTAL:
+          refreshMethod = REFRESH_METHOD.INCREMENTAL;
+          break;
+        default:
+          refreshMethod = REFRESH_METHOD.NONE;
+      }
+    }
+
+    return new ReflectionStatus(true, configStatus, refreshStatus, availabilityStatus,
+      failureCount, lastDataFetch, expiresAt, refreshMethod, lastRefreshDuration);
   }
 
   private Set<String> getActiveHosts() {
@@ -323,34 +346,42 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     final Iterable<ExternalReflection> externalReflections = externalReflectionStore.getExternalReflections();
     Stream<AccelerationListManager.ReflectionInfo> reflections = StreamSupport.stream(goalReflections.spliterator(),
       false).map(goal -> {
-      final DatasetConfig datasetConfig = namespaceService.get().findDatasetByUUID(goal.getDatasetId());
-      final Optional<ReflectionStatus> statusOpt = getNoThrowStatus(goal.getId());
-      String combinedStatus = "UNKNOWN";
-      int numFailures = 0;
-      if (statusOpt.isPresent()) {
-        combinedStatus = statusOpt.get().getCombinedStatus().toString();
-        numFailures = statusOpt.get().getNumFailures();
-      }
+        try {
+          final DatasetConfig datasetConfig = namespaceService.get().findDatasetByUUID(goal.getDatasetId());
+          if (datasetConfig == null) {
+            return null;
+          }
+          final Optional<ReflectionStatus> statusOpt = getNoThrowStatus(goal.getId());
+          String combinedStatus = "UNKNOWN";
+          int numFailures = 0;
+          if (statusOpt.isPresent()) {
+            combinedStatus = statusOpt.get().getCombinedStatus().toString();
+            numFailures = statusOpt.get().getNumFailures();
+          }
 
-      return new AccelerationListManager.ReflectionInfo(
-        goal.getId().getId(),
-        goal.getName(),
-        goal.getType().toString(),
-        combinedStatus,
-        numFailures,
-        datasetConfig.getId().getId(),
-        quotedCompound(datasetConfig.getFullPathList()),
-        datasetConfig.getType().toString(),
-        JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getSortFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-        JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-        JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDistributionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-        JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(ReflectionDimensionField::getName).collect(Collectors.toList())),
-        JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(ReflectionMeasureField::getName).collect(Collectors.toList())),
-        JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDisplayFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-        null,
-        goal.getArrowCachingEnabled()
-      );
-    });
+          return new AccelerationListManager.ReflectionInfo(
+            goal.getId().getId(),
+            goal.getName(),
+            goal.getType().toString(),
+            combinedStatus,
+            numFailures,
+            datasetConfig.getId().getId(),
+            quotedCompound(datasetConfig.getFullPathList()),
+            datasetConfig.getType().toString(),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getSortFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDistributionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(ReflectionDimensionField::getName).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(ReflectionMeasureField::getName).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDisplayFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+            null,
+            goal.getArrowCachingEnabled()
+          );
+        } catch (Exception e) {
+          logger.error("Unable to get ReflectionInfo for {}", getId(goal), e);
+        }
+        return null;
+    }).filter(Objects::nonNull);
 
     Stream<AccelerationListManager.ReflectionInfo> externalReflectionsInfo = StreamSupport.stream
       (externalReflections.spliterator(), false)
@@ -489,5 +520,22 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     }
 
     return Optional.empty();
+  }
+
+  @Override
+  public long getTotalReflectionSize(ReflectionId reflectionId) {
+    Iterable<Refresh> refreshes = materializationStore.getRefreshesByReflectionId(reflectionId);
+    long size = 0;
+    for (Refresh refresh : refreshes) {
+      if (refresh.getMetrics() != null) {
+        size += Optional.ofNullable(refresh.getMetrics().getFootprint()).orElse(0L);
+      }
+    }
+    return size;
+  }
+
+  @Override
+  public Pair<MaterializationMetrics, Long> getReflectionSize(Materialization materialization) {
+    return materializationStore.getMetrics(materialization);
   }
 }

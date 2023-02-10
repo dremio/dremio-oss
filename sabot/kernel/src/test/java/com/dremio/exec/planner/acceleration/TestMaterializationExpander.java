@@ -16,7 +16,9 @@
 package com.dremio.exec.planner.acceleration;
 
 import static java.util.Arrays.asList;
+import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
 import java.util.Collections;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -24,8 +26,13 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * Tests for MaterializationExpander
@@ -163,5 +170,30 @@ public class TestMaterializationExpander {
     );
 
     Assert.assertFalse(MaterializationExpander.areRowTypesEqual(type1, type2));
+  }
+
+  /**
+   * Verifies that if catalog.getTable throws exception, MaterializationExpander handles it
+   * gracefully as an ExpansionException.
+   *
+   */
+  @Test (expected = MaterializationExpander.ExpansionException.class)
+  public void testExpansionExceptionOnGetTableException() {
+
+    NamespaceKey key = new NamespaceKey(Arrays.asList("__accelerator","r1", "m1"));
+    SqlConverter converter = Mockito.mock(SqlConverter.class);
+    CatalogService catalogService = Mockito.mock(CatalogService.class);
+    Catalog catalog = Mockito.mock(Catalog.class);
+    when(converter.getCatalog()).thenReturn(catalog);
+    when(catalog.getTableForQuery(key)).thenThrow(new IllegalStateException("Some underlying storage plugin issue"));
+    MaterializationExpander expander = MaterializationExpander.of(converter, catalogService);
+    try {
+      expander.expandSchemaPath(key.getPathComponents());
+    } catch (MaterializationExpander.ExpansionException e) {
+      Assert.assertEquals("Unable to get accelerator table: [__accelerator, r1, m1]", e.getMessage());
+      Assert.assertEquals("Some underlying storage plugin issue", e.getCause().getMessage());
+      throw e;
+    }
+    Assert.fail("Expected MaterializationExpander.ExpansionException");
   }
 }

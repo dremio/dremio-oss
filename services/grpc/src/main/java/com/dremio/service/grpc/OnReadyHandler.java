@@ -71,6 +71,7 @@ public abstract class OnReadyHandler<V> implements Runnable {
     executor.execute(this::handleStreamReady);
   }
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private void handleStreamReady() {
     // Every run try to send as many responses as the client is willing to receive. This also handles
     // cancellation and depleting enqueued requests in SerializedExecutor#queuedRunnables.
@@ -113,6 +114,7 @@ public abstract class OnReadyHandler<V> implements Runnable {
     }
 
     @Override
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     protected void runException(Runnable command, Throwable t) {
       responseObserver.onError(t);
       iterator = null;

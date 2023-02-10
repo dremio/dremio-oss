@@ -46,7 +46,7 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
   public ExplainHandler(SqlHandlerConfig config) {
     super();
     this.config = new SqlHandlerConfig(config.getContext(), config.getConverter(), config.getObserver(),
-      config.getMaterializations().orNull());
+      config.getMaterializations().orElse(null));
   }
 
   @Override

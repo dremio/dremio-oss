@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hints xmlns="https://jeremylong.github.io/DependencyCheck/dependency-hint.1.1.xsd">
+    <!-- https://github.com/jeremylong/DependencyCheck/issues/4930 -->
+    <hint>
+        <given>
+            <evidence type="vendor" source="pom" name="groupid" value="org.apache.parquet" confidence="HIGHEST"/>
+        </given>
+        <add>
+            <evidence type="product" source="hint analyzer" name="product" value="parquet-mr" confidence="HIGHEST"/>
+            <evidence type="vendor" source="hint analyzer" name="vendor" value="apache" confidence="HIGHEST"/>
+        </add>
+    </hint>
+</hints>

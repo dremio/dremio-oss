@@ -18,13 +18,11 @@ package com.dremio.exec.planner.acceleration.substitution;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
@@ -36,7 +34,6 @@ import org.apache.calcite.sql.SqlExplainLevel;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.tablefunctions.ExternalQueryScanCrel;
 import com.dremio.reflection.rules.ReplacementPointer;
@@ -161,11 +158,11 @@ public final class SubstitutionUtils {
     return used.value;
   }
 
-  private static ExternalQueryDescriptor descriptor(ExternalQueryScanCrel eq) {
+  public static ExternalQueryDescriptor descriptor(ExternalQueryScanCrel eq) {
     return new ExternalQueryDescriptor(eq.getPluginId().getName(), eq.getSql());
   }
 
-  private static class ExternalQueryDescriptor {
+  public static class ExternalQueryDescriptor {
     private final String source;
     private final String query;
 
@@ -193,7 +190,7 @@ public final class SubstitutionUtils {
     }
   }
 
-  private static Set<ExternalQueryDescriptor> findExternalQueries(RelNode query) {
+  public static Set<ExternalQueryDescriptor> findExternalQueries(RelNode query) {
     Set<ExternalQueryDescriptor> externalQueries = new HashSet<>();
     query.accept(new RoutingShuttle() {
       @Override
@@ -206,14 +203,6 @@ public final class SubstitutionUtils {
       }
     });
     return externalQueries;
-  }
-
-  public static List<DremioMaterialization> findApplicableMaterializations(
-    final RelNode query, final Collection<DremioMaterialization> materializations) {
-    final Set<List<String>> queryTablesUsed = SubstitutionUtils.findTables(query);
-    final Set<List<String>> queryVdsUsed = SubstitutionUtils.findExpansionNodes(query);
-    final Set<ExternalQueryDescriptor> externalQueries = findExternalQueries(query);
-    return materializations.stream().filter(materialization -> usesTableOrVds(queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel())).collect(Collectors.toList());
   }
 
   /**

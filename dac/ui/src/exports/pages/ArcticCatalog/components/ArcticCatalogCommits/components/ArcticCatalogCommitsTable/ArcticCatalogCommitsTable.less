@@ -55,9 +55,69 @@
       }
 
       .commit-time {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        color: var(--dremio--color--neutral--850);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--dremio--color--icon--main);
+
+        &__time {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: var(--dremio--color--neutral--850);
+        }
+
+        &__buttons {
+          display: flex;
+          align-items: center;
+
+          // Float the buttons so that it does not affect the line-height
+          // Without this, the table will think it's scrolling when switching from Skeleton -> Data since the line heights dont match
+          float: left;
+
+          &--data,
+          &--more {
+            opacity: 0;
+          }
+
+          &--more .settings-button {
+            height: 32px;
+            width: 32px;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            color: inherit;
+            padding: var(--dremio--spacing--05);
+            transition: color 125ms ease-in-out;
+            background-color: transparent;
+            border: none;
+
+            .more-icon {
+              height: 24px;
+              width: 24px;
+            }
+
+            &:hover {
+              color: var(--dremio--color--link);
+            }
+          }
+
+          &--more.active {
+            opacity: 1;
+          }
+        }
+      }
+
+      &:hover {
+        cursor: default !important;
+
+        .commit-time {
+          &__buttons {
+            &--data,
+            &--more {
+              opacity: 1;
+            }
+          }
+        }
       }
     }
   }

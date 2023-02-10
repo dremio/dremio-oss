@@ -21,8 +21,10 @@ import static com.dremio.service.reflection.ReflectionOptions.NESSIE_REFLECTIONS
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -31,6 +33,7 @@ import javax.inject.Provider;
 import org.apache.iceberg.Table;
 
 import com.dremio.common.FSConstants;
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
@@ -90,6 +93,7 @@ import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
@@ -111,6 +115,12 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
 
   public AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
+  }
+
+  // Constructor exclusively for AccelerationStoragePluginTests
+  protected AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider, MaterializationStore matStore) {
+    super(config, context, name, idProvider);
+    materializationStore = matStore;
   }
 
   @Override
@@ -201,6 +211,7 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     return materialization;
   }
 
+  @SuppressForbidden // guava Optional
   @Override
   public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     List<String> components = normalizeComponents(datasetPath.getComponents());
@@ -322,9 +333,9 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
 
   @Override
   public DatasetMetadata getDatasetMetadata(
-      DatasetHandle datasetHandle,
-      PartitionChunkListing chunkListing,
-      GetMetadataOption... options
+     DatasetHandle datasetHandle,
+     PartitionChunkListing chunkListing,
+     GetMetadataOption... options
   ) throws ConnectorException {
     return datasetHandle.unwrap(FileDatasetHandle.class).getDatasetMetadata(options);
   }
@@ -348,10 +359,10 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
 
   @Override
   public MetadataValidity validateMetadata(
-      BytesOutput signature,
-      DatasetHandle datasetHandle,
-      DatasetMetadata metadata,
-      ValidateMetadataOption... options
+     BytesOutput signature,
+     DatasetHandle datasetHandle,
+     DatasetMetadata metadata,
+     ValidateMetadataOption... options
   ) {
     return MetadataValidity.INVALID;
   }
@@ -396,6 +407,9 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
       return;
     }
 
+    // Keep track of refreshes that we have already deleted, so we do not attempt to delete the same path repeatedly.
+    Set<NamespaceKey> deletedPaths = new HashSet<>();
+
     for (Refresh r : refreshes) {
       try {
         //TODO once DX-10850 is fixed we should no longer need to split the refresh path into separate components
@@ -403,12 +417,15 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
           .add(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME)
           .addAll(PathUtils.toPathComponents(r.getPath()))
           .build());
-        logger.debug("deleting refresh {}", tableSchemaPath);
-        boolean isLayered = r.getIsIcebergRefresh() != null && r.getIsIcebergRefresh();
-        TableMutationOptions tableMutationOptions =  TableMutationOptions.newBuilder()
-                                                        .setIsLayered(isLayered)
-                                                        .setShouldDeleteCatalogEntry(isLayered).build();
-        super.dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
+        if (!deletedPaths.contains(tableSchemaPath)) {
+          deletedPaths.add(tableSchemaPath);
+          logger.debug("deleting refresh {}", tableSchemaPath);
+          boolean isLayered = r.getIsIcebergRefresh() != null && r.getIsIcebergRefresh();
+          TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
+            .setIsLayered(isLayered)
+            .setShouldDeleteCatalogEntry(isLayered).build();
+          fileSystemPluginDropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
+        }
       } catch (Exception e) {
         logger.warn("Couldn't delete refresh {}", r.getId().getId(), e);
       } finally {
@@ -420,5 +437,11 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
   @Override
   protected boolean ctasToUseIceberg() {
     return MetadataRefreshUtils.unlimitedSplitsSupportEnabled(getContext().getOptionManager());
+  }
+
+  // Calls FileSystemPlugin dropTable method. Used when dropTable is called, created to allow for ease of testing.
+  @VisibleForTesting
+  void fileSystemPluginDropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    super.dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
   }
 }

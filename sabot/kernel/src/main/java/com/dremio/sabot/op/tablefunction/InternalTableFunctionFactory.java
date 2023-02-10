@@ -18,8 +18,10 @@ package com.dremio.sabot.op.tablefunction;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.store.dfs.EasySplitGenTableFunction;
 import com.dremio.exec.store.dfs.SplitAssignmentTableFunction;
 import com.dremio.exec.store.dfs.SplitGenTableFunction;
+import com.dremio.exec.store.easy.EasyScanTableFunction;
 import com.dremio.exec.store.iceberg.DeletedDataFilesMetadataTableFunction;
 import com.dremio.exec.store.iceberg.IcebergDeleteFileAggTableFunction;
 import com.dremio.exec.store.iceberg.IcebergDmlMergeDuplicateCheckTableFunction;
@@ -47,6 +49,8 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
       case DATA_FILE_SCAN:
         SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
         return plugin.createScanTableFunction(fec, context, props, functionConfig);
+      case EASY_DATA_FILE_SCAN:
+        return getEasyScanTableFunction(fec, context, props, functionConfig);
       case SPLIT_GEN_MANIFEST_SCAN:
       case METADATA_MANIFEST_FILE_SCAN:
       case ICEBERG_MANIFEST_SCAN:
@@ -54,6 +58,8 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
         return new ManifestScanTableFunction(context, functionConfig, manifestFileProcessor);
       case SPLIT_GENERATION:
         return new SplitGenTableFunction(fec, context, functionConfig);
+      case EASY_SPLIT_GENERATION:
+        return new EasySplitGenTableFunction(fec, context, functionConfig);
       case FOOTER_READER:
         SupportsInternalIcebergTable internalIcebergTablePlugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
         return internalIcebergTablePlugin.getFooterReaderTableFunction(fec, context, props, functionConfig);
@@ -77,5 +83,9 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
       default:
         throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());
     }
+  }
+
+  public static TableFunction getEasyScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+    return new EasyScanTableFunction(fec, context, props, functionConfig);
   }
 }

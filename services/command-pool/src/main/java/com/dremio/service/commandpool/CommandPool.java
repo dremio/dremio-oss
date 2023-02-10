@@ -62,5 +62,5 @@ public interface CommandPool extends Service {
    * @param command {@link Command} submitted to the thread pool
    * @param runInSameThread command is executed in the calling thread regardless of CommandPool implementation
    */
-  <V> CompletableFuture<V> submit(Priority priority, String descriptor, Command<V> command, boolean runInSameThread);
+  <V> CompletableFuture<V> submit(Priority priority, String descriptor, String spanName, Command<V> command, boolean runInSameThread);
 }

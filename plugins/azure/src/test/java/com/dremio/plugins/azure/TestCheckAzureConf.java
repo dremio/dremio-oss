@@ -40,7 +40,7 @@ public class TestCheckAzureConf {
   private static Validator validator;
 
   private static final String VALID_ACCESS_KEY = Base64.encode("access_key".getBytes(Charset.defaultCharset()));
-  private static final String INVALID_ACCESS_KEY = "accessKey";
+  private static final String INVALID_ACCESS_KEY = "access%Key"; // This is not a URL or a valid azure access key.
   private static final String AZURE_STORAGE_ACCOUNT_NAME = "azurestorage";
 
   @BeforeClass
@@ -65,6 +65,26 @@ public class TestCheckAzureConf {
   public void testValidAzureConfig() {
     final AzureStorageConf conf = new AzureStorageConf();
     conf.accessKey = VALID_ACCESS_KEY;
+    conf.accountName = AZURE_STORAGE_ACCOUNT_NAME;
+    final Set<ConstraintViolation<AzureStorageConf>> violations = validator.validate(conf);
+    Assert.assertTrue(violations.isEmpty());
+  }
+
+  @Test
+  public void testValidAzureAccessKeyURL() {
+    final AzureStorageConf conf = new AzureStorageConf();
+    // This is a URL to an azure access key but the string itself is not a valid azure access key.
+    conf.accessKey = "azure-vault+https://test.vault.azure.net/secret";
+    conf.accountName = AZURE_STORAGE_ACCOUNT_NAME;
+    final Set<ConstraintViolation<AzureStorageConf>> violations = validator.validate(conf);
+    Assert.assertTrue(violations.isEmpty());
+  }
+
+  @Test
+  public void testValidAzureAccessKeyURL2() {
+    final AzureStorageConf conf = new AzureStorageConf();
+    // As long as the access key is an url, it will pass CheckAzureConfValidator. ManagedStoragePlugin will fail when resolving the secret.
+    conf.accessKey = "data:text/plain;base64,invalidAccessKey";
     conf.accountName = AZURE_STORAGE_ACCOUNT_NAME;
     final Set<ConstraintViolation<AzureStorageConf>> violations = validator.validate(conf);
     Assert.assertTrue(violations.isEmpty());
@@ -130,7 +150,7 @@ public class TestCheckAzureConf {
   public void testAccessKeyWhichThrowsIllegalArgumentException() {
     final AzureStorageConf conf = new AzureStorageConf();
     conf.accountName = AZURE_STORAGE_ACCOUNT_NAME;
-    conf.accessKey = "abc$";
+    conf.accessKey = "SecretString%.isNotAValidURI"; // This is not a URL or a valid azure access key.
     final Set<ConstraintViolation<AzureStorageConf>> violations = validator.validate(conf);
     Assert.assertEquals(1, violations.size());
     final ConstraintViolation<AzureStorageConf> data = violations.iterator().next();

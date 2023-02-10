@@ -29,6 +29,13 @@ import { ENTITY_TYPES } from "@app/constants/Constants";
 import { generateEnumFromList } from "@app/utils/enumUtils";
 import { getEntity } from "@app/selectors/resources";
 
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import {
+  addProjectBase,
+  rmProjectBase,
+} from "dremio-ui-common/utilities/projectBase.js";
+
 const homeSelector = (state) => state.home;
 
 export function getHomeForCurrentUser(state) {
@@ -52,9 +59,13 @@ export function getHomeForCurrentUser(state) {
 }
 
 export const getNormalizedEntityPath = (state) =>
-  getNormalizedEntityPathByUrl(getLocation(state).pathname, getUserName(state));
+  getNormalizedEntityPathByUrl(
+    rmProjectBase(getLocation(state).pathname) || "/",
+    getUserName(state)
+  );
 
-export const getNormalizedEntityPathByUrl = (urlPath, currentUserName) => {
+export const getNormalizedEntityPathByUrl = (url, currentUserName) => {
+  let urlPath = url;
   if (urlPath === "/") {
     urlPath = `/home/${encodeURIComponent("@" + currentUserName)}`;
   }
@@ -210,6 +221,13 @@ export const getSourceNames = (state) =>
 
 export const getSortedSources = getSortedResourceSelector(getSources);
 
+export const selectSourceByName = (name) => {
+  return createSelector([getSortedSources], (sources) => {
+    if (!sources) return null;
+    return sources.toJS().find((source) => source.name === name);
+  });
+};
+
 //#endregion
 
 //#region content selectors
@@ -331,15 +349,15 @@ export const getQueryUrl = (fullPathList) => {
     fullPathList.length > 1,
     "fullPathList must contain at least 2 elements: root source or home space and file/folder name"
   );
-  return (
+  return addProjectBase(
     "/" +
-    [
-      getRootType(fullPathList),
-      fullPathList[0],
-      constructFullPath(fullPathList.slice(1)),
-    ]
-      .map(encodeURIComponent)
-      .join("/")
+      [
+        getRootType(fullPathList),
+        fullPathList[0],
+        constructFullPath(fullPathList.slice(1)),
+      ]
+        .map(encodeURIComponent)
+        .join("/")
   );
 };
 
@@ -387,8 +405,18 @@ const getRootEntityPathV3 = (state, entityId) => {
 export const getRootEntityLinkUrl = (state, entityId) => {
   const type = getRootEntityTypeByIdV3(state, entityId);
   const path = getRootEntityPathV3(state, entityId);
+  const resourceId = path.map(encodeURIComponent).join("/");
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
 
-  return "/" + path.insert(0, type).map(encodeURIComponent).join("/");
+  switch (type) {
+    case ENTITY_TYPES.space:
+      return commonPaths.space.link({ resourceId, projectId });
+    case ENTITY_TYPES.source:
+      return commonPaths.source.link({ resourceId, projectId });
+    case ENTITY_TYPES.home:
+    default:
+      return commonPaths.home.link({ projectId });
+  }
 };
 
 /**

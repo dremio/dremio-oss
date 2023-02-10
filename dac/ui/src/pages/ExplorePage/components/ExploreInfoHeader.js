@@ -391,6 +391,7 @@ export class ExploreInfoHeader extends PureComponent {
 
     return (
       <DatasetItemLabel
+        showSummaryOverlay={false}
         customNode={
           // todo: string replace loc
           <div className="flexbox-truncate-text-fix">
@@ -440,10 +441,88 @@ export class ExploreInfoHeader extends PureComponent {
     );
   }
 
+  // renders a generic header when looking at new failed queries in the SQL editor tab
+  renderGenericHeader(dataset) {
+    const { activeScript, currentSql, intl, location } = this.props;
+
+    const nameForDisplay = ExploreInfoHeader.getNameForDisplay(
+      dataset,
+      activeScript,
+      location
+    );
+
+    const isUnsavedScript = exploreUtils.isEditedScript(
+      activeScript,
+      currentSql
+    );
+
+    const edited = intl.formatMessage({ id: "NewQuery.Unsaved" });
+    const typeIcon = getIconDataTypeFromDatasetType(SCRIPT);
+    const isUntitledScript = !this.props.activeScript.name;
+    const labelText = `${nameForDisplay}${isUnsavedScript ? edited : ""}`;
+
+    const LabelElement = (
+      <EllipsedText text={labelText} className="heading">
+        <span
+          className={`page-title ${isUntitledScript ? "--untitledScript" : ""}`}
+        >
+          {nameForDisplay}
+        </span>
+        <span className="dataset-edited" data-qa="dataset-edited">
+          {isUnsavedScript ? edited : ""}
+        </span>
+      </EllipsedText>
+    );
+
+    return (
+      <DatasetItemLabel
+        customNode={
+          <div className="flexbox-truncate-text-fix">
+            <div
+              style={{
+                ...style.dbName,
+                ...style.scriptHeader,
+              }}
+              data-qa={nameForDisplay}
+            >
+              {isUntitledScript ? (
+                LabelElement
+              ) : (
+                <Tooltip enterDelay={1000} title={labelText}>
+                  {LabelElement}
+                </Tooltip>
+              )}
+            </div>
+            {<DocumentTitle title={nameForDisplay} />}
+          </div>
+        }
+        showFullPath
+        placement="right"
+        typeIcon={typeIcon}
+        shouldShowOverlay={false}
+      />
+    );
+  }
+
   renderLeftPartOfHeader(dataset) {
+    const { location, pageType } = this.props;
+
     if (!dataset.get("datasetType")) {
-      return <div style={style.leftPart} />;
+      if (exploreUtils.isSqlEditorTab(location)) {
+        return (
+          <div style={style.leftPart}>
+            <div style={style.leftWrap}>
+              <div className="title-wrap" style={style.titleWrap}>
+                {this.renderGenericHeader(dataset)}
+              </div>
+            </div>
+          </div>
+        );
+      } else {
+        return <div style={style.leftPart}></div>;
+      }
     }
+
     return (
       <div style={style.leftPart}>
         <div style={style.leftWrap}>
@@ -453,7 +532,7 @@ export class ExploreInfoHeader extends PureComponent {
         </div>
         <PageTypeButtons
           dataQa="page-type-buttons"
-          selectedPageType={this.props.pageType}
+          selectedPageType={pageType}
           dataset={dataset}
         />
       </div>

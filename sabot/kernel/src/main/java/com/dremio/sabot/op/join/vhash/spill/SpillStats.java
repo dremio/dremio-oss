@@ -17,6 +17,7 @@ package com.dremio.sabot.op.join.vhash.spill;
 
 public class SpillStats {
   private long spillCount;
+  private long heapSpillCount;
   private long replayCount;
 
   // write stats
@@ -46,6 +47,14 @@ public class SpillStats {
 
   public void incrementSpillCount() {
     spillCount++;
+  }
+
+  public long getHeapSpillCount() {
+    return heapSpillCount;
+  }
+
+  public void incrementHeapSpillCount() {
+    heapSpillCount++;
   }
 
   public void incrementOOBSends(){

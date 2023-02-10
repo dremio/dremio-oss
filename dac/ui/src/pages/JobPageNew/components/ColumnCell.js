@@ -15,11 +15,11 @@
  */
 import { useState, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import { Tooltip } from "@app/components/Tooltip";
 import "./JobsContent.less";
 
-const ColumnCell = ({ data, isNumeric }) => {
+const ColumnCell = ({ data, isNumeric, className }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const cellRef = useRef(null);
@@ -62,7 +62,8 @@ const ColumnCell = ({ data, isNumeric }) => {
           {
             jobsContent__numericContent: isNumeric,
             "dremio-typography-tabular-numeric": isNumeric,
-          }
+          },
+          { [`jobsContent__${className}`]: className }
         )}
       >
         {data}
@@ -87,6 +88,7 @@ const ColumnCell = ({ data, isNumeric }) => {
 ColumnCell.propTypes = {
   data: PropTypes.string,
   isNumeric: PropTypes.bool,
+  className: PropTypes.string,
 };
 
 ColumnCell.defaultProps = {

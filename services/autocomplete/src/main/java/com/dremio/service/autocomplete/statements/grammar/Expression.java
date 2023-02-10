@@ -67,7 +67,8 @@ public final class Expression extends LeafStatement {
           new HashSet<>(FunctionDictionary
             .create(
               autocompleteEngineContext.getOperatorTable(),
-              autocompleteEngineContext.getCatalog())
+              autocompleteEngineContext.getCatalog(),
+              false)
             .getValues())),
         null));
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.boost;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +44,6 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 
 /**
@@ -211,8 +212,8 @@ public class BoostOperator extends ScanOperator {
 
     int i = 0;
     for (ArrowColumnWriter writer : currentWriters) {
-      splitVector.setSafe(i, writer.splitPath.getBytes(Charsets.UTF_8), 0, writer.splitPath.length());
-      columnVector.setSafe(i, writer.column.getBytes(Charsets.UTF_8), 0, writer.column.length());
+      splitVector.setSafe(i, writer.splitPath.getBytes(UTF_8), 0, writer.splitPath.length());
+      columnVector.setSafe(i, writer.column.getBytes(UTF_8), 0, writer.column.length());
       boostedFlagVector.setSafe(i, 1);
       i++;
     }

@@ -24,18 +24,18 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.fun.SqlBaseContextVariable;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 
-import com.google.common.collect.ImmutableList;
+import com.dremio.exec.catalog.udf.UserDefinedFunctionArgumentOperator;
 import com.google.common.collect.Iterables;
 
 public class FunctionOperatorTable implements SqlOperatorTable {
-  private final List<FunctionParameter> functionParameterList;
+  private final List<SqlOperator> functionParameterList;
 
-  public FunctionOperatorTable(List<FunctionParameter> functionParameterList) {
-    this.functionParameterList = functionParameterList;
+  public FunctionOperatorTable(String udfName,
+    List<FunctionParameter> functionParameters) {
+    this.functionParameterList =
+      UserDefinedFunctionArgumentOperator.createArgumentOperator(udfName, functionParameters);
   }
 
   @Override public void lookupOperatorOverloads(
@@ -54,16 +54,12 @@ public class FunctionOperatorTable implements SqlOperatorTable {
 
     String name = Iterables.getOnlyElement(opName.names);
     functionParameterList.stream()
-      .filter(param -> nameMatcher.matches(param.getName(), name))
-      .findFirst()
-      .map(SqlArgumentContextVariable::create)
-      .ifPresent(operatorList::add);
+        .filter(param -> nameMatcher.matches(name, param.getName()))
+        .forEach(operatorList::add);
   }
 
   @Override public List<SqlOperator> getOperatorList() {
-    return functionParameterList.stream()
-      .map(SqlArgumentContextVariable::create)
-      .collect(ImmutableList.toImmutableList());
+    return functionParameterList;
   }
 
   @Override public boolean equals(Object o) {
@@ -79,19 +75,5 @@ public class FunctionOperatorTable implements SqlOperatorTable {
 
   @Override public int hashCode() {
     return Objects.hash(functionParameterList);
-  }
-}
-
-class SqlArgumentContextVariable extends SqlBaseContextVariable {
-  protected SqlArgumentContextVariable(String name,
-    SqlReturnTypeInference returnType) {
-    super(name, returnType, SqlFunctionCategory.USER_DEFINED_FUNCTION);
-  }
-
-  static SqlArgumentContextVariable create(FunctionParameter functionParameter) {
-    return new SqlArgumentContextVariable(
-      functionParameter.getName(),
-      opBinding -> functionParameter.getType(opBinding.getTypeFactory())
-    );
   }
 }

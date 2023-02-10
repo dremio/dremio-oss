@@ -16,6 +16,8 @@
 package com.dremio.service.nessie;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.projectnessie.versioned.CommitMetaSerializer.METADATA_SERIALIZER;
+import static org.projectnessie.versioned.persist.tests.DatabaseAdapterTestUtils.ALWAYS_THROWING_ATTACHMENT_CONSUMER;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -28,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +50,6 @@ import org.projectnessie.versioned.persist.adapter.ContentAndState;
 import org.projectnessie.versioned.persist.adapter.ContentId;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapterConfig;
-import org.projectnessie.versioned.persist.adapter.GlobalLogCompactionParams;
 import org.projectnessie.versioned.persist.adapter.ImmutableCommitParams;
 import org.projectnessie.versioned.persist.adapter.KeyFilterPredicate;
 import org.projectnessie.versioned.persist.adapter.KeyListEntry;
@@ -57,6 +59,7 @@ import org.projectnessie.versioned.persist.tests.extension.NessieDbAdapter;
 import org.projectnessie.versioned.persist.tests.extension.NessieDbAdapterConfigItem;
 import org.projectnessie.versioned.persist.tests.extension.NessieDbAdapterName;
 import org.projectnessie.versioned.persist.tests.extension.NessieExternalDatabase;
+import org.projectnessie.versioned.store.DefaultStoreWorker;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
@@ -115,10 +118,9 @@ class ITCommitLogMaintenance {
     ContentId contentId = ContentId.of(UUID.randomUUID().toString());
     adapter().commit(ImmutableCommitParams.builder()
       .toBranch(BranchName.of("main"))
-      .commitMetaSerialized(worker.getMetadataSerializer().toBytes(CommitMeta.fromMessage("test-" + key)))
-      .addPuts(KeyWithBytes.of(key, contentId, worker.getPayload(table),
-        worker.toStoreOnReferenceState(table)))
-      .putGlobal(contentId, worker.toStoreGlobalState(table))
+      .commitMetaSerialized(METADATA_SERIALIZER.toBytes(CommitMeta.fromMessage("test-" + key)))
+      .addPuts(KeyWithBytes.of(key, contentId, DefaultStoreWorker.payloadForContent(table),
+        DefaultStoreWorker.instance().toStoreOnReferenceState(table, ALWAYS_THROWING_ATTACHMENT_CONSUMER)))
       .build());
   }
 
@@ -126,7 +128,7 @@ class ITCommitLogMaintenance {
     clockMillis.set(timestamp);
     adapter().commit(ImmutableCommitParams.builder()
       .toBranch(BranchName.of("main"))
-      .commitMetaSerialized(worker.getMetadataSerializer().toBytes(CommitMeta.fromMessage("del-" + key)))
+      .commitMetaSerialized(METADATA_SERIALIZER.toBytes(CommitMeta.fromMessage("del-" + key)))
       .addDeletes(key)
       .build());
   }
@@ -139,19 +141,20 @@ class ITCommitLogMaintenance {
 
   private void validateActiveKeys(Collection<Key> activeKeys) throws ReferenceNotFoundException {
     ReferenceInfo<ByteString> main = adapter().namedRef("main", GetNamedRefsParams.DEFAULT);
-    assertThat(adapter().keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL).map(KeyListEntry::getKey))
-      .containsExactlyInAnyOrderElementsOf(activeKeys);
+    try (Stream<KeyListEntry> keys = adapter().keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL)) {
+      assertThat(keys.map(KeyListEntry::getKey)).containsExactlyInAnyOrderElementsOf(activeKeys);
+    }
 
-    Map<Key, ContentAndState<ByteString>> values = adapter()
+    Map<Key, ContentAndState> values = adapter()
       .values(main.getHash(), activeKeys, KeyFilterPredicate.ALLOW_ALL);
 
-    assertThat(values).hasSize(activeKeys.size());
     activeKeys.forEach(k -> {
-      ContentAndState<ByteString> value = values.get(k);
-      ByteString refState = value.getRefState();
-      IcebergTable table = (IcebergTable) worker.valueFromStore(refState, value::getGlobalState);
+      ContentAndState value = values.get(k);
+      IcebergTable table = (IcebergTable) worker.valueFromStore(value.getPayload(), value.getRefState(),
+        value::getGlobalState, keys -> Stream.empty());
       assertThat(table.getMetadataLocation()).isEqualTo(k.toString() + "-loc");
     });
+    assertThat(values).hasSize(activeKeys.size());
   }
 
   @Test
@@ -167,7 +170,6 @@ class ITCommitLogMaintenance {
     clockMillis.set(150);
 
     EmbeddedRepoMaintenanceParams params = EmbeddedRepoMaintenanceParams.builder()
-      .setGlobalLogCompactionParams(GlobalLogCompactionParams.builder().isEnabled(false).build())
       .setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder().build())
       .build();
 
@@ -258,7 +260,6 @@ class ITCommitLogMaintenance {
     clockMillis.set(150);
 
     EmbeddedRepoMaintenanceParams params = EmbeddedRepoMaintenanceParams.builder()
-      .setGlobalLogCompactionParams(GlobalLogCompactionParams.builder().isEnabled(false).build())
       .setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder().setDryRun(true).build())
       .build();
 
@@ -287,7 +288,6 @@ class ITCommitLogMaintenance {
     AtomicInteger commits = new AtomicInteger();
     AtomicInteger keyListEntities = new AtomicInteger();
     EmbeddedRepoMaintenanceParams params = EmbeddedRepoMaintenanceParams.builder()
-      .setGlobalLogCompactionParams(GlobalLogCompactionParams.builder().isEnabled(false).build())
       .setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder()
         .setProgressReporter(new EmbeddedRepoPurgeParams.ProgressConsumer() {
           @Override

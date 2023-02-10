@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -54,7 +55,6 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -174,7 +174,7 @@ public class ReflectionExpander {
             }
 
             final ReflectionDimensionField dimension = dimensions.get(field.getName().toLowerCase());
-            final DimensionGranularity granularity = Optional.fromNullable(dimension.getGranularity()).or(DimensionGranularity.DATE);
+            final DimensionGranularity granularity = Optional.ofNullable(dimension.getGranularity()).orElse(DimensionGranularity.DATE);
             switch (granularity) {
               case NORMAL:
                 return ref;
@@ -242,7 +242,7 @@ public class ReflectionExpander {
   /**
    * Get the type family of the requested field.
    * @param name The name of the field.
-   * @return The type family or Option.absent() if no family was found/determined.
+   * @return The type family or Optional.empty() if no family was found/determined.
    */
   private Optional<SqlTypeFamily> getSqlTypeFamily(final String name) {
     if (fields.containsKey(name)) {
@@ -253,7 +253,7 @@ public class ReflectionExpander {
         // return absent
       }
     }
-      return Optional.absent();
+    return Optional.empty();
   }
 
   /**

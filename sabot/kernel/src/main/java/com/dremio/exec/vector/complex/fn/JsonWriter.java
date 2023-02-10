@@ -25,6 +25,7 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -188,10 +189,10 @@ public class JsonWriter {
         return keyReader.readLocalDateTime().toString();
       case DECIMAL:
         return keyReader.readBigDecimal().toPlainString();
-      case VARBINARY:
-        return keyReader.readObject().toString();
       case VARCHAR:
         return keyReader.readText().toString();
+      case VARBINARY:
+        return Base64Variants.getDefaultVariant().encode(keyReader.readByteArray());
       case LIST:
       case STRUCT:
       case MAP:

@@ -16,14 +16,11 @@
 
 import * as React from "react";
 import { FormattedMessage } from "react-intl";
-
 import { Avatar } from "@mui/material";
 import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
-
 import { DefaultApi, LogEntry, LogResponse } from "@app/services/nessie/client";
-import { Reference } from "@app/types/nessie";
-
 import { convertISOStringWithTooltip } from "../../../RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import { Reference } from "@app/types/nessie";
 
 export const columns = [
   {
@@ -81,7 +78,7 @@ const handleLoadMoreCommits = async (
 
 const createTableRow = (
   index: number,
-  branchName: string,
+  branch: Reference,
   entry: LogEntry,
   api: DefaultApi,
   commitLog?: LogResponse,
@@ -104,7 +101,7 @@ const createTableRow = (
                 onClick={(e) => {
                   e.preventDefault();
                   handleLoadMoreCommits(
-                    branchName,
+                    branch.name,
                     commitLog,
                     setCommitLog,
                     api
@@ -138,9 +135,7 @@ const createTableRow = (
           commit: {
             node: () => (
               <div className="commit-hash">
-                {commitHash && (
-                  <CommitHash branch={branchName} hash={commitHash} />
-                )}
+                {commitHash && <CommitHash branch={branch} hash={commitHash} />}
               </div>
             ),
           },
@@ -157,8 +152,7 @@ const createTableRow = (
                 {entry.commitMeta &&
                   entry.commitMeta.commitTime &&
                   convertISOStringWithTooltip(
-                    {} as Reference,
-                    entry.commitMeta.commitTime as any
+                    entry?.commitMeta?.commitTime?.toString() ?? ""
                   )}
               </div>
             ),
@@ -168,7 +162,7 @@ const createTableRow = (
 };
 
 export const createTableData = (
-  branchName: string,
+  branch: Reference,
   commitLog: LogResponse,
   setCommitLog: React.Dispatch<React.SetStateAction<LogResponse>>,
   api: DefaultApi
@@ -177,14 +171,14 @@ export const createTableData = (
 
   if (commitLog.logEntries) {
     for (const [i] of commitLog.logEntries.entries()) {
-      rows.push(createTableRow(i, branchName, commitLog.logEntries[i], api));
+      rows.push(createTableRow(i, branch, commitLog.logEntries[i], api));
     }
 
     if (commitLog.token) {
       rows.push(
         createTableRow(
           commitLog.logEntries.length,
-          branchName,
+          branch,
           {} as LogEntry,
           api,
           commitLog,

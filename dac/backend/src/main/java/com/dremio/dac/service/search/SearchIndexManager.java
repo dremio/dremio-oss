@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -52,7 +53,6 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
-import com.google.common.base.Optional;
 
 import io.protostuff.ByteString;
 import io.protostuff.LinkedBuffer;

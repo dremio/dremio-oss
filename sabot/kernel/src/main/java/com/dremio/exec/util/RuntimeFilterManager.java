@@ -45,7 +45,7 @@ import com.dremio.exec.proto.ExecProtos.RuntimeFilterType;
  */
 @NotThreadSafe
 public class RuntimeFilterManager implements AutoCloseable {
-    private static Logger logger = LoggerFactory.getLogger(RuntimeFilterManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(RuntimeFilterManager.class);
     private List<RuntimeFilterManagerEntry> filterEntries = new ArrayList<>();
     private final Set<Integer> allMinorFragments;
     private long filterDropCount = 0L;

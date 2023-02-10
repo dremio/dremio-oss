@@ -109,10 +109,11 @@ public interface WorkStats {
     public final String scheduler_info;
     public final long sleeping;
     public final long blocked;
+    public final long memory_grant;
 
     public FragmentInfo(String hostname, String job_id, int major_fragment_id, int minor_fragment_id, Long memory_usage,
                         Long rows_processed, Timestamp start_time, String blocks, TaskDescriptor taskDescriptor,
-                        long fabric_port) {
+                        long fabric_port, long memory_grant) {
       this.hostname = hostname;
       this.job_id = job_id;
       this.major_fragment_id = major_fragment_id;
@@ -126,6 +127,7 @@ public interface WorkStats {
       this.sleeping = taskDescriptor.getSleepDuration();
       this.blocked = taskDescriptor.getTotalBlockedDuration();
       this.node_id = hostname + ":" + fabric_port;
+      this.memory_grant = memory_grant;
     }
   }
 

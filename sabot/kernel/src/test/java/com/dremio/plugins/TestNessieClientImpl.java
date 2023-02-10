@@ -15,8 +15,11 @@
  */
 package com.dremio.plugins;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,16 +39,21 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
+import org.projectnessie.client.api.DeleteBranchBuilder;
 import org.projectnessie.client.api.GetContentBuilder;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.rest.NessieNotAuthorizedException;
 import org.projectnessie.error.ErrorCode;
 import org.projectnessie.error.ImmutableNessieError;
+import org.projectnessie.error.NessieBadRequestException;
+import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieError;
 import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.Branch;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
+import org.projectnessie.model.Tag;
 
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.VersionContext;
@@ -82,9 +90,9 @@ public class TestNessieClientImpl {
   public void testMetadataLocationCache() throws NessieNotFoundException {
     when(nessieApiV1.getContent()).thenReturn(builder);
     when(builder.get()).thenReturn(CONTENT_MAP);
-    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION);
+    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION,null);
     verify(builder, times(1)).get();
-    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION);
+    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION,null);
     verify(builder, times(1)).get();
   }
 
@@ -93,10 +101,10 @@ public class TestNessieClientImpl {
     when(nessieApiV1.getContent()).thenReturn(builder);
     when(builder.get()).thenReturn(generateRandomMap());
 
-    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION);
+    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION,null);
     verify(builder, times(1)).get();
 
-    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION_2);
+    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION_2, null);
     verify(builder, times(2)).get();
   }
 
@@ -105,11 +113,52 @@ public class TestNessieClientImpl {
     when(nessieApiV1.getContent()).thenReturn(builder);
     when(builder.get()).thenReturn(CONTENT_MAP);
 
-    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION);
+    nessieClient.getMetadataLocation(CATALOG_KEY, VERSION, null);
     verify(builder, times(1)).get();
 
-    nessieClient.getMetadataLocation(CATALOG_KEY_2, VERSION);
+    nessieClient.getMetadataLocation(CATALOG_KEY_2, VERSION, null);
     verify(builder, times(2)).get();
+  }
+
+  @Test
+  public void testBranchNames() {
+    ResolvedVersionContext resolvedVersionContext = mock(ResolvedVersionContext.class);
+    when(resolvedVersionContext.getCommitHash()).thenReturn("d0628f078890fec234b98b873f9e1f3cd140988a");
+    Branch branch = nessieClient.getBranch("test_valid_branch", resolvedVersionContext);
+    assertThat(branch.getName()).isEqualTo("test_valid_branch");
+    assertThatThrownBy(() -> nessieClient.getBranch("test invalid branch", resolvedVersionContext))
+      .hasMessageContaining("Invalid branch name: test invalid branch. Reference name must start with a letter");
+  }
+
+  @Test
+  public void testTagNames() {
+    ResolvedVersionContext resolvedVersionContext = mock(ResolvedVersionContext.class);
+    when(resolvedVersionContext.getCommitHash()).thenReturn("d0628f078890fec234b98b873f9e1f3cd140988a");
+    Tag tag = nessieClient.getTag("test_valid_tag", resolvedVersionContext);
+    assertThat(tag.getName()).isEqualTo("test_valid_tag");
+    assertThatThrownBy(() -> nessieClient.getTag("test invalid tag", resolvedVersionContext))
+      .hasMessageContaining("Invalid tag name: test invalid tag. Reference name must start with a letter");
+  }
+
+  @Test
+  public void testDropBranch() throws NessieConflictException, NessieNotFoundException {
+    DeleteBranchBuilder deleteBranchBuilder = mock(DeleteBranchBuilder.class);
+    when(nessieApiV1.deleteBranch()).thenReturn(deleteBranchBuilder);
+    when(deleteBranchBuilder.branchName("main")).thenReturn(deleteBranchBuilder);
+    when(deleteBranchBuilder.hash("d0628f078890fec234b98b873f9e1f3cd140988a")).thenReturn(deleteBranchBuilder);
+    NessieError nessieError = ImmutableNessieError.builder()
+      .errorCode(ErrorCode.BAD_REQUEST)
+      .status(400)
+      .reason("Default branch 'main' cannot be deleted")
+      .build();
+    doThrow(new NessieBadRequestException(nessieError)).when(deleteBranchBuilder).delete();
+    assertThatThrownBy(() -> nessieClient.dropBranch("main", "d0628f078890fec234b98b873f9e1f3cd140988a"))
+      .hasMessageContaining("Cannot drop the branch 'main'");
+
+    when(deleteBranchBuilder.branchName("not_main")).thenReturn(deleteBranchBuilder);
+    when(deleteBranchBuilder.hash("d0628f078890fec234b98b873f9e1f3cd140988b")).thenReturn(deleteBranchBuilder);
+    doNothing().when(deleteBranchBuilder).delete();
+    nessieClient.dropBranch("not_main", "d0628f078890fec234b98b873f9e1f3cd140988b");
   }
 
   @Test

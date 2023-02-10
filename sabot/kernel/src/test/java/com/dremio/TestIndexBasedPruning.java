@@ -42,6 +42,7 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
@@ -217,27 +218,28 @@ public class TestIndexBasedPruning extends DremioTest {
     private final boolean hasFilter;
 
     public TestScanRel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-        TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, boolean hasFilter) {
-      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+                       TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                       List<RelHint> hints, boolean hasFilter) {
+      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints);
       this.hasFilter = hasFilter;
     }
 
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer,
-          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hints, hasFilter);
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hints, hasFilter);
     }
 
     @Override
     public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hints, hasFilter);
     }
   }
 
@@ -323,7 +325,8 @@ public class TestIndexBasedPruning extends DremioTest {
 
     this.rexNode = rexNode;
     this.expected = expected;
-    indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0, false);
+    indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0,
+                                        ImmutableList.of(), false);
     filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
     filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
     scanRule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, optimizerRulesContext);

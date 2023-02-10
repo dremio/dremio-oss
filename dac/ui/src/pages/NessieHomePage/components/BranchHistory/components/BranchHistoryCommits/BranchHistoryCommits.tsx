@@ -37,8 +37,8 @@ function BranchHistoryCommits() {
   const { api } = useNessieContext();
 
   const tableData = useMemo(
-    () => createTableData(currentRef.name, commitLog, setCommitLog, api),
-    [currentRef.name, commitLog, setCommitLog, api]
+    () => createTableData(currentRef, commitLog, setCommitLog, api),
+    [currentRef, commitLog, setCommitLog, api]
   );
 
   return (

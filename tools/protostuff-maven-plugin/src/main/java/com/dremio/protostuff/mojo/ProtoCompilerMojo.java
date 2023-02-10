@@ -23,10 +23,10 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 
 /**
- * A Mojo mirror of Protosfuff mojo, making execute thread-safe
+ * A Mojo mirror of Protostuff mojo, making execute thread-safe
  *
  */
-@Mojo(name = "compile", configurator = "include-project-dependencies", requiresDependencyResolution = COMPILE_PLUS_RUNTIME)
+@Mojo(name = "compile", configurator = "include-project-dependencies", requiresDependencyResolution = COMPILE_PLUS_RUNTIME, threadSafe = true)
 public class ProtoCompilerMojo extends io.protostuff.mojo.ProtoCompilerMojo {
 
   private static final Object LOCK = new Object();

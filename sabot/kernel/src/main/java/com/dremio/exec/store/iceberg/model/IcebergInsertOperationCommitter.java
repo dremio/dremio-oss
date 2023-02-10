@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.COMMITTED;
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.NONE;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
+import com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
@@ -58,6 +64,7 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   @Override
   public Snapshot commit() {
     Stopwatch stopwatch = Stopwatch.createStarted();
+    Snapshot currentSnapshot = icebergCommand.getCurrentSnapshot();
     if (manifestFileList.size() > 0) {
       icebergCommand.beginInsert();
       logger.debug("Committing manifest files list [Path , filecount] {} ",
@@ -66,6 +73,9 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
       icebergCommand.finishInsert();
     }
     Snapshot snapshot = icebergCommand.endTransaction().currentSnapshot();
+    SnapshotCommitStatus commitStatus = (currentSnapshot != null) &&
+      (snapshot.snapshotId() == currentSnapshot.snapshotId()) ? NONE : COMMITTED;
+    operatorStats.addLongStat(WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS, commitStatus.value());
     long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
     operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
     return snapshot;
@@ -104,6 +114,11 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   @Override
   public Schema getCurrentSchema() {
     return icebergCommand.getIcebergSchema();
+  }
+
+  @Override
+  public void cleanup(DremioFileIO dremioFileIO) {
+    IcebergCommitOpHelper.deleteManifestFiles(dremioFileIO, manifestFileList, true);
   }
 
   @Override

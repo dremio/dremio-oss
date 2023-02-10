@@ -33,7 +33,7 @@ import io.netty.buffer.ByteBuf;
  * we use this encoder to patch the map vectors sent by Dremio server to the client.
  */
 class Dremio14BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHandler {
-  private static final Logger logger = LoggerFactory.getLogger(Dremio09BackwardCompatibilityHandler.class);
+  private static final Logger logger = LoggerFactory.getLogger(Dremio14BackwardCompatibilityHandler.class);
 
   public Dremio14BackwardCompatibilityHandler(BufferAllocator bcAllocator) {
     super(bcAllocator);

@@ -16,9 +16,10 @@
 package com.dremio.dac.service.collaboration;
 
 
+import java.util.HashSet;
 import java.util.Map;
-
-import org.apache.commons.collections.map.HashedMap;
+import java.util.Optional;
+import java.util.Set;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
@@ -32,7 +33,6 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -67,7 +67,7 @@ public class CollaborationTagStore {
   }
 
   public Optional<CollaborationTag> getTagsForEntityId(String id) {
-    return Optional.fromNullable(tagsStore.get().get(id));
+    return Optional.ofNullable(tagsStore.get().get(id));
   }
 
   public Iterable<Map.Entry<String, CollaborationTag>> find() {
@@ -84,7 +84,7 @@ public class CollaborationTagStore {
 
   private void validateTag(CollaborationTag collaborationTag) {
     // tags must be unique and MAX_TAG_LENGTH characters max length
-    final Map<String, Boolean> valueMap = new HashedMap();
+    Set<String> seenTags = new HashSet<>();
 
     for (String tag : collaborationTag.getTagsList()) {
       if (tag.length() > MAX_TAG_LENGTH) {
@@ -93,13 +93,13 @@ public class CollaborationTagStore {
           .build(logger);
       }
 
-      if (valueMap.containsKey(tag)) {
+      if (seenTags.contains(tag)) {
         throw UserException.validationError()
           .message("Tags must be unique but found multiple instances of [%s].", tag)
           .build(logger);
       }
 
-      valueMap.put(tag, true);
+      seenTags.add(tag);
     }
   }
 

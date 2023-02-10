@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 import * as NessieActions from "@app/actions/nessie/nessie";
-import { COMMIT_TYPE, NESSIE_REF_PREFIX } from "@app/constants/nessie";
+import {
+  ARCTIC_STATE_PREFIX,
+  COMMIT_TYPE,
+  NESSIE_REF_PREFIX,
+} from "@app/constants/nessie";
 import { cloneDeep } from "lodash";
 import { initialState } from "./nessie";
 import { NessieRootState } from "@app/types/nessie";
@@ -28,7 +32,11 @@ export function getNessieRequestActions() {
 //Copy current browsing context to reference picker state
 export function initializeRefState(state: NessieRootState) {
   return Object.keys(state)
-    .filter((key) => !key.startsWith(NESSIE_REF_PREFIX))
+    .filter(
+      (key) =>
+        !key.startsWith(NESSIE_REF_PREFIX) &&
+        !key.startsWith(ARCTIC_STATE_PREFIX) //State for Arctic UI
+    )
     .reduce((acc, cur) => {
       acc[`${NESSIE_REF_PREFIX}${cur}`] = cloneDeep(state[cur]);
       return acc;

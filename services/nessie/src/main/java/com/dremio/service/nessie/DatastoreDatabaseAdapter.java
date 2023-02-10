@@ -17,7 +17,6 @@ package com.dremio.service.nessie;
 
 import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToCommitLogEntry;
 import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToKeyList;
-import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToRefLog;
 import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToRepoDescription;
 import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.toProto;
 import static org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil.hashCollisionDetected;
@@ -25,7 +24,6 @@ import static org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUti
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -44,10 +42,10 @@ import java.util.stream.Stream;
 
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
+import org.projectnessie.versioned.NamedRef;
 import org.projectnessie.versioned.ReferenceConflictException;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.ReferenceNotFoundException;
-import org.projectnessie.versioned.StoreWorker;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.CommitParams;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
@@ -57,20 +55,25 @@ import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.adapter.RefLog;
 import org.projectnessie.versioned.persist.adapter.RepoDescription;
 import org.projectnessie.versioned.persist.adapter.RepoMaintenanceParams;
+import org.projectnessie.versioned.persist.adapter.events.AdapterEventConsumer;
 import org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization;
 import org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapter;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalOperationContext;
+import org.projectnessie.versioned.persist.serialize.AdapterTypes;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStateLogEntry;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStatePointer;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.RefLogEntry;
+import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Streams;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -86,8 +89,8 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
 
   public DatastoreDatabaseAdapter(NonTransactionalDatabaseAdapterConfig config,
     NessieDatastoreInstance dbInstance,
-    StoreWorker<?, ?, ?> storeWorker) {
-    super(config, storeWorker);
+    AdapterEventConsumer eventConsumer) {
+    super(config, eventConsumer);
     Objects.requireNonNull(dbInstance);
     this.db = dbInstance;
     this.keyPrefix = config.getRepositoryId();
@@ -98,8 +101,12 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     return keyPrefix.concat(hash.asString());
   }
 
-  private String dbKey(ByteString key) {
-    return dbKey(Hash.of(key));
+  public String dbKey(String name) {
+    return keyPrefix.concat(name);
+  }
+
+  public String dbKey(int segment) {
+    return keyPrefix.concat(Integer.toString(segment));
   }
 
   /**
@@ -169,6 +176,11 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     }
   }
 
+  @Override
+  protected void doUpdateMultipleCommits(NonTransactionalOperationContext ctx, List<CommitLogEntry> entries) {
+    persistMultipleCommits(ctx, entries);
+  }
+
   /**
    * Write multiple new commit-entries, the given commit entries are to be persisted as is. All
    * values of the * given {@link CommitLogEntry} can be considered valid and consistent.
@@ -180,8 +192,11 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param entries
    */
   @Override
-  protected void doWriteMultipleCommits(NonTransactionalOperationContext ctx, List<CommitLogEntry> entries)
-    throws ReferenceConflictException {
+  protected void doWriteMultipleCommits(NonTransactionalOperationContext ctx, List<CommitLogEntry> entries) {
+    persistMultipleCommits(ctx, entries);
+  }
+
+  protected void persistMultipleCommits(NonTransactionalOperationContext ctx, List<CommitLogEntry> entries) {
     Lock lock = db.getLock().writeLock();
     lock.lock();
 
@@ -189,33 +204,6 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
       for (CommitLogEntry e : entries) {
         db.getCommitLog().put(dbKey(e.getHash()), toProto(e).toByteArray());
       }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  /**
-   * Write a new global-state-log-entry with a best-effort approach to prevent hash-collisions but
-   * without any other consistency checks/guarantees. Some implementations however can enforce
-   * strict consistency checks/guarantees.
-   *
-   * @param ctx
-   * @param entry
-   */
-  @Override
-  protected void doWriteGlobalCommit(NonTransactionalOperationContext ctx, GlobalStateLogEntry entry)
-    throws ReferenceConflictException {
-    Lock lock = db.getLock().writeLock();
-    lock.lock();
-    try {
-      String key = dbKey(entry.getId());
-      Document<String, byte[]> commitEntry = db.getGlobalLog().get(key);
-      if (commitEntry != null) {
-        throw hashCollisionDetected();
-      }
-      db.getGlobalLog().put(key, entry.toByteArray());
     } catch (Exception e) {
       throw new RuntimeException(e);
     } finally {
@@ -275,39 +263,18 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    *
    * <p>Implementation notes: non-transactional implementations <em>must</em> delete entries for the
    * given keys, no-op for transactional implementations.
-   *
-   * @param ctx
-   * @param globalId
-   * @param branchCommits
-   * @param newKeyLists
    */
   @Override
-  protected void doCleanUpCommitCas(NonTransactionalOperationContext ctx, Optional<Hash> globalId,
-                                  Set<Hash> branchCommits, Set<Hash> newKeyLists, Hash refLogId) {
+  protected void doCleanUpCommitCas(NonTransactionalOperationContext ctx, Set<Hash> branchCommits,
+                                    Set<Hash> newKeyLists) {
     Lock lock = db.getLock().writeLock();
     lock.lock();
     try {
-      globalId.ifPresent(hash -> db.getGlobalLog().delete(dbKey(hash)));
       for (Hash h : branchCommits) {
         db.getCommitLog().delete(dbKey(h));
       }
       for (Hash h : newKeyLists) {
         db.getKeyList().delete(dbKey(h));
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  @Override
-  protected void doCleanUpGlobalLog(NonTransactionalOperationContext ctx, Collection<Hash> globalIds) {
-    Lock lock = db.getLock().writeLock();
-    lock.lock();
-    try {
-      for (Hash h : globalIds) {
-        db.getGlobalLog().delete(dbKey(h));
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -333,11 +300,20 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     }
   }
 
+  @Override
+  protected Stream<CommitLogEntry> doScanAllCommitLogEntries(NonTransactionalOperationContext c) {
+    try {
+      return Streams.stream(db.getCommitLog().find())
+        .filter(e -> e.getKey().startsWith(keyPrefix))
+        .filter(e -> e.getValue() != null)
+        .map(e -> protoToCommitLogEntry(e.getValue()));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /**
    * Load the commit-log entry for the given hash, return {@code null}, if not found.
-   *
-   * @param ctx
-   * @param hash
    */
   @Override
   protected CommitLogEntry doFetchFromCommitLog(NonTransactionalOperationContext ctx, Hash hash) {
@@ -404,43 +380,40 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     }
   }
 
+
   @Override
-  protected RefLog doFetchFromRefLog(
-    NonTransactionalOperationContext ctx, Hash refLogId) {
-    try {
-      Document<String, byte[]> entry = db.getRefLog().get(dbKey(refLogId));
-      return protoToRefLog(entry != null ? entry.getValue() : null);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+  protected AdapterTypes.RefLogParents doFetchRefLogParents(NonTransactionalOperationContext ctx, int stripe) {
+    return null; // Reflog is not supported in Embedded Nessie
   }
 
   @Override
-  protected List<RefLog> doFetchPageFromRefLog(
-    NonTransactionalOperationContext ctx, List<Hash> hashes) {
-    return fetchPage(db.getRefLog(), hashes, ProtoSerialization::protoToRefLog);
+  protected boolean doRefLogParentsCas(NonTransactionalOperationContext ctx, int stripe, AdapterTypes.RefLogParents previousEntry, AdapterTypes.RefLogParents newEntry) {
+    return true; // Reflog is not supported in Embedded Nessie
   }
 
   @Override
-  protected void doWriteRefLog(
-    NonTransactionalOperationContext ctx,
-    RefLogEntry entry) throws ReferenceConflictException {
-    Lock lock = db.getLock().writeLock();
-    lock.lock();
+  protected void unsafeWriteRefLogStripe(NonTransactionalOperationContext ctx, int stripe, AdapterTypes.RefLogParents refLogParents) {
+    // NOP - Reflog is not supported in Embedded Nessie
+  }
 
-    try {
-      String key = dbKey(entry.getRefLogId());
-      Document<String, byte[]> commitEntry = db.getCommitLog().get(key);
-      if (commitEntry != null) {
-        throw hashCollisionDetected();
-      } else {
-        db.getRefLog().put(key, entry.toByteArray(), KVStore.PutOption.CREATE);
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    } finally {
-      lock.unlock();
-    }
+  @Override
+  protected void doCleanUpRefLogWrite(NonTransactionalOperationContext ctx, Hash refLogId) {
+    // NOP - Reflog is not supported in Embedded Nessie
+  }
+
+  @Override
+  protected RefLog doFetchFromRefLog(NonTransactionalOperationContext ctx, Hash refLogId) {
+    throw new UnsupportedOperationException("Reflog is not supported in Embedded Nessie.");
+  }
+
+  @Override
+  protected List<RefLog> doFetchPageFromRefLog(NonTransactionalOperationContext ctx, List<Hash> hashes) {
+    throw new UnsupportedOperationException("Reflog is not supported in Embedded Nessie.");
+  }
+
+  @Override
+  protected void doWriteRefLog(NonTransactionalOperationContext ctx, RefLogEntry entry) {
+    // NOP - Reflog is not supported in Embedded Nessie
   }
 
   @Override
@@ -462,15 +435,18 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
-  public void eraseRepo() {
+  protected void doEraseRepo() {
     try {
       Stream.of(
           db.getGlobalPointer(),
           db.getGlobalLog(),
           db.getCommitLog(),
+          db.getAttachments(),
+          db.getAttachmentKeys(),
+          db.getNamedRefHeads(),
+          db.getRefNames(),
           db.getRepoDescription(),
-          db.getKeyList(),
-          db.getRefLog())
+          db.getKeyList())
         .forEach(
           cf -> {
             List<String> deletes = new ArrayList<>();
@@ -520,6 +496,352 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
+  protected List<AdapterTypes.NamedReference> doFetchNamedReference(NonTransactionalOperationContext ctx,
+                                                                    List<String> refNames) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      return refNames.stream()
+        .map(name -> db.getNamedRefHeads().get(dbKey(name)))
+        .filter(Objects::nonNull)
+        .map(entry -> {
+          try {
+            return AdapterTypes.NamedReference.parseFrom(entry.getValue());
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+          }
+        })
+        .collect(Collectors.toList());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected void doAddToNamedReferences(NonTransactionalOperationContext ctx, Stream<NamedRef> refStream, int addToSegment) {
+    Set<String> refNamesToAdd = refStream.map(NamedRef::getName).collect(Collectors.toSet());
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      String key = dbKey(addToSegment);
+      Document<String, byte[]> segment = db.getRefNames().get(key);
+
+      AdapterTypes.ReferenceNames referenceNames;
+      try {
+        referenceNames =
+          segment == null
+            ? AdapterTypes.ReferenceNames.getDefaultInstance()
+            : AdapterTypes.ReferenceNames.parseFrom(segment.getValue());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+
+      byte[] newRefNameBytes =
+        referenceNames.toBuilder().addAllRefNames(refNamesToAdd).build().toByteArray();
+
+      db.getRefNames().put(key, newRefNameBytes);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected void doRemoveFromNamedReferences(NonTransactionalOperationContext ctx, NamedRef ref, int removeFromSegment) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      String key = dbKey(removeFromSegment);
+      Document<String, byte[]> segment = db.getRefNames().get(key);
+      if (segment == null) {
+        return;
+      }
+
+      AdapterTypes.ReferenceNames referenceNames;
+      try {
+        referenceNames = AdapterTypes.ReferenceNames.parseFrom(segment.getValue());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+
+      AdapterTypes.ReferenceNames.Builder newRefNames = referenceNames.toBuilder().clearRefNames();
+      referenceNames.getRefNamesList().stream()
+        .filter(n -> !n.equals(ref.getName()))
+        .forEach(newRefNames::addRefNames);
+      byte[] newRefNameBytes = newRefNames.build().toByteArray();
+
+      db.getRefNames().put(key, newRefNameBytes);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected boolean doCreateNamedReference(NonTransactionalOperationContext ctx, AdapterTypes.NamedReference namedReference) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      String key = dbKey(namedReference.getName());
+      Document<String, byte[]> existing = db.getNamedRefHeads().get(key);
+      if (existing != null) {
+        return false;
+      }
+
+      db.getNamedRefHeads().put(key, namedReference.toByteArray());
+      return true;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected boolean doDeleteNamedReference(NonTransactionalOperationContext ctx, NamedRef ref,
+                                           AdapterTypes.RefPointer refHead) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      String key = dbKey(ref.getName());
+      Document<String, byte[]> existing = db.getNamedRefHeads().get(key);
+      if (existing == null) {
+        return false;
+      }
+
+      AdapterTypes.NamedReference expected =
+        AdapterTypes.NamedReference.newBuilder().setName(ref.getName()).setRef(refHead).build();
+
+      if (!Arrays.equals(existing.getValue(), expected.toByteArray())) {
+        return false;
+      }
+
+      db.getNamedRefHeads().delete(key);
+      return true;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected boolean doUpdateNamedReference(NonTransactionalOperationContext ctx, NamedRef ref,
+                                           AdapterTypes.RefPointer refHead, Hash newHead) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      String key = dbKey(ref.getName());
+      Document<String, byte[]> existing = db.getNamedRefHeads().get(key);
+      if (existing == null) {
+        return false;
+      }
+
+      AdapterTypes.NamedReference namedReference;
+      try {
+        namedReference = AdapterTypes.NamedReference.parseFrom(existing.getValue());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+
+      if (!namedReference.getRef().equals(refHead)) {
+        return false;
+      }
+
+      AdapterTypes.NamedReference newNamedReference =
+        namedReference.toBuilder()
+          .setRef(namedReference.getRef().toBuilder().setHash(newHead.asBytes()))
+          .build();
+
+      db.getNamedRefHeads().put(key, newNamedReference.toByteArray());
+      return true;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected List<AdapterTypes.ReferenceNames> doFetchReferenceNames(NonTransactionalOperationContext ctx, int segment, int prefetchSegments) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      return IntStream.rangeClosed(segment, segment + prefetchSegments)
+        .mapToObj(seg -> db.getRefNames().get(dbKey(seg)))
+        .map(
+          s -> {
+            try {
+              return s != null ? AdapterTypes.ReferenceNames.parseFrom(s.getValue()) : null;
+            } catch (InvalidProtocolBufferException e) {
+              throw new RuntimeException(e);
+            }
+          })
+        .collect(Collectors.toList());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected void writeAttachments(Stream<Map.Entry<AdapterTypes.AttachmentKey, AdapterTypes.AttachmentValue>> attachments) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      attachments.forEach(b -> {
+        storeAttachmentKey(b.getKey());
+        db.getAttachments().put(dbKey(b.getKey().getAttachmentId()), b.getValue().toByteArray());
+      });
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected boolean consistentWriteAttachment(AdapterTypes.AttachmentKey key, AdapterTypes.AttachmentValue value,
+                                              Optional<String> expectedVersion) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      String dbKey = dbKey(key.getAttachmentId());
+      Document<String, byte[]> current = db.getAttachments().get(dbKey);
+      if (expectedVersion.isPresent()) {
+        try {
+          if (current == null) {
+            return false;
+          }
+          AdapterTypes.AttachmentValue val = AdapterTypes.AttachmentValue.parseFrom(current.getValue());
+          if (!val.hasVersion() || !val.getVersion().equals(expectedVersion.get())) {
+            return false;
+          }
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException(e);
+        }
+      } else {
+        if (current != null) {
+          return false;
+        }
+        storeAttachmentKey(key);
+      }
+      db.getAttachments().put(dbKey, value.toByteArray());
+      return true;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  private void storeAttachmentKey(AdapterTypes.AttachmentKey attachmentKey) {
+    String dbKey = dbKey(attachmentKey.getContentId().getId());
+    Document<String, byte[]> old = db.getAttachmentKeys().get(dbKey);
+    AdapterTypes.AttachmentKeyList.Builder keyList;
+    if (old == null) {
+      keyList = AdapterTypes.AttachmentKeyList.newBuilder().addKeys(attachmentKey);
+    } else {
+      try {
+        keyList = AdapterTypes.AttachmentKeyList.newBuilder().mergeFrom(old.getValue());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+      if (!keyList.getKeysList().contains(attachmentKey)) {
+        keyList.addKeys(attachmentKey);
+      }
+    }
+    db.getAttachmentKeys().put(dbKey, keyList.build().toByteArray());
+  }
+
+  @Override
+  protected Stream<AdapterTypes.AttachmentKey> fetchAttachmentKeys(String contentId) {
+    try {
+      String dbKey = dbKey(contentId);
+      Document<String, byte[]> attachmentKeys = db.getAttachmentKeys().get(dbKey);
+      if (attachmentKeys == null) {
+        return Stream.empty();
+      }
+      AdapterTypes.AttachmentKeyList keyList;
+      try {
+        keyList = AdapterTypes.AttachmentKeyList.parseFrom(attachmentKeys.getValue());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+      return keyList.getKeysList().stream();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  protected Stream<Map.Entry<AdapterTypes.AttachmentKey, AdapterTypes.AttachmentValue>> fetchAttachments(
+    Stream<AdapterTypes.AttachmentKey> keys) {
+    try {
+      return keys.map(k -> {
+          Document<String, byte[]> entry = db.getAttachments().get(dbKey(k.getAttachmentId()));
+          if (entry == null) {
+            return null;
+          }
+
+          try {
+            return Maps.immutableEntry(k, AdapterTypes.AttachmentValue.parseFrom(entry.getValue()));
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+          }
+        })
+        .filter(Objects::nonNull);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  protected void purgeAttachments(Stream<AdapterTypes.AttachmentKey> keys) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      keys.forEach(
+        k -> {
+          try {
+            db.getAttachments().delete(dbKey(k.getAttachmentId()));
+            removeAttachmentKey(k);
+          } catch (RocksDBException e) {
+            throw new RuntimeException(e);
+          }
+        });
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  private void removeAttachmentKey(AdapterTypes.AttachmentKey attachmentKey) throws RocksDBException {
+    String dbKey = attachmentKey.getContentId().getId();
+    Document<String, byte[]> old = db.getAttachmentKeys().get(dbKey);
+    if (old == null) {
+      return;
+    }
+    AdapterTypes.AttachmentKeyList.Builder keyList;
+    try {
+      keyList = AdapterTypes.AttachmentKeyList.newBuilder().mergeFrom(old.getValue());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
+    for (int i = 0; i < keyList.getKeysList().size(); i++) {
+      if (keyList.getKeys(i).equals(attachmentKey)) {
+        keyList.removeKeys(i);
+        break;
+      }
+    }
+    db.getAttachmentKeys().put(dbKey, keyList.build().toByteArray());
+  }
+
+  @Override
   public Map<String, Map<String, String>> repoMaintenance(RepoMaintenanceParams params) {
     ImmutableMap.Builder<String, Map<String, String>> results = ImmutableMap.builder();
     results.putAll(super.repoMaintenance(params));
@@ -563,61 +885,67 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
 
     // Collect the most recent key list IDs from all branches to protect them from being deleted.
     // Note: branches may be created by upgrade steps safeguarding against upgrade failures.
-    namedRefs(GetNamedRefsParams.DEFAULT).forEach(ref -> {
-      AtomicBoolean keyListFound = new AtomicBoolean();
-      try {
-        DatabaseAdapterUtil.takeUntilExcludeLast(commitLog(ref.getHash()), e -> keyListFound.get())
-          .forEach(commitLogEntry -> {
-            if (!commitLogEntry.getKeyListsIds().isEmpty()) {
-              keyListFound.set(true);
-              liveKeyListIds.addAll(commitLogEntry.getKeyListsIds());
-            }
-          });
-      } catch (ReferenceNotFoundException e) {
-        throw new IllegalStateException(e);
-      }
-    });
+    try (Stream<ReferenceInfo<ByteString>> refs = namedRefs(GetNamedRefsParams.DEFAULT)) {
+      refs.forEach(ref -> {
+        AtomicBoolean keyListFound = new AtomicBoolean();
+        try {
+          try (Stream<CommitLogEntry> log = commitLog(ref.getHash())) {
+            DatabaseAdapterUtil.takeUntilExcludeLast(log, e -> keyListFound.get())
+              .forEach(commitLogEntry -> {
+                if (!commitLogEntry.getKeyListsIds().isEmpty()) {
+                  keyListFound.set(true);
+                  liveKeyListIds.addAll(commitLogEntry.getKeyListsIds());
+                }
+              });
+          }
+        } catch (ReferenceNotFoundException e) {
+          throw new IllegalStateException(e);
+        }
+      });
+    }
 
     // Purge obsolete key lists from the main branch.
     // Note: Only the main branch is used in Embedded Nessie during regular operation (non-upgrade).
     ReferenceInfo<ByteString> ref = namedRef("main", GetNamedRefsParams.DEFAULT);
     AtomicBoolean keyListFound = new AtomicBoolean();
-    commitLog(ref.getHash()).forEach(commitLogEntry -> {
-      if (!commitLogEntry.getKeyListsIds().isEmpty()) {
-        // Keep the latest key list, but purge all other key lists
-        if (keyListFound.get()) {
-          // First, remove key list IDs from the commit to maintain logical Nessie data consistency.
-          // The end result will be the same as if the obsolete key lists were never present.
-          if (!params.dryRun()) {
-            ImmutableCommitLogEntry updatedCommit = ImmutableCommitLogEntry.builder()
-              .from(commitLogEntry)
-              .keyListsIds(Collections.emptyList())
-              .build();
-            // Overwrite commit data at the same key (hash)
-            db.getCommitLog().put(dbKey(updatedCommit.getHash()), toProto(updatedCommit).toByteArray());
-            updatedCommits.incrementAndGet();
-          }
-
-          // Now, delete obsolete key list entities
-          commitLogEntry.getKeyListsIds().forEach(keyListId -> {
-            if (!liveKeyListIds.contains(keyListId)) {
-              obsoleteKeyListIds.incrementAndGet();
-
-              if (!params.dryRun()) {
-                db.getKeyList().delete(dbKey(keyListId), KVStore.DeleteOption.NO_META);
-                deletedKeyListIds.incrementAndGet();
-                params.progressReporter().onKeyListEntityDeleted(keyListId);
-              }
+    try (Stream<CommitLogEntry> log = commitLog(ref.getHash())) {
+      log.forEach(commitLogEntry -> {
+        if (!commitLogEntry.getKeyListsIds().isEmpty()) {
+          // Keep the latest key list, but purge all other key lists
+          if (keyListFound.get()) {
+            // First, remove key list IDs from the commit to maintain logical Nessie data consistency.
+            // The end result will be the same as if the obsolete key lists were never present.
+            if (!params.dryRun()) {
+              ImmutableCommitLogEntry updatedCommit = ImmutableCommitLogEntry.builder()
+                .from(commitLogEntry)
+                .keyListsIds(Collections.emptyList())
+                .build();
+              // Overwrite commit data at the same key (hash)
+              db.getCommitLog().put(dbKey(updatedCommit.getHash()), toProto(updatedCommit).toByteArray());
+              updatedCommits.incrementAndGet();
             }
-          });
-        } else {
-          keyListFound.set(true);
-        }
-      }
 
-      totalCommits.incrementAndGet();
-      params.progressReporter().onCommitProcessed(commitLogEntry.getHash());
-    });
+            // Now, delete obsolete key list entities
+            commitLogEntry.getKeyListsIds().forEach(keyListId -> {
+              if (!liveKeyListIds.contains(keyListId)) {
+                obsoleteKeyListIds.incrementAndGet();
+
+                if (!params.dryRun()) {
+                  db.getKeyList().delete(dbKey(keyListId), KVStore.DeleteOption.NO_META);
+                  deletedKeyListIds.incrementAndGet();
+                  params.progressReporter().onKeyListEntityDeleted(keyListId);
+                }
+              }
+            });
+          } else {
+            keyListFound.set(true);
+          }
+        }
+
+        totalCommits.incrementAndGet();
+        params.progressReporter().onCommitProcessed(commitLogEntry.getHash());
+      });
+    }
 
     return ImmutableMap.<String, String>builder()
       .put("processedCommits", "" + totalCommits.get())

@@ -20,6 +20,8 @@ import { intl } from "@app/utils/intl";
 import getIconColor from "@app/utils/getIconColor";
 import { getUserIconInitialsForAllUsers } from "@app/utils/userIcon";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 export const ALL_MINE_SCRIPTS_TABS = {
   all: "All",
@@ -178,6 +180,7 @@ export const confirmDelete = (
   searchTerm: string
 ): void => {
   const { intl } = renderedProps;
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
   const deleteScript = () => {
     renderedProps
       .deleteScript(script.id)
@@ -186,10 +189,11 @@ export const confirmDelete = (
         if (script.id === renderedProps.activeScript.id) {
           renderedProps.resetQueryState();
           renderedProps.router.push({
-            pathname: "/new_query",
+            pathname: sqlPaths.sqlEditor.link({ projectId }),
             state: { discard: true },
           });
         }
+        return;
       })
       .catch((error: any) => {
         const failedErrorLog = sentryUtil.logException(error);
@@ -265,9 +269,13 @@ export const handleOpenScript = (
   } = renderedProps;
   const unsavedScriptChanges = !activeScript.id && !!currentSql;
   const editedScript = activeScript.id && currentSql !== activeScript.content;
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
 
   const openScript = () => {
-    router.push({ pathname: "/new_query", state: { discard: true } });
+    router.push({
+      pathname: sqlPaths.sqlEditor.link({ projectId }),
+      state: { discard: true },
+    });
     resetQueryState({ exclude: ["currentSql"] });
     setActiveScript({ script });
   };

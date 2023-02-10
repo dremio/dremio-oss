@@ -42,7 +42,13 @@ export default function ApiPolling({
 
   const callApi = (handleOk, handleError) => {
     if (apiCallFunc) {
-      return apiCallFunc().then(handleOk).catch(handleError);
+      const apiPromise = apiCallFunc();
+
+      if (apiPromise === false) {
+        return clearTimeout(timeoutHandle);
+      }
+
+      return apiPromise.then(handleOk).catch(handleError);
     }
     return ApiUtils.fetch(endpoint, options, version)
       .then(handleOk)

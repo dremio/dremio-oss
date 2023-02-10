@@ -23,6 +23,7 @@ import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
@@ -37,8 +38,10 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
@@ -47,6 +50,7 @@ import org.apache.iceberg.ManageSnapshots;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import com.dremio.exec.server.SabotContext;
@@ -62,6 +66,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
@@ -911,6 +916,97 @@ public class TestReflectionManager {
     assertEquals(8L, context.getLastSuccessfulRefresh(reflectionId2).get().longValue());
     verify(subject.reflectionStore, times(1)).get(any());
 
+  }
+
+  @Test
+  public void testRefreshDoneHandlerLastRefreshDuration() throws DependencyGraph.DependencyException, NamespaceException {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+    MaterializationId materializationId = new MaterializationId("m_id");
+
+    Materialization m = new Materialization()
+      .setId(materializationId)
+      .setReflectionId(reflectionId)
+      .setInitRefreshSubmit(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(1))
+      .setState(MaterializationState.RUNNING);
+
+    ReflectionEntry entry = new ReflectionEntry()
+      .setId(reflectionId)
+      .setState(ReflectionState.REFRESHING)
+      .setRefreshJobId(new JobId().setId("j_id"));
+
+    final AccelerationSettings testSettings = new AccelerationSettings()
+      .setMethod(RefreshMethod.FULL);
+
+    RefreshDecision refreshDecision = new RefreshDecision()
+      .setInitialRefresh(false)
+      .setAccelerationSettings(testSettings)
+      .setSeriesId(0L)
+      .setLogicalPlan(io.protostuff.ByteString.EMPTY);
+
+    JobProtobuf.ExtraInfo extraInfo = JobProtobuf.ExtraInfo.newBuilder()
+      .setName(RefreshDecision.class.getName())
+      .setData(ByteString.copyFrom(RefreshHandler.ABSTRACT_SERIALIZER.serialize(refreshDecision)))
+      .build();
+
+    JobProtobuf.JobInfo jobInfo = JobProtobuf.JobInfo.newBuilder()
+      .setJobId(JobProtobuf.JobId.newBuilder().setId("m_job_id").build())
+      .setSql("sql")
+      .setDatasetVersion("version")
+      .setQueryType(JobProtobuf.QueryType.ACCELERATOR_CREATE)
+      .build();
+
+    JobProtobuf.JobAttempt jobAttempt = JobProtobuf.JobAttempt.newBuilder()
+      .setState(JobProtobuf.JobState.COMPLETED)
+      .setInfo(jobInfo)
+      .addExtraInfo(extraInfo)
+      .setStats(JobProtobuf.JobStats.newBuilder().setOutputRecords(4L).build())
+      .build();
+
+    JobDetails job = JobDetails.newBuilder()
+      .setJobId(JobProtobuf.JobId.newBuilder().setId("m_job_id").build())
+      .setCompleted(true)
+      .addAttempts(jobAttempt)
+      .build();
+
+    Subject subject = new Subject();
+    RefreshDoneHandler handler = new RefreshDoneHandler(entry, m, job, subject.jobsService,
+      subject.namespaceService, subject.materializationStore, subject.dependencyManager, subject.expansionHelper,
+      Path.of("."), subject.allocator, subject.catalogService, subject.dependencyResolutionContext);
+
+    com.dremio.service.reflection.proto.JobDetails jobd = new com.dremio.service.reflection.proto.JobDetails();
+    jobd.setOutputRecords(4L);
+
+    when(subject.dependencyManager.getOldestDependentMaterialization(any()))
+      .thenReturn(Optional.of(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(30)));
+
+    when(subject.dependencyManager.getGracePeriod(any(), any()))
+      .thenReturn(Optional.of(Long.MAX_VALUE));
+
+    when(subject.materializationStore.getRefreshes(any()))
+      .thenReturn(FluentIterable.from(ImmutableList.<Refresh>of()));
+
+    try(MockedStatic<ReflectionUtils> mocked = Mockito.mockStatic(ReflectionUtils.class)) {
+      mocked.when(() -> ReflectionUtils.computeJobDetails(any())).thenReturn(jobd);
+      mocked.when(() -> ReflectionUtils.computeMetrics(any(),
+          any(),
+          any(),
+          any()))
+        .thenReturn(null);
+      mocked.when(() -> ReflectionUtils.createRefresh(
+        any(),
+        any(),
+        anyLong(),
+        anyInt(),
+        any(),
+        any(),
+        any(),
+        any(),
+        anyBoolean(),
+        any())).thenReturn(null);
+      handler.handle();
+    }
+
+    assertEquals(m.getLastRefreshFinished() - m.getInitRefreshSubmit(), m.getLastRefreshDurationMillis().longValue());
   }
 }
 

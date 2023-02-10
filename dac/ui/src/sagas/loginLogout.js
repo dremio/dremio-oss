@@ -23,7 +23,6 @@ import {
   NO_USERS_ERROR,
   UNAUTHORIZED_ERROR,
 } from "@app/actions/account";
-import intercomUtils from "@app/utils/intercomUtils";
 import socket from "@inject/utils/socket";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { isAuthorized } from "@inject/sagas/utils/isAuthorized";
@@ -37,7 +36,10 @@ export const SIGNUP_PATH = "/signup";
 export const LOGIN_PATH = "/login";
 export const SSO_LANDING_PATH = "/login/sso/landing";
 
-export function getLoginUrl() {
+export function getLoginUrl(preserveRedirect = false) {
+  if (!preserveRedirect) {
+    return LOGIN_PATH;
+  }
   return `${LOGIN_PATH}?redirect=${encodeURIComponent(
     window.location.href.slice(window.location.origin.length)
   )}`;
@@ -98,8 +100,6 @@ export function* handleAppInit() {
 
 //export for testing
 export function* handleAppStop() {
-  log("intercom cleanup");
-  yield call([intercomUtils, intercomUtils.shutdown]);
   if (socket.exists) {
     log("socket close");
     yield call([socket, socket.close]);
@@ -108,10 +108,6 @@ export function* handleAppStop() {
 }
 
 export function* handleLogout() {
-  /*
-    must be before localStorageUtils.clearUserData, as we use user data to check if a user is authorized
-    to use intercom
-  */
   yield call(handleAppStop);
   log("clear user data and token");
   yield call([localStorageUtils, localStorageUtils.clearUserData]);

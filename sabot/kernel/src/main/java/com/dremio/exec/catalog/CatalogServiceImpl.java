@@ -49,7 +49,6 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CatalogRPC;
 import com.dremio.exec.proto.CatalogRPC.RpcType;
 import com.dremio.exec.proto.CatalogRPC.SourceWrapper;
@@ -671,11 +670,6 @@ public class CatalogServiceImpl implements CatalogService {
     return getPlugins().get(config.getName()).isSourceConfigMetadataImpacting(config);
   }
 
-  @Override
-  public boolean isComplexTypeSupport() {
-    return optionManager.get().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
-  }
-
   private class Retriever implements PluginRetriever {
 
     @Override
@@ -790,12 +784,26 @@ public class CatalogServiceImpl implements CatalogService {
   private class CatalogIdentityResolver implements IdentityResolver {
     @Override
     public CatalogIdentity getOwner(List<String> path) throws NamespaceException {
-      NamespaceKey key = new NamespaceKey(path);
-      if (systemNamespace.getEntityByPath(key).getType() == NameSpaceContainer.Type.DATASET) {
-        final DatasetConfig dataset = systemNamespace.getDataset(key);
-        return dataset.getType() != DatasetType.VIRTUAL_DATASET ? null : new CatalogUser(dataset.getOwner());
+      NameSpaceContainer nameSpaceContainer =
+        systemNamespace.getEntityByPath(new NamespaceKey(path));
+      if (null == nameSpaceContainer) {
+        return null;
       }
-      return null;
+      switch (nameSpaceContainer.getType()) {
+        case DATASET: {
+          final DatasetConfig dataset = nameSpaceContainer.getDataset();
+          if (dataset.getType() == DatasetType.VIRTUAL_DATASET) {
+            return null;
+          } else {
+            return new CatalogUser(dataset.getOwner());
+          }
+        }
+        case FUNCTION: {
+          return null;
+        }
+        default:
+          throw new RuntimeException("Unexpected type for getOwner " + nameSpaceContainer.getType());
+      }
     }
 
     @Override

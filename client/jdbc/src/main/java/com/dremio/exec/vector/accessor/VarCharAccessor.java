@@ -25,7 +25,6 @@ import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
-import com.google.common.base.Charsets;
 
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.NettyArrowBuf;
@@ -86,7 +85,7 @@ public class VarCharAccessor extends AbstractSqlAccessor {
     if (ac.isNull(index)) {
       return null;
     }
-    return new InputStreamReader(getStream(index), Charsets.UTF_8);
+    return new InputStreamReader(getStream(index), StandardCharsets.UTF_8);
   }
 
   @Override

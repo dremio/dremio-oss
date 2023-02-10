@@ -62,6 +62,7 @@ public class HashJoinStats {
     BUILD_CARRYOVER_COPY_NANOS,
 
     SPILL_COUNT, /* Number of times the operator spilled */
+    HEAP_SPILL_COUNT, /* Number of times the operator spilled due to low heap memory */
     SPILL_REPLAY_COUNT, /* Number of times the operator replayed spill */
     SPILL_WR_BUILD_BYTES, /* total spilled bytes, from build side */
     SPILL_RD_BUILD_BYTES, /* total replayed bytes, from build side */

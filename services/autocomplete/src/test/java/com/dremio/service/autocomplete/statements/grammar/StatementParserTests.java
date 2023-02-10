@@ -278,6 +278,26 @@ public final class StatementParserTests {
   }
 
   @Test
+  public void dQueryTests() {
+    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+      .add("SET",
+        MultiLineString.create("SET ^"))
+      .add("SET T",
+        MultiLineString.create("SET T ^"))
+      .add("SET T =",
+        MultiLineString.create("SET T =^"))
+      .add("SET T = CONTAINS",
+        MultiLineString.create("SET T = CONTAINS^"))
+      .add("SET T = CONTAINS(",
+        MultiLineString.create("SET T = CONTAINS(^"))
+      .add("SET T = CONTAINS(terms",
+        MultiLineString.create("SET T = CONTAINS(a int^"))
+      .add("SET T = CONTAINS(terms)",
+        MultiLineString.create("SET T = CONTAINS(a int)^"))
+      .runTests();
+  }
+
+  @Test
   public void rawReflectionCreateTests() {
     GoldenFileTestBuilder<MultiLineString, MultiLineString> builder = new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
       .add(
@@ -459,6 +479,48 @@ public final class StatementParserTests {
         MultiLineString.create("ALTER TABLE EMP CREATE EXTERNAL REFLECTION myReflection\n" +
           "USING \n"+
           "\"External\".EMP"))
+      .runTests();
+  }
+
+  @Test
+  public void selectClauseTests() {
+    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+      .add(
+        "JUST SELECT",
+        MultiLineString.create("SELECT "))
+      .add(
+        "SELECT *",
+        MultiLineString.create("SELECT *"))
+      .add(
+        "SELECT item",
+        MultiLineString.create("SELECT 1 + 1"))
+      .add(
+        "SELECT item + AS",
+        MultiLineString.create("SELECT 1 + 1 AS"))
+      .add(
+        "SELECT item + AS + alias",
+        MultiLineString.create("SELECT 1 + 1 as myAlias"))
+      .add(
+        "SELECT item + No AS + alias",
+        MultiLineString.create("SELECT 1 + 1 myAlias"))
+      .add(
+        "SELECT item + comma",
+        MultiLineString.create("SELECT 1, "))
+      .add(
+        "SELECT two items",
+        MultiLineString.create("SELECT 1, 2"))
+      .add(
+        "SELECT three items",
+        MultiLineString.create("SELECT 1, 2, 3"))
+      .add(
+        "SELECT * insert",
+        MultiLineString.create("SELECT * ^ FROM emp"))
+      .add(
+        "Inside Function call with commas",
+        MultiLineString.create("SELECT FOO(123, ^ FROM emp"))
+      .add(
+        "Inside Function call with commas",
+        MultiLineString.create("SELECT FOO(1, 2, 3 ^ FROM emp"))
       .runTests();
   }
 

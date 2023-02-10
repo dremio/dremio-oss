@@ -71,6 +71,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
         "success"
       );
       onCancel();
+      return;
     });
   };
 
@@ -81,16 +82,17 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       title={title}
       className="--newModalStyles"
       hide={onCancel}
-      closeButtonType="XBig"
+      closeButtonType="CloseBig"
       modalHeight={"250px"}
     >
       <SQLScriptForm
         initialValues={script}
         onFormSubmit={onFormSubmit}
         intl={intl}
+        onCancel={onCancel}
       />
     </Modal>
   );
 }
 
-export default injectIntl(connect(null, { addNotification })(SQLScriptDialog));
+export default connect(null, { addNotification })(injectIntl(SQLScriptDialog));

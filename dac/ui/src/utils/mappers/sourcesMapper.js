@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+import { cloneDeep } from "lodash";
+
 class SourcesMapper {
   newSource(sourceType, data) {
-    const info = data;
+    const info = cloneDeep(data); // Do not mutate the original values
     delete info.credentials;
     info.config = info.config || {};
     if (info.config.hostList) {

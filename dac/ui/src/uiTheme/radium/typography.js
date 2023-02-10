@@ -15,7 +15,7 @@
  */
 
 const menlo = "Menlo, monospace";
-const inter = "Inter var, sans-serif";
+const inter = "var(--dremio--font-family)";
 
 export const bodySmall = {
   fontFamily: inter,

@@ -92,6 +92,7 @@ public class ExecutorServiceImpl extends ExecutorService {
 
 
   @Override
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void getNodeStats(com.google.protobuf.Empty request,
                            io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp> responseObserver) {
     try {
@@ -164,18 +165,21 @@ public class ExecutorServiceImpl extends ExecutorService {
    */
   public static final class NoExecutorService extends ExecutorService {
 
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void startFragments(com.dremio.exec.proto.CoordExecRPC.InitializeFragments request,
                                io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +
               "operations."));
     }
 
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void activateFragment(com.dremio.exec.proto.CoordExecRPC.ActivateFragments request,
                                  io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +
               "operations."));
     }
 
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void cancelFragments(com.dremio.exec.proto.CoordExecRPC.CancelFragments request,
                                 io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +
@@ -183,6 +187,7 @@ public class ExecutorServiceImpl extends ExecutorService {
     }
 
     @Override
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void reconcileActiveQueries(com.dremio.exec.proto.CoordExecRPC.ActiveQueryList request,
                                        io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +
@@ -190,12 +195,14 @@ public class ExecutorServiceImpl extends ExecutorService {
     }
 
     @Override
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void propagatePluginChange(com.dremio.exec.proto.CoordExecRPC.SourceWrapper request,
                                        io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +
         "operations."));
     }
 
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void getNodeStats(com.google.protobuf.Empty request,
                              io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +

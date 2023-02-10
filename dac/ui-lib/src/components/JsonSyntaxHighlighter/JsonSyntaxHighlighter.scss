@@ -13,20 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+.jsonSyntaxHighlighter {
+  &:focus-within {
+    .json-container,
+    .label-container {
+      border-color: var(--dremio--color--primary--500);
+    }
+  }
+}
 .json-container {
-  border: 1px solid var(--dremio--color--neutral--200);
-  border-radius: 4px;
   width: 100%;
   overflow: auto;
   height: 130px;
   margin-bottom: 15px;
-  &:focus-within {
-    border: 1px solid var(--dremio--color--primary--500);
-  }
+  border: 1px solid var(--dremio--color--neutral--200);
+  border-top: none;
+  border-radius: 0 0 var(--dremio--radius--1) var(--dremio--radius--1);
 }
 
 .label-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-radius: var(--dremio--radius--1) var(--dremio--radius--1) 0 0;
+  background-color: var(--dremio--color--neutral--100);
+  border: 1px solid var(--dremio--color--neutral--200);
+  border-bottom: 1px solid var(--dremio--color--neutral--150) !important;
 }

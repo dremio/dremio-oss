@@ -24,6 +24,7 @@ import com.dremio.service.autocomplete.statements.grammar.ExternalReflectionCrea
 import com.dremio.service.autocomplete.statements.grammar.FieldList;
 import com.dremio.service.autocomplete.statements.grammar.NessieVersion;
 import com.dremio.service.autocomplete.statements.grammar.RawReflectionCreateStatement;
+import com.dremio.service.autocomplete.statements.grammar.SelectItem;
 import com.dremio.service.autocomplete.statements.grammar.SetQueryStatement;
 import com.dremio.service.autocomplete.statements.grammar.Statement;
 import com.dremio.service.autocomplete.statements.grammar.StatementList;
@@ -71,6 +72,8 @@ public final class StatementSerializer {
       visit((Column) statement);
     } else if (statement instanceof TableReference) {
       visit((TableReference) statement);
+    } else if (statement instanceof SelectItem) {
+      visit((SelectItem) statement);
     } else {
       visitImplementation(statement.getClass().getSimpleName(), statement);
     }
@@ -157,6 +160,13 @@ public final class StatementSerializer {
 
     visit(fieldList.getTableReference());
     level--;
+  }
+
+  private void visit(SelectItem selectItem) {
+    visitImplementation("SELECT ITEM", selectItem);
+    if (selectItem.getAlias() != null) {
+      writeSubline(() -> stringBuilder.append("ALIAS: ").append(selectItem.getAlias()));
+    }
   }
 
   private void visit(TableReference tableReference) {

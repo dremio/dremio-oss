@@ -35,6 +35,7 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.catalog.DatasetSaverImpl;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.hive.proto.HiveReaderProto;
+import com.dremio.options.OptionManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.AbstractIterator;
 
@@ -77,19 +78,25 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
 
   private final TableMetadata tableMetadata;
 
-  protected int currentPartitionIndex = -1;
+  private int currentPartitionIndex = -1;
   private PartitionMetadata currentPartitionMetadata;
+
+  private final List<DatasetSplit> deltaSplits;
+
+  private final OptionManager optionManager;
 
   public enum SplitType {
     UNKNOWN,
     INPUT_SPLIT,
     DIR_LIST_INPUT_SPLIT,
-    ICEBERG_MANIFEST_SPLIT
+    ICEBERG_MANIFEST_SPLIT,
+    DELTA_COMMIT_LOGS
   }
 
   private HivePartitionChunkListing(final boolean storageImpersonationEnabled, final boolean enforceVarcharWidth, final TableMetadata tableMetadata,
                                     final HiveConf hiveConf, final StatsEstimationParameters statsParams, PartitionIterator partitions,
-                                    final int maxInputSplitsPerPartition, final SplitType splitType) {
+                                    final int maxInputSplitsPerPartition, final SplitType splitType, final List<DatasetSplit> deltaSplits,
+                                    OptionManager optionsManager) {
     this.storageImpersonationEnabled = storageImpersonationEnabled;
     this.enforceVarcharWidth = enforceVarcharWidth;
     this.tableMetadata = tableMetadata;
@@ -100,6 +107,8 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
     this.splitType = splitType;
 
     this.metadataAccumulator = new MetadataAccumulator();
+    this.deltaSplits = deltaSplits;
+    this.optionManager = optionsManager;
 
     // Prime the iterator
 
@@ -154,6 +163,8 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
       // the table is partitioned, but no partitions exist.
       currentPartitionMetadata = PartitionMetadata.newBuilder().partition(null)
         .partitionId(currentPartitionIndex)
+        .partitionXattr(HiveMetadataUtils.getPartitionXattr(tableMetadata.getTable(),
+          HiveMetadataUtils.fromProperties(tableMetadata.getTableProperties())))
         .partitionValues(Collections.EMPTY_LIST)
         .datasetSplitBuildConf(null)
         .inputSplitBatchIterator(
@@ -168,7 +179,7 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
 
       metadataAccumulator.setTableLocation(tableMetadata.getTable().getSd().getLocation());
       final JobConf job = new JobConf(hiveConf);
-      final Class<? extends InputFormat> inputFormatClazz = HiveMetadataUtils.getInputFormatClass(job, tableMetadata.getTable(), null);
+      final Class<? extends InputFormat> inputFormatClazz = HiveMetadataUtils.getInputFormatClass(job, tableMetadata.getTable(), null, optionsManager);
       metadataAccumulator.accumulateReaderType(inputFormatClazz);
       return;
     }
@@ -176,7 +187,7 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
     // Read Hive partition metadata.
     currentPartitionMetadata = HiveMetadataUtils.getPartitionMetadata(
       storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, metadataAccumulator, partition,
-      hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType);
+      hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType, optionsManager);
   }
 
   private class HivePartitionChunkIteratorForInputSplit extends AbstractIterator<PartitionChunk> {
@@ -196,7 +207,7 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
             // Read Hive partition metadata.
             currentPartitionMetadata = HiveMetadataUtils.getPartitionMetadata(
               storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, metadataAccumulator, partition,
-              hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType);
+              hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType, optionManager);
           }
           // Current partition may have no splits. Advance to the next partition.
         } while (!currentPartitionMetadata.getInputSplitBatchIterator().hasNext());
@@ -224,7 +235,7 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
           // Read Hive partition metadata.
           currentPartitionMetadata = HiveMetadataUtils.getPartitionMetadata(
             storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, metadataAccumulator, partition,
-            hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType);
+            hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType, optionManager);
 
           // throw error if partitions found using different input format
           if (!metadataAccumulator.isAllPartitionsUseSameInputFormat()) {
@@ -292,6 +303,11 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
           PartitionChunk.of(HiveMetadataUtils.getDatasetSplitsForIcebergTables(tableMetadata),
             os -> os.write(currentPartitionMetadata.getPartitionXattr().toByteArray())))
           .iterator();
+      case DELTA_COMMIT_LOGS:
+        return Arrays.asList(
+            PartitionChunk.of(deltaSplits,
+              os -> os.write(currentPartitionMetadata.getPartitionXattr().toByteArray())))
+          .iterator();
       case UNKNOWN:
       default:
         throw new UnsupportedOperationException("Invalid Split type " + splitType);
@@ -307,8 +323,15 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
     private StatsEstimationParameters statsParams;
     private Integer maxInputSplitsPerPartition;
     private SplitType splitType;
+    private List<DatasetSplit> deltaSplits;
+    private OptionManager optionsManager;
 
     private Builder() {
+    }
+
+    public Builder deltaSplits(List<DatasetSplit> deltaSplits) {
+      this.deltaSplits = deltaSplits;
+      return this;
     }
 
     public Builder storageImpersonationEnabled(boolean storageImpersonationEnabled) {
@@ -351,6 +374,11 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
       return this;
     }
 
+    public Builder optionManager(OptionManager optionsManager) {
+      this.optionsManager = optionsManager;
+      return this;
+    }
+
     public HivePartitionChunkListing build() {
 
       Objects.requireNonNull(tableMetadata, "table metadata is required");
@@ -358,8 +386,9 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
       Objects.requireNonNull(statsParams, "stats params is required");
       Objects.requireNonNull(maxInputSplitsPerPartition, "maxInputSplitsPerPartition is required");
       Objects.requireNonNull(splitType, "splitType is required");
+      Objects.requireNonNull(optionsManager, "optionsManager is required");
 
-      return new HivePartitionChunkListing(storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, hiveConf, statsParams, partitions, maxInputSplitsPerPartition, splitType);
+      return new HivePartitionChunkListing(storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, hiveConf, statsParams, partitions, maxInputSplitsPerPartition, splitType, deltaSplits, optionsManager);
     }
   }
 }

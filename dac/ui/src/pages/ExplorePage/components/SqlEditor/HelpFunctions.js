@@ -222,7 +222,7 @@ const styles = {
     overflowY: "hidden",
   },
   func: {
-    fontFamily: "Inter var, sans-serif",
+    fontFamily: "var(--dremio--font-family)",
     padding: "5px 8px",
     clear: "both",
     position: "relative",

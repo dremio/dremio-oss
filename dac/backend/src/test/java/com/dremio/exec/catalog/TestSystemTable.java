@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
+import java.util.Collections;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
+import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.LocalDateTime;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -25,6 +28,9 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.TypeProtos;
+import com.dremio.common.types.Types;
 import com.dremio.dac.service.flight.FlightCloseableBindableService;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
@@ -131,6 +137,13 @@ public class TestSystemTable extends BaseTestQuery {
   @Test
   public void fragmentsTable() throws Exception {
     test("select * from sys.fragments");
+
+    // test existence of memory_grant column
+    testBuilder()
+      .sqlQuery("select memory_grant from sys.fragments")
+      .schemaBaseLine(Collections.singletonList(Pair.of(SchemaPath.getSimplePath("memory_grant"),
+        Types.optional(TypeProtos.MinorType.BIGINT))))
+      .go();
   }
 
   @Test

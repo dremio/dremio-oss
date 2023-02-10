@@ -22,7 +22,8 @@ import BranchHistory from "./components/BranchHistory/BranchHistory";
 import NessieProjectHomePage from "./components/NessieProjectHomePage/NessieProjectHomePage";
 import NessieSourceHomePage from "./components/NessieSourceHomePage/NessieSourceHomePage";
 import ArcticSourceWithNessie from "@app/exports/pages/ArcticSource/ArcticSource";
-import { ArcticSourceRoutes } from "@app/exports/routes";
+import { ArcticSourceRoutes } from "@inject/additionalRequiredRoutes";
+
 import * as PATHS from "@app/exports/paths";
 
 const CommonRoutes = [
@@ -72,16 +73,25 @@ export function arcticSourceRoutes() {
   return [
     <Route
       key="arcticSourceHomePage"
-      path={PATHS.arcticSourceBase({ sourceId: ":sourceId" })}
+      path={PATHS.arcticSourceBase({
+        sourceId: ":sourceId",
+        projectId: ":projectId",
+      })}
       component={ArcticSourceWithNessie}
     >
       <IndexRedirect
-        to={PATHS.arcticSourceCommitsBase({ sourceId: ":sourceId" })}
+        to={PATHS.arcticSourceCommitsBase({
+          sourceId: ":sourceId",
+          projectId: ":projectId",
+        })}
       />
       {ArcticSourceRoutes}
       <Route
         key="arctic-not-found"
-        path={`${PATHS.arcticSourceBase({ sourceId: ":sourceId" })}/*`}
+        path={`${PATHS.arcticSourceBase({
+          sourceId: ":sourceId",
+          projectId: ":projectId",
+        })}/*`}
         component={() => null}
       />
     </Route>,

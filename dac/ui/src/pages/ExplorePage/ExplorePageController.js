@@ -40,22 +40,21 @@ import {
 } from "@app/containers/RouteLeave.js";
 import { initRefs as initRefsAction } from "@app/actions/nessie/nessie";
 import exploreUtils from "@app/utils/explore/exploreUtils";
-
 import { updateSqlPartSize } from "actions/explore/ui";
-
 import { showConfirmationDialog } from "actions/confirmation";
-
 import { updateRightTreeVisibility } from "actions/ui/ui";
-
 import { hasDatasetChanged } from "utils/datasetUtils";
-
 import { PageTypes, pageTypeValuesSet } from "@app/pages/ExplorePage/pageTypes";
-
 import explorePageControllerConfig from "@inject/pages/ExplorePage/explorePageControllerConfig";
-
 import QlikStateModal from "./components/modals/QlikStateModal";
-
 import ExplorePage from "./ExplorePage";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { newQuery } from "@app/exports/paths";
+import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { fetchFeatureFlag } from "@inject/actions/featureFlag";
+import { SQL_JOB_STATUS } from "@app/exports/flags/SQL_JOB_STATUS";
 
 const HEIGHT_AROUND_SQL_EDITOR = 175;
 const defaultPageType = PageTypes.default;
@@ -84,6 +83,7 @@ export class ExplorePageControllerComponent extends Component {
     getDatasetChangeDetails: PropTypes.func.isRequired,
     activeScript: PropTypes.object,
     currentSql: PropTypes.string,
+    fetchFeatureFlag: PropTypes.func,
   };
 
   static defaultProps = {
@@ -110,6 +110,8 @@ export class ExplorePageControllerComponent extends Component {
     if (addHasChangesHook) {
       addHasChangesHook(this.shouldShowUnsavedChangesPopup);
     }
+
+    isDcsEdition() && this.props.fetchFeatureFlag(SQL_JOB_STATUS);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -122,7 +124,8 @@ export class ExplorePageControllerComponent extends Component {
 
   receiveProps(nextProps, prevProps = {}) {
     if (!this.isPageTypeValid(nextProps.pageType)) {
-      nextProps.router.push("/");
+      const projectId = getSonarContext()?.getSelectedProjectId?.();
+      nextProps.router.push(commonPaths.projectBase.link({ projectId }));
     }
 
     const datasetChanged = hasDatasetChanged(
@@ -179,8 +182,12 @@ export class ExplorePageControllerComponent extends Component {
   _areLocationsSameDataset(history, oldLocation, newLocation) {
     // eg /space/myspace/path.to.dataset
     // Compare fullPath in pathname. Ignore prefix/suffix like /details
-    const oldParts = oldLocation.pathname.split("/");
-    const newParts = newLocation.pathname.split("/");
+    // urlability
+    const newloc = rmProjectBase(newLocation.pathname);
+    const oldLoc = rmProjectBase(oldLocation.pathname);
+
+    const oldParts = oldLoc.split("/");
+    const newParts = newloc.split("/");
     const hasMoreParts = newParts.length > 2 || oldParts.length > 2;
     if (hasMoreParts) {
       if (newParts[2] === oldParts[2] && newParts[3] === oldParts[3])
@@ -298,7 +305,7 @@ export class ExplorePageControllerComponent extends Component {
 
 function mapStateToProps(state, ownProps) {
   const { location, routeParams } = ownProps;
-  const isNewQuery = location.pathname === "/new_query";
+  const isNewQuery = location.pathname.includes(newQuery());
   const dataset = getExplorePageDataset(state);
   const explorePageState = getExploreState(state);
   const sqlHeight = Math.min(
@@ -334,6 +341,7 @@ const Connected = compose(
     updateRightTreeVisibility,
     showConfirmationDialog,
     initRefs: initRefsAction,
+    fetchFeatureFlag,
   }),
   withDatasetChanges
 )(ExplorePageController);

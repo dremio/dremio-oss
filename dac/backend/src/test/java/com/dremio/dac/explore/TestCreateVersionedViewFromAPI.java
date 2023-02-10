@@ -43,6 +43,7 @@ import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -86,6 +87,8 @@ public class TestCreateVersionedViewFromAPI extends DremioTest {
   private BufferAllocator allocator;
   @Mock
   private Catalog catalog;
+  @Mock
+  private CatalogService catalogService;
   @Mock
   private DatasetUI datasetUI;
 
@@ -162,7 +165,8 @@ public class TestCreateVersionedViewFromAPI extends DremioTest {
       securityContext,
       datasetPath,
       version,
-      allocator
+      allocator,
+      catalogService
       ));
     virtualDatasetUI.setFullPathList(SOURCE_PATH);
     virtualDatasetUI.setVersion(DatasetVersion.newVersion());

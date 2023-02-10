@@ -1,0 +1,17 @@
+[
+  {
+    "c1": "NA",
+    "c2": "dremio",
+    "c3": "yes"
+  },
+  {
+    "c1": "dremio",
+    "c2": "None",
+    "c3": "yes"
+  },
+  {
+    "c1": "dremio",
+    "c2": "yes",
+    "c3": "NA"
+  }
+]

@@ -89,7 +89,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
             @Override
             public Void visitCall(RexCall call) {
               if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
-                  DremioSqlOperatorTable.FLATTEN.getName().toLowerCase().equals(call.getOperator().getName().toLowerCase())) {
+                  DremioSqlOperatorTable.FLATTEN.getName().equalsIgnoreCase(call.getOperator().getName())) {
                 throw new Util.FoundOne(call);
               }
               return super.visitCall(call);

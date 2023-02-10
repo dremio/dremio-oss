@@ -27,10 +27,14 @@
       display: flex;
       cursor: pointer;
       height: 27px;
-      padding: 0 8px 0 8px;
+      padding: 0 4px;
       gap: 5px;
       justify-content: space-between;
       position: relative;
+    }
+
+    &__downArrow {
+      transform: rotate(180deg);
     }
 
     &__toggler {
@@ -76,7 +80,7 @@
       }
 
       &:hover {
-        background-color: @FIGMA_PRIMARY_100;
+        background-color: var(--dremio--color--neutral--100);
         border: 1px solid @IRON;
 
         .dropdownMenu__icon {

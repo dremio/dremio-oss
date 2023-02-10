@@ -40,8 +40,13 @@ class CardFooter extends PureComponent {
   renderFooter() {
     const { card, style } = this.props;
     const themeMathed = {
-      Icon: { color: "#2A394A", ...styles.iconTheme },
-      Container: { ...styles.mathed, height: 15 },
+      Icon: { backgroundColor: "#2A394A", ...styles.iconTheme },
+      Container: {
+        ...styles.mathed,
+        height: 8,
+        width: 8,
+        backgroundColor: "none",
+      },
     };
     const max = card.get
       ? card.get("unmatchedCount") + card.get("matchedCount")
@@ -49,7 +54,7 @@ class CardFooter extends PureComponent {
     const value = card.get ? card.get("matchedCount") : 0;
     const themeUnmathed = {
       Icon: styles.iconTheme,
-      Container: { ...styles.mathed, height: 15 },
+      Container: { ...styles.mathed, height: 8, width: 8 },
     };
     const progressWidth = { width: style ? style.width : PROGRESS_WIDTH };
 
@@ -58,12 +63,12 @@ class CardFooter extends PureComponent {
         className="match-panel"
         style={{ ...progressWidth, ...styles.labels, ...style }}
       >
-        <FontIcon type="fa-stop" theme={themeUnmathed} />
+        <FontIcon theme={themeUnmathed} />
         <span style={{ ...styles.text, marginLeft: 5 }}>
           {card.get && card.get("matchedCount")}
         </span>
         <span style={styles.text}>matched values</span>
-        <FontIcon type="fa-stop" theme={themeMathed} />
+        <FontIcon theme={themeMathed} />
         <span style={{ ...styles.text, marginLeft: 5 }}>
           {card.get && card.get("unmatchedCount")}
         </span>
@@ -91,18 +96,18 @@ const styles = {
     bottom: 0,
   },
   mathed: {
-    margin: "-2px 0 4px 10px",
-    color: TEAL,
+    margin: "-2px 0 1px 10px",
+    backgroundColor: TEAL,
   },
   iconTheme: {
     fontSize: 8,
     width: 8,
     height: 8,
-    marginTop: 2,
   },
   labels: {
     display: "flex",
     flexWrap: "wrap",
+    alignItems: "center",
   },
   progress: {
     height: 7,

@@ -96,25 +96,12 @@ export const showDownloadModal = (jobId, confirm) => (dispatch) => {
 
 export const OPEN_QLIK_SENSE = "OPEN_QLIK_SENSE";
 
-function needsSaveBeforeBI(dataset) {
-  // if the dataset is a datasetUI and has no apiLinks.namespaceEntity, then we need to save it before doing BI as its
-  // an unsaved dataset
-  return (
-    dataset.get("entityType") === "datasetUI" &&
-    !dataset.getIn(["apiLinks", "namespaceEntity"])
-  );
-}
-
 /**
  * Triggers qlik saga
  * @param dataset
  */
 export const openQlikSense = (dataset) => {
   return (dispatch) => {
-    if (needsSaveBeforeBI(dataset)) {
-      return dispatch(saveAsDataset("OPEN_QLIK_AFTER"));
-    }
-
     return dispatch({
       type: OPEN_QLIK_SENSE,
       payload: dataset,
@@ -166,11 +153,7 @@ const fetchDownloadTableau = ({ href }) => {
 
 export const openTableau = (dataset) => {
   return (dispatch) => {
-    if (needsSaveBeforeBI(dataset)) {
-      return dispatch(saveAsDataset("OPEN_TABLEAU"));
-    }
-
-    const href = `/tableau/${FileUtils.getDatasetIdForClientTools(dataset)}`;
+    const href = `/tableau/${FileUtils.getDatasetPathForClientTools(dataset)}`;
     return dispatch(downloadTableau({ href })).then((response) => {
       if (!response.error) {
         FileUtils.downloadFile(response.payload);
@@ -219,11 +202,7 @@ const fetchDownloadPowerBI = ({ href }) => {
 
 export const openPowerBI = (dataset) => {
   return (dispatch) => {
-    if (needsSaveBeforeBI(dataset)) {
-      return dispatch(saveAsDataset("OPEN_POWER_BI"));
-    }
-
-    const href = `/powerbi/${FileUtils.getDatasetIdForClientTools(dataset)}`;
+    const href = `/powerbi/${FileUtils.getDatasetPathForClientTools(dataset)}`;
     return dispatch(downloadPowerBI({ href })).then((response) => {
       if (!response.error) {
         FileUtils.downloadFile(response.payload);

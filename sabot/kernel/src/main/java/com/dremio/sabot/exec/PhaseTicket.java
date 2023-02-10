@@ -79,6 +79,7 @@ public class PhaseTicket extends TicketWithChildren {
     return NodePhaseStatus.newBuilder()
       .setMajorFragmentId(majorFragmentId)
       .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
+      .setPhaseWeight(phaseWeight)
       .build();
   }
 

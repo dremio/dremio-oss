@@ -15,6 +15,9 @@
  */
 package com.dremio.service.reflection;
 
+import static com.dremio.service.job.JobState.METADATA_RETRIEVAL;
+import static com.dremio.service.job.JobState.PENDING;
+import static com.dremio.service.job.JobState.PLANNING;
 import static com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS.AVAILABLE;
 import static com.dremio.service.reflection.ReflectionUtils.isTerminal;
 import static com.dremio.service.reflection.proto.MaterializationState.DEPRECATED;
@@ -24,9 +27,12 @@ import static com.dremio.service.reflection.proto.ReflectionState.ACTIVE;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.VM;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
@@ -34,9 +40,13 @@ import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.QueryProfileRequest;
+import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.proto.ExternalReflection;
@@ -47,7 +57,6 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.store.MaterializationStore;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
@@ -95,6 +104,7 @@ public class ReflectionMonitor {
       if (reflection.isPresent()) {
         logger.debug("reflection {} is {}", reflection.get().getName(), reflection.get().getState());
         if(reflection.get().getState() == state) {
+          w.log("waitForState " + ReflectionUtils.getId(reflectionId) + "=" + state);
           return reflection.get();
         }
 
@@ -110,11 +120,24 @@ public class ReflectionMonitor {
     Wait w = new Wait();
     while(w.loop()) {
       if (statusService.getReflectionStatus(reflectionId).getRefreshStatus() == status) {
+        w.log("waitForRefreshStatus " + ReflectionUtils.getId(reflectionId) + "=" + status);
         return;
       }
     }
 
     throw new IllegalStateException();
+  }
+
+  public void waitUntilPlanned(JobId id) throws JobNotFoundException {
+    Wait w = new Wait();
+    while (w.loop()) {
+      JobSummary summary = jobsService.getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(id)).build());
+      // Logic based on LocalJobService.MapFilterToJobState
+      if (!Arrays.asList(PENDING, METADATA_RETRIEVAL, PLANNING).contains(summary.getJobState())) {
+        w.log("waitUntilPlanned jobId=" + id.getId());
+        return;
+      }
+    }
   }
 
   public Materialization waitUntilMaterialized(ReflectionId id) {
@@ -137,6 +160,7 @@ public class ReflectionMonitor {
       if (lastMaterialization != null && !Objects.equals(materializationId, lastMaterialization.getId())
         && (materialization == null || lastMaterialization.getInitRefreshSubmit() > materialization.getInitRefreshSubmit())) {
         if (lastMaterialization.getState() == DONE) {
+          w.log("waitUntilMaterialized " + ReflectionUtils.getId(reflectionId) + " and not " + (materialization == null ? "any" : ReflectionUtils.getId(materialization)));
           return lastMaterialization;
         } else if (lastMaterialization.getState() == FAILED) {
           throwMaterializationError(lastMaterialization);
@@ -156,6 +180,7 @@ public class ReflectionMonitor {
     do {
       if(last < reflectionManager.getLastWakeupTime()) {
         if(cycled){
+          w.log("waitTillReflectionManagerHasCycled");
           return;
         } else {
           cycled = true;
@@ -194,18 +219,14 @@ public class ReflectionMonitor {
   }
 
   public void waitUntilCached(Materialization m) {
-    waitUntilCached(m.getId());
-  }
-
-  public void waitUntilCached(MaterializationId id) {
     Wait w = new Wait();
     final CacheViewer cacheViewer = reflections.getCacheViewerProvider().get();
     while (w.loop()) {
-      if (cacheViewer.isCached(id)) {
+      if (cacheViewer.isCached(m.getId())) {
+        w.log("waitUntilCached " + ReflectionUtils.getId(m));
         return;
       }
     }
-
     throw new IllegalStateException();
   }
 
@@ -246,6 +267,7 @@ public class ReflectionMonitor {
       if (lastMaterialization != null &&
         !Objects.equals(lastMaterializationId, lastMaterialization.getId()) &&
         lastMaterialization.getState() == MaterializationState.RUNNING) {
+        w.log("waitUntilMaterializationRunning " + ReflectionUtils.getId(id) + " and not " + ReflectionUtils.getId(lastMaterialization));
         return lastMaterialization;
       }
     }
@@ -268,6 +290,7 @@ public class ReflectionMonitor {
       if (lastMaterialization != null &&
         !Objects.equals(lastMaterializationId, lastMaterialization.getId()) &&
         lastMaterialization.getState() == MaterializationState.FAILED) {
+        w.log("waitUntilMaterializationFails " + ReflectionUtils.getId(id) + " and not " + ReflectionUtils.getId(lastMaterialization));
         return lastMaterialization;
       }
     }
@@ -307,6 +330,7 @@ public class ReflectionMonitor {
       if (lastMaterialization != null &&
         !Objects.equals(lastMaterializationId, lastMaterialization.getId()) &&
         lastMaterialization.getState() == MaterializationState.CANCELED) {
+        w.log("waitUntilMaterializationCanceled " + ReflectionUtils.getId(id) + " and not " + ReflectionUtils.getId(lastMaterialization));
         return lastMaterialization;
       }
     }
@@ -325,6 +349,7 @@ public class ReflectionMonitor {
       if (lastMaterialization != null &&
           !Objects.equals(lastMaterializationId, lastMaterialization.getId()) &&
           isTerminal(lastMaterialization.getState())) {
+        w.log("waitUntilMaterializationFinished " + ReflectionUtils.getId(id) + " and not " + ReflectionUtils.getId(lastMaterialization));
         return lastMaterialization;
       }
     }
@@ -336,6 +361,7 @@ public class ReflectionMonitor {
     Wait w = new Wait();
     while(w.loop()) {
       if (statusService.getReflectionStatus(reflectionId).getAvailabilityStatus() == AVAILABLE) {
+        w.log("waitUntilCanAccelerate " + ReflectionUtils.getId(reflectionId));
         return;
       }
     }
@@ -347,6 +373,7 @@ public class ReflectionMonitor {
     Wait w = new Wait();
     while (w.loop()) {
       if (materializations.get().isEmpty()) {
+        w.log("waitUntilNoMaterializationsAvailable");
         return;
       }
     }
@@ -369,8 +396,9 @@ public class ReflectionMonitor {
         .noneMatch(m -> {
         Optional<ReflectionEntry> e = reflections.getEntry(new ReflectionId(m.getLayoutId()));
         long lastSuccessful = e.get().getLastSuccessfulRefresh();
-        return e.transform(r -> (r.getState() == REFRESHING || ((lastSuccessful != 0L) && (lastSuccessful < requestTime)))).or(false);
+        return e.map(r -> (r.getState() == REFRESHING || ((lastSuccessful != 0L) && (lastSuccessful < requestTime)))).orElse(false);
       })) {
+        w.log("waitUntilNoMoreRefreshing numMaterializations=" + numMaterializations);
         break;
       }
     }
@@ -379,6 +407,7 @@ public class ReflectionMonitor {
   private class Wait {
     private final long expire = System.currentTimeMillis() + maxWait;
     private int loop = 0;
+    private long start = System.currentTimeMillis();
 
     public boolean loop() {
       loop++;
@@ -396,6 +425,10 @@ public class ReflectionMonitor {
       }
       return true;
     }
+
+    public void log(String waitReason) {
+      logger.info("Waited for {} took {} s", waitReason, TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - start) );
+    }
   }
 
   public void waitUntilExternalReflectionsRemoved(String externalReflectionId) {
@@ -403,6 +436,7 @@ public class ReflectionMonitor {
     while (wait.loop()) {
       final Optional<ExternalReflection> entry = reflections.getExternalReflectionById(externalReflectionId);
       if (!entry.isPresent()) {
+        wait.log("waitUntilExternalReflectionsRemoved externalReflectionId=" + externalReflectionId);
         return;
       }
     }
@@ -413,33 +447,31 @@ public class ReflectionMonitor {
     while (wait.loop()) {
       final Optional<ReflectionEntry> entry = reflections.getEntry(reflectionId);
       if (!entry.isPresent()) {
+        wait.log(ReflectionUtils.getId(reflectionId));
         return;
       }
     }
   }
 
-  public void waitUntilDeleted(final MaterializationId materializationId) {
+  public void waitUntilDeleted(final Materialization deleteMe) {
     Wait wait = new Wait();
     while (wait.loop()) {
-      final Materialization m = materializationStore.get(materializationId);
+      final Materialization m = materializationStore.get(deleteMe.getId());
       if (m == null) {
+        wait.log("waitUntilDeleted " + ReflectionUtils.getId(deleteMe));
         return;
       }
     }
   }
 
   public void waitUntilDeprecated(Materialization m) {
-    waitUntilDeprecated(m.getId());
-  }
-
-  public void waitUntilDeprecated(MaterializationId id) {
     Wait w = new Wait();
     while (w.loop()) {
-      if (materializationStore.get(id).getState() == DEPRECATED) {
+      if (materializationStore.get(m.getId()).getState() == DEPRECATED) {
+        w.log("waitUntilDeprecated " + ReflectionUtils.getId(m));
         return;
       }
     }
-
     throw new IllegalStateException();
   }
 

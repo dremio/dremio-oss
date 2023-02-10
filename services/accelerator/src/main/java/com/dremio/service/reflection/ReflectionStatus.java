@@ -40,7 +40,6 @@ public class ReflectionStatus {
   /**
    * Reflection config (definition) validity status
    *
-   * TODO: Improve OK status to include OK_MANUAL_REFRESH_POLICY or OK_AUTOMATIC_REFRESH_POLICY
    */
   public enum CONFIG_STATUS {
     OK,
@@ -60,7 +59,7 @@ public class ReflectionStatus {
   }
 
   /**
-   * Refelction availability status
+   * Reflection availability status
    */
   public enum AVAILABILITY_STATUS {
     NONE,       // reflection has no materialization at all
@@ -69,24 +68,36 @@ public class ReflectionStatus {
     AVAILABLE   // reflection has a valid materialization
   }
 
+  public enum REFRESH_METHOD {
+    NONE,         // new reflection - we don't know method until it is planned
+    FULL,         // after planning, it's always a full refresh
+    INCREMENTAL   // after planning, we can use incremental refreshes
+  }
+
   private final CONFIG_STATUS configStatus;
   private final REFRESH_STATUS refreshStatus;
   private final AVAILABILITY_STATUS availabilityStatus;
   private final COMBINED_STATUS combinedStatus;
+  private final REFRESH_METHOD refreshMethod;
   private final int numFailures;
   private final long lastDataFetch;
   private final long expiresAt;
+  private final long lastRefreshDuration;
+
 
 
   public ReflectionStatus(boolean reflectionEnabled, CONFIG_STATUS configStatus, REFRESH_STATUS refreshStatus,
-      AVAILABILITY_STATUS availabilityStatus, int numFailures, long lastDataFetch, long expiresAt) {
+      AVAILABILITY_STATUS availabilityStatus, int numFailures, long lastDataFetch, long expiresAt,
+      REFRESH_METHOD refreshMethod, long lastRefreshDuration) {
     this.configStatus = configStatus;
     this.refreshStatus = refreshStatus;
     this.availabilityStatus = availabilityStatus;
+    this.refreshMethod = refreshMethod;
     this.combinedStatus = computeCombinedStatus(reflectionEnabled, configStatus, refreshStatus, availabilityStatus, numFailures > 0);
     this.numFailures = numFailures;
     this.lastDataFetch = lastDataFetch;
     this.expiresAt = expiresAt;
+    this.lastRefreshDuration = lastRefreshDuration;
   }
 
   public CONFIG_STATUS getConfigStatus() {
@@ -105,6 +116,10 @@ public class ReflectionStatus {
     return combinedStatus;
   }
 
+  public REFRESH_METHOD getRefreshMethod() {
+    return refreshMethod;
+  }
+
   public int getNumFailures() {
     return numFailures;
   }
@@ -117,7 +132,19 @@ public class ReflectionStatus {
     return expiresAt;
   }
 
+  public long getLastRefreshDuration() { return lastRefreshDuration; }
 
+
+  /**
+   * COMBINED_STATUS is only shown in sys.reflections and not directly in the UI.
+   *
+   * @param reflectionEnabled
+   * @param configStatus
+   * @param refreshStatus
+   * @param availabilityStatus
+   * @param hasFailures
+   * @return
+   */
   private static COMBINED_STATUS computeCombinedStatus(boolean reflectionEnabled, final CONFIG_STATUS configStatus,
       REFRESH_STATUS refreshStatus, AVAILABILITY_STATUS availabilityStatus, boolean hasFailures) {
     if (!reflectionEnabled) {

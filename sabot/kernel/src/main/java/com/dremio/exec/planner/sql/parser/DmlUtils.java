@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -78,7 +79,7 @@ public class DmlUtils {
 
   private static void addColumn(SqlNodeList nodes, SqlParserPos pos, String name, SqlTypeName type) {
     nodes.add(new SqlIdentifier(name, pos));
-    nodes.add(new SqlDataTypeSpec(new SqlIdentifier(type.toString(), pos), -1, -1, null, null, pos));
+    nodes.add(new SqlDataTypeSpec(new SqlBasicTypeNameSpec(type, -1, null, pos), pos));
   }
 
   public static boolean isInsertOperation(final CreateTableEntry createTableEntry) {
@@ -88,7 +89,8 @@ public class DmlUtils {
   }
 
   public static boolean isInsertOperation(final WriterOptions writerOptions) {
-    return writerOptions.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INSERT; //TODO: Add CREATE for CTAS with DX-48616
+    return writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+      .getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INSERT; //TODO: Add CREATE for CTAS with DX-48616
   }
 
   public static RelDataType evaluateOutputRowType(final RelOptCluster cluster, final TableModify.Operation operation) {

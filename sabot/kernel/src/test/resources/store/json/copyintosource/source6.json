@@ -1,0 +1,16 @@
+[ null, {
+  "col1":
+  {
+    "col2" : [10, 40, 50, null],
+    "col3" : "data1",
+    "col4" : "yo"
+  }
+}, null,
+  {
+    "col1":
+    {
+      "col2" : [10, 40, 50, null],
+      "col3" : "data2",
+      "col4" : "yo"
+    }
+  }, null]

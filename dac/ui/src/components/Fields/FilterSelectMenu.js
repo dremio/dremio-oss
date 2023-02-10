@@ -65,7 +65,10 @@ FilterSelectMenuItem.propTypes = {
   onDragMove: PropTypes.func,
   onDragEnd: PropTypes.func,
   onDragStart: PropTypes.func,
+  isJobStatus: PropTypes.bool | undefined,
 };
+
+export const SUBHEADER_ITEM_TYPE = "SUBHEADER_ITEM_TYPE";
 
 export function FilterSelectMenuItem({
   item,
@@ -81,6 +84,7 @@ export function FilterSelectMenuItem({
   onDragStart,
   onDragEnd,
   onDragMove,
+  isJobStatus,
 }) {
   const [draggingIndex, settingDragIndex] = useState(-1);
 
@@ -104,19 +108,37 @@ export function FilterSelectMenuItem({
     "gutter--none": isDraggable,
   });
 
+  function renderSubheaderItem() {
+    return (
+      <span
+        key={item.id}
+        className="gutter-top gutter-bottom gutter-left--double gutter-right--double"
+      >
+        {item.label}
+      </span>
+    );
+  }
+
   function renderContent() {
+    if (item.type === SUBHEADER_ITEM_TYPE) {
+      return renderSubheaderItem();
+    }
+
     return (
       <span className={menuItemCls} key={item.id}>
         <Checkbox
           onChange={() => onChange(checked, item.id)}
           label={[
-            item.icon && (
-              <FontIcon
-                type={item.icon}
-                key={"fi_" + item.id}
-                theme={{ Container: styles.checkboxLabelContainer }}
-              />
-            ),
+            item.icon &&
+              (isJobStatus ? (
+                <dremio-icon name={item.icon} />
+              ) : (
+                <FontIcon
+                  type={item.icon}
+                  key={"fi_" + item.id}
+                  theme={{ Container: styles.checkboxLabelContainer }}
+                />
+              )),
             item.iconId && (
               <img
                 src={getIconPath(item.iconId)}
@@ -125,8 +147,8 @@ export function FilterSelectMenuItem({
                 style={{ height: 24, width: 24, marginRight: "4px" }}
               />
             ),
-            item.label.length > 24 ? (
-              <Tooltip title={item.label}>
+            item.label.length > 24 || item.tooltip ? (
+              <Tooltip title={item.tooltip ?? item.label}>
                 <EllipsedText text={item.label} className="ellipseLabel" />
               </Tooltip>
             ) : (
@@ -220,6 +242,7 @@ export default class FilterSelectMenu extends Component {
     noSearch: PropTypes.bool,
     selectedToTop: PropTypes.bool,
     selectType: PropTypes.string,
+    isJobStatus: PropTypes.bool | undefined,
 
     // callbacks
     loadItemsForFilter: PropTypes.func,
@@ -239,6 +262,7 @@ export default class FilterSelectMenu extends Component {
     menuHeader: PropTypes.string,
     disableReorderOnSelect: PropTypes.bool,
     hasIconFirst: PropTypes.bool,
+    iconTooltip: PropTypes.string,
 
     //drag and drop properties;
     isDraggable: PropTypes.bool,
@@ -336,12 +360,14 @@ export default class FilterSelectMenu extends Component {
     if (selectViewBeforeOpen && typeof selectViewBeforeOpen === "function") {
       selectViewBeforeOpen();
     }
-    this.setState({
-      itemsList: [
-        ...this.getSelectedItems(itemsList, selectedValues),
-        ...this.getUnselectedItems(itemsList, selectedValues, ""),
-      ],
-    });
+    if (!this.props.disableReorderOnSelect) {
+      this.setState({
+        itemsList: [
+          ...this.getSelectedItems(itemsList, selectedValues),
+          ...this.getUnselectedItems(itemsList, selectedValues, ""),
+        ],
+      });
+    }
   };
 
   renderItems = ({ index, key, style, parent }) => {
@@ -355,17 +381,17 @@ export default class FilterSelectMenu extends Component {
       cellCache,
       wrapWithCellMeasurer,
       ellipsedTextClass,
-
       onDragMove,
       onDragStart,
       onDragEnd,
       isDraggable = false,
       selectType,
+      isJobStatus,
     } = this.props;
 
-    if (!items.length) return null;
-
     const { pattern, itemsList } = this.state;
+
+    if (!items.length && pattern) return null;
 
     const orderedItems =
       name === "col"
@@ -374,16 +400,20 @@ export default class FilterSelectMenu extends Component {
     const selectedMap = this.getSelectedMap(itemsList, selectedValues);
 
     const item = orderedItems[index];
+    const isSubHeaderItem = items[index]?.type === SUBHEADER_ITEM_TYPE;
 
     const itemClassName = clsx(
       className,
-      "filterSelectMenu__menuItem",
+      isSubHeaderItem
+        ? "filterSelectMenu__menuSubHeader"
+        : "filterSelectMenu__menuItem",
       { "--disabled": item.disabled && selectType !== "button" },
       { "--chosen": selectedMap[item.id] && selectType !== "button" }
     );
+    const itemStyle = isSubHeaderItem ? { ...style, height: 32 } : style;
 
     const renderItemCell = () => (
-      <div style={style} key={key}>
+      <div style={itemStyle} key={key}>
         <FilterSelectMenuItem
           key={index}
           item={item}
@@ -400,6 +430,7 @@ export default class FilterSelectMenu extends Component {
           onDragMove={onDragMove}
           onDragEnd={onDragEnd}
           onDragStart={onDragStart}
+          isJobStatus={isJobStatus}
         />
       </div>
     );
@@ -542,9 +573,20 @@ export default class FilterSelectMenu extends Component {
       iconId,
       menuHeader,
       hasIconFirst,
+      iconTooltip,
     } = this.props;
 
     const { pattern, itemsList } = this.state;
+
+    const getRowHeight = ({ index }) => {
+      if (this.props.items?.[index]?.type === SUBHEADER_ITEM_TYPE) {
+        return 32;
+      } else if (typeof cellCache?.rowHeight === "function") {
+        return cellCache.rowHeight({ index });
+      } else {
+        return filterItemHeight || FILTER_ITEM_HEIGHT;
+      }
+    };
 
     const orderedItems =
       name === "col"
@@ -581,6 +623,7 @@ export default class FilterSelectMenu extends Component {
         hasIconFirst={hasIconFirst}
         menuHeader={menuHeader}
         hasSpecialIcon={!!iconId}
+        iconTooltip={iconTooltip}
       >
         <div
           style={{ ...styles.popoverContent, height: pHeight }}
@@ -603,11 +646,7 @@ export default class FilterSelectMenu extends Component {
                   selectedMap={selectedMap} //Rerender when selection changes
                   ref={(ref) => (this.virtualList = ref)}
                   rowCount={orderedItems.length}
-                  rowHeight={
-                    (cellCache ? cellCache.rowHeight : null) ||
-                    filterItemHeight ||
-                    FILTER_ITEM_HEIGHT
-                  }
+                  rowHeight={getRowHeight}
                   rowRenderer={this.renderItems}
                   width={width}
                   height={height}

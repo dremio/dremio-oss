@@ -136,10 +136,10 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
 
   @Test
   public void testPushJoinFilterOnLeftSide() {
-    FilesystemScanDrel leftScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, false);
+    FilesystemScanDrel leftScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, ImmutableList.of(), false);
     ProjectRel leftProj = ProjectRel.create(cluster, traits, leftScan,
       ImmutableList.of(builder.makeInputRef(leftScan, 0), builder.makeInputRef(leftScan, 1), builder.makeInputRef(leftScan, 2)), leftScan.getRowType());
-    FilesystemScanDrel rightScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, false);
+    FilesystemScanDrel rightScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, ImmutableList.of(), false);
     ProjectRel rightProj = ProjectRel.create(cluster, traits, rightScan,
       ImmutableList.of(builder.makeInputRef(rightScan, 0), builder.makeInputRef(rightScan, 1), builder.makeInputRef(rightScan, 2)), rightScan.getRowType());
 
@@ -185,10 +185,10 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
 
   @Test
   public void testPushJoinFilterOnRightSide() {
-    FilesystemScanDrel leftScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, false);
+    FilesystemScanDrel leftScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, ImmutableList.of(), false);
     ProjectRel leftProj = ProjectRel.create(cluster, traits, leftScan,
       ImmutableList.of(builder.makeInputRef(leftScan, 0), builder.makeInputRef(leftScan, 1), builder.makeInputRef(leftScan, 2)), leftScan.getRowType());
-    FilesystemScanDrel rightScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, false);
+    FilesystemScanDrel rightScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, ImmutableList.of(), false);
     ProjectRel rightProj = ProjectRel.create(cluster, traits, rightScan,
       ImmutableList.of(builder.makeInputRef(rightScan, 0), builder.makeInputRef(rightScan, 1), builder.makeInputRef(rightScan, 2)), rightScan.getRowType());
 
@@ -233,10 +233,10 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
 
   @Test
   public void testPushJoinFilterBothSides() {
-    FilesystemScanDrel leftScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, false);
+    FilesystemScanDrel leftScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, ImmutableList.of(), false);
     ProjectRel leftProj = ProjectRel.create(cluster, traits, leftScan,
       ImmutableList.of(builder.makeInputRef(leftScan, 0), builder.makeInputRef(leftScan, 1), builder.makeInputRef(leftScan, 2)), leftScan.getRowType());
-    FilesystemScanDrel rightScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, false);
+    FilesystemScanDrel rightScan = new FilesystemScanDrel(cluster, traits, table, pluginId, metadata, projectedColumns, 0, ImmutableList.of(), false);
     ProjectRel rightProj = ProjectRel.create(cluster, traits, rightScan,
       ImmutableList.of(builder.makeInputRef(rightScan, 0), builder.makeInputRef(rightScan, 1), builder.makeInputRef(rightScan, 2)), rightScan.getRowType());
 

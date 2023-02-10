@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
@@ -30,6 +30,11 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-ui-lib</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-ui-common</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
@@ -66,12 +71,12 @@
             <exclude>**/*.pattern</exclude>
             <exclude>*.code-workspace</exclude>
             <exclude>src/services/nessie/client/**</exclude>
+            <exclude>src/mockServiceWorker.js</exclude>
             <exclude>**/*.json</exclude>
             <exclude>**/*.md</exclude>
             <exclude>.npmrc</exclude>
             <exclude>.pnpmfile.cjs</exclude>
             <exclude>**/*.gitkeep</exclude>
-            <exclude>src/art/sources/SNOWFLAKE.svg</exclude>
           </excludes>
           <mapping>
             <!-- full file names -->

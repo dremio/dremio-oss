@@ -20,7 +20,7 @@ import PropTypes from "prop-types";
 import TimeUtils from "utils/timeUtils";
 
 import { getIntervals as getIntervalsUtil, Intervals } from "./utils";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import * as classes from "./LeftPanel.module.less";
 

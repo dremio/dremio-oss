@@ -22,15 +22,29 @@
   line-height: 20px;
   justify-content: center;
   text-align: center;
+  height: 100%;
   width: 100%;
+  cursor: pointer;
 
   --dremio--card--padding: 0;
+
+  &:hover,
+  &:focus-within {
+    background-color: var(--dremio--color--primary--100);
+  }
 
   &__content {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    height: 100%;
+  }
+
+  &__link {
+    color: inherit;
+    &:hover,
+    &:focus {
+      text-decoration: none !important;
+    }
   }
 
   &__title {

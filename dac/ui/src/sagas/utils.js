@@ -23,6 +23,7 @@ import { constructFullPath } from "utils/pathUtils";
 import { EXPLORE_PAGE_LOCATION_CHANGED } from "@app/actions/explore/dataset/data";
 import { log } from "@app/utils/logger";
 import exploreUtils from "@app/utils/explore/exploreUtils";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 export const LOCATION_CHANGE = "@@router/LOCATION_CHANGE";
 
@@ -59,6 +60,8 @@ export const getExplorePageLocationChangePredicate = (
   const { newRouteState } = action;
   const oldLocation = prevRouteState.location;
   const newLocation = newRouteState.location;
+  const oldPathname = rmProjectBase(oldLocation.pathname) || "/";
+  const newPathname = rmProjectBase(newLocation.pathname) || "/";
 
   // after saving a dataset with a new name we change url, but version of a dataset is not changed.
   // We do not want to cancel data loading in that case.
@@ -72,8 +75,7 @@ export const getExplorePageLocationChangePredicate = (
     (newRouteState.params.pageType === PageTypes.details);
 
   const result = Boolean(
-    excludePageType(oldLocation.pathname) !==
-      excludePageType(newLocation.pathname) ||
+    excludePageType(oldPathname) !== excludePageType(newPathname) ||
       pageTypeChanged ||
       !deepEqual(oldLocation.query, newLocation.query)
   );
@@ -86,9 +88,9 @@ export const getExplorePageLocationChangePredicate = (
 
   // When a user goes from Dataset page to SQL Runner page, this flag will reset the explorePage view object
   const shouldResetExploreViewState =
-    oldLocation.pathname &&
+    oldPathname &&
     exploreUtils.isExploreDatasetPage(oldLocation) &&
-    newLocation.pathname === "/new_query" &&
+    newPathname === "/new_query" &&
     !newLocation.state;
 
   return [result, shouldResetExploreViewState];

@@ -20,8 +20,7 @@ import PropTypes from "prop-types";
 import { createSelector } from "reselect";
 import { injectIntl } from "react-intl";
 import { LINE_NOROW_START_STRETCH } from "uiTheme/radium/flexStyle";
-import { getSortedSources } from "@app/selectors/home";
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { selectSourceByName } from "@app/selectors/home";
 
 import { loadDatasetForDatasetType } from "actions/resources";
 //@ts-ignore
@@ -48,10 +47,11 @@ import {
   clearCompactionStateData,
 } from "@inject/actions/resources/compaction";
 import {
-  getSourceName,
   getArcticProjectId,
-  getBranchName,
+  getActiveBranch,
 } from "@inject/pages/HomePage/components/modals/DatasetSettings/compactionUtils";
+import { NESSIE } from "@app/constants/sourceTypes";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 const COMPACTION = "COMPACTION";
 const DATASET_SETTINGS_VIEW_ID = "DATASET_SETTINGS_VIEW_ID";
@@ -76,18 +76,16 @@ export class DatasetSettings extends PureComponent {
     updateFormDirtyState: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
     loadDatasetForDatasetType: PropTypes.func.isRequired,
-    branchName: PropTypes.string,
+    source: PropTypes.object,
     postCompactionData: PropTypes.func,
     startCompaction: PropTypes.func,
     getAllCompactionData: PropTypes.func,
     patchCompactionData: PropTypes.func,
     getCompactionData: PropTypes.func,
     clearCompactionStateData: PropTypes.func,
-    arcticProjectId: PropTypes.string,
     compactionTasks: PropTypes.array,
     enableCompaction: PropTypes.bool,
     isAdmin: PropTypes.bool,
-    isIcebergTable: PropTypes.bool,
   };
 
   state = {
@@ -129,19 +127,21 @@ export class DatasetSettings extends PureComponent {
     const {
       location,
       tab,
-      arcticProjectId,
       getAllCompactionData: dispatchGetAllCompactionData,
-      branchName,
       entity,
+      source,
       isAdmin,
       enableCompaction,
     } = this.props;
 
-    if (enableCompaction && isAdmin && arcticProjectId && entity) {
+    if (enableCompaction && isAdmin && source?.type === NESSIE && entity) {
+      const activeBranch = getActiveBranch(source?.name);
+      const arcticProjectId = getArcticProjectId(source);
+
       const spaceName = [...entity.get("fullPathList").remove(0)].join(".");
       dispatchGetAllCompactionData({
         projectId: arcticProjectId,
-        filter: `tableIdentifier=='${spaceName}'&&ref=='${branchName}'&&actionType=='${COMPACTION}'`,
+        filter: `tableIdentifier=='${spaceName}'&&ref=='${activeBranch}'&&actionType=='${COMPACTION}'`,
         maxResults: "1",
       })
         .then(() => this.setState({ taskLoading: false }))
@@ -208,9 +208,7 @@ export class DatasetSettings extends PureComponent {
       hide,
       location,
       entity,
-      branchName,
-      arcticProjectId,
-      isIcebergTable,
+      source,
       compactionTasks,
       clearCompactionStateData: dispatchClearCompactionStateData,
       startCompaction: dispatchStartCompaction,
@@ -230,7 +228,9 @@ export class DatasetSettings extends PureComponent {
     };
 
     const renderDataOptimization =
-      arcticProjectId && isAdmin && isIcebergTable
+      source?.type === NESSIE &&
+      isAdmin &&
+      entity.get("entityType") === "physicalDataset"
         ? {
             dataOptimization: () => {
               return this.state.loadingCompactionError ? (
@@ -246,7 +246,7 @@ export class DatasetSettings extends PureComponent {
                   compactionTasks={compactionTasks}
                   spaceName={[...entity.get("fullPathList").remove(0)]}
                   entity={entity}
-                  projectId={arcticProjectId}
+                  projectId={getArcticProjectId(source)}
                   dispatchClearCompactionStateData={
                     dispatchClearCompactionStateData
                   }
@@ -254,7 +254,7 @@ export class DatasetSettings extends PureComponent {
                   dispatchStartCompaction={dispatchStartCompaction}
                   dispatchPatchCompactionData={dispatchPatchCompactionData}
                   dispatchPostCompactionData={dispatchPostCompactionData}
-                  branchName={branchName}
+                  branchName={getActiveBranch(source.name)}
                   updateFormDirtyState={this.updateFormDirtyState}
                 />
               );
@@ -298,7 +298,13 @@ export class DatasetSettings extends PureComponent {
       },
       overview: () => {
         // TODO refactor - uses only: name, fullPathList, fileType, queryable
-        return <DatasetOverviewForm {...commonProps} entity={entity} />;
+        return (
+          <DatasetOverviewForm
+            {...commonProps}
+            entity={entity}
+            source={source}
+          />
+        );
       },
       ...renderDataOptimization,
     };
@@ -338,34 +344,23 @@ const mapStateToProps = (state, { isHomePage }) => {
   // Loaction Related variables
   const location = state.routing.locationBeforeTransitions;
   const { entityType, entityId } = location.state || {};
-  const isCloudEdition = isDcsEdition();
-  // Compaction Related variables, isCloudEdition is not necessary but just incase
-  const sources = isCloudEdition && getSortedSources(state);
-  const nessieSources = state.nessie || {};
-  const sourceName = isCloudEdition && getSourceName(nessieSources, location);
-  const branchName =
-    (isCloudEdition && getBranchName(nessieSources, sourceName)) || "";
-  const arcticProjectId =
-    (isCloudEdition && getArcticProjectId(sources, sourceName)) || null;
+  const loc = rmProjectBase(location.pathname || "");
+  const sourceName = loc.split("/")[2] || "";
+  const source = selectSourceByName(sourceName)(state);
   const compactionTasks = state.compactionTasks;
-  const isAdmin =
-    (isCloudEdition && state.privileges.organization.isAdmin) || false;
-  const enableCompaction =
-    isCloudEdition && state.featureFlag.data_optimization === "ENABLED";
-  const isIcebergTable = entityType === "physicalDataset";
+  const isAdmin = state.privileges?.organization?.isAdmin || false;
+  const enableCompaction = state.featureFlag?.data_optimization === "ENABLED";
   // Entity could be stored in different places of redux state, depending on current page
   // Entity is used to be stored in resources, but now for home page it is stored in separate place.
   // We need support both options. At this moment an only place where entity is stored in resources
   // is explore page ExploreSettingsButton
   const finalEntitySelector = isHomePage ? getHomeEntityOrChild : getEntity;
   return {
-    arcticProjectId,
-    branchName,
+    source,
     compactionTasks,
     location,
     isAdmin,
     enableCompaction,
-    isIcebergTable,
     entity: entityId && finalEntitySelector(state, entityId, entityType),
     viewState: getViewState(state, DATASET_SETTINGS_VIEW_ID),
   };

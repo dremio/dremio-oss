@@ -15,48 +15,44 @@
  */
 import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
-import { withRouter } from "react-router";
+import { Link } from "react-router";
 import * as classes from "./CatalogsMenu.module.less";
 import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
 import { useIntl } from "react-intl";
 import * as PATHS from "../../exports/paths";
 import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
 import { ARCTIC_CATALOG } from "@app/exports/flags/ARCTIC_CATALOG";
+//@ts-ignore
+import * as commonPaths from "dremio-ui-common/paths/common.js";
 
-type CatalogsMenuProps = {
-  router: any;
-};
-
-const CatalogsMenu = ({ router }: CatalogsMenuProps) => {
+const CatalogsMenu = () => {
   const intl = useIntl();
   const arcticLabel = intl.formatMessage({ id: "SideNav.ArcticCatalogs" });
   const sonarLabel = intl.formatMessage({ id: "SideNav.SonarProjects" });
   return (
     <Menu style={menuListStyle}>
-      <MenuItem
-        classname={classes["catalog-menu-item"]}
-        onClick={() => router.push(PATHS.sonarProjects())}
-      >
-        <dremio-icon
-          name="corporate/sonar"
-          alt={sonarLabel}
-          class={classes["catalog-menu-item__icon"]}
-        />
-        {sonarLabel}
+      <MenuItem classname={classes["catalog-menu-item"]}>
+        <Link to={commonPaths.projectsList.link()}>
+          <dremio-icon
+            name="corporate/sonar"
+            alt={sonarLabel}
+            class={classes["catalog-menu-item__icon"]}
+          />
+          {sonarLabel}
+        </Link>
       </MenuItem>
       <FeatureSwitch
         flag={ARCTIC_CATALOG}
         renderEnabled={() => (
-          <MenuItem
-            classname={classes["catalog-menu-item"]}
-            onClick={() => router.push(PATHS.arcticCatalogs())}
-          >
-            <dremio-icon
-              name="corporate/arctic"
-              alt={arcticLabel}
-              class={classes["catalog-menu-item__icon"]}
-            />
-            {arcticLabel}
+          <MenuItem classname={classes["catalog-menu-item"]}>
+            <Link to={PATHS.arcticCatalogs()}>
+              <dremio-icon
+                name="corporate/arctic"
+                alt={arcticLabel}
+                class={classes["catalog-menu-item__icon"]}
+              />
+              {arcticLabel}
+            </Link>
           </MenuItem>
         )}
       />
@@ -64,4 +60,4 @@ const CatalogsMenu = ({ router }: CatalogsMenuProps) => {
   );
 };
 
-export default withRouter(CatalogsMenu);
+export default CatalogsMenu;

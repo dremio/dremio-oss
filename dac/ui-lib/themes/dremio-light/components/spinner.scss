@@ -14,33 +14,4 @@
  * limitations under the License.
  */
 
-@keyframes dremio-spinner-rotate {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.dremio-spinner {
-  color: var(--dremio--spinner--color, inherit);
-  display: inline;
-
-  > * {
-    block-size: var(--dremio--spinner--size);
-    inline-size: var(--dremio--spinner--size);
-  }
-}
-
-.dremio-spinner {
-  > * {
-    animation-name: dremio-spinner-rotate;
-    animation-duration: 2000ms;
-    animation-iteration-count: infinite;
-    animation-timing-function: linear;
-  }
-
-  --dremio--spinner--size: 20px;
-}
+@use "../../base/components/spinner";

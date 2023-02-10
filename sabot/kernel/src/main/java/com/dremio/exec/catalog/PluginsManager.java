@@ -293,7 +293,8 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
       optionManager,
       reader,
       monitor.forPlugin(config.getName()),
-      broadcasterProvider
+      broadcasterProvider,
+      influxSourcePred
     );
   }
 
@@ -434,6 +435,9 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     return plugins.get(c(name));
   }
 
+  protected Predicate<String> getInfluxSourcePred() {
+    return influxSourcePred;
+  }
 
   /**
    * For each source, synchronize the sources definition to the namespace.

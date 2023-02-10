@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
@@ -38,7 +39,6 @@ import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.BaseTestWithAllocator;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 
 public class TestPivotRoundtrip extends BaseTestWithAllocator {
@@ -172,7 +172,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
 
       for (int i = 0; i < count; i++) {
         if (i % 5 == 0) {
-          byte[] data = ("hello-" + i).getBytes(Charsets.UTF_8);
+          byte[] data = ("hello-" + i).getBytes(UTF_8);
           in.setSafe(i, data, 0, data.length);
         }
       }
@@ -640,7 +640,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
 
       for (int i = 0; i < count; i++) {
         if (i % 5 == 0) {
-          byte[] data = ("hello-" + i).getBytes(Charsets.UTF_8);
+          byte[] data = ("hello-" + i).getBytes(UTF_8);
           in.setSafe(i, data, 0, data.length);
         }
       }

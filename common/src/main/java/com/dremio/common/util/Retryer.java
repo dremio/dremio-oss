@@ -35,7 +35,7 @@ import com.google.common.base.Preconditions;
  */
 @SuppressWarnings("checkstyle:FinalClass")
 public class Retryer<T> implements ExponentialBackoff {
-  private static Logger logger = LoggerFactory.getLogger(Retryer.class);
+  private static final Logger logger = LoggerFactory.getLogger(Retryer.class);
 
   public enum WaitStrategy {EXPONENTIAL, FLAT}  //Can be extended
 

@@ -25,6 +25,12 @@
     line-height: 0px !important;
     border-radius: 4px !important;
 
+    .view-lines {
+      font-feature-settings: "zero" on;
+      font-variant-ligatures: none;
+      font-weight: 400 !important;
+    }
+
     .overflow-guard {
       border-radius: 4px;
     }
@@ -80,7 +86,7 @@
 
     .main {
       color: @DARK_900 !important;
-      font-family: "Inter var", sans-serif !important;
+      font-family: var(--dremio--font-family) !important;
       font-weight: 400 !important;
       display: flex;
       flex-direction: column;
@@ -205,7 +211,7 @@
 
       .highlight {
         font-size: 12px !important;
-        font-family: "Inter var", sans-serif !important;
+        font-family: var(--dremio--font-family) !important;
         font-weight: 500 !important;
       }
     }

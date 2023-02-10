@@ -21,7 +21,8 @@
   output:
    - "SelectQueryStatement: SELECT * FROM EMP^ "
    - "  SelectClause: SELECT * "
-   - "    EXPRESSION: * "
+   - "    SelectList: * "
+   - "      SELECT ITEM: * "
    - "  FromClause: FROM EMP^ "
    - "    TABLE REFERENCE: EMP^ "
    - "      CatalogPath: EMP^ "
@@ -31,7 +32,8 @@
   output:
    - "SelectQueryStatement: SELECT * FROM EMP as emp^ "
    - "  SelectClause: SELECT * "
-   - "    EXPRESSION: * "
+   - "    SelectList: * "
+   - "      SELECT ITEM: * "
    - "  FromClause: FROM EMP as emp^ "
    - "    TABLE REFERENCE: EMP as emp^ "
    - "      CatalogPath: EMP "
@@ -42,7 +44,8 @@
   output:
    - "SelectQueryStatement: SELECT * FROM EMP emp^ "
    - "  SelectClause: SELECT * "
-   - "    EXPRESSION: * "
+   - "    SelectList: * "
+   - "      SELECT ITEM: * "
    - "  FromClause: FROM EMP emp^ "
    - "    TABLE REFERENCE: EMP emp^ "
    - "      CatalogPath: EMP "
@@ -53,7 +56,8 @@
   output:
    - "SelectQueryStatement: SELECT * FROM EMP AT BRANCH ^ "
    - "  SelectClause: SELECT * "
-   - "    EXPRESSION: * "
+   - "    SelectList: * "
+   - "      SELECT ITEM: * "
    - "  FromClause: FROM EMP AT BRANCH ^ "
    - "    TABLE REFERENCE: EMP AT BRANCH ^ "
    - "      CatalogPath: EMP "
@@ -65,7 +69,8 @@
   output:
    - "SelectQueryStatement: SELECT * FROM EMP AT B^ "
    - "  SelectClause: SELECT * "
-   - "    EXPRESSION: * "
+   - "    SelectList: * "
+   - "      SELECT ITEM: * "
    - "  FromClause: FROM EMP AT B^ "
    - "    TABLE REFERENCE: EMP AT B^ "
    - "      CatalogPath: EMP "
@@ -76,7 +81,8 @@
   output:
    - "SelectQueryStatement: SELECT * FROM EMP as emp AT BRANCH ^ "
    - "  SelectClause: SELECT * "
-   - "    EXPRESSION: * "
+   - "    SelectList: * "
+   - "      SELECT ITEM: * "
    - "  FromClause: FROM EMP as emp AT BRANCH ^ "
    - "    TABLE REFERENCE: EMP as emp AT BRANCH ^ "
    - "      CatalogPath: EMP "

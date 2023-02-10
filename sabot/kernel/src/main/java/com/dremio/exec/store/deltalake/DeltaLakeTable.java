@@ -72,19 +72,22 @@ public class DeltaLakeTable {
   private List<DeltaLogSnapshot> snapshots;
 
   public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection) {
-        this.fs = fs;
-        this.context = context;
-        final Path rootDir = Path.of(fileSelection.getSelectionRoot());
-        this.deltaLogDir = rootDir.resolve(DeltaConstants.DELTA_LOG_DIR);
-        this.manager = new DeltaMetadataFetchJobManager(context, fs, fileSelection, true);
-    }
+      this(context, fs, fileSelection.getSelectionRoot());
+  }
 
-    public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection, long version, long subparts) {
+  public DeltaLakeTable(SabotContext context, FileSystem fs, String selectionRoot) {
       this.fs = fs;
       this.context = context;
-      final Path rootDir = Path.of(fileSelection.getSelectionRoot());
-      this.deltaLogDir = rootDir.resolve(DeltaConstants.DELTA_LOG_DIR);
-      this.manager = new DeltaMetadataFetchJobManager(context, fs, fileSelection, version, subparts);
+      this.deltaLogDir = Path.of(selectionRoot).resolve(DeltaConstants.DELTA_LOG_DIR);
+      this.manager = new DeltaMetadataFetchJobManager(context, fs, selectionRoot, true);
+  }
+
+  public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection, long version, long subparts) {
+      this.fs = fs;
+      this.context = context;
+      final String selectionRoot = fileSelection.getSelectionRoot();
+      this.deltaLogDir = Path.of(selectionRoot).resolve(DeltaConstants.DELTA_LOG_DIR);
+      this.manager = new DeltaMetadataFetchJobManager(context, fs, selectionRoot, version, subparts);
     }
 
     public DeltaLogSnapshot getConsolidatedSnapshot() throws IOException {

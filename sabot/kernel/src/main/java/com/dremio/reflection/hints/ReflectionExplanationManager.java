@@ -28,7 +28,6 @@ import java.util.stream.Stream;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
-import org.apache.commons.math.exception.NullArgumentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +36,7 @@ import com.dremio.reflection.hints.features.FilterDisjointFeature;
 import com.dremio.reflection.hints.features.HintFeature;
 import com.dremio.reflection.hints.features.MaterializationFilterOverSpecifiedFeature;
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
+import com.google.common.base.Preconditions;
 
 public class ReflectionExplanationManager {
   public static final int MAX_REFLECTIONS_TO_DISPLAY_TO_SHOW = 5;
@@ -130,15 +130,11 @@ public class ReflectionExplanationManager {
   }
 
   // Get filter and rewrite rex index with column name
-  private String getFilterWithColumnName(RexNode materializationFilter, RelDataType datasetRowType) throws NullArgumentException {
+  private String getFilterWithColumnName(RexNode materializationFilter, RelDataType datasetRowType) {
     StringBuilder modified = new StringBuilder();
 
     String original = materializationFilter.toString();
-    List<String> fields = datasetRowType.getFieldNames();
-
-    if (fields == null) {
-      throw new NullArgumentException();
-    }
+    List<String> fields = Preconditions.checkNotNull(datasetRowType.getFieldNames());
 
     int index = 0;
     while (index < original.length()) {

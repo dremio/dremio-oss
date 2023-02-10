@@ -41,7 +41,9 @@ export function handleUnauthorized(payload, next, action) {
     next(unauthorizedError());
     if (!atLogin) {
       setTimeout(() => {
-        window.location.assign(`${getLoginUrl()}&${UNAUTHORIZED_URL_PARAM}`);
+        window.location.assign(
+          `${getLoginUrl(true)}&${UNAUTHORIZED_URL_PARAM}`
+        );
       }, 0);
     }
   }

@@ -122,6 +122,18 @@ class SearchDatasetsPopover extends PureComponent {
     this.setState({ filter: "" });
   };
 
+  onFocus = () => {
+    this.searchDatasetsPopover.className = "searchDatasetsPopover --focused";
+  }
+
+  onBlur = () => {
+    this.searchDatasetsPopover.className = "searchDatasetsPopover";
+  }
+
+  onFocusRef = (div) => {
+    this.searchDatasetsPopover = div
+  }
+
   render() {
     const value = this.state.filter;
     const { searchVisible, anchorEl } = this.state;
@@ -144,6 +156,9 @@ class SearchDatasetsPopover extends PureComponent {
           clearFilter={this.clearFilter}
           closeVisible={this.state.closeVisible}
           onInputRef={this.onInputRef}
+          onFocus={this.onFocus}
+          onBlur={this.onBlur}
+          onFocusRef={this.onFocusRef}
         />
 
         <Popover

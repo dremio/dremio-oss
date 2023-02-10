@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.aws.AwsProperties;
 import org.apache.iceberg.aws.glue.DremioGlueTableOperations;
@@ -67,8 +68,10 @@ import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
+import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
@@ -497,8 +500,10 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
 
     IcebergModel icebergModel = getIcebergModel(tableLocation, tableSchemaPath, schemaConfig.getUserName());
     String tableName = tableSchemaPath.getName();
+    PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+      .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName, icebergModel.getTableIdentifier(tableLocation), batchSchema,
-      writerOptions.getPartitionColumns(), null, writerOptions.getDeserializedPartitionSpec());
+      writerOptions.getPartitionColumns(), null, partitionSpec);
     icebergOpCommitter.commit();
   }
 
@@ -535,6 +540,30 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
     IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
     icebergModel.truncateTable(icebergModel.getTableIdentifier(metadataLocation));
+  }
+
+  @Override
+  public void rollbackTable(NamespaceKey tableSchemaPath,
+                            DatasetConfig datasetConfig,
+                            SchemaConfig schemaConfig,
+                            RollbackOption rollbackOption,
+                            TableMutationOptions tableMutationOptions) {
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
+    icebergModel.rollbackTable(icebergModel.getTableIdentifier(metadataLocation), rollbackOption);
+  }
+
+  @Override
+  public void vacuumTable(NamespaceKey tableSchemaPath,
+                          DatasetConfig datasetConfig,
+                          SchemaConfig schemaConfig,
+                          VacuumOption vacuumOption,
+                          TableMutationOptions tableMutationOptions) {
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
+    icebergModel.vacuumTable(icebergModel.getTableIdentifier(metadataLocation), vacuumOption);
   }
 
   @Override

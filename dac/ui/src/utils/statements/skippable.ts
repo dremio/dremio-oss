@@ -21,30 +21,31 @@ import { Position } from "./position";
  * However, instead of having a generic implementation, we have a case-specific one, since there are
  * no other cases yet to generalize.
  */
-export type Skippable<T> = Skip | Value<T>
+export type Skippable<T> = Skip | Value<T>;
 
 export type Skip = {
-  readonly kind: 'skip';
+  readonly kind: "skip";
   readonly to: Position;
-}
+};
 
 export type Value<T> = {
-  readonly kind: 'value';
+  readonly kind: "value";
   readonly value: T;
-}
+};
 
 export const skip = (to: Position): Skip => {
   return {
-    kind: 'skip',
-    to
+    kind: "skip",
+    to,
   };
-}
+};
 
 export const value = <T>(valueToUse: T): Value<T> => {
   return {
-    kind: 'value',
-    value: valueToUse
+    kind: "value",
+    value: valueToUse,
   };
-}
+};
 
-export const isSkipped = <T>(value: Skippable<T>): value is Skip => value.kind === 'skip';
+export const isSkipped = <T>(value: Skippable<T>): value is Skip =>
+  value.kind === "skip";

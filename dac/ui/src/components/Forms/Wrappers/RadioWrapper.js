@@ -16,7 +16,7 @@
 import { Component } from "react";
 import Radio from "components/Fields/Radio";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import { HoverHelp } from "dremio-ui-lib";
 import { rowOfInputsSpacing } from "@app/uiTheme/less/forms.less";
 import {

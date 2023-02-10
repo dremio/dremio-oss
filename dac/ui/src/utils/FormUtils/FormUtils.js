@@ -143,11 +143,6 @@ export default class FormUtils {
     return tabFields.some((tabField) => errorFields.includes(tabField));
   }
 
-  static tabHasError(tabConfig, errorFields) {
-    const tabFields = tabConfig.getFields();
-    return this.tabFieldsIncludeErrorFields(tabFields, errorFields);
-  }
-
   static findTabWithError(formConfig, fieldsWithError, selectedTabName) {
     const selectedTabConfig = selectedTabName
       ? formConfig.findTabByName(selectedTabName)

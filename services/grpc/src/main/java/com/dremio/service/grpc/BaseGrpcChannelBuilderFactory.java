@@ -18,6 +18,7 @@ package com.dremio.service.grpc;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
@@ -40,6 +41,7 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
   private final Tracer tracer;
   private final Set<ClientInterceptor> interceptors;
   private final Provider<Map<String, Object>> defaultServiceConfigProvider;
+  private Integer idleTimeoutSeconds;
 
   public BaseGrpcChannelBuilderFactory(Tracer tracer) {
     this(tracer, Collections.emptySet(), () -> Maps.newHashMap());
@@ -50,6 +52,11 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
     this.tracer = new GrpcTracerFacade((TracerFacade) tracer);
     this.interceptors = Sets.newHashSet(interceptors);
     this.defaultServiceConfigProvider = defaultServiceConfigProvider;
+  }
+
+  public BaseGrpcChannelBuilderFactory withIdleTimeout(int idleTimeoutSeconds) {
+    this.idleTimeoutSeconds = idleTimeoutSeconds;
+    return this;
   }
 
   /**
@@ -120,6 +127,10 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
       .maxInboundMetadataSize(setMaxMetaDataSizeToEightMB)
       .maxInboundMessageSize(defaultMaxInboundMessageSize)
       .maxRetryAttempts(MAX_RETRY);
+
+    if (idleTimeoutSeconds != null) {
+      builder.idleTimeout(idleTimeoutSeconds, TimeUnit.SECONDS);
+    }
 
     if (builder instanceof NettyChannelBuilder) {
       // disable auto flow control

@@ -135,7 +135,7 @@ public class Soundex {
             }
           }
 
-          outBytea = new String(ret).getBytes(com.google.common.base.Charsets.UTF_8);
+          outBytea = new String(ret).getBytes(java.nio.charset.StandardCharsets.UTF_8);
           out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
           out.buffer.setBytes(0, outBytea);
           out.start = 0;

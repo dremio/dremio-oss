@@ -1,0 +1,43 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns the name of a subdirectory of a table in HDFS. The subdirectory
+  has the name that ranks highest in case-insensitive alphanumeric order.
+functionCategories:
+- DIRECTORY
+name: IMAXDIR
+signatures:
+- description: sample signature description
+  parameters:
+  - description: Specifies that the table data is in an HDFS filesystem.
+    kind: REGULAR
+    name: dfs
+    type: CHARACTERS
+  - description: The full path of the directory in which the table data is stored.
+    kind: REGULAR
+    name: <path_of_parent_directory>
+    type: CHARACTERS
+  - description: The name of the subdirectory.
+    kind: REGULAR
+    name: <name_of_subdirectory>
+    type: CHARACTERS
+  returnType: CHARACTERS
+  sampleCodes:
+  - call: SELECT * FROM dfs."/tmp/querylogs" WHERE dir0 = IMAXDIR('dfs','/tmp/querylogs')
+    result: 2021
+  - call: SELECT * FROM dfs."/tmp/querylogs" WHERE dir0 = IMAXDIR('dfs','/tmp/querylogs')
+    result: D

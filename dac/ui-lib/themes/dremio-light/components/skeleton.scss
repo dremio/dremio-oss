@@ -14,16 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-skeleton {
-  display: inline-block;
-  vertical-align: middle;
-  background: var(--dremio--skeleton--background);
-  border-radius: var(--dremio--skeleton--border-radius);
-
-  &--text {
-    block-size: 1em;
-  }
-}
+@use "../../base/components/skeleton";
 
 .dremio-skeleton {
   --dremio--skeleton--background: var(--dremio--color--neutral--150);

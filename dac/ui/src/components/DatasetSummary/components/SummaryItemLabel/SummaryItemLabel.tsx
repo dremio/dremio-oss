@@ -22,17 +22,21 @@ import {
   addTooltip,
   openInNewTab,
 } from "../../datasetSummaryUtils";
-import { newQuery } from "@app/exports/paths";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 import * as classes from "./SummaryItemLabel.module.less";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+
 const DATASET_PATH_FROM_OVERLAY = "datasetPathFromOverlay";
 
 type DatasetSummaryItemLabelProps = {
   disableActionButtons: boolean;
   datasetType: string;
   title: string;
-  editLink: string;
-  selfLink: string;
+  editLink?: string;
+  selfLink?: string;
   canAlter: boolean;
   resourceId: string;
   fullPath: string;
@@ -40,13 +44,13 @@ type DatasetSummaryItemLabelProps = {
 };
 
 const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
   const [showTooltip, setShowTooltip] = useState(false);
   const {
     title,
-    // These will be re-added once the self link is ready #YOUSIF
-    // canAlter,
-    // editLink,
-    // selfLink,
+    canAlter,
+    editLink,
+    selfLink,
     isSqlEditorTab,
     resourceId,
     datasetType,
@@ -54,11 +58,11 @@ const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
     disableActionButtons,
   } = props;
 
-  const newQueryLink = newQuery();
+  const newQueryLink = sqlPaths.sqlEditor.link({ projectId });
   const titleRef = useRef(null);
   const iconName = getIconType(datasetType);
   const newQueryUrlParams = "?context=" + encodeURIComponent(resourceId);
-  const newTabLink = newQueryLink + newQueryUrlParams;
+  const newTabLink = sqlPaths.newQuery.link({ projectId, resourceId });
   const disable = disableActionButtons
     ? classes["dataset-item-header-disable-action-buttons"]
     : "";
@@ -77,6 +81,8 @@ const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
           search: newQueryUrlParams,
         },
       };
+
+  const toLink = canAlter && editLink ? editLink : selfLink;
 
   return (
     <div className={classes["dataset-item-header-container"]}>
@@ -116,16 +122,16 @@ const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
           />
         </IconButton>
 
-        {/* <IconButton
+        <IconButton
           as={LinkWithRef}
-          to={canAlter ? editLink : selfLink}
+          to={toLink ? wrapBackendLink(toLink) : ""}
           tooltip="Go.To.Dataset"
-        > */}
-        {/* <dremio-icon
+        >
+          <dremio-icon
             class={classes["dataset-item-header-action-icon"]}
             name="navigation-bar/go-to-dataset"
           />
-        </IconButton> */}
+        </IconButton>
       </div>
     </div>
   );

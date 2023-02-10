@@ -317,6 +317,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
    *
    * @param fragmentStatus
    */
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   @Override
   public void fragmentStatusChanged(FragmentStatus fragmentStatus) {
     Preconditions.checkState(pendingFragments != null, "Pending fragments should have been " +
@@ -421,6 +422,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
     firstErrorInQuery = null;
   }
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private void sendCompletionMessage(ExecutorQueryProfile finalQueryProfile) {
     // all fragments are completed.
     final NodeQueryCompletion.Builder completionBuilder =

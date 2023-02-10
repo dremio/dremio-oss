@@ -1,0 +1,107 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ <@pp.dropOutputFile />
+ <@pp.changeOutputFile name="javacc/QueryConverter.jj" />
+
+options {
+  STATIC=false;
+}
+
+PARSER_BEGIN(QueryConverter)
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.lucene.queryparser.classic;
+
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import com.dremio.exec.planner.sql.parser.SqlContains;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * QueryConverter parses a lucene query string, and replaces the field names with the corresponding field names as
+ * defined in a fieldMap
+ */
+public class QueryConverter {
+
+  /**
+   * Parses a query, and returns a new string in which the field names have been replaced according to the mapping
+   * @param query The original query string
+   * @param fieldMap the field mapping used for replacedment
+   * @return The new query string
+   * @throws Exception
+   */
+  public static String convert(String query, Map<String,String> fieldMap) throws Exception {
+    QueryConverter q = new QueryConverter(new java.io.StringReader(query));
+    return q.ConvertedLuceneQuery(fieldMap);
+  }
+
+  private SqlParserPos getPos() {
+    return null;
+  }
+}
+
+PARSER_END(QueryConverter)
+
+TOKEN_MGR_DECLS: {
+  void leftParen() {
+  //no op
+  }
+
+  void rightParen() {
+  //no op
+  }
+}
+
+<DEFAULT> TOKEN : {
+  <BLANK: "" > : LUCENE_DEFAULT
+}
+
+<NEVER> TOKEN : {
+  <L_CONTAINS: "L_CONTAINS" >
+}
+
+String ConvertedLuceneQuery(Map<String,String> fieldMap) :
+{
+  StringBuilder b = new StringBuilder();
+}
+{
+  <BLANK> DQuery(b, fieldMap)
+  {
+    return b.toString().trim();
+  }
+}
+
+// Everything below is same as lucene.ftl
+<#include "/@includes/lucene.ftl" />
+

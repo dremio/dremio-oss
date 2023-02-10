@@ -51,6 +51,7 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
   private final IcebergNessieTableIdentifier nessieTableIdentifier;
   private ResolvedVersionContext reference;
   private final OperatorStats operatorStats;
+  private String baseContentId;
 
   public IcebergNessieTableOperations(OperatorStats operatorStats, Provider<NessieApiV1> nessieApi, FileIO fileIO, IcebergNessieTableIdentifier nessieTableIdentifier) {
     this.fileIO = fileIO;
@@ -80,9 +81,11 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
   @Override
   protected void doRefresh() {
     reference = getDefaultBranch();
+    baseContentId = nessieClient().getContentId(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
+      reference, null);
     String metadataLocation = nessieClient().getMetadataLocation(
       getNessieKey(nessieTableIdentifier.getTableIdentifier()),
-      reference);
+      reference, null);
     refreshFromMetadataLocation(metadataLocation, 2);
   }
 
@@ -104,10 +107,12 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
       nessieClient().commitTable(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
-          newMetadataLocation,
-          new NessieClientTableMetadata(
-            metadata.currentSnapshot().snapshotId(), metadata.currentSchemaId(), metadata.defaultSpecId(), metadata.sortOrder().orderId()),
-          reference);
+        newMetadataLocation,
+        new NessieClientTableMetadata(
+          metadata.currentSnapshot().snapshotId(), metadata.currentSchemaId(), metadata.defaultSpecId(), metadata.sortOrder().orderId()),
+        reference,
+        baseContentId,
+        null);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {

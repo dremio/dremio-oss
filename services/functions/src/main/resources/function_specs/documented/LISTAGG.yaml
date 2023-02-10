@@ -1,0 +1,54 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "LISTAGG"
+signatures:
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "characterExpression"
+    description: "The expression to concatenate across all rows."
+  description: "Returns values concatenated into a string, delimited by comma separator."
+  snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
+  sampleCodes:
+   -
+    call: "SELECT LISTAGG(MY_COLUMN)"
+    result: "'Hello,World'"
+ -
+   returnType: "CHARACTERS"
+   parameters:
+     -
+       kind: "REGULAR"
+       type: "CHARACTERS"
+       name: "characterExpression"
+       description: "The expression to concatenate across all rows."
+     -
+       kind: "REGULAR"
+       type: "STRING"
+       name: "separator"
+       description: "The separator to use for delimiting the string."
+   description: "Returns values concatenated into a string, delimited by separator of your choice."
+   snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
+   sampleCodes:
+     -
+       call: "SELECT LISTAGG(MY_COLUMN, '-')"
+       result: "Hello-World"
+functionCategories: ["AGGREGATE", "CHARACTER"]
+description: "Returns values concatenated into a string, delimited by separator (default ‘,’)"

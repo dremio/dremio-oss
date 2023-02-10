@@ -16,7 +16,7 @@
 
 import { Component } from "react";
 import { connect } from "react-redux";
-import classNames from "classnames";
+import classNames from "clsx";
 import { FormattedMessage, injectIntl } from "react-intl";
 import Immutable from "immutable";
 
@@ -46,15 +46,20 @@ import {
   toggleObjectStorageSourcesExpanded,
   toggleDatasetsExpanded,
 } from "actions/ui/ui";
-import * as VersionUtils from "@app/utils/versionUtils";
-import sendEventToIntercom from "@inject/sagas/utils/sendEventToIntercom";
-import INTERCOM_EVENTS from "@inject/constants/intercomEvents";
+import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
 import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
 import DataPlaneSection from "./DataPlaneSection/DataPlaneSection";
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import { withErrorBoundary } from "@app/components/ErrorBoundary/withErrorBoundary";
 import { intl } from "@app/utils/intl";
+import {
+  rmProjectBase,
+  addProjectBase as wrapBackendLink,
+} from "dremio-ui-common/utilities/projectBase.js";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+
 import "./LeftTree.less";
 @injectIntl
 export class LeftTree extends Component {
@@ -92,14 +97,14 @@ export class LeftTree extends Component {
   };
 
   addSampleSource = () => {
-    const edition = VersionUtils.getEditionFromConfig();
-    edition === "DCS" &&
-      sendEventToIntercom(INTERCOM_EVENTS.SOURCE_ADD_COMPLETE);
+    sonarEvents.sourceAddComplete();
     this.setState({ isAddingSampleSource: true });
     return this.props.createSampleSource().then((response) => {
       if (response && !response.error) {
         const nextSource = ApiUtils.getEntityFromResponse("source", response);
-        this.context.router.push(nextSource.getIn(["links", "self"]));
+        this.context.router.push(
+          wrapBackendLink(nextSource.getIn(["links", "self"]))
+        );
       }
       this.setState({ isAddingSampleSource: false });
       return null;
@@ -118,7 +123,7 @@ export class LeftTree extends Component {
   }
 
   getCanAddSource() {
-    const { canCreateSource: cloudCanCreateSource, isAdmin } = this.props;
+    const { canCreateSource: cloudCanCreateSource } = this.props;
 
     // software permission for creating a source is stored in localstorage,
     // while the permission on cloud is stored in Redux
@@ -126,7 +131,7 @@ export class LeftTree extends Component {
       localStorageUtils.getUserPermissions()?.canCreateSource ||
       cloudCanCreateSource;
 
-    return isAdmin || canCreateSource;
+    return canCreateSource;
   }
 
   getAddSourceHref(isExternalSource, isDataPlaneSource = false) {
@@ -173,7 +178,9 @@ export class LeftTree extends Component {
     } = this.props;
     const { location } = this.context;
     const { formatMessage } = intl;
-    const isHomeActive = location && location.pathname === "/";
+    const loc = rmProjectBase(location.pathname) || "/";
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
+    const isHomeActive = location && loc === "/";
     const classes = classNames("left-tree", "left-tree-holder", className);
     const homeItem = this.getHomeObject();
 
@@ -219,25 +226,34 @@ export class LeftTree extends Component {
           />
           <div className="sources-title">
             {formatMessage({ id: "Source.Sources" })}
-            <IconButton
-              className="add-source-button"
-              tooltip="Source.AddSource"
-              as={LinkWithRef}
-              to={this.getAddSourceHref(true)}
-              data-qa="add-sources"
-            >
-              <dremio-icon name="interface/add-small" class="add-space-icon" />
-            </IconButton>
+            {this.getCanAddSource() && (
+              <IconButton
+                className="add-source-button"
+                tooltip="Source.AddSource"
+                as={LinkWithRef}
+                to={this.getAddSourceHref(true)}
+                data-qa="add-sources"
+              >
+                <dremio-icon
+                  name="interface/add-small"
+                  class="add-space-icon"
+                />
+              </IconButton>
+            )}
           </div>
           {sources.size < 1 && (
             <EmptyStateContainer
               title="Sources.noSources"
               icon="interface/empty-add-data"
-              linkInfo={{
-                href: this.getAddSourceHref(true),
-                "data-qa": "add-sources",
-                label: "Sources.AddSource.LowerCase",
-              }}
+              linkInfo={
+                this.getCanAddSource()
+                  ? {
+                      href: this.getAddSourceHref(true),
+                      "data-qa": "add-sources",
+                      label: "Sources.AddSource.LowerCase",
+                    }
+                  : null
+              }
             />
           )}
           {dataPlaneSources.size > 0 && (
@@ -263,7 +279,7 @@ export class LeftTree extends Component {
                   title={formatMessage({ id: "Source.Metastores" })}
                   addTooltip={formatMessage({ id: "Source.Add.Metastore" })}
                   isInProgress={sourcesViewState.get("isInProgress")}
-                  listHref="/sources/metastore/list"
+                  listHref={commonPaths.metastore.link({ projectId })}
                 />
               </ViewStateWrapper>
             </div>
@@ -284,7 +300,7 @@ export class LeftTree extends Component {
                     id: "Source.Add.Object.Storage",
                   })}
                   isInProgress={sourcesViewState.get("isInProgress")}
-                  listHref="/sources/objectStorage/list"
+                  listHref={commonPaths.objectStorage.link({ projectId })}
                 />
               </ViewStateWrapper>
             </div>
@@ -304,7 +320,7 @@ export class LeftTree extends Component {
                     id: "Source.AddDatabaseSource",
                   })}
                   isInProgress={sourcesViewState.get("isInProgress")}
-                  listHref="/sources/external/list"
+                  listHref={commonPaths.external.link({ projectId })}
                 />
               </ViewStateWrapper>
             </div>

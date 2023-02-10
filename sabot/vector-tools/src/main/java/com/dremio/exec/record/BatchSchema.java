@@ -840,7 +840,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(filePath);
       e.addDatasetPath(tableSchemaPath);
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+      throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
     }
     return finalSchema.removeNullFields();
   }

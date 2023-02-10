@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.vector.complex.fn;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
-
-import com.google.common.base.Charsets;
 
 public class WorkingBuffer {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WorkingBuffer.class);
@@ -37,7 +37,7 @@ public class WorkingBuffer {
   }
 
   public void prepareVarCharHolder(String value, VarCharHolder h) throws IOException {
-    byte[] b = value.getBytes(Charsets.UTF_8);
+    byte[] b = value.getBytes(UTF_8);
     ensure(b.length);
     workBuf.setBytes(0, b);
     h.start = 0;
@@ -52,7 +52,7 @@ public class WorkingBuffer {
   }
 
   public int prepareVarCharHolder(String value) throws IOException {
-    byte[] b = value.getBytes(Charsets.UTF_8);
+    byte[] b = value.getBytes(UTF_8);
     ensure(b.length);
     workBuf.setBytes(0, b);
     return b.length;

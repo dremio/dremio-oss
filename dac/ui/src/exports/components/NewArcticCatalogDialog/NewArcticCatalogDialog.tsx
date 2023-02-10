@@ -22,6 +22,21 @@ import { newArcticCatalogSchema } from "./newArcticCatalogSchema";
 import { usePromise } from "react-smart-promise";
 import { useEffect, useMemo, useState } from "react";
 import { createArcticCatalog } from "../../endpoints/ArcticCatalogs/createArcticCatalog";
+import { InvalidParamsError } from "dremio-ui-common/errors/InvalidParamsError";
+import { GenericServerSectionMessage } from "../GenericServerSectionMessage/GenericServerSectionMessage";
+import {
+  setHookFormErrorsFromInvalidParamsError,
+  type FieldValidationMessages,
+} from "../../utilities/setHookFormErrorsFromInvalidParamsError";
+import { ArcticCatalogsResource } from "@app/exports/resources/ArcticCatalogsResource";
+
+const fieldValidationMessages: FieldValidationMessages = {
+  "/name": {
+    key_exists: (err) => (
+      <>The Arctic catalog “{err.meta.provided}” already exists.</>
+    ),
+  },
+};
 
 export const NewArcticCatalogDialog = (props) => {
   const { onCancel, onSuccess } = props;
@@ -31,9 +46,11 @@ export const NewArcticCatalogDialog = (props) => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid, isDirty },
+    setError,
   } = useForm({
     resolver: zodResolver(newArcticCatalogSchema),
+    mode: "onChange",
   });
 
   const [err, createdCatalog, createStatus] = usePromise(
@@ -52,18 +69,40 @@ export const NewArcticCatalogDialog = (props) => {
   const submitPending = createStatus === "PENDING";
   const fieldDisabled = submitPending || createStatus === "SUCCESS";
   useEffect(() => {
+    if (createStatus === "ERROR" && err instanceof InvalidParamsError) {
+      setHookFormErrorsFromInvalidParamsError(fieldValidationMessages)(
+        setError,
+        err
+      );
+    }
+  }, [err, createStatus, setError]);
+  useEffect(() => {
     if (createStatus === "SUCCESS") {
-      onSuccess(createdCatalog);
+      // eslint-disable-next-line promise/catch-or-return
+      ArcticCatalogsResource.fetch().finally(() => {
+        onSuccess(createdCatalog);
+      });
     }
   }, [onSuccess, createStatus, createdCatalog]);
   return (
     <form
+      style={{ display: "contents" }}
       onSubmit={(e) => {
         e.stopPropagation();
         handleSubmit(onSubmit)(e);
       }}
     >
       <DialogContent
+        error={
+          err &&
+          !(err instanceof InvalidParamsError) && (
+            <GenericServerSectionMessage
+              error={err}
+              style={{ maxWidth: "70ch" }}
+              title="An unexpected error occurred and the Arctic catalog could not be created."
+            />
+          )
+        }
         title="New Arctic Catalog"
         actions={
           <>
@@ -80,16 +119,17 @@ export const NewArcticCatalogDialog = (props) => {
               type="submit"
               pending={submitPending}
               success={createStatus === "SUCCESS"}
+              disabled={!isValid || !isDirty}
             >
               Add
             </Button>
           </>
         }
       >
-        <div style={{ minHeight: "175px" }}>
+        <div style={{ minHeight: "175px", maxWidth: "70ch" }}>
           <TextInput
             label="Catalog Name"
-            description="Give it a name that’s easy for users to reference. It cannot be changed once it’s created."
+            description="Enter a unique name that will be easy for your users to reference. This name cannot be edited once it is created."
             error={errors.name?.message}
             disabled={fieldDisabled}
             {...register("name")}

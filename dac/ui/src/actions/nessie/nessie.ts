@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Branch, DefaultApi } from "@app/services/nessie/client";
-import { fetchDefaultBranchMemo } from "@app/services/nessie/impl/utils";
+import { store } from "@app/store/store";
 import { NessieRootState, Reference } from "@app/types/nessie";
 
 export const INIT_REFS = "NESSIE_INIT_REFS";
@@ -32,10 +32,23 @@ type SetRefsAction = {
   type: typeof SET_REFS;
   payload: DatasetReference;
 };
+
+export const REMOVE_ENTRY = "NESSIE_REMOVE_ENTRY";
+type RemoveEntryAction = {
+  type: typeof REMOVE_ENTRY;
+  payload: string;
+};
+export function removeEntry(payload: RemoveEntryAction["payload"]) {
+  return (dispatch: any) => dispatch({ type: REMOVE_ENTRY, payload });
+}
 export function setRefs(payload: NessieRootState) {
   return (dispatch: any) => dispatch({ type: SET_REFS, payload });
 }
-export type NessieRootActionTypes = InitRefsAction | SetRefsAction;
+export type NessieRootActionTypes =
+  | InitRefsAction
+  | SetRefsAction
+  | RemoveEntryAction
+  | ResetNessieStateAction;
 
 type SourceType = { source: string; meta?: any };
 
@@ -95,6 +108,11 @@ type FetchCommitBeforeTimeFailureAction = {
   type: typeof COMMIT_BEFORE_TIME_REQUEST_FAILURE;
 } & SourceType;
 
+export const NESSIE_RESET_STATE = "NESSIE_RESET_STATE";
+type ResetNessieStateAction = {
+  type: typeof NESSIE_RESET_STATE;
+} & SourceType;
+
 export type NessieActionTypes =
   | SetReferenceAction
   | SetReferenceFailureAction
@@ -103,14 +121,31 @@ export type NessieActionTypes =
   | FetchDefaultBranchFailureAction
   | FetchCommitBeforeTimeAction
   | FetchCommitBeforeTimeSuccessAction
-  | FetchCommitBeforeTimeFailureAction;
+  | FetchCommitBeforeTimeFailureAction
+  | ResetNessieStateAction;
+
+export function resetNessieState() {
+  return (dispatch: any) => {
+    return dispatch({
+      type: NESSIE_RESET_STATE,
+    });
+  };
+}
+
+export function fetchDefaultReferenceIfNeeded(source: string, api: DefaultApi) {
+  return async (dispatch: any) => {
+    const nessie = store.getState().nessie as NessieRootState;
+    if (nessie[source]?.defaultReference) return;
+    return dispatch(fetchDefaultReference(source, api));
+  };
+}
 
 export function fetchDefaultReference(source: string, api: DefaultApi) {
   return async (dispatch: any) => {
     if (!source) return;
     dispatch({ type: DEFAULT_REF_REQUEST, source });
     try {
-      const reference = await fetchDefaultBranchMemo(api);
+      const reference = await api.getDefaultBranch();
       dispatch({
         type: DEFAULT_REF_REQUEST_SUCCESS,
         payload: reference,

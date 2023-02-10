@@ -133,9 +133,9 @@ public class IcebergManifestListRecordReader implements RecordReader {
     } catch (IOException e) {
       throw new RuntimeException("Failed creating filesystem", e);
     }
-    TableMetadata tableMetadata = TableMetadataParser.read(new DremioFileIO(
-            fs, context, dataset, datasourcePluginUID, null, pluginForIceberg.getFsConfCopy(), (MutablePlugin) pluginForIceberg),
-            this.path);
+    DremioFileIO io = new DremioFileIO(
+      fs, context, dataset, datasourcePluginUID, null, pluginForIceberg.getFsConfCopy(), (MutablePlugin) pluginForIceberg);
+    TableMetadata tableMetadata = TableMetadataParser.read(io, this.path);
     if (!context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
       checkForPartitionSpecEvolution(tableMetadata);
     }
@@ -169,7 +169,7 @@ public class IcebergManifestListRecordReader implements RecordReader {
     }
 
     List<ManifestFile> manifestFileList = manifestContent == ManifestContent.DELETES ?
-      snapshot.deleteManifests() : snapshot.dataManifests();
+      snapshot.deleteManifests(io) : snapshot.dataManifests(io);
     manifestFileList = filterManifestFiles(manifestFileList);
     manifestFileIterator = manifestFileList.iterator();
     icebergDatasetXAttr = IcebergProtobuf.IcebergDatasetXAttr.newBuilder()

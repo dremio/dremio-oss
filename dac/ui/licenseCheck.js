@@ -218,6 +218,12 @@ const KNOWN = {
   "https://github.com/radix-ui/primitives": {
     tagScheme: () => "main",
   },
+  hsluv: {
+    licenseURL: "https://raw.githubusercontent.com/hsluv/hsluv/master/LICENSE",
+  },
+  "dialog-polyfill": {
+    licenses: "BSD-3-Clause",
+  },
 };
 
 // @mui/styled mistakenly adds @babel/core as a peerDep which depends on caniuse-lite. This is never actually packaged

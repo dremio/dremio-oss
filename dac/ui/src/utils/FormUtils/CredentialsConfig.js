@@ -15,7 +15,9 @@
  */
 import FormUtils from "utils/FormUtils/FormUtils";
 import FormElementConfig from "utils/FormUtils/FormElementConfig";
-import Credentials, {
+import {
+  getFields,
+  getValidators,
   AUTHENTICATION_TYPE_FIELD,
 } from "components/Forms/Credentials";
 import CredentialsWrapper from "components/Forms/Wrappers/CredentialsWrapper";
@@ -31,7 +33,7 @@ export default class CredentialsConfig extends FormElementConfig {
   }
 
   getFields() {
-    return Credentials.getFields();
+    return getFields();
   }
 
   addInitValues(initValues) {
@@ -43,7 +45,7 @@ export default class CredentialsConfig extends FormElementConfig {
   }
 
   addValidators(validations) {
-    validations.functions.push(Credentials.getValidators(super.getConfig()));
+    validations.functions.push(getValidators(super.getConfig()));
     return validations;
   }
 }

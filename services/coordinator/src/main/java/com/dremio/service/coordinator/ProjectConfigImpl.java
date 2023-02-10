@@ -34,6 +34,7 @@ public class ProjectConfigImpl implements ProjectConfig {
   private static final String UPLOADS_PLUGIN_SUB_PATH = "/uploads";
   private static final String SCRATCH_PLUGIN_SUB_PATH = "/scratch";
   private static final String METADATA_PLUGIN_SUB_PATH = "/metadata";
+  private static final String GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH = "/gandiva";
 
   private final Provider<DremioConfig> fileProvider;
   private final Provider<ProjectConfigStore> storeProvider;
@@ -63,6 +64,11 @@ public class ProjectConfigImpl implements ProjectConfig {
     return getDistPathConfig(DremioConfig.METADATA_PATH_STRING, METADATA_PLUGIN_SUB_PATH);
   }
 
+  @Override
+  public DistPathConfig getGandivaPersistentCacheConfig() {
+    return getDistPathConfig(DremioConfig.GANDIVA_CACHE_PATH_STRING, GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH);
+  }
+
   private DistPathConfig getDistPathConfig(String pathString, String subPath) {
     URI path;
     ProjectConfigStore store = storeProvider.get();
@@ -86,9 +92,6 @@ public class ProjectConfigImpl implements ProjectConfig {
       } else if (store.get().getDataCredentials().hasClientAccess()) {
         dataCredentials =
           DataCredentials.newBuilder().setClientAccess(store.get().getDataCredentials().getClientAccess()).build();
-      } else if (store.get().getDataCredentials().hasSharedAccessKey()) {
-        dataCredentials =
-          DataCredentials.newBuilder().setSharedAccessKey(store.get().getDataCredentials().getSharedAccessKey()).build();
       }
     }
     return new DistPathConfig(path, dataCredentials);

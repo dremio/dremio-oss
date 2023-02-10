@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-export const getSourceName = () => {
-  return null;
-};
-
 export const getArcticProjectId = () => {
   return null;
 };
 
-export const getBranchName = () => {
+export const getActiveBranch = () => {
   return null;
 };
 

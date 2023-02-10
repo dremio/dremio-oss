@@ -40,7 +40,7 @@ message FunctionInfo {
   optional int64 created_at = 5;
   optional int64 last_modified_at = 6;
   optional string fullPath = 7;
-
+  optional string owner = 8;
 }
 
 message FunctionInfoResp {

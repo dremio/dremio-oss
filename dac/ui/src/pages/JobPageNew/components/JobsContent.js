@@ -15,7 +15,7 @@
  */
 import { PureComponent } from "react";
 import $ from "jquery";
-import classNames from "classnames";
+import classNames from "clsx";
 import Immutable, { List } from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
@@ -43,9 +43,11 @@ import ColumnCell from "./ColumnCell";
 import ReflectionIcon, { getReflectionIcon } from "./ReflectionIcon";
 import { SortDirection } from "@app/components/Table/TableUtils";
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
+import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { Popover } from "@app/components/Popover";
+import JobContextMenu from "./JobContextMenu/JobContextMenu";
 
 import "react-virtualized/styles.css";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 
 // export this for calculate min width of table tr in JobTable.js
 export { SEPARATOR_WIDTH, MIN_LEFT_PANEL_WIDTH };
@@ -106,6 +108,11 @@ export class JobsContent extends PureComponent {
       getColumns: [],
       getCheckedItems: Immutable.List(),
       previousJobId: "",
+      contextMenu: {
+        isOpen: false,
+        anchorEl: null,
+        context: null,
+      },
     };
   }
 
@@ -219,13 +226,16 @@ export class JobsContent extends PureComponent {
   getTableData = () => {
     const { jobs, isFromExplorePage, intl, renderButtons, queryFilter } =
       this.props;
-    const renderColumn = (data, isNumeric) => (
-      <ColumnCell data={data} isNumeric={isNumeric} />
+    const { contextMenu } = this.state;
+    const renderColumn = (data, isNumeric, className) => (
+      <ColumnCell data={data} isNumeric={isNumeric} className={className} />
     );
     const renderSQL = (sql) => (
       <SQLCell sql={sql} isFromExplorePage={isFromExplorePage} />
     );
-    const renderDataset = (job) => <DatasetCell job={job} />;
+    const renderDataset = (job) => (
+      <DatasetCell job={job} isContextMenuOpen={contextMenu.isOpen} />
+    );
     const renderIcon = (isAcceleration) => {
       return isAcceleration ? (
         <ReflectionIcon isAcceleration />
@@ -312,7 +322,11 @@ export class JobsContent extends PureComponent {
           ...getColumnName[0],
           st: {
             node: () =>
-              renderColumn(timeUtils.formatTime(job.get("startTime")), true),
+              renderColumn(
+                timeUtils.formatTime(job.get("startTime")),
+                true,
+                "leftAlign"
+              ),
             value: timeUtils.formatTime(job.get("startTime")),
           },
           dur: {
@@ -359,6 +373,24 @@ export class JobsContent extends PureComponent {
     });
   };
 
+  handleRightClick = (e, context) => {
+    e.preventDefault();
+    const anchor = e.target?.parentElement?.parentElement ?? e.target;
+    this.setState({
+      contextMenu: {
+        isOpen: true,
+        anchorEl: anchor,
+        context,
+      },
+    });
+  };
+
+  handleMenuClose = () => {
+    this.setState({
+      contextMenu: { isOpen: false, anchorEl: null, context: null },
+    });
+  };
+
   render() {
     const {
       queryState,
@@ -373,7 +405,7 @@ export class JobsContent extends PureComponent {
       isFromExplorePage,
     } = this.props;
 
-    const { getColumns } = this.state;
+    const { getColumns, contextMenu } = this.state;
     const columnCheckedItems = localStorageUtils.getJobColumns()
       ? localStorageUtils
           .getJobColumns()
@@ -385,15 +417,12 @@ export class JobsContent extends PureComponent {
     const getCheckedItems = Immutable.List(columnCheckedItems);
     const styles = this.styles || {};
     const resizeStyle = this.state.isResizing ? styles.noSelection : {};
-    let tableWidth = 0;
-    getColumns.forEach((column) => {
-      tableWidth = tableWidth + column.width;
-    });
-    tableWidth = tableWidth + 160;
 
     return (
       <div style={{ height: "100%" }}>
-        <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
+        {!isFromExplorePage && (
+          <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
+        )}
         <div className={"jobsPageBody"}>
           {showSideNav && <SonarSideNav />}
           <div className={"jobPageContentDiv"}>
@@ -424,7 +453,6 @@ export class JobsContent extends PureComponent {
               <StatefulTableViewer
                 virtualized
                 rowHeight={40}
-                tableWidth={tableWidth}
                 columns={jobsColumns || getColumns}
                 tableData={this.getTableData()}
                 scrollToIndex={this.getCurrentJobIndex()}
@@ -444,7 +472,22 @@ export class JobsContent extends PureComponent {
                 defaultSortBy={"st"}
                 defaultSortDirection={SortDirection.DESC}
                 defaultDescending
+                onCellRightClick={
+                  isFromExplorePage ? undefined : this.handleRightClick
+                }
               />
+              {!isFromExplorePage && (
+                <Popover
+                  anchorEl={contextMenu.isOpen ? contextMenu.anchorEl : null}
+                  onClose={this.handleMenuClose}
+                >
+                  <JobContextMenu
+                    context={contextMenu.context}
+                    onViewDetails={this.props.changePages}
+                    closeMenu={this.handleMenuClose}
+                  />
+                </Popover>
+              )}
             </div>
           </div>
         </div>

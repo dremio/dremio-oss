@@ -1,0 +1,133 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns true when the specified regular expression matches values in
+  a column. Otherwise, returns false.
+functionCategories:
+- CHARACTER
+name: REGEXP_MATCHES
+signatures:
+- description: sample signature description
+  parameters:
+  - description: The expression to test.
+    kind: REGULAR
+    name: input
+    type: CHARACTERS
+  - description: The PCRE regular expression to use for the test.
+    kind: REGULAR
+    name: regex
+    type: CHARACTERS
+  returnType: BOOLEAN
+  sampleCodes:
+  - call: SELECT s_manager FROM Samples."samples.dremio.com"."tpcds_sf1000".store
+      WHERE regexp_matches(s_manager, '.*?\Qoo\E.*?') GROUP BY s_manager
+    result: 'Brian Cooke
+
+      -- Richard Brooks
+
+      -- William Moody
+
+      -- Tony Cook
+
+      -- Joseph Crook
+
+      -- Ricky Cooper
+
+      -- Tom Brooks
+
+      -- Barry Booker
+
+      -- Alfred Norwood
+
+      -- Grady Moore
+
+      -- Theo Wood
+
+      -- Walter Hood
+
+      -- Vince Moore
+
+      -- Robert Moore
+
+      -- Cedric Cooper
+
+      -- Hugh Wood
+
+      -- Jorge Dooley
+
+      -- David Wood
+
+      -- Joseph Moore
+
+      -- Kim Bloom
+
+      -- Mario Cook
+
+      -- Peter Woodward
+
+      -- Jason Goode
+
+      -- Nolan Wood
+
+      -- William Coons
+
+      -- Patrick Smoot
+
+      -- John Moody
+
+      -- Jerry Brooks
+
+      -- Jeffery Good
+
+      -- Dominique Cook
+
+      -- Ray Moore
+
+      -- Brandon Moore
+
+      -- Luis Wood
+
+      '
+  - call: "SELECT s_store_id, s_street_number, s_street_name, \n  CASE \n    WHEN\
+      \ regexp_like(s_street_type, '^\\QCir.\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QCir.\\E.*?', 'Circle') \n    WHEN regexp_like(s_street_type, '^\\QWy\\\
+      E.*?') THEN regexp_replace(s_street_type, '^\\QWy\\E', 'Way') \n    WHEN regexp_like(s_street_type,\
+      \ '^\\QDr.\\E.*?') THEN regexp_replace(s_street_type, '^\\QDr.\\E', 'Drive')\
+      \ \n    WHEN regexp_like(s_street_type, '^\\QLn\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QLn\\E', 'Lane') \n    WHEN regexp_like(s_street_type, '^\\QRD\\E.*?')\
+      \ THEN regexp_replace(s_street_type, '^\\QRD\\E', 'Road') \n    WHEN regexp_like(s_street_type,\
+      \ '^\\QBlvd\\E.*?') THEN regexp_replace(s_street_type, '^\\QBlvd\\E', 'Boulevard')\n\
+      \    WHEN regexp_like(s_street_type, '^\\QPkwy\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QPkwy\\E', 'Parkway')  \n    WHEN regexp_like(s_street_type, '^\\QST\\\
+      E.*?') THEN regexp_replace(s_street_type, '^\\QST\\E', 'Street') \n    WHEN\
+      \ regexp_like(s_street_type, '^\\QCt.\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QCt.\\E', 'Court') \n    ELSE s_street_type \n    END \n    AS s_street_type,\
+      \ \n  s_city, s_state, s_zip \n  FROM Samples.\"samples.dremio.com\".\"tpcds_sf1000\"\
+      .store\n"
+    result: "Raw data\n  -- AAAAAAAABAAAAAAA, 767, Spring , Wy, Spring Valley, SD,\
+      \ 56060\n  -- AAAAAAAACAAAAAAA, 255, Sycamore , Dr., Buena Vista, MN, 55752\n\
+      \  -- AAAAAAAACAAAAAAA, 877, Park Laurel, Road, Mount Pleasant, NE, 61933\n\
+      \  -- AAAAAAAAEAAAAAAA, 27, Lake , Ln, Harmony, AL, 35804\n  -- AAAAAAAAEAAAAAAA,\
+      \ 27, Lee 6th, Court, Union, NC, 28721\n  -- AAAAAAAAEAAAAAAA, 220, 6th , Lane,\
+      \ Glendale, OH, 43951\n  -- AAAAAAAAHAAAAAAA, 811, Lee , Circle, Glendale, OH,\
+      \ 43951\n  -- ...\n\n-- Returned data\n  -- AAAAAAAABAAAAAAA, 767, Spring, Way,\
+      \ Spring Valley, SD, 56060\n  -- AAAAAAAACAAAAAAA, 255, Sycamore, Drive, Buena\
+      \ Vista, MN, 55752\n  -- AAAAAAAACAAAAAAA, 877, Park Laurel, Road, Mount Pleasant,\
+      \ NE, 61933\n  -- AAAAAAAAEAAAAAAA, 27, Lake, Lane, Harmony, AL, 35804\n  --\
+      \ AAAAAAAAEAAAAAAA, 27, Lee 6th, Court, Union, NC, 28721\n  -- AAAAAAAAEAAAAAAA,\
+      \ 220, 6th, Lane, Glendale, OH, 43951\n  -- AAAAAAAAHAAAAAAA, 811, Lee, Circle,\
+      \ Glendale, OH, 43951\n  -- ...\n"

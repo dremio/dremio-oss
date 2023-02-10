@@ -134,7 +134,7 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     return delegate.getTableSnapshot(key, context);
   }
 
@@ -268,6 +268,24 @@ class SourceAccessChecker implements Catalog {
   public void truncateTable(NamespaceKey key, TableMutationOptions tableMutationOptions) {
     throwIfInvisible(key);
     delegate.truncateTable(key, tableMutationOptions);
+  }
+
+  @Override
+  public void rollbackTable(NamespaceKey key,
+                            DatasetConfig datasetConfig,
+                            RollbackOption rollbackOption,
+                            TableMutationOptions tableMutationOptions) {
+    throwIfInvisible(key);
+    delegate.rollbackTable(key, datasetConfig, rollbackOption, tableMutationOptions);
+  }
+
+  @Override
+  public void vacuumTable(NamespaceKey key,
+                          DatasetConfig datasetConfig,
+                          VacuumOption vacuumOption,
+                          TableMutationOptions tableMutationOptions) {
+    throwIfInvisible(key);
+    delegate.vacuumTable(key, datasetConfig, vacuumOption, tableMutationOptions);
   }
 
   @Override
@@ -520,6 +538,11 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public boolean supportsVersioning(NamespaceKey namespaceKey) {
+    return delegate.supportsVersioning(namespaceKey);
+  }
+
+  @Override
   public Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {
     Catalog newDelegate = delegate.visit(catalogRewrite);
     return catalogRewrite.apply(new SourceAccessChecker(options, newDelegate));
@@ -533,6 +556,11 @@ class SourceAccessChecker implements Catalog {
   @Override
   public void validatePrivilege(NamespaceKey key, SqlGrant.Privilege privilege) {
     delegate.validatePrivilege(key, privilege);
+  }
+
+  @Override
+  public boolean hasPrivilege(NamespaceKey key, SqlGrant.Privilege privilege) {
+    return delegate.hasPrivilege(key, privilege);
   }
 
   @Override

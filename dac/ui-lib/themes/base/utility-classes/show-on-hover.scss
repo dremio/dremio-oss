@@ -1,0 +1,8 @@
+.show-on-hover {
+  visibility: hidden;
+}
+
+/* stylelint-disable selector-class-pattern */
+.show-on-hover__target:hover .show-on-hover {
+  visibility: visible;
+}

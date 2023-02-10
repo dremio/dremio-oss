@@ -48,7 +48,9 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.options.TypeValidators.PowerOfTwoLongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -77,6 +79,11 @@ public class HashJoinOperator implements DualInputOperator {
 
   public static final BooleanValidator ENABLE_SPILL = new BooleanValidator("exec.op.join.spill", false);
   public static final PowerOfTwoLongValidator NUM_PARTITIONS = new PowerOfTwoLongValidator("exec.op.join.spill.num_partitions", 16, 8);
+  // The default batch size is 256K. Making this smaller than that value will cause a proportionate increase in the
+  // heap footprint (ArrowBuf/ValueVector).
+  public static final PositiveLongValidator PAGE_SIZE =
+    new TypeValidators.PositiveLongValidator("exec.op.join.spill.page_size", 1 * 1024 * 1024, 256 * 1024);
+
   // For unit tests, always use with DEBUG flag only.
   public static final StringValidator TEST_SPILL_MODE = new StringValidator("exec.op.join.spill.test_spill_mode", "none");
 

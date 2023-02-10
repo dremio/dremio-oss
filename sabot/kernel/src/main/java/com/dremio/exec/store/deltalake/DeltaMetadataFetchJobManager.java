@@ -60,12 +60,12 @@ public class DeltaMetadataFetchJobManager {
 
   private static final Logger logger = LoggerFactory.getLogger(DeltaMetadataFetchJobManager.class);
 
-  public final FileSystem fs;
-  public final SabotContext context;
-  public final FileSelection fileSelection;
-  public long version;
-  public long subparts;
-  public final boolean readLatest;
+  private final FileSystem fs;
+  private final SabotContext context;
+  private final String selectionRoot;
+  private long version;
+  private long subparts;
+  private final boolean readLatest;
 
   private final ThreadPoolExecutor threadPool = DeltaMetadataFetchPool.getPool();
   private final List<DeltaLogSnapshot> snapshots = new ArrayList<>();
@@ -75,9 +75,13 @@ public class DeltaMetadataFetchJobManager {
   private BatchReader batchReader;
 
   public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, FileSelection fileSelection, long version, long subparts) {
+    this(context, fs, fileSelection.getSelectionRoot(), version, subparts);
+  }
+
+  public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, String selectionRoot, long version, long subparts) {
     this.fs = fs;
     this.context = context;
-    this.fileSelection = fileSelection;
+    this.selectionRoot = selectionRoot;
     this.version = version;
     this.subparts = subparts;
     this.readLatest = false;
@@ -85,15 +89,19 @@ public class DeltaMetadataFetchJobManager {
   }
 
   public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, FileSelection fileSelection, boolean readLatest) {
+    this(context, fs, fileSelection.getSelectionRoot(), readLatest);
+  }
+
+  public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, String selectionRoot, boolean readLatest) {
     this.fs = fs;
     this.context = context;
-    this.fileSelection = fileSelection;
+    this.selectionRoot = selectionRoot;
     this.readLatest = readLatest;
     initBatchReader();
   }
 
   private void initBatchReader() {
-    Path selectionRoot = Path.of(fileSelection.getSelectionRoot());
+    Path selectionRoot = Path.of(this.selectionRoot);
     metaDir = selectionRoot.resolve(DeltaConstants.DELTA_LOG_DIR);
     if (readLatest) {
       Pair<Optional<Long>, Optional<Long>> startVersionAndSubparts = getStartVersion(metaDir);
@@ -138,7 +146,7 @@ public class DeltaMetadataFetchJobManager {
     }
     catch (IOException e) {
       throw UserException.dataReadError()
-        .message("Failed to read _last_checkpoint file for delta dataset %s. Error %s", fileSelection.getSelectionRoot(), e.getMessage())
+        .message("Failed to read _last_checkpoint file for delta dataset %s. Error %s", selectionRoot, e.getMessage())
         .build(logger);
     }
     return lastCheckpointVersionSubpartsPair;
@@ -148,7 +156,7 @@ public class DeltaMetadataFetchJobManager {
   public String toString() {
     return "DeltaMetadataFetchJobManager{" +
       "fs=" + fs +
-      ", fileSelection=" + fileSelection +
+      ", selectionRoot=" + selectionRoot +
       ", version=" + version +
       ", readLatest=" + readLatest +
       ", threadPool=" + threadPool +
@@ -234,7 +242,7 @@ public class DeltaMetadataFetchJobManager {
           logger.error("Unexpected error occurred in DeltaMetadataFetchJob. Error", exp);
 
           throw UserException.dataReadError()
-            .message("Failed to read metadata for delta dataset %s", fileSelection.getSelectionRoot())
+            .message("Failed to read metadata for delta dataset %s", selectionRoot)
             .build(logger);
         }
 

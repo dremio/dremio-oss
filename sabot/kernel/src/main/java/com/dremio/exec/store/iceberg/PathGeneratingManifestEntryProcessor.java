@@ -61,6 +61,7 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.SystemSchemas;
+import com.dremio.exec.vector.OptionalVarBinaryVectorHolder;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -72,9 +73,12 @@ import com.google.protobuf.InvalidProtocolBufferException;
  */
 public class PathGeneratingManifestEntryProcessor implements ManifestEntryProcessor {
 
-  private static final Set<String> BASE_OUTPUT_FIELDS = Stream.concat(
+  private static final Set<String> BASE_OUTPUT_FIELDS =
+    Stream.concat(
+        Stream.concat(
           SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.getFields().stream(),
-          SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA.getFields().stream())
+          SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA.getFields().stream()),
+        Stream.of(SystemSchemas.ICEBERG_METADATA_FIELD))
       .map(f -> f.getName().toLowerCase())
       .collect(Collectors.toSet());
 
@@ -97,6 +101,9 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   private PartitionSpec icebergPartitionSpec;
   private Map<String, Integer> partColToKeyMap;
   private ArrowBuf tempBuf;
+
+  // Optionals apply only if the field is part of schema
+  private OptionalVarBinaryVectorHolder outputIcebergMetadata;
 
   private boolean doneWithCurrentEntry;
 
@@ -131,6 +138,8 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
       outputDeleteFile = (StructVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DELETE_FILE);
     }
 
+    outputIcebergMetadata = new OptionalVarBinaryVectorHolder(outgoing, SystemSchemas.ICEBERG_METADATA);
+
     for (Field field : outputSchema.getFields()) {
       if (isColumnStatsOutputField(field)) {
         ValueVector vector = outgoing.getValueAccessorById(TypeHelper.getValueVectorClass(field),
@@ -162,7 +171,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     }
     String modifiedPath = manifestEntry.file().path().toString();
     byte[] path = modifiedPath.getBytes();
-
+    outputIcebergMetadata.setSafe(startOutIndex, () -> getIcebergMetadata(manifestEntry));
     outputSequenceNumber.setSafe(startOutIndex, manifestEntry.sequenceNumber());
     outputSpecId.setSafe(startOutIndex, manifestEntry.file().specId());
     outputPartitionKey.setSafe(startOutIndex, serializePartitionKey(manifestEntry.file().partition()));
@@ -216,6 +225,16 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
 
     doneWithCurrentEntry = true;
     return 1;
+  }
+
+  private byte[] getIcebergMetadata(ManifestEntryWrapper manifestEntry) {
+    try {
+      IcebergMetadataInformation metadataInformation = new IcebergMetadataInformation(
+        IcebergSerDe.serializeToByteArray(manifestEntry.file()));
+      return IcebergSerDe.serializeToByteArray(metadataInformation);
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    }
   }
 
   @Override

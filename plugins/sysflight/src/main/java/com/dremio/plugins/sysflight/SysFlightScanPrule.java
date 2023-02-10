@@ -46,6 +46,7 @@ public class SysFlightScanPrule extends RelOptRule {
         null,
         logicalScan.getProjectedColumns(),
         logicalScan.getObservedRowcountAdjustment(),
+        logicalScan.getHints(),
         plugin,
         ImmutableList.of()
         );

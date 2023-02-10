@@ -57,12 +57,17 @@ export class PollingResource<T> extends SmartResource<T> {
     this._errorCount = 0;
     this._getFetcherArgs = getArgs;
     this._clearTimer();
-    this._startTimer();
+    this.fetch(...(this._getFetcherArgs?.() || []));
   }
 
   stop(): void {
     this._clearTimer();
     this._getFetcherArgs = null;
+  }
+
+  reset(): void {
+    this.stop();
+    super.reset();
   }
 
   /**

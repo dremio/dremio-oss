@@ -100,14 +100,14 @@
   description: "myValue"
   input: "SELECT myValue"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "myValue MEMBER"
   input: "SELECT myValue MEMBER"
@@ -132,26 +132,26 @@
   description: "myValue MEMBER OF myMultiset"
   input: "SELECT myValue MEMBER OF myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset IS"
   input: "SELECT myMultiset IS"
@@ -176,26 +176,26 @@
   description: "multiset IS A SET"
   input: "SELECT myMultiset IS A SET"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "!="
+     - "%"
+     - "*"
+     - "+"
      - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
-     - "FROM"
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset IS"
   input: "SELECT myMultiset IS"
@@ -232,26 +232,26 @@
   description: "multiset IS NOT A SET"
   input: "SELECT myMultiset IS NOT A SET"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "!="
+     - "%"
+     - "*"
+     - "+"
      - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
-     - "FROM"
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset IS"
   input: "SELECT myMultiset IS"
@@ -268,26 +268,26 @@
   description: "multiset IS EMPTY"
   input: "SELECT myMultiset IS EMPTY"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "!="
+     - "%"
+     - "*"
+     - "+"
      - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
-     - "FROM"
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset IS"
   input: "SELECT myMultiset IS"
@@ -316,26 +316,26 @@
   description: "multiset IS NOT EMPTY"
   input: "SELECT myMultiset IS NOT EMPTY"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "!="
+     - "%"
+     - "*"
+     - "+"
      - ","
-     - ";"
-     - "EXCEPT"
-     - "FETCH"
-     - "FROM"
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset SUBMULTISET"
   input: "SELECT myMultiset SUBMULTISET"
@@ -360,26 +360,26 @@
   description: "multiset SUBMULTISET OF multiset2"
   input: "SELECT myMultiset SUBMULTISET OF myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset NOT"
   input: "SELECT myMultiset NOT"
@@ -415,26 +415,26 @@
   description: "multiset NOT SUBMULTISET OF multiset2"
   input: "SELECT myMultiset NOT SUBMULTISET OF myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset MULTISET"
   input: "SELECT myMultiset MULTISET"
@@ -461,14 +461,14 @@
   description: "multiset MULTISET UNION multiset2"
   input: "SELECT myMultiset MULTISET UNION myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset MULTISET UNION ALL"
   input: "SELECT myMultiset MULTISET UNION ALL"
@@ -485,14 +485,14 @@
   description: "multiset MULTISET UNION ALL multiset2"
   input: "SELECT myMultiset MULTISET UNION ALL myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset MULTISET UNION DISTINCT multiset2"
   input: "SELECT myMultiset MULTISET UNION DISTINCT"
@@ -509,26 +509,26 @@
   description: "multiset MULTISET UNION DISTINCT multiset2"
   input: "SELECT myMultiset MULTISET UNION DISTINCT myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "+"
      - ","
+     - "."
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset MULTISET"
   input: "SELECT myMultiset MULTISET"
@@ -555,14 +555,14 @@
   description: "multiset MULTISET INTERSECT multiset2"
   input: "SELECT myMultiset MULTISET INTERSECT myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset MULTISET INTERSECT ALL"
   input: "SELECT myMultiset MULTISET INTERSECT ALL"
@@ -579,14 +579,14 @@
   description: "multiset MULTISET INTERSECT ALL multiset2"
   input: "SELECT myMultiset MULTISET INTERSECT ALL myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset MULTISET INTERSECT DISTINCT"
   input: "SELECT myMultiset MULTISET INTERSECT DISTINCT"
@@ -603,26 +603,26 @@
   description: "multiset MULTISET INTERSECT DISTINCT multiset2"
   input: "SELECT myMultiset MULTISET INTERSECT DISTINCT myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "+"
      - ","
+     - "."
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
  -
   description: "multiset"
   input: "SELECT myMultiset"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "."
+     - "+"
+     - "AS"
  -
   description: "multiset MULTISET"
   input: "SELECT myMultiset MULTISET"
@@ -649,14 +649,14 @@
   description: "multiset MULTISET EXCEPT multiset2"
   input: "SELECT myMultiset MULTISET EXCEPT myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset MULTISET EXCEPT ALL"
   input: "SELECT myMultiset MULTISET EXCEPT ALL"
@@ -673,14 +673,14 @@
   description: "multiset MULTISET EXCEPT ALL multiset2"
   input: "SELECT myMultiset MULTISET EXCEPT ALL myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "."
      - ","
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="
+     - "+"
  -
   description: "multiset MULTISET EXCEPT DISTINCT"
   input: "SELECT myMultiset MULTISET EXCEPT DISTINCT"
@@ -697,11 +697,11 @@
   description: "multiset MULTISET EXCEPT DISTINCT multiset2"
   input: "SELECT myMultiset MULTISET EXCEPT DISTINCT myMultiset2"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "+"
      - ","
+     - "."
      - "FROM"
-     - "ORDER"
-     - "OFFSET"
-     - "UNION"
+     - "="

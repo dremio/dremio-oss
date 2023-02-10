@@ -20,6 +20,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -29,7 +30,6 @@ import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.DecimalUtility;
-import org.apache.commons.io.Charsets;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 
@@ -454,7 +454,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
         int len = varBlock.getUnderlying().getInt(offset + 4);
         byte[] val = new byte[len];
         varBlock.getUnderlying().getBytes(offset + 4 + 4, val, 0, len);
-        actualValues[i] = new String(val, Charsets.UTF_8);
+        actualValues[i] = new String(val, StandardCharsets.UTF_8);
       }
     }
     assertArrayEquals(expectNulls, actualNulls);
@@ -467,7 +467,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
     for(int i =0; i < values.length; i++){
       if (RAND.nextBoolean()) {
         values[i] = RandomStringUtils.randomAlphanumeric(RAND.nextInt(25));
-        vector.setSafe(i, values[i].getBytes(Charsets.UTF_8));
+        vector.setSafe(i, values[i].getBytes(StandardCharsets.UTF_8));
       }
     }
     vector.setValueCount(values.length);
@@ -479,7 +479,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
     String[] values = new String[size];
     for(int i =0; i < values.length; i++){
       values[i] = RandomStringUtils.randomAlphanumeric(RAND.nextInt(25));
-      vector.setSafe(i, values[i].getBytes(Charsets.UTF_8));
+      vector.setSafe(i, values[i].getBytes(StandardCharsets.UTF_8));
     }
     vector.setValueCount(values.length);
     return values;

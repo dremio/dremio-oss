@@ -26,6 +26,7 @@ import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -95,7 +96,6 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -197,19 +197,19 @@ public class CatalogServiceHelper {
     DremioTable table = catalog.getTable(datasetId);
 
     if (table == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
-    return Optional.fromNullable(table.getDatasetConfig());
+    return Optional.ofNullable(table.getDatasetConfig());
   }
 
   public Optional<NameSpaceContainer> getContainerById(String id) {
     try {
       NameSpaceContainer container = namespaceService.getEntityById(id);
 
-      return Optional.fromNullable(container);
+      return Optional.ofNullable(container);
     } catch (NamespaceNotFoundException e) {
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 
@@ -263,7 +263,7 @@ public class CatalogServiceHelper {
       // if we can't find it in the namespace, check if its a non-promoted file/folder in a filesystem source
       Optional<CatalogItem> internalItem = getInternalItemByPath(path);
       if (!internalItem.isPresent()) {
-        return Optional.absent();
+        return Optional.empty();
       }
 
       return getCatalogEntityFromCatalogItem(internalItem.get(), !exclude.contains(DetailType.children.name()));
@@ -277,7 +277,7 @@ public class CatalogServiceHelper {
     Optional<?> entity = getById(id);
 
     if (!entity.isPresent()) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     return getCatalogEntity(entity.get(), !exclude.contains(DetailType.children.name()));
@@ -360,7 +360,7 @@ public class CatalogServiceHelper {
         Optional<CatalogItem> catalogItem = getInternalItemByPath(getPathFromInternalId(id));
 
         if (!catalogItem.isPresent()) {
-          return Optional.absent();
+          return Optional.empty();
         }
 
         final CatalogItem item = catalogItem.get();
@@ -376,11 +376,11 @@ public class CatalogServiceHelper {
         if (container == null) {
           logger.debug("Could not find entity with id [{}]", id);
         }
-        return Optional.fromNullable(container);
+        return Optional.ofNullable(container);
       }
     } catch (NamespaceException e) {
       logger.debug("Failed to get entity ", e);
-      return Optional.absent();
+      return Optional.empty();
     }
   }
   private Optional<CatalogEntity> getCatalogEntityFromCatalogItem(CatalogItem catalogItem) throws NamespaceException {
@@ -407,10 +407,10 @@ public class CatalogServiceHelper {
   private Optional<?> extractFromNamespaceContainer(NameSpaceContainer entity) {
     if (entity == null) {
       // if we can't find it by id, maybe its not in the namespace
-      return Optional.absent();
+      return Optional.empty();
     }
 
-    Optional result = Optional.absent();
+    Optional result = Optional.empty();
 
     switch (entity.getType()) {
       case SOURCE: {
@@ -465,7 +465,7 @@ public class CatalogServiceHelper {
       return Optional.of(getInternalItemFromSource(rootEntity.getSource(), path));
     } else {
       logger.warn("Can not find internal item with path [{}].", path);
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 

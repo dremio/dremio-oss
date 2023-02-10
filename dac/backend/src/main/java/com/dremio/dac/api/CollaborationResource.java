@@ -17,6 +17,8 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import java.util.Optional;
+
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -33,7 +35,6 @@ import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.collaboration.Wiki;
 import com.dremio.service.namespace.NamespaceException;
-import com.google.common.base.Optional;
 
 /**
  * Collaboration API resource.

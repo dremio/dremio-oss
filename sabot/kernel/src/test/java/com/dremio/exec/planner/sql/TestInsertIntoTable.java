@@ -36,7 +36,6 @@ import org.apache.iceberg.FindFiles;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.expressions.Literal;
-import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
 import org.apache.iceberg.types.Types;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
@@ -53,6 +52,7 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.test.TemporarySystemProperties;
 import com.dremio.test.UserExceptionAssert;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 public class TestInsertIntoTable extends BaseTestQuery {
@@ -384,7 +384,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       test(insertIntoTable1);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
       Table icebergTable = getIcebergTable(tableFolder, catalogType);
-      Iterable<DataFile> dataFiles = icebergTable.currentSnapshot().addedFiles();
+      Iterable<DataFile> dataFiles = icebergTable.currentSnapshot().addedDataFiles(icebergTable.io());
       Assert.assertEquals(1, Iterables.size(dataFiles));
       DataFile dataFile = dataFiles.iterator().next();
       Assert.assertEquals(19074, dataFile.partition().get(0, Integer.class).intValue());
@@ -394,7 +394,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         schema, tableName);
       test(insertIntoTable1);
       icebergTable.refresh();
-      dataFiles = icebergTable.currentSnapshot().addedFiles();
+      dataFiles = icebergTable.currentSnapshot().addedDataFiles(icebergTable.io());
       Assert.assertEquals(2, Iterables.size(dataFiles));
 
       // third insert with different column order
@@ -1813,6 +1813,23 @@ public class TestInsertIntoTable extends BaseTestQuery {
               .run();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));
+    }
+  }
+
+  @Test
+  public void testInsertIntoNewStockIcebergTable() throws Exception {
+    try (DmlQueryTestUtils.Table table = DmlQueryTestUtils.createStockIcebergTable(
+      TEMP_SCHEMA_HADOOP, 2, 1, "test_insert_into_stock_iceberg")) {
+
+      test("INSERT INTO %s VALUES (1)", table.fqn);
+
+      testBuilder()
+        .sqlQuery(String.format("select %s from %s", table.columns[0], table.fqn))
+        .unOrdered()
+        .baselineColumns(table.columns[0])
+        .baselineValues(1)
+        .build()
+        .run();
     }
   }
 }

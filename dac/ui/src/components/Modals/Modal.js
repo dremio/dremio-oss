@@ -91,6 +91,7 @@ export default class Modal extends Component {
       headerEndChildren,
       closeButtonType,
       headerIcon,
+      iconDisabled,
     } = this.props;
     const content = {
       ...smallModal.content,
@@ -158,6 +159,7 @@ export default class Modal extends Component {
             type={closeButtonType}
             headerIcon={headerIcon}
             addShadow={this.state.addHeaderShadow}
+            iconDisabled={iconDisabled}
           ></ModalHeader>
         )}
         <div style={modalBody} data-qa={dataQa} onScroll={(e) => onScroll(e)}>

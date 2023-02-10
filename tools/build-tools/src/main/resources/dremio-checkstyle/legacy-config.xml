@@ -95,9 +95,7 @@
       <property name="severity" value="warning"/>
       <property name="format" value="^logger|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
     </module>
-    <module name="LocalFinalVariableName">
-      <property name="severity" value="warning"/>
-    </module>
+    <module name="LocalFinalVariableName"/>
     <module name="LocalVariableName">
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>

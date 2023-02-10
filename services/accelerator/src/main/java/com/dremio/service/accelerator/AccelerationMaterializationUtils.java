@@ -60,7 +60,7 @@ public class AccelerationMaterializationUtils {
       .map(materialization -> {
           long footPrint = -1L;
           try {
-            footPrint = materializationStore.getMetrics(materialization).getFootprint();
+            footPrint = materializationStore.getMetrics(materialization).left.getFootprint();
           } catch (Exception e) {
             // let's not fail the query if we can't retrieve the footprint for one materialization
           }

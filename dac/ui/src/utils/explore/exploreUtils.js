@@ -34,11 +34,13 @@ import {
   TIME,
 } from "@app/constants/DataTypes";
 import { APIV2Call } from "@app/core/APICall";
-import { UNSAVED_DATASET_PATH } from "@app/constants/explorePage/paths";
 import { JOB_STATUS } from "@app/pages/ExplorePage/components/ExploreTable/constants";
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
 import { getRefQueryParamsFromDataset } from "../nessieUtils";
 import { newQuery } from "@app/exports/paths";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 const DROP_WIDTH = 150;
 const ARROW_WIDTH = 20;
@@ -240,15 +242,19 @@ class ExploreUtils {
   getTableCellElement(node) {
     const result =
       node.nodeType === window.Node.TEXT_NODE ? node.parentNode : node;
-    return result.closest(".public_fixedDataTableCell_main");
+    return result?.closest(".public_fixedDataTableCell_main");
   }
 
   replaceSelectionRange(selection, node, start, end) {
-    selection.removeAllRanges();
-    const range = document.createRange();
-    range.setStart(node, start);
-    range.setEnd(node, end);
-    selection.addRange(range);
+    try {
+      selection.removeAllRanges();
+      const range = document.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, end);
+      selection.addRange(range);
+    } catch (e) {
+      return;
+    }
   }
 
   getTableCellTextNode(cell) {
@@ -482,6 +488,24 @@ class ExploreUtils {
   getHrefForDatasetConfig = (resourcePath) =>
     `${resourcePath}?view=explore&limit=50`;
 
+  getDatasetMetadataLink = (datasetPath, sessionId, version) => {
+    const apiCall = new APIV2Call()
+      .paths(`dataset/${datasetPath.join(".")}/version/${version}/preview`)
+      .params({
+        view: "explore",
+        limit: 0,
+        triggerJob: false,
+      });
+
+    // TODO: check if getRefQueryParamsFromDataset is needed here
+
+    if (sessionId) {
+      apiCall.params({ sessionId });
+    }
+
+    return apiCall.toPath();
+  };
+
   getPreviewLink = (dataset, tipVersion, sessionId, willLoadTable) => {
     const apiCall = new APIV2Call()
       .paths(`${dataset.getIn(["apiLinks", "self"])}/preview`)
@@ -585,6 +609,18 @@ class ExploreUtils {
     }
   }
 
+  getTmpUntitledSqlHref({ newVersion, sessionId }) {
+    if (sessionId) {
+      return `/datasets/new_tmp_untitled_sql?newVersion=${encodeURIComponent(
+        newVersion
+      )}&sessionId=${sessionId}&limit=0`;
+    } else {
+      return `/datasets/new_tmp_untitled_sql?newVersion=${encodeURIComponent(
+        newVersion
+      )}&limit=0`;
+    }
+  }
+
   getUntitledSqlAndRunHref({ newVersion, sessionId }) {
     // does not need limit=0 as does not return data in all cases
     if (sessionId) {
@@ -593,6 +629,18 @@ class ExploreUtils {
       )}&sessionId=${sessionId}`;
     } else {
       return `/datasets/new_untitled_sql_and_run?newVersion=${encodeURIComponent(
+        newVersion
+      )}`;
+    }
+  }
+
+  getTmpUntitledSqlAndRunHref({ newVersion, sessionId }) {
+    if (sessionId) {
+      return `/datasets/new_tmp_untitled_sql_and_run?newVersion=${encodeURIComponent(
+        newVersion
+      )}&sessionId=${sessionId}`;
+    } else {
+      return `/datasets/new_tmp_untitled_sql_and_run?newVersion=${encodeURIComponent(
         newVersion
       )}`;
     }
@@ -702,26 +750,31 @@ class ExploreUtils {
   }
 
   isSqlEditorTab(location) {
-    const curLocation = location && location.pathname;
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
+    if (!location?.pathname) return false;
+    const curLocation = location.pathname;
     return (
-      curLocation &&
-      (curLocation.includes(UNSAVED_DATASET_PATH) ||
-        curLocation.includes(newQuery()))
+      curLocation.includes(
+        sqlPaths.unsavedDatasetPath.link({
+          projectId,
+        })
+      ) || curLocation.includes(newQuery())
     );
   }
 
   isExploreDatasetPage(location) {
-    const curLocation = location && location.pathname;
+    if (!location?.pathname) return false;
+    const curLocation = rmProjectBase(location.pathname);
     return (
-      curLocation &&
-      (curLocation.startsWith("/space") ||
-        curLocation.startsWith("/home") ||
-        curLocation.startsWith("/source"))
+      curLocation.startsWith("/space") ||
+      curLocation.startsWith("/home") ||
+      curLocation.startsWith("/source")
     );
   }
 
   isExploreSourcePage(location) {
-    const curLocation = location && location.pathname;
+    if (!location?.pathname) return false;
+    const curLocation = rmProjectBase(location.pathname);
     return curLocation.startsWith("/source");
   }
 

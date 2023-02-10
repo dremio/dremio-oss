@@ -16,7 +16,7 @@
 import { Component, createRef } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import Tabs from "components/Tabs";
 import { flexElementAuto } from "@app/uiTheme/less/layout.less";

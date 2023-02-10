@@ -31,7 +31,7 @@ public final class ScanLimitValidator {
     } catch (ScanLimitException ex) {
       throw new ValidationException(
           String.format(
-              "At most %s columns including leaf level fields of complex type are allowed to be scanned, but the query is scanning %s." +
+              "At most %s columns including leaf level fields of complex type are allowed to be scanned, but the query is scanning %s. " +
                   "Please include the columns you want to be returned from the query and try again",
               limit,
               ex.actualFieldCount

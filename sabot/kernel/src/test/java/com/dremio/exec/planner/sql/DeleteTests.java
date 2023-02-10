@@ -445,5 +445,15 @@ public class DeleteTests {
       verifyData(allocator, sourceTable, sourceTable.originalData);
     }
   }
+
+  public static void testDeleteWithStockIcebergTable(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = DmlQueryTestUtils.createStockIcebergTable(
+      source, 2, 2, "test_delete_into_stock_iceberg");
+         AutoCloseable ignored = setContext(allocator, source)) {
+
+      testDmlQuery(allocator, "DELETE FROM %s WHERE id = 1", new Object[]{table.fqn, table.columns[1]},
+        table, 0, null);
+    }
+  }
   // END: Contexts + Paths
 }

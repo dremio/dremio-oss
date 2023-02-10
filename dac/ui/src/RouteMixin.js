@@ -27,21 +27,37 @@ import Activation from "@inject/pages/AdminPage/subpages/Activation";
 import Support from "@app/pages/AdminPage/subpages/Support";
 import Queues from "@inject/pages/AdminPage/subpages/WLM/Queues";
 import QAssignments from "@inject/pages/AdminPage/subpages/WLM/QAssignments";
+import * as adminPaths from "dremio-ui-common/paths/admin.js";
 
 export const AdminPageRouting = () => (
   <Route component={UserIsAdmin(AdminModals)}>
     <Route component={Page}>
-      <Route path="/admin" component={AdminPage}>
-        <IndexRedirect to="/admin/nodeActivity" />
-        <Route path="/admin/acceleration" component={Acceleration} />
-        <Route path="/admin/nodeActivity" component={NodeActivity} />
-        <Route path="/admin/users" component={UserIsAdmin(Users)} />
-        <Route path="/admin/advanced" component={Advanced} />
-        <Route path="/admin/provisioning" component={Provisioning} />
-        <Route path="/admin/activation" component={Activation} />
-        <Route path="/admin/support" component={Support} />
-        <Route path="/admin/queues" component={Queues} />
-        <Route path="/admin/rules" component={QAssignments} />
+      <Route path={adminPaths.admin.fullRoute()} component={AdminPage}>
+        <IndexRedirect to={adminPaths.nodeActivity.fullRoute()} />
+        <Route
+          path={adminPaths.reflections.fullRoute()}
+          component={Acceleration}
+        />
+        <Route
+          path={adminPaths.nodeActivity.fullRoute()}
+          component={NodeActivity}
+        />
+        <Route
+          path={adminPaths.users.fullRoute()}
+          component={UserIsAdmin(Users)}
+        />
+        <Route path={adminPaths.advanced.fullRoute()} component={Advanced} />
+        <Route path={adminPaths.engines.fullRoute()} component={Provisioning} />
+        <Route
+          path={adminPaths.activation.fullRoute()}
+          component={Activation}
+        />
+        <Route path={adminPaths.support.fullRoute()} component={Support} />
+        <Route path={adminPaths.queues.fullRoute()} component={Queues} />
+        <Route
+          path={adminPaths.engineRouting.fullRoute()}
+          component={QAssignments}
+        />
       </Route>
     </Route>
   </Route>

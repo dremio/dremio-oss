@@ -31,15 +31,11 @@ import "@app/pages/NessieHomePage/components/NamespaceItem/NamespaceItem.less";
 
 type ArcticCatalogDataIconProps = {
   type: string | null;
-  elements?: string[];
 };
 
-export function ArcticCatalogDataIcon({
-  type,
-  elements,
-}: ArcticCatalogDataIconProps) {
+export function ArcticCatalogDataIcon({ type }: ArcticCatalogDataIconProps) {
   const intl = useIntl();
-  const { type: iconType, id } = getIconByType(type, elements);
+  const { type: iconType, id } = getIconByType(type);
   return <FontIcon type={iconType} tooltip={intl.formatMessage({ id })} />;
 }
 
@@ -71,7 +67,7 @@ function ArcticCatalogDataItem({
 
   const mainContent = (
     <>
-      <ArcticCatalogDataIcon type={entry.type} elements={elements} />
+      <ArcticCatalogDataIcon type={entry.type} />
       <span
         className="namespaceItem-name text-ellipsis"
         title={elements.join(".")}

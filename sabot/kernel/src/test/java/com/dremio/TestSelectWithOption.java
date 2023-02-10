@@ -186,7 +186,7 @@ public class TestSelectWithOption extends BaseTestQuery {
     // It seems that a parameter can not be called "escape"
     testWithResult(format("select columns from table(%s(\"escape\" => '$', type => 'TeXT', fieldDelimiter => '|', quote => '@'))", quoteTableName),
         listOf("b", "0"),
-        listOf("b$@c", "1") // shouldn't $ be removed here?
+        listOf("b@c", "1")
         );
   }
 

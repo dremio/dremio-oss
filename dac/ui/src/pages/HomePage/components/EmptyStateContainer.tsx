@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import classNames from "classnames";
+import classNames from "clsx";
 import { intl } from "@app/utils/intl";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import * as classes from "./EmptyStateContainer.module.less";
@@ -22,23 +22,35 @@ import * as classes from "./EmptyStateContainer.module.less";
 type EmptyStateContainerProps = {
   title: string;
   className?: string;
-  icon: string;
+  icon?: string;
   linkInfo?: {
     href: string;
     "data-qa": string;
     label: string;
   };
   children?: React.ReactNode;
+  titleValues?: any;
+  titleClassName?: string;
 };
 
 const EmptyStateContainer = (props: EmptyStateContainerProps) => {
-  const { title, className, icon, linkInfo, children } = props;
+  const {
+    title,
+    className,
+    icon,
+    linkInfo,
+    children,
+    titleValues,
+    titleClassName,
+  } = props;
   const { formatMessage } = intl;
   return (
     <div className={classNames(classes["empty-state-container"], className)}>
-      <dremio-icon class={classes["empty-state-icon"]} name={icon} />
-      <span className={classes["empty-state-title"]}>
-        {formatMessage({ id: title })}
+      {icon && <dremio-icon class={classes["empty-state-icon"]} name={icon} />}
+      <span
+        className={classNames(classes["empty-state-title"], titleClassName)}
+      >
+        {formatMessage({ id: title }, titleValues)}
       </span>
       {linkInfo && (
         // @ts-ignore

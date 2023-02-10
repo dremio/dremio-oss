@@ -15,7 +15,7 @@
  */
 import { cloneElement, Fragment } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import { SelectView } from "@app/components/Fields/SelectView";
 
@@ -137,8 +137,9 @@ const DropdownMenu = (props) => {
               {!groupDropdownProps &&
                 (customItemRenderer || selectedItemRenderer())}
               {!hideArrow && (
-                <i
-                  className="fa fa-angle-down"
+                <dremio-icon
+                  name="interface/up-chevron"
+                  class="dropdownMenu__downArrow"
                   style={{ ...stdArrowStyle, ...arrowStyle }}
                 />
               )}

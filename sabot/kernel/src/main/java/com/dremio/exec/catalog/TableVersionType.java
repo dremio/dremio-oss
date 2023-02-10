@@ -16,11 +16,22 @@
 package com.dremio.exec.catalog;
 
 public enum TableVersionType {
-  LATEST_VERSION,
-  BRANCH,
-  TAG,
-  COMMIT_HASH_ONLY,
-  REFERENCE,
-  SNAPSHOT_ID,
-  TIMESTAMP
+  LATEST_VERSION("LATEST_VERSION"),
+  BRANCH("BRANCH"),
+  TAG("TAG"),
+  COMMIT_HASH_ONLY("COMMIT"),
+  REFERENCE("REFERENCE"),
+  SNAPSHOT_ID("SNAPSHOT_ID"),
+  TIMESTAMP("TIMESTAMP"),
+  ;
+
+  private final String sqlRepresentation;
+
+  TableVersionType(String sqlRepresentation) {
+    this.sqlRepresentation = sqlRepresentation;
+  }
+
+  public String toSqlRepresentation() {
+    return sqlRepresentation;
+  }
 }

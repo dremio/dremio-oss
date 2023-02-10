@@ -1,0 +1,5 @@
+{
+  col1 :    "10",
+  col2 :    "  twospace  ",
+  col3 : " ' one space ' "
+}

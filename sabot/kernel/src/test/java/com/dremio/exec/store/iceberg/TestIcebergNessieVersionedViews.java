@@ -289,8 +289,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
     List<String> viewPath = new ArrayList<>(Arrays.asList(viewIdentifier.namespace().levels()));
     viewPath.add(tr.getName());
 
-    final String metadataLocation = nessieClient.getMetadataLocation(viewPath, versionContext);
-    final String newMetadataLocation = nessieClient.getMetadataLocation(viewPath, newVersionContext);
+    final String metadataLocation = nessieClient.getMetadataLocation(viewPath, versionContext, null);
+    final String newMetadataLocation = nessieClient.getMetadataLocation(viewPath, newVersionContext, null);
 
     assertThat(metadataLocation).isNotEqualTo(newMetadataLocation);
 
@@ -338,8 +338,8 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
     final ResolvedVersionContext versionContext = getVersion(NON_GLOBAL_METADATA_BRANCH);
     final ResolvedVersionContext newVersionContext = getVersion(NEW_NON_GLOBAL_METADATA_BRANCH);
 
-    final String metadataLocation = nessieClient.getMetadataLocation(nonGlobalMetadataViewKey, versionContext);
-    final String newMetadataLocation = nessieClient.getMetadataLocation(nonGlobalMetadataViewKey, newVersionContext);
+    final String metadataLocation = nessieClient.getMetadataLocation(nonGlobalMetadataViewKey, versionContext, null);
+    final String newMetadataLocation = nessieClient.getMetadataLocation(nonGlobalMetadataViewKey, newVersionContext, null);
 
     assertThat(metadataLocation).isNotEqualTo(newMetadataLocation);
   }

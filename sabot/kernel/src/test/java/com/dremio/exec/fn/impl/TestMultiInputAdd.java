@@ -24,19 +24,16 @@ import org.apache.arrow.vector.ValueVector;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestMultiInputAdd extends BaseTestQuery {
 
     @Test
     public void testMultiInputAdd() throws Exception {
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-              Files.toString(FileUtils.getResourceAsFile("/functions/multi_input_add_test.json"), Charsets.UTF_8));
+        readResourceAsString("/functions/multi_input_add_test.json"));
       try(RecordBatchLoader batchLoader = new RecordBatchLoader(nodes[0].getContext().getAllocator())){
         QueryDataBatch batch = results.get(0);
         assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));

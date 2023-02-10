@@ -25,13 +25,15 @@ import com.dremio.exec.store.hive.HiveConfFactory;
 import com.google.common.collect.ImmutableMap;
 
 /**
- * Enables ENABLE_ICEBERG_ADVANCED_DML for a local Hive-based source.
+ * Enables ICEBERG-Related support options for a local Hive-based source.
  */
 public class DmlQueryOnHiveTestBase extends LazyDataGeneratingHiveTestBase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_OPTIMIZE, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM, "true");
 
     dataGenerator.updatePluginConfig((getSabotContext().getCatalogService()),
       ImmutableMap.of(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, "file:///" + dataGenerator.getWhDir() + "/",
@@ -42,5 +44,9 @@ public class DmlQueryOnHiveTestBase extends LazyDataGeneratingHiveTestBase {
   public static void afterClass() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML,
       ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_OPTIMIZE,
+      ExecConstants.ENABLE_ICEBERG_OPTIMIZE.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM,
+      ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());
   }
 }

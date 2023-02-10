@@ -25,7 +25,7 @@ import { Tooltip as DremioTooltip } from "dremio-ui-lib";
 
 import "./JobsContent.less";
 
-const DatasetCell = ({ job }) => {
+const DatasetCell = ({ job, isContextMenuOpen }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
 
   const TooltipInnerStyle = {
@@ -90,7 +90,7 @@ const DatasetCell = ({ job }) => {
       onMouseLeave={handleMouseLeave}
       data-qa="dataSetCell"
     >
-      {showOverlay ? (
+      {showOverlay && !isContextMenuOpen ? (
         <DremioTooltip
           interactive
           type="richTooltip"
@@ -157,6 +157,7 @@ const DatasetCell = ({ job }) => {
 
 DatasetCell.propTypes = {
   job: PropTypes.object,
+  isContextMenuOpen: PropTypes.bool,
 };
 
 DatasetCell.defaultProps = {

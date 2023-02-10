@@ -18,14 +18,14 @@ package com.dremio.exec.expr;
 import java.util.List;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.ComplexWriterFunctionHolder;
 import com.google.common.base.Objects;
 
-public class FunctionHolderExpr extends com.dremio.common.expression.FunctionHolderExpression implements Iterable<LogicalExpression>{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionHolderExpr.class);
+public class FunctionHolderExpr extends FunctionHolderExpression implements Iterable<LogicalExpression>{
   private BaseFunctionHolder holder;
   private SimpleFunction interpreter;
 

@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import {
   base,
@@ -55,7 +55,7 @@ export class AggregateHeader extends Component {
           // DX-34369: all SimpleButton usage need to change from style to classname
           style={
             renderClearAllButtons
-              ? { minWidth: "auto", height: 20, lineHeight: 20, marginRight: 5 }
+              ? { minWidth: "auto", height: 20, marginRight: 5 }
               : { display: "none" }
           }
           onClick={clearFunction}

@@ -74,6 +74,9 @@ final class TextReader implements AutoCloseable {
   private final byte quoteEscape;
   private final byte newLine;
 
+  private String filePath;
+  private boolean schemaImposedMode;
+
   /**
    * The CsvParser supports all settings provided by {@link CsvParserSettings}, and requires this configuration to be
    * properly initialized.
@@ -97,12 +100,19 @@ final class TextReader implements AutoCloseable {
     this.quoteEscape = settings.getQuoteEscape();
     this.newLine = settings.getNormalizedNewLine();
     this.comment = settings.getComment();
+    this.schemaImposedMode = false;
 
     this.input = input;
     this.output = output;
 
     final byte[] newLineDelimiter = settings.getNewLineDelimiter();
     isNormalLineDelimiter = newLineDelimiter.length == 1 && newLineDelimiter[0] == settings.getNormalizedNewLine();
+  }
+
+  public TextReader(TextParsingSettings settings, TextInput input, TextOutput output, ArrowBuf workBuf, String filePath, boolean schemaImposedMode) {
+    this(settings, input, output, workBuf);
+    this.filePath = filePath;
+    this.schemaImposedMode = schemaImposedMode;
   }
 
   public TextOutput getOutput(){
@@ -195,6 +205,30 @@ final class TextReader implements AutoCloseable {
     this.ch = ch;
   }
 
+  private void parseValueAndHandleTrailingWhitespaces() throws IOException {
+    final byte newLine = this.newLine;
+    final byte delimiter = this.delimiter;
+    final TextOutput output = this.output;
+    final TextInput input = this.input;
+    int continuousSpace = 0;
+
+    byte ch = this.ch;
+    try {
+      while (ch != delimiter && ch != newLine) {
+        if (isWhite(ch)) {
+          continuousSpace++;
+        } else {
+          continuousSpace = 0;
+        }
+        output.append(ch);
+        ch = input.nextChar();
+      }
+    } finally {
+      output.setFieldCurrentDataPointer(output.getFieldCurrentDataPointer() - continuousSpace); // in case input.nextChar() fails with some exception or even StreamFinishedPseudoException, we still want currentDataPointer to be set properly before exit.
+    }
+    this.ch = ch;
+  }
+
   /**
    * Function parses an individual field and appends all characters till the delimeter (or newline)
    * to the output, including white spaces
@@ -220,7 +254,11 @@ final class TextReader implements AutoCloseable {
    */
   private void parseValue() throws IOException {
     if (ignoreTrailingWhitespace) {
-      parseValueIgnore();
+      if (schemaImposedMode) {
+        parseValueAndHandleTrailingWhitespaces();
+      } else {
+        parseValueIgnore();
+      }
     }else{
       parseValueAll();
     }
@@ -247,7 +285,9 @@ final class TextReader implements AutoCloseable {
         if (prev == quote) { // unescaped quote detected
           if (parseUnescapedQuotes) {
             output.append(quote);
-            output.append(ch);
+            if (ch != quoteEscape) {
+              output.append(ch);
+            }
             parseQuotedValue(ch);
             break;
           } else {
@@ -258,7 +298,9 @@ final class TextReader implements AutoCloseable {
                     + "' inside quoted value of CSV field. To allow unescaped quotes, set 'parseUnescapedQuotes' to 'true' in the CSV parser settings. Cannot parse CSV input.");
           }
         }
-        output.append(ch);
+        if (ch != quoteEscape) {
+          output.append(ch);
+        }
         prev = ch;
       } else if (prev == quoteEscape) {
         output.append(quote);
@@ -288,7 +330,6 @@ final class TextReader implements AutoCloseable {
 
       // there's more stuff after the quoted value, not only empty spaces.
       if (!(ch == delimiter || ch == newLine) && parseUnescapedQuotes) {
-
         output.append(quote);
         for(int i =0; i < workBuf.writerIndex(); i++){
           output.append(workBuf.getByte(i));
@@ -447,7 +488,7 @@ final class TextReader implements AutoCloseable {
           .build(logger);
     }
 
-    String message = null;
+    String message = ex.getMessage() + ", File :" + filePath;
     String tmp = input.getStringSinceMarkForError();
     char[] chars = tmp.toCharArray();
     if (chars != null) {

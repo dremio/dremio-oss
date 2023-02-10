@@ -303,11 +303,22 @@ public class FragmentExecutor implements MemoryArbiterTask {
     return maxMemoryUsedPerPump;
   }
 
-  private void postRunUpdate() {
+  private String preRunUpdate(int load) {
+    stats.sliceStarted(load);
+    // update thread name.
+    final Thread currentThread = Thread.currentThread();
+    final String originalName = currentThread.getName();
+    currentThread.setName(originalName + " - " + name);
+    return originalName;
+  }
+
+  private void postRunUpdate(long taskRunTimeNanos, String preRunName) {
+    stats.sliceEnded(taskRunTimeNanos);
     if (memoryArbiter != null) {
       memoryArbiter.releaseMemoryGrant(this);
     }
     assert memoryGrantInBytes == 0 : "Memory grant should be 0";
+    Thread.currentThread().setName(preRunName);
   }
 
   private int getPhaseAndOperatorId(int localOperatorId) {
@@ -383,11 +394,6 @@ public class FragmentExecutor implements MemoryArbiterTask {
       return;
     }
     stats.runStarted();
-
-    // update thread name.
-    final Thread currentThread = Thread.currentThread();
-    final String originalName = currentThread.getName();
-    currentThread.setName(originalName + " - " + name);
 
     try {
 
@@ -495,7 +501,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
     } finally {
 
       try {
-        finishRun(originalName);
+        finishRun();
       } finally {
         stats.runEnded();
       }
@@ -609,7 +615,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
   }
 
   // called every time a run is completed.
-  private void finishRun(String originalThreadName) {
+  private void finishRun() {
 
     // if we're in a terminal state, send final outcome.
     stats.finishStarted();
@@ -625,7 +631,6 @@ public class FragmentExecutor implements MemoryArbiterTask {
       }
 
     } finally {
-      Thread.currentThread().setName(originalThreadName);
       stats.finishEnded();
     }
   }
@@ -974,8 +979,13 @@ public class FragmentExecutor implements MemoryArbiterTask {
     }
 
     @Override
-    public void postRunUpdate() {
-      FragmentExecutor.this.postRunUpdate();
+    public String preRunUpdate(int load) {
+      return FragmentExecutor.this.preRunUpdate(load);
+    }
+
+    @Override
+    public void postRunUpdate(long taskRuntimeNanos, String preRunName) {
+      FragmentExecutor.this.postRunUpdate(taskRuntimeNanos, preRunName);
     }
 
     @Override

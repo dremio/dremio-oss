@@ -118,6 +118,7 @@ public final class JoinSetupParams implements AutoCloseable {
   private final LogicalExpression extraCondition;
   private final Map<String, String> build2ProbeKeyMap;
   private final OOBInfo oobInfo;
+  private final int operatorId;
 
   JoinSetupParams(OperatorContext context,
                   FixedBlockVector pivotedFixedBlock,
@@ -141,6 +142,7 @@ public final class JoinSetupParams implements AutoCloseable {
                   SpillManager spillManager,
                   PagePool spillPagePool,
                   OOBInfo oobInfo,
+                  int operatorId,
                   boolean runtimeFilterEnabled) {
     this.context = context;
     this.options = context.getOptions();
@@ -168,6 +170,7 @@ public final class JoinSetupParams implements AutoCloseable {
     this.spillManager = spillManager;
     this.spillPagePool = spillPagePool;
     this.oobInfo = oobInfo;
+    this.operatorId = operatorId;
     this.runtimeFilterEnabled = runtimeFilterEnabled;
 
     SpillSerializable serializable = new SpillSerializableImpl();
@@ -305,6 +308,10 @@ public final class JoinSetupParams implements AutoCloseable {
 
   public OOBInfo getOobInfo() {
     return oobInfo;
+  }
+
+  public int getOperatorId() {
+    return operatorId;
   }
 
   public boolean isRuntimeFilterEnabled() {

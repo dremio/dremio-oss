@@ -113,7 +113,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
         Thread.sleep(1001);
 
         String query = String.format("ALTER TABLE %s ADD COLUMNS(col1 varchar, col2 int, col3 MAP)", tableName);
-        errorMsgTestHelper(query, "Table [addcol07] not found");
+        errorMsgTestHelper(query, "Table [addcol07] does not exist");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }
@@ -372,7 +372,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
 
         String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", testSchema,
           tableName);
-        errorMsgTestHelper(query, "Table [" + testSchema + ".addcol3] not found");
+        errorMsgTestHelper(query, "Table [" + testSchema + ".addcol3] does not exist");
 
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
@@ -458,4 +458,45 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void addColumnOnTableWithPath() throws Exception {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addColumnAndInsertWithPath";
+      String path = "path";
+      try (AutoCloseable c = enableIcebergTables()) {
+
+        final String createTableQuery = String.format("CREATE TABLE %s.%s.%s as " +
+                        "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+                testSchema, path, tableName);
+        test(createTableQuery);
+
+        final String selectFromCreatedTable = String.format("select * from %s.%s.%s", testSchema, path, tableName);
+        testBuilder()
+                .sqlQuery(selectFromCreatedTable)
+                .unOrdered()
+                .baselineColumns("n_regionkey")
+                .baselineValues(0)
+                .baselineValues(1)
+                .build()
+                .run();
+
+        test("USE %s", testSchema);
+        String alterQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(newcol1 varchar, newcol2 int, newcol3 int)", path,
+                tableName);
+        test(alterQuery);
+
+        testBuilder()
+                .sqlQuery(selectFromCreatedTable)
+                .unOrdered()
+                .baselineColumns("n_regionkey", "newcol1", "newcol2", "newcol3")
+                .baselineValues(0, null, null, null)
+                .baselineValues(1, null, null, null)
+                .build()
+                .run();
+
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
 }

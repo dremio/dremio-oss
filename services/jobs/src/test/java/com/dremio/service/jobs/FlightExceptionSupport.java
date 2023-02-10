@@ -37,7 +37,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.service.flight.FlightRpcUtils;
+import com.dremio.service.flightcommon.FlightRpcUtils;
 
 /**
  * test to ensure grpc trailers are being passed through FlightRuntimeException and we are able to rehydrate UserException

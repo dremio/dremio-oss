@@ -27,13 +27,13 @@ import * as classes from "./ArcticCommitDetailsHeader.module.less";
 type ArcticCommitDetailsHeaderProps = {
   commitId: string;
   reference: Reference | null;
-  handlePush: (tab: ArcticCatalogTabsType) => void;
+  handleTabNavigation: (tab: ArcticCatalogTabsType) => void;
 };
 
 function ArcticCommitDetailsHeader({
   commitId,
   reference,
-  handlePush,
+  handleTabNavigation,
 }: ArcticCommitDetailsHeaderProps) {
   const [dialogState, setDialogState] = useState(false);
 
@@ -47,7 +47,7 @@ function ArcticCommitDetailsHeader({
         <span className={classes["commit-details-header__left"]}>
           <IconButton
             tooltip="Common.Back"
-            onClick={() => handlePush("commits")}
+            onClick={() => handleTabNavigation("commits")}
           >
             <dremio-icon name="interface/circled-arrow-left" />
           </IconButton>
@@ -58,7 +58,7 @@ function ArcticCommitDetailsHeader({
         <span className={classes["commit-details-header__right"]}>
           <Button
             color="secondary"
-            onClick={() => handlePush("data")}
+            onClick={() => handleTabNavigation("data")}
             disableMargin
             className={classes["commit-details-header__right--button"]}
           >
@@ -82,6 +82,7 @@ function ArcticCommitDetailsHeader({
           ({ ...reference, hash: commitId } as Reference) ?? ({} as Reference)
         }
         closeDialog={closeDialog}
+        fromType="COMMIT"
       />
     </>
   );

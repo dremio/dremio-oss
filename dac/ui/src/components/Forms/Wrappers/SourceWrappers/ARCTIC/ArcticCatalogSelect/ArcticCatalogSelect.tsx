@@ -13,30 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import * as React from "react";
 import { useContext, useCallback, useMemo, memo } from "react";
 import { RequestStatus } from "smart-resource";
 import { orderBy } from "lodash";
 import { FieldWithError } from "@app/components/Fields";
 import { ElementConfig } from "@app/types/Sources/SourceFormTypes";
 import { FieldProp } from "redux-form";
-import { useArcticCatalogs } from "@app/exports/providers/useArcticCatalogs";
-import { Select } from "dremio-ui-lib";
+import { Select, SelectItem } from "@mantine/core";
 import {
   ModalContainer,
   Skeleton,
+  Spinner,
   useModalContainer,
 } from "dremio-ui-lib/dist-esm";
 
 import { fieldWithError } from "../../../FormWrappers.less";
 import { ArcticCatalog } from "@app/exports/endpoints/ArcticCatalogs/ArcticCatalog.type";
-import { type SelectChangeEvent } from "@mui/material";
 import { NewArcticCatalogDialog } from "@app/exports/components/NewArcticCatalogDialog/NewArcticCatalogDialog";
 import { intl } from "@app/utils/intl";
 import { FormContext } from "@app/pages/HomePage/components/modals/formContext";
-import { ArcticCatalogsResource } from "@app/exports/resources/ArcticCatalogsResource";
 import sentryUtil from "@app/utils/sentryUtil";
 import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
 import { ARCTIC_CATALOG_CREATION } from "@app/exports/flags/ARCTIC_CATALOG_CREATION";
+import { useArcticCatalogs } from "@app/exports/providers/useArcticCatalogs";
+import { useSelector } from "react-redux";
+import { getSortedSources } from "@app/selectors/home";
+import { ARCTIC } from "@app/constants/sourceTypes";
 
 import * as classes from "./ArcticCatalogSelect.less";
 
@@ -54,46 +57,80 @@ type ArcticCatalogSelectProps = {
   placeholder?: string;
 };
 
+interface ItemProps extends React.ComponentPropsWithoutRef<"div"> {
+  label?: string;
+  value: string;
+}
+
 const NEW_CATALOG_ITEM = "NEW_CATALOG_ITEM";
+const ERROR_ITEM = "ERROR_ITEM";
+const LOADING_ITEM = "LOADING_ITEM";
 
 const Skeletons = new Array(5)
   .fill(null)
-  .map((value) => ({ label: <Skeleton width="18ch" />, value }));
+  .map((v, i) => ({ label: LOADING_ITEM, value: `${LOADING_ITEM}-${i}` }));
 
-function getOptions(
-  catalogs: ArcticCatalog[] | null,
-  status: RequestStatus,
-  enableNewCatalogItem: boolean
-) {
-  if (status === "pending") {
-    return Skeletons;
-  } else if (catalogs) {
-    const options: Record<string, any>[] = orderBy(catalogs, "name").map(
-      (cur) => ({
-        name: cur.name,
-        label: cur.name,
-        value: cur.id,
-      })
-    );
-    if (enableNewCatalogItem) {
-      options.push({
-        label: (
+const ArcticCatalogSelectItem = React.forwardRef<HTMLDivElement, ItemProps>(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ({ label, value, ...others }: ItemProps, ref) => {
+    function getContent() {
+      if (label === LOADING_ITEM) {
+        return <Skeleton width="18ch" />;
+      } else if (value === ERROR_ITEM) {
+        return (
+          <span>
+            {intl.formatMessage({ id: "ArcticSource.ErrorCatalogItem" })}
+          </span>
+        );
+      } else if (value === NEW_CATALOG_ITEM) {
+        return (
           <span>
             <dremio-icon name="interface/plus" />{" "}
             <span>
               {intl.formatMessage({ id: "ArcticSource.NewCatalogItem" })}
             </span>
           </span>
-        ),
+        );
+      } else {
+        return label;
+      }
+    }
+    return (
+      <div ref={ref} {...others}>
+        {getContent()}
+      </div>
+    );
+  }
+);
+
+function getOptions(
+  catalogs: ArcticCatalog[] | null,
+  status: RequestStatus,
+  enableNewCatalogItem: boolean,
+  arcticSourceIds: string[]
+) {
+  if (status === "pending") {
+    return Skeletons;
+  } else if (catalogs) {
+    const options: (string | SelectItem)[] = orderBy(catalogs, "name").map(
+      (cur) => ({
+        value: cur.id,
+        label: cur.name,
+        disabled: arcticSourceIds.includes(cur.id),
+      })
+    );
+    if (enableNewCatalogItem) {
+      options.push({
         value: NEW_CATALOG_ITEM,
+        label: "",
       });
     }
     return options;
   } else {
     return [
       {
-        label: intl.formatMessage({ id: "ArcticSource.ErrorCatalogItem" }),
-        value: null,
+        value: ERROR_ITEM,
+        label: "",
       },
     ];
   }
@@ -105,14 +142,21 @@ function ArcticCatalogSelect({
   placeholder,
 }: ArcticCatalogSelectProps) {
   const { editing } = useContext(FormContext);
+  const sources = useSelector(getSortedSources);
+  const arcticSourceIds = useMemo(() => {
+    return sources
+      .toJS()
+      .filter((cur: { type: string }) => cur.type === ARCTIC)
+      .map((cur: any) => cur.config.arcticCatalogId);
+  }, [sources]);
   const [catalogs, , status] = useArcticCatalogs();
   const newArcticCatalog = useModalContainer();
   const [result] = useFeatureFlag(ARCTIC_CATALOG_CREATION);
 
   const handleArcticCatalogCreation = useCallback(
-    async (createdCatalog: ArcticCatalog) => {
+    (createdCatalog: ArcticCatalog) => {
       try {
-        await ArcticCatalogsResource.fetch();
+        sessionStorage.setItem("newCatalogId", createdCatalog.id);
         onChange?.(createdCatalog.id, createdCatalog.name);
       } catch (e) {
         sentryUtil.logException(e);
@@ -124,37 +168,41 @@ function ArcticCatalogSelect({
   );
 
   const onSelectChange = useCallback(
-    (e: SelectChangeEvent<string>) => {
-      const value = e.target.value;
+    (value: string) => {
+      if (status === "pending" || status === "error") return;
       if (value === NEW_CATALOG_ITEM) {
         newArcticCatalog.open();
       } else if (catalogs) {
         const name = catalogs.find(
-          (cur: ArcticCatalog) => cur.id === e.target.value
+          (cur: ArcticCatalog) => cur.id === value
         )?.name;
-        onChange?.(e.target.value, name);
+        onChange?.(value, name);
       }
     },
-    [onChange, newArcticCatalog, catalogs]
+    [onChange, newArcticCatalog, catalogs, status]
   );
 
   const options = useMemo(
-    () => getOptions(catalogs, status, !!result),
-    [catalogs, status, result]
+    () => getOptions(catalogs, status, !!result, arcticSourceIds),
+    [catalogs, status, result, arcticSourceIds]
   );
 
   return (
     <>
       <Select
-        disabled={editing}
-        classes={{ root: classes["arctic-catalog-select"] }}
-        {...(placeholder && {
-          renderValue: () => placeholder,
-        })}
+        // searchable
+        className={classes["arctic-catalog-select"]}
+        disabled={status === "pending" || editing}
+        placeholder={status === "pending" ? "" : placeholder}
+        itemComponent={ArcticCatalogSelectItem}
+        data={options}
+        // maxDropdownHeight={200}
         value={value}
         onChange={onSelectChange}
-        options={options}
-      ></Select>
+        {...(status === "pending" && {
+          icon: <Spinner />,
+        })}
+      />
       <ModalContainer {...newArcticCatalog}>
         <NewArcticCatalogDialog
           onCancel={newArcticCatalog.close}
@@ -171,10 +219,13 @@ function ArcticCatalogSelectWrapper({
   elementConfig,
   fields,
 }: ArcticCatalogSelectWrapperProps) {
-  function handleChange(value: string | null, name?: string | null) {
-    field.onChange(value);
-    fields.name.onChange(name);
-  }
+  const handleChange = useCallback(
+    (value: string | null, name?: string | null) => {
+      field.onChange(value);
+      fields.name.onChange(name);
+    },
+    [field, fields.name]
+  );
   return (
     <FieldWithError
       {...field}
@@ -187,15 +238,9 @@ function ArcticCatalogSelectWrapper({
       <ArcticCatalogSelectMemo
         value={field.value}
         onChange={handleChange}
-        placeholder={
-          fields.name.value || (
-            <span className={classes["placeholder"]}>
-              {intl.formatMessage({
-                id: "ArcticSource.SelectCatalogPlaceholder",
-              })}
-            </span>
-          )
-        }
+        placeholder={intl.formatMessage({
+          id: "ArcticSource.SelectCatalogPlaceholder",
+        })}
       />
     </FieldWithError>
   );

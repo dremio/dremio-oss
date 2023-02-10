@@ -21,15 +21,12 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestInjectionValue extends ExecTest {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestInjectionValue.class);
@@ -37,7 +34,7 @@ public class TestInjectionValue extends ExecTest {
   @Test
   public void testInjected() throws Exception{
     PhysicalPlanReader r = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
-    PhysicalPlan p = r.readPhysicalPlan(Files.toString(FileUtils.getResourceAsFile("/physical_screen.json"), Charsets.UTF_8));
+    PhysicalPlan p = r.readPhysicalPlan(readResourceAsString("/physical_screen.json"));
 
     List<PhysicalOperator> o = p.getSortedOperators(false);
 

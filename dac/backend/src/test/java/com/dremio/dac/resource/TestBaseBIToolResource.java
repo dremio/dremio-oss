@@ -55,7 +55,7 @@ public class TestBaseBIToolResource {
 
   @Before
   public void setUp() {
-    resource = new BaseBIToolResource(null, null, null) {
+    resource = new BaseBIToolResource(null, null, "a/b", null, null) {
       @Override
       protected TypeValidators.BooleanValidator getClientToolOption() {
         return null;

@@ -16,7 +16,7 @@
 import * as React from "react";
 import clsx from "clsx";
 import { forwardRef } from "react";
-import { useDetectScroll } from "./useDetectScroll";
+import { useDetectScroll } from "../utilities/useDetectScroll";
 
 type PageProps = {
   children?: JSX.Element | JSX.Element[];
@@ -27,22 +27,40 @@ type PageProps = {
 
 export const Page = forwardRef<HTMLDivElement, PageProps>((props, ref) => {
   const { children, className, footer, header, ...rest } = props;
-  const { isScrolled, scrollContainerProps } = useDetectScroll();
+  const { scrolledDirections, scrollContainerRef } = useDetectScroll([
+    "top",
+    "bottom",
+  ]);
   return (
-    <div
-      ref={ref}
-      {...rest}
-      className={clsx(
-        "dremio-page",
-        { "dremio-page--content-scrolled": isScrolled },
-        className
+    <div ref={ref} {...rest} className={clsx("dremio-page", className)}>
+      {header && (
+        <header
+          className={clsx(
+            "dremio-page__header dremio-scroll-shadow dremio-scroll-shadow--top",
+            {
+              "--scrolled": scrolledDirections.has("top"),
+            }
+          )}
+        >
+          {header}
+        </header>
       )}
-    >
-      {header && <header className="dremio-page__header">{header}</header>}
-      <div className="dremio-page__content" {...scrollContainerProps}>
+      <div className="dremio-page__content" ref={scrollContainerRef}>
         {children}
       </div>
-      {footer && <footer className="dremio-page__footer">{footer}</footer>}
+      {footer && (
+        <footer
+          className={clsx(
+            "dremio-page__footer",
+            "dremio-scroll-shadow dremio-scroll-shadow--bottom",
+            {
+              "--scrolled": scrolledDirections.has("bottom"),
+            }
+          )}
+        >
+          {footer}
+        </footer>
+      )}
     </div>
   );
 });

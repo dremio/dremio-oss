@@ -44,16 +44,12 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.test.UserExceptionAssert;
-import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
-import com.google.common.io.Files;
-
 
 @Ignore
 public class ParquetRecordReaderTest extends BaseTestQuery {
@@ -103,7 +99,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   }
 
   public String getPlanForFile(String pathFileName, String parquetFileName) throws IOException {
-    return Files.toString(FileUtils.getResourceAsFile(pathFileName), Charsets.UTF_8)
+    return readResourceAsString(pathFileName)
         .replaceFirst("&REPLACED_IN_PARQUET_TEST&", parquetFileName);
   }
 
@@ -121,8 +117,8 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
       }
     }
 
-    final String planText = Files.toString(FileUtils.getResourceAsFile(
-        "/parquet/parquet_scan_screen_read_entry_replace.json"), Charsets.UTF_8).replaceFirst(
+    final String planText = readResourceAsString(
+        "/parquet/parquet_scan_screen_read_entry_replace.json").replaceFirst(
             "&REPLACED_IN_PARQUET_TEST&", readEntries.toString());
     testParquetFullEngineLocalText(planText, fileName, i, numberRowGroups, recordsPerRowGroup, true);
   }
@@ -175,8 +171,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   @Test
   public void testFixedBinary() throws Exception {
     final String readEntries = "\"/tmp/dremiotest/fixed_binary.parquet\"";
-    final String planText = Files.toString(FileUtils.getResourceAsFile(
-        "/parquet/parquet_scan_screen_read_entry_replace.json"), Charsets.UTF_8)
+    final String planText = readResourceAsString("/parquet/parquet_scan_screen_read_entry_replace.json")
           .replaceFirst( "&REPLACED_IN_PARQUET_TEST&", readEntries);
     testParquetFullEngineLocalText(planText, fileName, 1, 1, 1000000, false);
   }
@@ -261,7 +256,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   public void testParquetFullEngineLocalPath(String planFileName, String filename,
       int numberOfTimesRead /* specified in json plan */,
       int numberOfRowGroups, int recordsPerRowGroup) throws Exception {
-    testParquetFullEngineLocalText(Files.toString(FileUtils.getResourceAsFile(planFileName), Charsets.UTF_8), filename,
+    testParquetFullEngineLocalText(readResourceAsString(planFileName), filename,
         numberOfTimesRead, numberOfRowGroups, recordsPerRowGroup, true);
   }
 
@@ -294,7 +289,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   public void testParquetFullEngineLocalTextDistributed(String planName, String filename,
       int numberOfTimesRead /* specified in json plan */,
       int numberOfRowGroups, int recordsPerRowGroup) throws Exception {
-    String planText = Files.toString(FileUtils.getResourceAsFile(planName), Charsets.UTF_8);
+    String planText = readResourceAsString(planName);
     testFull(QueryType.PHYSICAL, planText, filename, numberOfTimesRead, numberOfRowGroups, recordsPerRowGroup, true);
   }
 
@@ -322,7 +317,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
     TestFileGenerator.populateFieldInfoMap(props);
     final ParquetResultListener resultListener =
         new ParquetResultListener(getAllocator(), props, numberOfTimesRead, true);
-    testWithListener(QueryType.PHYSICAL, Files.toString(FileUtils.getResourceAsFile(plan), Charsets.UTF_8), resultListener);
+    testWithListener(QueryType.PHYSICAL, readResourceAsString(plan), resultListener);
     resultListener.getResults();
   }
 
@@ -580,7 +575,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
     final ParquetResultListener resultListener = new ParquetResultListener(getAllocator(), props, numberOfTimesRead, testValues);
     final long startTime = System.nanoTime();
-    String planText = Files.toString(FileUtils.getResourceAsFile(plan), Charsets.UTF_8);
+    String planText = readResourceAsString(plan);
     // substitute in the string for the read entries, allows reuse of the plan file for several tests
     if (readEntries != null) {
       planText = planText.replaceFirst( "&REPLACED_IN_PARQUET_TEST&", readEntries);

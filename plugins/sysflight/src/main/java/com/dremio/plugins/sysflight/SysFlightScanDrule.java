@@ -31,6 +31,8 @@ public class SysFlightScanDrule extends SourceLogicalConverter {
 
   @Override
   public Rel convertScan(ScanCrel scan) {
-    return new SysFlightScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(), scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment());
+    return new SysFlightScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(),
+                                 scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(),
+                                 scan.getObservedRowcountAdjustment(), scan.getHints());
   }
 }

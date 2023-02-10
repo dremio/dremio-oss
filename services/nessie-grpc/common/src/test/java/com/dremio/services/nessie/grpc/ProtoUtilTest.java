@@ -29,8 +29,6 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.api.params.CommitLogParams;
 import org.projectnessie.api.params.DiffParams;
 import org.projectnessie.api.params.EntriesParams;
@@ -39,6 +37,7 @@ import org.projectnessie.api.params.GetReferenceParams;
 import org.projectnessie.api.params.MultipleNamespacesParams;
 import org.projectnessie.api.params.NamespaceParams;
 import org.projectnessie.api.params.ReferencesParams;
+import org.projectnessie.model.BaseMergeTransplant;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Content;
@@ -56,6 +55,7 @@ import org.projectnessie.model.GetNamespacesResponse;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.IcebergView;
 import org.projectnessie.model.ImmutableBranch;
+import org.projectnessie.model.ImmutableContentKeyDetails;
 import org.projectnessie.model.ImmutableDeltaLakeTable;
 import org.projectnessie.model.ImmutableDiffEntry;
 import org.projectnessie.model.ImmutableDiffResponse;
@@ -64,6 +64,8 @@ import org.projectnessie.model.ImmutableGetNamespacesResponse;
 import org.projectnessie.model.ImmutableLogEntry;
 import org.projectnessie.model.ImmutableLogResponse;
 import org.projectnessie.model.ImmutableMerge;
+import org.projectnessie.model.ImmutableMergeKeyBehavior;
+import org.projectnessie.model.ImmutableMergeResponse;
 import org.projectnessie.model.ImmutableNessieConfiguration;
 import org.projectnessie.model.ImmutableOperations;
 import org.projectnessie.model.ImmutableRefLogResponseEntry;
@@ -73,6 +75,7 @@ import org.projectnessie.model.ImmutableTransplant;
 import org.projectnessie.model.LogResponse;
 import org.projectnessie.model.LogResponse.LogEntry;
 import org.projectnessie.model.Merge;
+import org.projectnessie.model.MergeResponse;
 import org.projectnessie.model.Namespace;
 import org.projectnessie.model.NessieConfiguration;
 import org.projectnessie.model.Operation;
@@ -105,6 +108,7 @@ import com.dremio.services.nessie.grpc.api.RefLogResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Timestamp;
 
@@ -227,14 +231,9 @@ public class ProtoUtilTest {
     assertThat(fromProto(toProto(icebergTable))).isEqualTo(icebergTable);
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {
-    "null",
-    "{}",
-    "{\"a\":42}",
-  })
-  public void icebergTableMetadataConversion(String metadataJson) throws JsonProcessingException {
-    JsonNode json = MAPPER.readValue(metadataJson, JsonNode.class);
+  @Test
+  public void icebergTableMetadataConversion() throws JsonProcessingException {
+    JsonNode json = MAPPER.readValue("{\"a\":42}", JsonNode.class);
     IcebergTable icebergTable = IcebergTable.builder()
       .id("test-id")
       .schemaId(1)
@@ -244,7 +243,8 @@ public class ProtoUtilTest {
       .metadataLocation("file")
       .metadata(GenericMetadata.of("test", json))
       .build();
-    assertThat(fromProto(toProto(icebergTable))).isEqualTo(icebergTable);
+    // DX-57058: GenericMetadata should be null
+    assertThat(fromProto(toProto(icebergTable)).getMetadata()).isNull();
   }
 
   @Test
@@ -264,14 +264,9 @@ public class ProtoUtilTest {
   }
 
 
-  @ParameterizedTest
-  @ValueSource(strings = {
-    "null",
-    "{}",
-    "{\"a\":42}",
-  })
-  public void icebergViewMetadataConversion(String metadataJson) throws JsonProcessingException {
-    JsonNode json = MAPPER.readValue(metadataJson, JsonNode.class);
+  @Test
+  public void icebergViewMetadataConversion() throws JsonProcessingException {
+    JsonNode json = MAPPER.readValue("{\"a\":42}", JsonNode.class);
     IcebergView icebergView = IcebergView.builder()
       .id("test-id")
       .schemaId(1)
@@ -281,7 +276,8 @@ public class ProtoUtilTest {
       .metadataLocation("file")
       .metadata(GenericMetadata.of("test", json))
       .build();
-    assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
+    // DX-57058: GenericMetadata should be null
+    assertThat(fromProto(toProto(icebergView)).getMetadata()).isNull();
   }
 
   @Test
@@ -1011,6 +1007,20 @@ public class ProtoUtilTest {
       .fromHash(hash)
       .build();
     assertThat(fromProto(toProto("y", "z", mergeWithKeepingCommits))).isEqualTo(mergeWithKeepingCommits);
+
+    Merge mergeWithExtraInfo = ImmutableMerge.builder()
+      .from(mergeWithKeepingCommits)
+      .isReturnConflictAsResult(true)
+      .isFetchAdditionalInfo(true)
+      .defaultKeyMergeMode(BaseMergeTransplant.MergeBehavior.FORCE)
+      .addKeyMergeModes(ImmutableMergeKeyBehavior.builder()
+        .mergeBehavior(BaseMergeTransplant.MergeBehavior.DROP)
+        .key(ContentKey.of("test", "key"))
+        .build())
+      .isDryRun(true)
+      .isReturnConflictAsResult(true)
+      .build();
+    assertThat(fromProto(toProto("y", "z", mergeWithExtraInfo))).isEqualTo(mergeWithExtraInfo);
   }
 
   @Test
@@ -1037,5 +1047,95 @@ public class ProtoUtilTest {
       .build();
 
     assertThat(fromProto(toProto("y", "z", "msg", transplantWithKeepingCommits))).isEqualTo(transplantWithKeepingCommits);
+
+    Transplant transplantWithExtraInfo = ImmutableTransplant.builder()
+      .from(transplantWithKeepingCommits)
+      .isReturnConflictAsResult(true)
+      .isFetchAdditionalInfo(true)
+      .defaultKeyMergeMode(BaseMergeTransplant.MergeBehavior.FORCE)
+      .addKeyMergeModes(ImmutableMergeKeyBehavior.builder()
+        .mergeBehavior(BaseMergeTransplant.MergeBehavior.DROP)
+        .key(ContentKey.of("test", "key"))
+        .build())
+      .isDryRun(true)
+      .isReturnConflictAsResult(true)
+      .build();
+    assertThat(fromProto(toProto("y", "z", "msg", transplantWithExtraInfo))).isEqualTo(transplantWithExtraInfo);
+  }
+
+  @Test
+  public void mergeResponse() {
+    assertThatThrownBy(() -> toProto((MergeResponse) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("MergeResponse must be non-null");
+
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.MergeResponse) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("MergeResponse must be non-null");
+
+    MergeResponse mergeResponse = ImmutableMergeResponse.builder()
+      .wasApplied(false)
+      .wasSuccessful(true)
+      .targetBranch("test")
+      .effectiveTargetHash("1234567890123456")
+      .build();
+    assertThat(fromProto(toProto(mergeResponse))).isEqualTo(mergeResponse);
+
+    List<LogEntry> commits =
+      Arrays.asList(
+        LogEntry.builder().commitMeta(
+          CommitMeta.builder()
+            .author("test")
+            .message("commit msg")
+            .commitTime(Instant.now())
+            .authorTime(Instant.now())
+            .properties(ImmutableMap.of("a", "b"))
+            .signedOffBy("test1")
+            .build()).build(),
+        LogEntry.builder().commitMeta(
+          CommitMeta.builder()
+            .message("commit msg2")
+            .properties(ImmutableMap.of("a", "b"))
+            .build()).build());
+
+    mergeResponse = ImmutableMergeResponse.builder().from(mergeResponse)
+      .targetCommits(Collections.emptyList())
+      .build();
+    assertThat(fromProto(toProto(mergeResponse))).isEqualTo(mergeResponse);
+
+    mergeResponse = ImmutableMergeResponse.builder().from(mergeResponse)
+      .wasApplied(true)
+      .wasSuccessful(false)
+      .resultantTargetHash("54321")
+      .commonAncestor("c12345")
+      .expectedHash("e12345")
+      .sourceCommits(ImmutableList.of(
+        LogEntry.builder().commitMeta(
+          CommitMeta.builder()
+            .author("test")
+            .message("commit msg")
+            .commitTime(Instant.now())
+            .authorTime(Instant.now())
+            .properties(ImmutableMap.of("a", "b"))
+            .signedOffBy("test1")
+            .build())
+          .build()))
+      .targetCommits(ImmutableList.of(
+        LogEntry.builder().commitMeta(
+          CommitMeta.builder()
+            .message("commit msg2")
+            .properties(ImmutableMap.of("a1", "b1"))
+            .build())
+          .build()))
+      .details(ImmutableList.of(
+        ImmutableContentKeyDetails.builder()
+          .key(ContentKey.of("test", "key"))
+          .mergeBehavior(BaseMergeTransplant.MergeBehavior.FORCE)
+          .conflictType(MergeResponse.ContentKeyConflict.UNRESOLVABLE)
+          .sourceCommits(ImmutableList.of("a", "b"))
+          .targetCommits(ImmutableList.of("c", "d"))
+          .build()))
+      .build();
+    assertThat(fromProto(toProto(mergeResponse))).isEqualTo(mergeResponse);
   }
 }

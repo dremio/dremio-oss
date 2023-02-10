@@ -28,7 +28,6 @@ import com.google.common.base.Preconditions;
  * Base implementation of {@link ReAttemptHandler}
  */
 abstract class BaseAttemptHandler implements ReAttemptHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReAttemptHandler.class);
 
   private static final int MAX_ATTEMPTS = 10; //TODO make this configurable ?
 

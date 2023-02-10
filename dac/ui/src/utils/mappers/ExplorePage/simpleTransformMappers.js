@@ -154,6 +154,7 @@ class SimpleTransformMappers {
           rightColumn: item.joinedTableKeyColumnName,
         };
       }),
+      referencesList: form.referencesList,
     };
   }
 }

@@ -410,7 +410,6 @@ public final class NdvAccumulators {
     @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
-      final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseNdvUnionAccumulator.class);
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       final long incomingBit = getInput().getValidityBufferAddress();
       final ArrowBuf inputOffsetBuf = getInput().getOffsetBuffer();
@@ -436,7 +435,7 @@ public final class NdvAccumulators {
         final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
         if (endOffset <= startOffset) {
           Preconditions.checkArgument(endOffset > startOffset,
-            "Invalid size({} {}) at accumarray[{}], batchIndex: {}, batchOffset: {}",
+            "Invalid size(%s %s) at accumarray[%s], batchIndex: %s, batchOffset: %s",
             endOffset, startOffset, (partitionAndOrdinalAddr - memoryAddr) / PARTITIONINDEX_HTORDINAL_WIDTH,
             chunkIndex, chunkOffset);
         }

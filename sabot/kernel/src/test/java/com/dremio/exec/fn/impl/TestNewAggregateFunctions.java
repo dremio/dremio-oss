@@ -24,7 +24,6 @@ import org.apache.arrow.vector.ValueVector;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.proto.UserBitShared.QueryType;
@@ -34,8 +33,6 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestNewAggregateFunctions extends PopUnitTestBase {
@@ -52,9 +49,7 @@ public class TestNewAggregateFunctions extends PopUnitTestBase {
       client.connect();
       List<QueryDataBatch> results = client.runQuery(
           QueryType.PHYSICAL,
-          Files.toString(FileUtils.getResourceAsFile(physicalPlan),
-              Charsets.UTF_8).replace("#{TEST_FILE}",
-              inputDataFile));
+          readResourceAsString(physicalPlan).replace("#{TEST_FILE}", inputDataFile));
 
       try(RecordBatchLoader batchLoader = new RecordBatchLoader(bit
           .getContext().getAllocator())) {

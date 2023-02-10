@@ -70,8 +70,8 @@
   output:
     completions:
      -
-      detail: "Returns the left-most substring. The function name must be enclosed in double quotes (\"LEFT\")."
-      insertText: "LEFT(${1:CHARACTERS}, ${2:INT})"
+      detail: "Returns the left-most substring. The function name must be escaped with quotes (\\\"LEFT\\\")."
+      insertText: "LEFT(${1:CHARACTERS}, ${2:NUMERIC})"
       kind: "Function"
       label: "LEFT(???, ???)"
     functionContext: null
@@ -82,8 +82,8 @@
   output:
     completions:
      -
-      detail: "Computes the absolute value of a numeric expression."
-      insertText: "ABS(${1:FLOAT})"
+      detail: "Computes the absolute value of a numeric expression.\n"
+      insertText: "ABS(${1:NUMERIC})"
       kind: "Function"
       label: "ABS(???)"
     functionContext: null
@@ -95,21 +95,18 @@
     completions:
      -
       detail: "Returns the minimum value among the non-NULL input expressions."
-      insertText: "MIN(${1:BOOLEAN})"
+      insertText: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "MIN(???)"
+      label: "MIN({ALL,DISTINCT} ???)"
      -
-      insertText: "MINDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+      detail: "Returns the name of a subdirectory of a table in HDFS. The subdirectory has the name that ranks lowest in case-sensitive alphanumeric order."
+      insertText: "MINDIR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
       kind: "Function"
-      label: "MINDIR(???, ???)"
+      label: "MINDIR(???, ???, ???)"
      -
-      insertText: "MINUTE(${1:DATEANDTIME})"
+      insertText: "MINUTE(${1:DATE})"
       kind: "Function"
       label: "MINUTE(???)"
-     -
-      insertText: "MIN_V2(${1:BOOLEAN})"
-      kind: "Function"
-      label: "MIN_V2(???)"
      -
       kind: "Keyword"
       label: "MINUS"

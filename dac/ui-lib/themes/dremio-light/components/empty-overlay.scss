@@ -1,16 +1,4 @@
-.dremio-empty-overlay {
-  align-items: center;
-  block-size: 100%;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: center;
-  margin: 0 !important;
-  background: var(--dremio-empty-overlay--background);
-  color: var(--dremio-empty-overlay--color);
-  font-size: var(--dremio-empty-overlay--font-size);
-  padding: var(--dremio-empty-overlay--padding);
-}
+@use "../../base/components/empty-overlay";
 
 .dremio-empty-overlay {
   --dremio-empty-overlay--background: var(--dremio--color--neutral--150);

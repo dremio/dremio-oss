@@ -25,8 +25,10 @@ import { POPUP_ICON_TYPES } from "./popupNotificationUtils";
 
 import "./PopupNotification.less";
 
-const unmountPopup = () => {
-  const container = document.querySelector(".popup-notifications");
+const unmountPopup = (anchorClass?: string) => {
+  const container = anchorClass
+    ? document.querySelector(`.${anchorClass}`)
+    : document.querySelector(".popup-notifications");
   if (container != null) {
     ReactDOM.unmountComponentAtNode(container);
   }
@@ -36,15 +38,16 @@ type PopupNotificationProps = {
   message: string;
   type?: "success" | "error" | "warning" | "default";
   autoClose?: number;
+  anchorClass?: string;
 };
 
 export const PopupNotification = (props: PopupNotificationProps) => {
-  const { autoClose, message, type = "default" } = props;
+  const { autoClose, message, type = "default", anchorClass } = props;
   const [isOpen, setIsOpen] = useState<boolean>(true);
 
   const handleClose = () => {
     setIsOpen(false);
-    unmountPopup();
+    unmountPopup(anchorClass);
   };
 
   return (
@@ -86,8 +89,11 @@ export default function openPopupNotification(
 ): void {
   const autoClose = renderProps.autoClose ? renderProps.autoClose : 2000;
   const popup = <PopupNotification {...renderProps} autoClose={autoClose} />;
+  const anchorElement = renderProps.anchorClass
+    ? document.querySelector(`.${renderProps.anchorClass}`)
+    : document.querySelector(".popup-notifications");
 
-  ReactDOM.render(popup, document.querySelector(".popup-notifications"));
+  ReactDOM.render(popup, anchorElement);
 
   const timeout = setTimeout(() => unmountPopup(), renderProps.autoClose);
 

@@ -194,6 +194,7 @@ class RepeatedVarCharOutput extends TextOutput {
     expandTmpBufIfNecessary();
     tmpBuf.setByte(charLengthOffset, data);
     charLengthOffset++;
+    hasData = true;
   }
 
   @Override

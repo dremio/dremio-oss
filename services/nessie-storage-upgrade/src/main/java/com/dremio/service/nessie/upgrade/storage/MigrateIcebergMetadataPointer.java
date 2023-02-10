@@ -17,11 +17,13 @@ package com.dremio.service.nessie.upgrade.storage;
 
 import static com.dremio.service.nessie.upgrade.storage.MigrateToNessieAdapter.MAX_ENTRIES_PER_COMMIT;
 import static java.util.Collections.singletonList;
+import static org.projectnessie.versioned.CommitMetaSerializer.METADATA_SERIALIZER;
 import static org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil.takeUntilExcludeLast;
 
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,7 +32,6 @@ import java.util.stream.Stream;
 
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.IcebergTable;
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.server.store.proto.ObjectTypes;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
@@ -48,6 +49,7 @@ import org.projectnessie.versioned.persist.adapter.KeyFilterPredicate;
 import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
+import org.projectnessie.versioned.store.DefaultStoreWorker;
 
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.upgrade.UpgradeContext;
@@ -89,14 +91,13 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         .build());
       store.initialize();
 
-      TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
         .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
           // Suppress periodic key list generation by the DatabaseAdapter. We'll do that once at the end of the upgrade.
           .keyListDistance(Integer.MAX_VALUE)
           .build())
-        .build(worker);
+        .build();
 
       // Ensure the Embedded Nessie repo is initialized. This is an idempotent operation in the context
       // of upgrade tasks since they run on only one machine.
@@ -116,7 +117,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       // still showed suboptimal performance because in Nessie 0.22.0 (used in Dremio v. 20.*) the adapter did not
       // store relevant commit IDs in key lists (cf. Nessie OSS PR#3592), which resulted in re-scanning the commit
       // log for every values(...) call.
-      Converter converter = new Converter(worker, adapter, main.getHash());
+      Converter converter = new Converter(adapter, main.getHash());
       if (!converter.upgradeRequired()) {
         AdminLogger.log("No ICEBERG_METADATA_POINTER entries found. Nessie data was not changed.");
         return;
@@ -149,12 +150,12 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
           .keyListDistance(1)
           .build())
-        .build(worker);
+        .build();
 
       ImmutableCommitParams keyListCommit = ImmutableCommitParams.builder()
         .toBranch(upgradeBranch)
         .commitMetaSerialized(
-          converter.worker.getMetadataSerializer().toBytes(
+          METADATA_SERIALIZER.toBytes(
             CommitMeta.builder()
               .message("Upgrade - Generate key list")
               .author("MigrateIcebergMetadataPointer")
@@ -180,7 +181,6 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
   }
 
   private static final class Converter {
-    private final TableCommitMetaStoreWorker worker;
     private final DatabaseAdapter adapter;
     private final Hash sourceBranch;
     private final Set<Key> activeKeys = new HashSet<>();
@@ -192,8 +192,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
     private int totalEntries;
     private int numCommits;
 
-    private Converter(TableCommitMetaStoreWorker worker, DatabaseAdapter adapter, Hash sourceBranch) {
-      this.worker = worker;
+    private Converter(DatabaseAdapter adapter, Hash sourceBranch) {
       this.adapter = adapter;
       this.sourceBranch = sourceBranch;
 
@@ -213,7 +212,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         .toBranch(targetBranch)
         .expectedHead(Optional.of(head))
         .commitMetaSerialized(
-          worker.getMetadataSerializer().toBytes(
+          METADATA_SERIALIZER.toBytes(
             CommitMeta.builder()
               .message("Upgrade ICEBERG_METADATA_POINTER #" + numCommits)
               .author("MigrateIcebergMetadataPointer")
@@ -242,8 +241,8 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
 
     private void processValues(BiConsumer<CommitLogEntry, KeyWithBytes> action) {
       Set<Key> keysToProcess = new HashSet<>(activeKeys);
-      try(Stream<CommitLogEntry> commitLog =
-            takeUntilExcludeLast(adapter.commitLog(sourceBranch), k -> keysToProcess.isEmpty())) {
+      try (Stream<CommitLogEntry> log = adapter.commitLog(sourceBranch);
+           Stream<CommitLogEntry> commitLog = takeUntilExcludeLast(log, k -> keysToProcess.isEmpty())) {
         commitLog.forEach(entry -> entry.getPuts().forEach(put -> {
           if(keysToProcess.remove(put.getKey())) {
             action.accept(entry, put);
@@ -308,14 +307,13 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         // Note: old embedded Nessie data does not contain Iceberg snapshots and other IDs, so use zeros
         IcebergTable table = IcebergTable.of(metadataLocation, 0, 0, 0, 0, refState.getId());
 
-        ContentId contentId = ContentId.of(worker.getId(table));
-        commit.putGlobal(contentId, worker.toStoreGlobalState(table));
+        ContentId contentId = ContentId.of(Objects.requireNonNull(table.getId()));
         commit.addPuts(
           KeyWithBytes.of(
             kb.getKey(),
             contentId,
-            worker.getPayload(table),
-            worker.toStoreOnReferenceState(table)));
+            DefaultStoreWorker.payloadForContent(table),
+            DefaultStoreWorker.instance().toStoreOnReferenceState(table, commit::addAttachments)));
 
       } else {
         // This case is not expected during actual upgrades. It is handled only for the sake of completeness.
@@ -324,7 +322,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
 
         ContentId contentId = kb.getContentId();
 
-        ContentAndState<ByteString> value;
+        ContentAndState value;
         try {
           value = adapter.values(logEntry.getHash(), singletonList(kb.getKey()), KeyFilterPredicate.ALLOW_ALL)
             .get(kb.getKey());
@@ -338,10 +336,10 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         }
 
         if (value.getGlobalState() != null) {
-          commit.putGlobal(contentId, value.getGlobalState());
+          throw new IllegalStateException("Unexpected global state in value for key: " + kb.getKey());
         }
 
-        commit.addPuts(KeyWithBytes.of(kb.getKey(), contentId, kb.getType(), value.getRefState()));
+        commit.addPuts(KeyWithBytes.of(kb.getKey(), contentId, kb.getPayload(), value.getRefState()));
       }
 
       if (++numEntries >= MAX_ENTRIES_PER_COMMIT) {

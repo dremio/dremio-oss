@@ -19,7 +19,7 @@ import LinkWithHref from "@app/components/LinkWithRef/LinkWithRef";
 import LoadingBar from "@app/components/LoadingBar/LoadingBar";
 
 type SummaryStatsProps = {
-  jobsLink: string;
+  jobsLink?: string;
   jobCount: number;
   descendantsCount: number;
   location: Record<string, any>;

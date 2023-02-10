@@ -49,9 +49,8 @@ import org.apache.commons.collections.CollectionUtils;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.physical.config.TableFunctionContext;
-import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.physical.config.ManifestScanFilters;
+import com.dremio.exec.planner.TableManagementPlanGenerator;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
@@ -82,17 +81,10 @@ import com.google.common.collect.ImmutableList;
  *        Full Data from                                  DMLed data
  *        impacted data files
  */
-public class DmlPlanGenerator {
+public class DmlPlanGenerator extends TableManagementPlanGenerator {
 
   private static final int SYSTEM_COLUMN_COUNT = 2;
-  private final RelOptTable table;
-  private final RelOptCluster cluster;
-  private final RelTraitSet traitSet;
-  private final RelNode input;
-  private final TableMetadata tableMetadata;
-  private final CreateTableEntry createTableEntry;
   private final TableModify.Operation operation;
-  private final OptimizerRulesContext context;
   // update column names along with its index
   private final Map<String, Integer> updateColumnsWithIndex = new HashMap<>();
   // If the TableModify operation has a source
@@ -110,16 +102,10 @@ public class DmlPlanGenerator {
                           TableMetadata tableMetadata, CreateTableEntry createTableEntry,
                           TableModify.Operation operation, List<String> updateColumnList, boolean hasSource,
                           OptimizerRulesContext context) {
-    this.table = Preconditions.checkNotNull(table);
-    this.cluster = cluster;
-    this.traitSet = traitSet;
-    this.input = input;
-    this.tableMetadata = Preconditions.checkNotNull(tableMetadata, "TableMetadata cannot be null.");
-    this.createTableEntry = Preconditions.checkNotNull(createTableEntry, "CreateTableEntry cannot be null.");
+    super(table, cluster, traitSet, input, tableMetadata, createTableEntry, context);
+
     this.operation = Preconditions.checkNotNull(operation, "DML operation cannot be null.");
     this.hasSource = hasSource;
-    this.context = Preconditions.checkNotNull(context, "Context cannot be null.");
-
     validateOperation(operation, updateColumnList);
   }
 
@@ -230,147 +216,6 @@ public class DmlPlanGenerator {
       insertOnlyMergeInputDataPlan,
       projectExprs,
       projectRowType);
-  }
-
-  /**
-   *    WriterCommitterPrel
-   *        |
-   *        |
-   *    UnionAllPrel ---------------------------------------------|
-   *        |                                                     |
-   *        |                                                     |
-   *    WriterPrel                                            TableFunctionPrel (DELETED_DATA_FILES_METADATA)
-   *        |                                                 this converts a path into required IcebergMetadata blob
-   *        |                                                     |
-   *    (input from copyOnWriteResultsPlan)                       (deleted data files list from dataFileAggrPlan)
-   */
-  private Prel getDataWriterPlan(RelNode copyOnWriteResultsPlan, final RelNode dataFileAggrPlan) {
-    return WriterPrule.createWriter(
-      copyOnWriteResultsPlan,
-      copyOnWriteResultsPlan.getRowType(),
-      tableMetadata.getDatasetConfig(), createTableEntry,
-      manifestWriterPlan -> {
-        try {
-          return getMetadataWriterPlan(dataFileAggrPlan, manifestWriterPlan);
-        } catch (InvalidRelException e) {
-          throw new RuntimeException(e);
-        }
-      });
-  }
-
-  /***
-   *    ProjectPrel (RecordWriter.RECORDS)
-   *        |
-   *        |
-   *    HashAggPrel (sum(RecordWriter.RECORDS))
-   *        |
-   *        |
-   *        |
-   *    FilterPrel (OperationType = OperationType.DELETE_DATAFILE)
-   *        |
-   *        |
-   *
-   */
-  private Prel getRowCountPlan(Prel writerPrel) throws InvalidRelException {
-    RexBuilder rexBuilder = cluster.getRexBuilder();
-
-    // Filter:
-    // The OPERATION_TYPE column in rows coming from writer committer could be:
-    // 1. OperationType.ADD_DATAFILE  ---- the file we created from anti-join results
-    // 2. OperationType.DELETE_DATAFILE  -- the files touched by DML operations
-    // we only keep rows from DMLed files (i.e.,  with OperationType.DELETE_DATAFILE) since the final rowcount will be DMLed rows
-    RelDataTypeField operationTypeField  = writerPrel.getRowType()
-      .getField(RecordWriter.OPERATION_TYPE.getName(), false, false);
-    RexNode deleteDataFileLiteral = rexBuilder.makeLiteral(OperationType.DELETE_DATAFILE.value, cluster.getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
-
-    RexNode filterCondition = rexBuilder.makeCall(
-      SqlStdOperatorTable.EQUALS,
-      rexBuilder.makeInputRef(writerPrel, operationTypeField.getIndex()),
-      deleteDataFileLiteral);
-
-    FilterPrel filterPrel = FilterPrel.create(
-      writerPrel.getCluster(),
-      writerPrel.getTraitSet(),
-      writerPrel,
-      filterCondition);
-
-    // Agg: get the total row count for DMLed results
-    RelDataTypeField recordsField  = writerPrel.getRowType()
-      .getField(RecordWriter.RECORDS.getName(), false, false);
-    AggregateCall aggRowCount = AggregateCall.create(
-      SqlStdOperatorTable.SUM,
-      false,
-      false,
-      ImmutableList.of(recordsField.getIndex()),
-      -1,
-      RelCollations.EMPTY,
-      0,
-      filterPrel,
-      null,
-      RecordWriter.RECORDS.getName());
-
-    StreamAggPrel rowCountAgg = StreamAggPrel.create(
-      filterPrel.getCluster(),
-      filterPrel.getTraitSet(),
-      filterPrel,
-      ImmutableBitSet.of(),
-      ImmutableList.of(),
-      ImmutableList.of(aggRowCount),
-      null);
-
-    // Project: return 0 as row count in case there is no Agg record (i.e., no DMLed results)
-    recordsField  = rowCountAgg.getRowType()
-      .getField(RecordWriter.RECORDS.getName(), false, false);
-    List<String> projectNames = ImmutableList.of(recordsField.getName());
-    RexNode zeroLiteral = rexBuilder.makeLiteral(0, rowCountAgg.getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
-    // check if the count of row count records is 0 (i.e., records column is null)
-    RexNode rowCountRecordExistsCheckCondition = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
-      rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
-    // case when the count of row count records is 0, return 0, else return aggregated row count
-    RexNode projectExpr = rexBuilder.makeCall(SqlStdOperatorTable.CASE,
-      rowCountRecordExistsCheckCondition, zeroLiteral,
-      rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
-    List<RexNode> projectExprs = ImmutableList.of(projectExpr);
-
-    RelDataType projectRowType = RexUtil.createStructType(rowCountAgg.getCluster().getTypeFactory(), projectExprs,
-      projectNames, null);
-
-    return ProjectPrel.create(
-      rowCountAgg.getCluster(),
-      rowCountAgg.getTraitSet(),
-      rowCountAgg,
-      projectExprs,
-      projectRowType);
-  }
-
-  private Prel getMetadataWriterPlan(RelNode dataFileAggrPlan, RelNode manifestWriterPlan) throws InvalidRelException {
-    ImmutableList<SchemaPath> projectedCols = RecordWriter.SCHEMA.getFields().stream()
-      .map(f -> SchemaPath.getSimplePath(f.getName()))
-      .collect(ImmutableList.toImmutableList());
-
-    // Insert a table function that'll pass the path through and set the OperationType
-    TableFunctionPrel deletedDataFilesTableFunctionPrel = new TableFunctionPrel(
-      dataFileAggrPlan.getCluster(),
-      dataFileAggrPlan.getTraitSet(),
-      table,
-      dataFileAggrPlan,
-      tableMetadata,
-      new TableFunctionConfig(
-        TableFunctionConfig.FunctionType.DELETED_DATA_FILES_METADATA,
-        true,
-        new TableFunctionContext(RecordWriter.SCHEMA, projectedCols, true)),
-      ScanRelBase.getRowTypeFromProjectedColumns(projectedCols,
-        RecordWriter.SCHEMA, dataFileAggrPlan.getCluster()));
-
-    final RelTraitSet traits = traitSet.plus(DistributionTrait.SINGLETON).plus(Prel.PHYSICAL);
-
-    // Union the updating of the deleted data's metadata with the rest
-    return new UnionAllPrel(cluster,
-      traits,
-      ImmutableList.of(manifestWriterPlan,
-        new UnionExchangePrel(cluster, traits,
-          deletedDataFilesTableFunctionPrel)),
-      false);
   }
 
   /**
@@ -628,12 +473,13 @@ public class DmlPlanGenerator {
     List<SchemaPath> allColumns = table.getRowType().getFieldNames().stream()
         .map(SchemaPath::getSimplePath).collect(Collectors.toList());
     IcebergScanPlanBuilder builder = new IcebergScanPlanBuilder(
-        cluster,
-        traitSet,
-        table,
-        tableMetadata,
-        allColumns,
-        context);
+      cluster,
+      traitSet,
+      table,
+      tableMetadata,
+      allColumns,
+      context,
+      ManifestScanFilters.empty());
 
     return builder.buildWithDmlDataFileFiltering(dataFileListInput);
   }
@@ -684,5 +530,90 @@ public class DmlPlanGenerator {
       ImmutableList.of(groupSet),
       ImmutableList.of(aggRowCount),
       null);
+  }
+
+  /***
+   *    ProjectPrel (RecordWriter.RECORDS)
+   *        |
+   *        |
+   *    HashAggPrel (sum(RecordWriter.RECORDS))
+   *        |
+   *        |
+   *        |
+   *    FilterPrel (OperationType = OperationType.DELETE_DATAFILE)
+   *        |
+   *        |
+   *
+   */
+  private Prel getRowCountPlan(Prel writerPrel) throws InvalidRelException {
+    RexBuilder rexBuilder = cluster.getRexBuilder();
+
+    // Filter:
+    // The OPERATION_TYPE column in rows coming from writer committer could be:
+    // 1. OperationType.ADD_DATAFILE  ---- the file we created from anti-join results
+    // 2. OperationType.DELETE_DATAFILE  -- the files touched by DML operations
+    // we only keep rows from DMLed files (i.e.,  with OperationType.DELETE_DATAFILE) since the final rowcount will be DMLed rows
+    RelDataTypeField operationTypeField  = writerPrel.getRowType()
+      .getField(RecordWriter.OPERATION_TYPE.getName(), false, false);
+    RexNode deleteDataFileLiteral = rexBuilder.makeLiteral(OperationType.DELETE_DATAFILE.value, cluster.getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
+
+    RexNode filterCondition = rexBuilder.makeCall(
+      SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeInputRef(writerPrel, operationTypeField.getIndex()),
+      deleteDataFileLiteral);
+
+    FilterPrel filterPrel = FilterPrel.create(
+      writerPrel.getCluster(),
+      writerPrel.getTraitSet(),
+      writerPrel,
+      filterCondition);
+
+    // Agg: get the total row count for DMLed results
+    RelDataTypeField recordsField  = writerPrel.getRowType()
+      .getField(RecordWriter.RECORDS.getName(), false, false);
+    AggregateCall aggRowCount = AggregateCall.create(
+      SqlStdOperatorTable.SUM,
+      false,
+      false,
+      ImmutableList.of(recordsField.getIndex()),
+      -1,
+      RelCollations.EMPTY,
+      0,
+      filterPrel,
+      null,
+      RecordWriter.RECORDS.getName());
+
+    StreamAggPrel rowCountAgg = StreamAggPrel.create(
+      filterPrel.getCluster(),
+      filterPrel.getTraitSet(),
+      filterPrel,
+      ImmutableBitSet.of(),
+      ImmutableList.of(),
+      ImmutableList.of(aggRowCount),
+      null);
+
+    // Project: return 0 as row count in case there is no Agg record (i.e., no DMLed results)
+    recordsField  = rowCountAgg.getRowType()
+      .getField(RecordWriter.RECORDS.getName(), false, false);
+    List<String> projectNames = ImmutableList.of(recordsField.getName());
+    RexNode zeroLiteral = rexBuilder.makeLiteral(0, rowCountAgg.getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
+    // check if the count of row count records is 0 (i.e., records column is null)
+    RexNode rowCountRecordExistsCheckCondition = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
+      rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
+    // case when the count of row count records is 0, return 0, else return aggregated row count
+    RexNode projectExpr = rexBuilder.makeCall(SqlStdOperatorTable.CASE,
+      rowCountRecordExistsCheckCondition, zeroLiteral,
+      rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
+    List<RexNode> projectExprs = ImmutableList.of(projectExpr);
+
+    RelDataType projectRowType = RexUtil.createStructType(rowCountAgg.getCluster().getTypeFactory(), projectExprs,
+      projectNames, null);
+
+    return ProjectPrel.create(
+      rowCountAgg.getCluster(),
+      rowCountAgg.getTraitSet(),
+      rowCountAgg,
+      projectExprs,
+      projectRowType);
   }
 }

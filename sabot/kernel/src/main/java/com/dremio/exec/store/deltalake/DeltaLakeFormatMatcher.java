@@ -36,12 +36,15 @@ public class DeltaLakeFormatMatcher extends FormatMatcher {
 
   @Override
   public boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException {
+    return  isDeltaLakeTable(fs, fileSelection.getSelectionRoot());
+  }
 
+  public boolean isDeltaLakeTable(FileSystem fs, String tableRootPath) throws IOException {
     if (!plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)) {
       return false;
     }
 
-    Path rootDir = Path.of(fileSelection.getSelectionRoot());
+    Path rootDir = Path.of(tableRootPath);
     Path metaDir = rootDir.resolve(METADATA_DIR_NAME);
     return fs.isDirectory(rootDir) && fs.exists(metaDir) && fs.isDirectory(metaDir);
   }

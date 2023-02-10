@@ -76,24 +76,11 @@ public final class MajorTypeHelper {
         break;
 
       case Timestamp:
-        TimeUnit unit = ((Timestamp) arrowType).getUnit();
-        switch(unit) {
-          // Only MILLISECONDS is supported, but future-proofing
-          case SECOND:
-            builder.setPrecision(0);
-            break;
-          case MILLISECOND:
-            builder.setPrecision(3);
-            break;
-          case MICROSECOND:
-            builder.setPrecision(6);
-            break;
-          case NANOSECOND:
-            builder.setPrecision(9);
-            break;
-          default:
-            throw new AssertionError("Arrow TimeUnit " + unit + "not supported");
-        }
+        builder.setPrecision(MajorTypeHelper.getPrecisionFromTimeUnit(((ArrowType.Timestamp) arrowType).getUnit()));
+        break;
+
+      case Time:
+        builder.setPrecision(MajorTypeHelper.getPrecisionFromTimeUnit(((ArrowType.Time) arrowType).getUnit()));
         break;
 
       case Union:
@@ -169,6 +156,28 @@ public final class MajorTypeHelper {
       return TypeProtos.MinorType.DATE;
     default:
       return TypeProtos.MinorType.valueOf(arrowMinorType.name());
+    }
+  }
+
+  /**
+   * Return decimal precision required to represent values in the given TimeUnit.
+   * Note that Dremio currently only supports milliseconds for Date/Time types.
+   *
+   * @param unit
+   * @return The decimal precision required to represent values in the given TimeUnit.
+   */
+  public static Integer getPrecisionFromTimeUnit(TimeUnit unit) {
+    switch (unit) {
+      case SECOND:
+        return 0;
+      case MILLISECOND:
+        return 3;
+      case MICROSECOND:
+        return 6;
+      case NANOSECOND:
+        return 9;
+      default:
+        throw new AssertionError("Arrow TimeUnit " + unit + "not supported");
     }
   }
 

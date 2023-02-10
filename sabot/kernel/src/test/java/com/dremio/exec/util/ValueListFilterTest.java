@@ -38,7 +38,6 @@ import java.util.stream.Stream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.AutoCloseables.RollbackCloseable;
 import org.apache.arrow.vector.types.Types;
 import org.junit.After;
 import org.junit.Assert;
@@ -46,6 +45,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.test.AllocatorRule;
 
 /**

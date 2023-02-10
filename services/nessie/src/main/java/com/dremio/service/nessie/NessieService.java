@@ -20,8 +20,6 @@ import java.util.function.Supplier;
 
 import javax.inject.Provider;
 
-import org.projectnessie.model.CommitMeta;
-import org.projectnessie.model.Content;
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.services.impl.ConfigApiImpl;
 import org.projectnessie.services.impl.ContentApiImpl;
@@ -54,7 +52,7 @@ public class NessieService implements Service {
   private final Provider<SchedulerService> schedulerServiceProvider;
   private final NessieConfig serverConfig;
   private final Supplier<DatabaseAdapter> adapter;
-  private final Supplier<VersionStore<Content, CommitMeta, Content.Type>> versionStoreSupplier;
+  private final Supplier<VersionStore> versionStoreSupplier;
   private final Supplier<org.projectnessie.api.TreeApi> treeApi;
   private final TreeService treeService;
   private final ContentService contentService;
@@ -73,8 +71,8 @@ public class NessieService implements Service {
     this.optionManagerProvider = optionManagerProvider;
 
     final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-    this.adapter = Suppliers.memoize(() -> createAdapter(inMemoryBackend, worker));
-    this.versionStoreSupplier = Suppliers.memoize(() -> new PersistVersionStore<>(adapter.get(), worker));
+    this.adapter = Suppliers.memoize(() -> createAdapter(inMemoryBackend));
+    this.versionStoreSupplier = Suppliers.memoize(() -> new PersistVersionStore(adapter.get(), worker));
 
     this.treeApi = Suppliers.memoize(() -> new TreeApiImpl(serverConfig, versionStoreSupplier.get(), null, null));
     this.treeService = new TreeService(treeApi);
@@ -113,7 +111,7 @@ public class NessieService implements Service {
     logger.info("Stopping Nessie gRPC Service: Nothing to do");
   }
 
-  private DatabaseAdapter createAdapter(boolean inMemoryBackend, TableCommitMetaStoreWorker worker) {
+  private DatabaseAdapter createAdapter(boolean inMemoryBackend) {
     final NessieDatabaseAdapterConfig adapterCfg = new NessieDatabaseAdapterConfig(optionManagerProvider);
     DatabaseAdapter adapter;
     if (inMemoryBackend) {
@@ -121,7 +119,7 @@ public class NessieService implements Service {
       adapter = new InmemoryDatabaseAdapterFactory().newBuilder()
         .withConfig(adapterCfg)
         .withConnector(new InmemoryStore())
-        .build(worker);
+        .build();
     } else {
       logger.debug("Using persistent backing store for nessie...");
 
@@ -132,7 +130,7 @@ public class NessieService implements Service {
       adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
         .withConfig(adapterCfg)
-        .build(worker);
+        .build();
     }
 
     return adapter;

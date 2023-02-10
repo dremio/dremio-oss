@@ -15,7 +15,7 @@
  */
 import { PureComponent, CSSProperties } from "react";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 import { connect } from "react-redux";
 import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter.js";
 import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
@@ -25,7 +25,7 @@ import { flexElementAuto } from "@app/uiTheme/less/layout.less";
 import "./ExplorePage.less";
 import ExplorePageContentWrapper from "./subpages/ExplorePageContentWrapper";
 
-const EXPLORE_PAGE_MIN_HEIGHT = 754;
+export const EXPLORE_PAGE_MIN_HEIGHT = 600;
 
 type ExplorePageViewProps = {
   pageType?: PageTypes;
@@ -106,9 +106,6 @@ export class ExplorePageView extends PureComponent<
       WebkitUserSelect: selectState,
       msUserSelect: selectState,
     };
-    const minHeightOverride = {
-      minHeight: EXPLORE_PAGE_MIN_HEIGHT,
-    };
     // Note the DocumentTitle for this page lives in ExploreInfoHeader
     return (
       <main
@@ -116,9 +113,11 @@ export class ExplorePageView extends PureComponent<
         className={classNames(
           "mainContent",
           flexElementAuto,
+          "dremio-layout-container",
+          "--vertical",
           `-${this.props.pageType}`
         )}
-        style={{ ...dragStyle, cursor, ...minHeightOverride }}
+        style={{ ...dragStyle, cursor }}
       >
         <ExplorePageContentWrapper
           pageType={this.props.pageType}

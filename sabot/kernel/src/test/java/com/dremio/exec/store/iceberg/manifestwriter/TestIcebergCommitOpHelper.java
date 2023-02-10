@@ -153,7 +153,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
     helper.setup(input);
     helper.consumeData(input.getRecordCount());
-    helper.commit();
+    helper.commit(null);
 
     // Verify that partition existence checks are only done for PARTITION_1C and PARTITION_2A.  The 4th file delete
     // with PARTITION_2B should not trigger an existence check either as it does not exist in the partition path
@@ -181,7 +181,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
     helper.setup(input);
     helper.consumeData(input.getRecordCount());
-    helper.commit();
+    helper.commit(null);
 
     // Verify that partition existence checks are done for all 4 partitions in the partitionsPath list.
     verify(sourceTableFileSystem, times(4)).exists(any());
@@ -205,7 +205,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
     helper.setup(input);
     helper.consumeData(input.getRecordCount());
-    helper.commit();
+    helper.commit(null);
 
     // Verify that existence checks are only done for the table root one time.
     verify(sourceTableFileSystem, times(1)).exists(any());
@@ -281,6 +281,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         sourceTablePlugin,
         false,
         true,
+        null,
         null);
   }
 

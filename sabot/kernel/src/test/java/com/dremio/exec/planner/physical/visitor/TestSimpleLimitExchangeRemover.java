@@ -258,7 +258,8 @@ public class TestSimpleLimitExchangeRemover {
       public SchemaPath apply(Field input) {
         return SchemaPath.getSimplePath(input.getName());
       }}).toList();
-    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d, rowType, ImmutableList.of());
+    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d,
+                              ImmutableList.of(), rowType, ImmutableList.of());
   }
 
   private Prel newSoftScan(RelDataType rowType) {
@@ -272,7 +273,8 @@ public class TestSimpleLimitExchangeRemover {
       public SchemaPath apply(Field input) {
         return SchemaPath.getSimplePath(input.getName());
       }}).toList();
-    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d, rowType, ImmutableList.of());
+    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d,
+                              ImmutableList.of(), rowType, ImmutableList.of());
   }
 
   private RelDataType rowType() {

@@ -25,12 +25,14 @@ export default function (input) {
   Object.assign(input.prototype, {
     // eslint-disable-line no-restricted-properties
     getAvailablePageTypes() {
-      const { dataset } = this.props;
+      const { dataset, showWiki } = this.props;
+      const pageTypeList = originalFn.call(this);
+      if (showWiki) {
+        pageTypeList.push(PageTypes.wiki);
+      }
       const isNewQuery =
         dataset.get("isNewQuery") ||
         !dataset.getIn(["apiLinks", "namespaceEntity"]);
-
-      const pageTypeList = originalFn.call(this);
 
       if (!isNewQuery) {
         pageTypeList.push(PageTypes.reflections);

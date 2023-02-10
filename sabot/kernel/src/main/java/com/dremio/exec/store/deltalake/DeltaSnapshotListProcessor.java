@@ -49,6 +49,8 @@ public class DeltaSnapshotListProcessor {
 
   //Ensures that the current list is valid and creates a final list of snapshots.
   public List<DeltaLogSnapshot> findValidSnapshots(List<DeltaLogSnapshot> snapshots) {
+    Preconditions.checkState(!snapshots.isEmpty(), "Commit log is empty");
+
     Collections.sort(snapshots, Collections.reverseOrder());
 
     ListIterator<DeltaLogSnapshot> iterator = snapshots.listIterator();
@@ -73,7 +75,6 @@ public class DeltaSnapshotListProcessor {
         containsCheckpoint = true;
         break;
       }
-
     }
 
     Preconditions.checkState(containsCheckpoint || snapshots.get(snapshots.size() - 1).getVersionId() == 0, "Commit Json for version 0 not found while reading metadata");

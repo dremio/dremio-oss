@@ -15,6 +15,7 @@
  */
 import { push, replace } from "react-router-redux";
 import { performNextAction } from "actions/explore/nextAction";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 export function navigateAfterReapply(response, replaceNav, nextAction) {
   return (dispatch) => {
@@ -23,7 +24,7 @@ export function navigateAfterReapply(response, replaceNav, nextAction) {
       "datasetUI",
       response.payload.get("result"),
     ]);
-    const link = nextDataset.getIn(["links", "edit"]);
+    const link = wrapBackendLink(nextDataset.getIn(["links", "edit"]));
 
     const action = replaceNav ? replace : push;
     const result = dispatch(action(link));

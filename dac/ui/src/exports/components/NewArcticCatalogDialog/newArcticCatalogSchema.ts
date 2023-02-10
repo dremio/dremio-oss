@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
+import { isAlphaNumeric } from "@app/exports/utilities/isAlphaNumeric";
 import { z } from "zod";
 
 export const newArcticCatalogSchema = z.object({
   name: z
     .string()
-    .max(255, "Arctic Catalog name cannot be longer than 255 characters")
-    .min(2, "A name is required"),
+    .trim()
+    .max(255, "Catalog name must not exceed 255 characters")
+    .min(1, "Catalog name is required")
+    .refine(
+      isAlphaNumeric,
+      "Catalog name must contain only 0-9, A-Z, a-z, _ or -."
+    ),
 });

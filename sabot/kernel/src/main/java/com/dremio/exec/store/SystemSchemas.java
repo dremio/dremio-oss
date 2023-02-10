@@ -42,6 +42,9 @@ public final class SystemSchemas {
   public static final String PARTITION_KEY = "partitionKey";
   public static final String PARTITION_INFO = "partitionInfo";
   public static final String EQUALITY_IDS = "equalityIds";
+  public static final String ICEBERG_METADATA = "icebergMetadata";
+
+  public static final Field ICEBERG_METADATA_FIELD = Field.nullable(ICEBERG_METADATA, Types.MinorType.VARBINARY.getType());
 
   public static final BatchSchema ICEBERG_MANIFEST_SCAN_SCHEMA = BatchSchema.newBuilder()
       .addField(Field.nullable(DATAFILE_PATH, Types.MinorType.VARCHAR.getType()))

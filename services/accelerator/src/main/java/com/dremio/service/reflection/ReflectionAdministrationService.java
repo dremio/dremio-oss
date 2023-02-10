@@ -16,6 +16,7 @@
 package com.dremio.service.reflection;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.service.namespace.NamespaceKey;
@@ -23,7 +24,6 @@ import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
-import com.google.common.base.Optional;
 
 /**
  * Interface for administrating reflections.
@@ -47,8 +47,6 @@ public interface ReflectionAdministrationService {
 
   Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
-  long getTotalReflectionSize(ReflectionId reflectionId);
-
   ReflectionId createExternalReflection(String name, List<String> dataset, List<String> targetDataset);
 
   Iterable<ExternalReflection> getExternalReflectionByDatasetPath(List<String> datasetPath);
@@ -63,8 +61,6 @@ public interface ReflectionAdministrationService {
   void setSubstitutionEnabled(boolean enable);
 
   boolean isSubstitutionEnabled();
-
-  long getReflectionSize(ReflectionId reflectionId);
 
   ReflectionSettings getReflectionSettings();
 

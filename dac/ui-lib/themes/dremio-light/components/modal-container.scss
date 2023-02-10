@@ -14,33 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-modal-container {
-  // Height should aim for only the most space needed by the content, or smaller if available vertical space is restricted
-  block-size: max-content;
-
-  // Don't allow the container to ever grow larger than the available window size (minus some additional margin)
-  max-block-size: calc(100% - var(--dremio--modal-container--window-margin));
-  inline-size: calc(100% - var(--dremio--modal-container--window-margin));
-
-  // Allow the content to dictate maximum width
-  max-inline-size: max-content;
-
-  // Allow the content of the modal to handle overflow
-  overflow: hidden;
-
-  // Center the modal in the window
-  margin: auto !important;
-  background: var(--dremio--modal-container--background);
-  border: var(--dremio-modal-container--border);
-  border-radius: var(--dremio--modal-container--border-radius);
-  box-shadow: var(--dremio--modal-container--shadow);
-
-  &[open],
-  &--open {
-    // Allow the children to derive their adjusted height from the parent if vertical space is restricted
-    display: flex;
-  }
-}
+@use "../../base/components/modal-container";
 
 @keyframes dremio-modal-container-fadein {
   from {

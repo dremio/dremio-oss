@@ -16,7 +16,7 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import ImmutablePropTypes from "react-immutable-proptypes";
-import classNames from "classnames";
+import classNames from "clsx";
 import { formatMessage } from "@app/utils/locale";
 import {
   columnPropTypes,
@@ -45,7 +45,7 @@ export class DataColumnListView extends PureComponent {
     return (
       <div className={classNames(wrapper, className)}>
         <SectionTitle
-          title={`${formatMessage("Dataset.Fields")} ${columns.size}`}
+          title={`${formatMessage("Common.Columns")} ${columns.size}`}
           titleClass={titleClass}
           className={title}
         />

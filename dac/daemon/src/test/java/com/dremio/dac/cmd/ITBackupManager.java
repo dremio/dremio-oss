@@ -48,7 +48,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.dremio.common.VM;
 import com.dremio.common.perf.Timer;
-import com.dremio.common.util.FileUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -61,6 +60,7 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.TestHomeFiles;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -141,7 +141,8 @@ public class ITBackupManager extends BaseTestServer {
       newDatasetVersionMutator(),
       l(UserService.class),
       newNamespaceService(),
-      DEFAULT_USERNAME
+      DEFAULT_USERNAME,
+      l(CollaborationHelper.class)
     ));
   }
 
@@ -178,7 +179,7 @@ public class ITBackupManager extends BaseTestServer {
     newDatasetVersionMutator().deleteDataset(datasetPath, NamespaceUtils.getVersion(datasetPath.toNamespaceKey(), newNamespaceService()));
 
     File tmpFile = TEMP_FOLDER.newFile();
-    Files.write(FileUtils.getResourceAsString("/datasets/text/comma.txt"), tmpFile, UTF_8);
+    Files.write(readResourceAsString("/datasets/text/comma.txt"), tmpFile, UTF_8);
     Path textFile = Path.of(tmpFile.getAbsolutePath());
     TestHomeFiles.uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
 

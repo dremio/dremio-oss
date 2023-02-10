@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { UNSAVED_DATASET_PATH } from "@app/constants/explorePage/paths";
+import { arcticCatalogTabs } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 
 export const isActive = ({
   name,
@@ -27,6 +27,20 @@ export const isActive = ({
 }) => {
   const active = "--active";
   if (loc === name) {
+    return active;
+  }
+
+  if (isArctic && loc.split("/")[3] === name) {
+    return active;
+  }
+
+  if (
+    isArctic &&
+    name === "catalog" &&
+    arcticCatalogTabs
+      .filter((tab) => tab !== "settings")
+      .includes(loc.split("/")[3])
+  ) {
     return active;
   }
 
@@ -59,7 +73,7 @@ export const isActive = ({
     return active;
   }
 
-  if (sql && loc.startsWith(UNSAVED_DATASET_PATH)) {
+  if (sql && loc.startsWith("/tmp")) {
     return active;
   }
 

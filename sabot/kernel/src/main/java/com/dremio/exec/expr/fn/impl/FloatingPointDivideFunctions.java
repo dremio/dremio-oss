@@ -34,7 +34,7 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
  * generated from MathFunctionTemplates.java
  */
 public class FloatingPointDivideFunctions {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DivideFunctions.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FloatingPointDivideFunctions.class);
 
 
   @FunctionTemplate(name = "divide", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)

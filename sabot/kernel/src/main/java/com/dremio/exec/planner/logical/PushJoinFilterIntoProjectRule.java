@@ -60,8 +60,6 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
  */
 public class PushJoinFilterIntoProjectRule extends RelOptRule {
 
-  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PushJoinFilterIntoProjectRule.class);
-
   public static final RelOptRule INSTANCE = new PushJoinFilterIntoProjectRule(
     operand(JoinRel.class, any()), DremioRelFactories.LOGICAL_BUILDER);
 

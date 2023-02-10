@@ -13,36 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { useMemo } from "react";
 import SideNav from "@app/components/SideNav/SideNav";
 import clsx from "clsx";
 import { Link } from "react-router";
-// import * as PATHS from "../../paths";
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+// @ts-ignore
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+// @ts-ignore
+import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
 
-const headerAction = isDcsEdition() ? (
-  <div className="sideNav-item">
-    <Link to={"/"}>
-      <div className={`sideNav-item__link`}>
-        <div className="sideNav-item__logo">
-          <dremio-icon name="corporate/sonar" alt=""></dremio-icon>
+const RenderHeaderAction = ({ logo = "sonar" }: { logo?: string }) => {
+  const isOSS = !getSonarContext()?.getSelectedProjectId;
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
+
+  const getLinkForLogo = useMemo(() => {
+    if (isOSS || projectId) return commonPaths.projectBase.link({ projectId });
+    if (!projectId) return commonPaths.projectsList.link();
+  }, [projectId, isOSS]);
+
+  return (
+    <div className="sideNav-item">
+      <Link to={getLinkForLogo}>
+        <div className={`sideNav-item__link`}>
+          <div className="sideNav-item__logo">
+            <dremio-icon name={`corporate/${logo}`} alt={logo}></dremio-icon>
+          </div>
         </div>
-      </div>
-    </Link>
-  </div>
-) : (
-  <div className="sideNav-item">
-    <Link to={"/"}>
-      <div className={`sideNav-item__link`}>
-        <div className="sideNav-item__logo">
-          <dremio-icon name="corporate/dremio" alt=""></dremio-icon>
-        </div>
-      </div>
-    </Link>
-  </div>
+      </Link>
+    </div>
+  );
+};
+
+const headerAction = (
+  <FeatureSwitch
+    flag={ORGANIZATION_LANDING}
+    renderEnabled={() => <RenderHeaderAction />}
+    renderDisabled={() => <RenderHeaderAction logo="dremio" />}
+  />
 );
 
-export const SonarSideNav = (props) => {
+export const SonarSideNav = (props: any) => {
   const { className, ...rest } = props;
   return (
     <SideNav

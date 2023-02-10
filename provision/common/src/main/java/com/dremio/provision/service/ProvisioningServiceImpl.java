@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -33,10 +34,10 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
-import org.apache.arrow.util.AutoCloseables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -65,7 +66,6 @@ import com.dremio.provision.resource.ProvisioningResource;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -581,7 +581,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
 
     final Cluster cluster = new Cluster();
     cluster.setId(storedCluster.getId());
-    cluster.setState(Optional.fromNullable(desiredState).or(storedCluster.getState()));
+    cluster.setState(Optional.ofNullable(desiredState).orElse(storedCluster.getState()));
     /* If the desired state of the cluster is being changed from the current state, then we want to use the current time.
      * The status change time may also be null in the event the cluster existed prior to the introduction of the
      * state change time property.
@@ -593,36 +593,36 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     clusterConfig.setShutdownInterval(request.getShutdownInterval());
     clusterConfig.setTag(request.getTag());
     if (storedCluster.getClusterConfig().getName() != null) {
-      clusterConfig.setName(Optional.fromNullable(request.getName()).or(
+      clusterConfig.setName(Optional.ofNullable(request.getName()).orElse(
         storedCluster.getClusterConfig().getName()));
     } else {
-      clusterConfig.setName(Optional.fromNullable(request.getName()).orNull());
+      clusterConfig.setName(request.getName());
     }
-    clusterConfig.setClusterType(Optional.fromNullable(request.getClusterType()).or(storedCluster.getClusterConfig().getClusterType()));
+    clusterConfig.setClusterType(Optional.ofNullable(request.getClusterType()).orElse(storedCluster.getClusterConfig().getClusterType()));
 
     if (clusterConfig.getClusterType() == ClusterType.YARN) {
       // An assumption is that FE will pass full list of properties, otherwise BE does not know if any property was
       // removed
       // so if properties from FE is null it will take ones from stored cluster
 
-      clusterConfig.setDistroType(Optional.fromNullable(storedCluster.getClusterConfig().getDistroType()).or(DistroType.OTHER));
-      clusterConfig.setIsSecure(Optional.fromNullable(storedCluster.getClusterConfig().getIsSecure()).or(false));
+      clusterConfig.setDistroType(Optional.ofNullable(storedCluster.getClusterConfig().getDistroType()).orElse(DistroType.OTHER));
+      clusterConfig.setIsSecure(Optional.ofNullable(storedCluster.getClusterConfig().getIsSecure()).orElse(false));
 
-      clusterConfig.setSubPropertyList(Optional.fromNullable(request.getSubPropertyList()).or(storedCluster
+      clusterConfig.setSubPropertyList(Optional.ofNullable(request.getSubPropertyList()).orElse(storedCluster
         .getClusterConfig().getSubPropertyList()));
       final ClusterSpec clusterSpec = new ClusterSpec();
       if (storedCluster.getClusterConfig().getClusterSpec().getQueue() != null) {
-        clusterSpec.setQueue(Optional.fromNullable(request.getClusterSpec().getQueue()).or(storedCluster.getClusterConfig().getClusterSpec
+        clusterSpec.setQueue(Optional.ofNullable(request.getClusterSpec().getQueue()).orElse(storedCluster.getClusterConfig().getClusterSpec
           ().getQueue()));
       } else {
-        clusterSpec.setQueue(Optional.fromNullable(request.getClusterSpec().getQueue()).orNull());
+        clusterSpec.setQueue(request.getClusterSpec().getQueue());
       }
       clusterSpec.setContainerCount(Optional
-          .fromNullable(request.getClusterSpec().getContainerCount())
-          .or(storedCluster.getClusterConfig().getClusterSpec().getContainerCount()));
+          .ofNullable(request.getClusterSpec().getContainerCount())
+          .orElse(storedCluster.getClusterConfig().getClusterSpec().getContainerCount()));
       clusterSpec.setVirtualCoreCount(Optional
-          .fromNullable(request.getClusterSpec().getVirtualCoreCount())
-          .or(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount()));
+          .ofNullable(request.getClusterSpec().getVirtualCoreCount())
+          .orElse(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount()));
 
       if (request.getClusterSpec().getMemoryMBOnHeap() == null) {
         if (request.getClusterSpec().getMemoryMBOffHeap() != null) {
@@ -651,7 +651,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       clusterConfig.setClusterSpec(clusterSpec);
     } else if (clusterConfig.getClusterType() == ClusterType.EC2) {
       final ClusterSpec clusterSpec = new ClusterSpec();
-      clusterSpec.setContainerCount(Optional.fromNullable(request.getClusterSpec().getContainerCount()).or(storedCluster.getClusterConfig().getClusterSpec().getContainerCount()));
+      clusterSpec.setContainerCount(Optional.ofNullable(request.getClusterSpec().getContainerCount()).orElse(storedCluster.getClusterConfig().getClusterSpec().getContainerCount()));
       clusterConfig.setClusterSpec(clusterSpec);
       AwsProps newProps = request.getAwsProps();
       clusterConfig.setAwsProps(newProps);

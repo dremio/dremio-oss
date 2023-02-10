@@ -93,7 +93,7 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
 
     return new DirListingInvocationPrel(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL),
       table, storagePluginId, refreshExecTableMetadata,
-      1.0d, metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh, metadataProvider, paths, x -> getRowCountEstimates("DirList"), ImmutableList.of());
+      1.0d, ImmutableList.of(), metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh, metadataProvider, paths, x -> getRowCountEstimates("DirList"), ImmutableList.of());
   }
 
   private void validateMetadata() {

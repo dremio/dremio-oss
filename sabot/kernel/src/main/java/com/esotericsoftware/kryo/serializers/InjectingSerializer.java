@@ -15,25 +15,19 @@
  */
 package com.esotericsoftware.kryo.serializers;
 
-
 import java.lang.reflect.Field;
 import java.util.Arrays;
-
-import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.SuppressForbidden;
-import com.dremio.exec.planner.serialization.kryo.Injection;
 import com.dremio.exec.planner.serialization.kryo.InjectionMapping;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 
 /**
  * A reflective field serializer with injection capabilities.
@@ -89,26 +83,12 @@ public class InjectingSerializer<T> extends FieldSerializer<T> {
   }
 
   protected CachedField[] transform(final CachedField[] fields) {
-    return FluentIterable
-        .from(Arrays.asList(fields))
-        .transform(new Function<CachedField, CachedField>() {
-          @Nullable
-          @Override
-          public CachedField apply(@Nullable final CachedField field) {
-            final CachedField newField = mapping.findInjection(field.getField().getType())
-                .transform(new Function<Injection, CachedField>() {
-                  @Nullable
-                  @Override
-                  public CachedField apply(@Nullable final Injection injection) {
-                    return new InjectingCachedField(field, injection.getValue());
-                  }
-                })
-                .or(field);
-
-            return newField;
-          }
-        })
-        .toArray(CachedField.class);
+    return Arrays.asList(fields).stream()
+      .map(field -> mapping.findInjection(field.getField().getType())
+        .map(injection -> new InjectingCachedField(field, injection.getValue()))
+        .map(CachedField.class::cast)
+        .orElse(field))
+      .toArray(CachedField[]::new);
   }
 
   protected static class DelegatingCachedField extends CachedField {

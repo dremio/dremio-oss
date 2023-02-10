@@ -30,7 +30,7 @@ import com.dremio.datastore.api.options.VersionOption;
  * A KVStore that also maintains a index of documents for arbitrary retrieval.
  */
 public interface IndexedStore<K, V> extends KVStore<K, V> {
-  org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(IndexedStore.class);
+  final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(IndexedStore.class);
 
   /**
    * Creates a lazy iterable over items that match the provided condition, in

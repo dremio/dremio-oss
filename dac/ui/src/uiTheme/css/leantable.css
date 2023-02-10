@@ -18,21 +18,132 @@
 @import "../../../node_modules/leantable/dist-css/theme-hooks.css";
 
 :root {
-  --leantable--column--gap: 10px;
+  --leantable--column--gap: 0;
   --leantable--header--background: white;
   --leantable--header--padding-block: 10px;
   --leantable--header--text-align: left;
   --leantable--row--background: white;
   --leantable--row--border: 1px solid #eeeef1;
   --leantable--row--hover--background: #e9f5f9;
-  --leantable--row--padding-block: 10px;
 }
 
 .leantable__table {
   font-size: 14px;
   width: 100%;
+  white-space: nowrap;
+}
+
+.leantable__body-row[aria-disabled="true"] .leantable__body-cell {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.leantable__body-row[aria-disabled="true"]:hover .leantable__body-cell {
+  background-color: white !important;
 }
 
 .leantable__header-cell {
   font-weight: 600;
+  user-select: none;
+  padding-inline: 10px;
+}
+
+.leantable__body-cell__content {
+  padding-inline: 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.leantable__header-cell
+  + .leantable__header-cell:not(.leantable-row-hover-visibility)::after {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 23px;
+  background: var(--dremio--color--neutral--150);
+  position: absolute;
+  left: 0;
+  top: 9px;
+}
+
+.clickable-cell {
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-grow: 1;
+  margin-inline: -10px;
+  padding-inline: 10px;
+}
+
+.clickable-cell:hover {
+  text-decoration: underline;
+}
+
+.leantable__body-cell {
+  height: 40px;
+}
+
+/* copied from 0.4.1 for now*/
+.leantable-row-hover-visibility > * {
+  visibility: hidden;
+}
+
+.leantable__body-row:hover .leantable-row-hover-visibility > *,
+.leantable__body-row:focus-visible .leantable-row-hover-visibility > * {
+  visibility: visible;
+}
+
+.leantable-sticky-column--right.leantable-row-hover-visibility {
+  background: none !important;
+}
+
+.leantable-sticky-column {
+  position: sticky;
+  z-index: 200;
+}
+.leantable-sticky-column--left {
+  left: 0;
+}
+.leantable-sticky-column--right {
+  right: 0;
+}
+
+.leantable__header-cell[aria-sort] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.leantable--fixed-header .leantable__header-cell {
+  position: sticky;
+  top: 0;
+  z-index: 300;
+}
+
+.leantable--fixed-header .leantable__header-cell.leantable-sticky-column {
+  z-index: 350;
+}
+
+.leantable-sticky-column--left::after {
+  box-shadow: inset 10px 0 8px -8px #00000026;
+  position: absolute;
+  top: -1px;
+  right: 0;
+  bottom: 0;
+  width: 30px;
+  transform: translate(100%);
+  content: "";
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 72ms ease-in-out;
+}
+
+.dremio-scrolled-container--left .leantable-sticky-column--left::after {
+  opacity: 1;
+}
+
+.leantable--align-right,
+.leantable--align-right > .leantable__body-cell__content {
+  justify-content: flex-end;
+  text-align: right;
 }

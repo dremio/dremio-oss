@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -62,6 +63,7 @@ import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 
 import com.dremio.common.JSONOptions;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.PlanProperties;
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.common.logical.PlanProperties.PlanPropertiesBuilder;
@@ -125,8 +127,6 @@ import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
-import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.FindNonJdbcConventionRexSubQuery;
-import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryTransformer;
 import com.dremio.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
@@ -136,9 +136,9 @@ import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonConverter;
+import com.dremio.sabot.op.fromjson.ConvertFromJsonPushDownVisitor;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -150,6 +150,7 @@ import com.google.common.collect.Lists;
  */
 public class PrelTransformer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PrelTransformer.class);
+  @SuppressWarnings("Slf4jIllegalPassedClass") // intentionally using logger from another class
   private static final org.slf4j.Logger CALCITE_LOGGER = org.slf4j.LoggerFactory.getLogger(RelOptPlanner.class);
 
   protected static void log(final PlannerType plannerType, final PlannerPhase phase, final RelNode node, final Logger logger,
@@ -247,10 +248,12 @@ public class PrelTransformer {
 
     try {
       final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
-      final RelNode trimmed = trimFields(relNode, true, plannerSettings.isRelPlanningEnabled());
+      final RelNode trimmed = trimFields(relNode, true, true);
       final RelNode rangeConditionRewrite = trimmed.accept(new RangeConditionRewriteVisitor(plannerSettings));
       final RelNode projPush = transform(config, PlannerType.HEP_AC, PlannerPhase.PROJECT_PUSHDOWN, rangeConditionRewrite, rangeConditionRewrite.getTraitSet(), true);
-      final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, projPush, projPush.getTraitSet(), true);
+      final RelNode expandOperators = expandOperators(config,projPush,plannerSettings);
+      final RelNode projPull = projectPullUp(config,expandOperators,plannerSettings);
+      final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, projPull, projPull.getTraitSet(), true);
       final RelNode preLogTransitive = getPreLogicalTransitive(config, preLog, plannerSettings);
       final RelNode logical = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLogTransitive, preLogTransitive.getTraitSet().plus(Rel.LOGICAL), true);
       final RelNode rowCountAdjusted = getRowCountAdjusted(logical, plannerSettings);
@@ -278,6 +281,21 @@ public class PrelTransformer {
       } else {
         throw ex;
       }
+    }
+  }
+
+  private static RelNode expandOperators(SqlHandlerConfig config, RelNode projPush, PlannerSettings plannerSettings){
+    if(plannerSettings.isExpandOperatorsEnabled()){
+      return transform(config, PlannerType.HEP_AC, PlannerPhase.EXPAND_OPERATORS, projPush, projPush.getTraitSet(), true);
+    }else{
+      return projPush;
+    }
+  }
+  private static RelNode projectPullUp(SqlHandlerConfig config, RelNode expandOperators, PlannerSettings plannerSettings){
+    if(plannerSettings.isProjectPullUpEnabled()){
+      return transform(config, PlannerType.HEP_AC, PlannerPhase.PROJECT_PULLUP, expandOperators, expandOperators.getTraitSet(), true);
+    }else{
+      return expandOperators;
     }
   }
 
@@ -311,22 +329,18 @@ public class PrelTransformer {
   }
 
   private static RelNode getPostLogical(SqlHandlerConfig config, RelNode rowCountAdjusted, PlannerSettings plannerSettings) {
-    if (plannerSettings.isRelPlanningEnabled()) {
-      RelNode relWithoutMultipleConstantGroupKey;
-      try {
-        // Try removing multiple constants group keys from aggregates. Any unexpected failures in this process shouldn't fail the whole query.
-        relWithoutMultipleConstantGroupKey = MoreRelOptUtil.removeConstantGroupKeys(rowCountAdjusted, DremioRelFactories.LOGICAL_BUILDER);
-      } catch (Exception ex) {
-        logger.error("Failure while removing multiple constant group by keys in aggregate, ", ex);
-        relWithoutMultipleConstantGroupKey = rowCountAdjusted;
-      }
-      final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateAndValidateQuery(relWithoutMultipleConstantGroupKey, DremioRelFactories.LOGICAL_BUILDER.create(relWithoutMultipleConstantGroupKey.getCluster(), null), true);
-      final RelNode sortRemoved = (plannerSettings.isSortInJoinRemoverEnabled())? DremioSortInJoinRemover.remove(decorrelatedNode): decorrelatedNode;
-      final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, sortRemoved, sortRemoved.getTraitSet().plus(Rel.LOGICAL), true);
-      return jdbcPushDown.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
-    } else {
-      return rowCountAdjusted;
+    RelNode relWithoutMultipleConstantGroupKey;
+    try {
+      // Try removing multiple constants group keys from aggregates. Any unexpected failures in this process shouldn't fail the whole query.
+      relWithoutMultipleConstantGroupKey = MoreRelOptUtil.removeConstantGroupKeys(rowCountAdjusted, DremioRelFactories.LOGICAL_BUILDER);
+    } catch (Exception ex) {
+      logger.error("Failure while removing multiple constant group by keys in aggregate, ", ex);
+      relWithoutMultipleConstantGroupKey = rowCountAdjusted;
     }
+    final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateAndValidateQuery(relWithoutMultipleConstantGroupKey, DremioRelFactories.LOGICAL_BUILDER.create(relWithoutMultipleConstantGroupKey.getCluster(), null), true);
+    final RelNode sortRemoved = (plannerSettings.isSortInJoinRemoverEnabled())? DremioSortInJoinRemover.remove(decorrelatedNode): decorrelatedNode;
+    final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, sortRemoved, sortRemoved.getTraitSet().plus(Rel.LOGICAL), true);
+    return jdbcPushDown.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
   }
 
   public static RelNode getNestedProjectPushdown(SqlHandlerConfig config, RelNode relNode, PlannerSettings plannerSettings){
@@ -407,7 +421,7 @@ public class PrelTransformer {
    */
   private static Optional<SubstitutionInfo> findUsedMaterializations(SqlHandlerConfig config, final RelNode root) {
     if (!config.getMaterializations().isPresent()) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     final SubstitutionInfo.Builder builder = SubstitutionInfo.builder();
@@ -440,7 +454,7 @@ public class PrelTransformer {
 
     final SubstitutionInfo info = builder.build();
     if (info.getSubstitutions().isEmpty()) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     // Some sources does not support retrieving cumulative cost like JDBC
@@ -625,7 +639,7 @@ public class PrelTransformer {
 
   private static RelNode processBoostedMaterializations(SqlHandlerConfig config, RelNode relNode) {
     final Set<List<String>> qualifiedNames = config.getMaterializations().isPresent() ?
-      config.getMaterializations().get().getMaterializations()
+      config.getMaterializations().get().getApplicableMaterializations()
         .stream()
         .filter(m -> m.getLayoutInfo().isArrowCachingEnabled())
         .map(DremioMaterialization::getTableRel)
@@ -746,7 +760,12 @@ public class PrelTransformer {
     }
 
     /*
-     * 1.3.) Break up all expressions with complex outputs into their own project operations
+     * 1.3) Push down all the convert_fromjson expressions
+     */
+    phyRelNode = ConvertFromJsonPushDownVisitor.convertFromJsonPushDown(phyRelNode, queryOptions);
+
+    /*
+     * 1.4) Break up all expressions with complex outputs into their own project operations
      *
      * This is not needed for planning anymore, but just in case there are udfs that needs to be split up, keep it.
      */
@@ -869,24 +888,42 @@ public class PrelTransformer {
      */
     phyRelNode = RelUniqifier.uniqifyGraph(phyRelNode);
 
-    /*
-     * 9.1)
-     * add runtime filter information if applicable
-     */
-    if (plannerSettings.isRuntimeFilterEnabled()) {
-      phyRelNode = RuntimeFilterDecorator
-        .addRuntimeFilterToHashJoin(
-          phyRelNode,
-          plannerSettings.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
-    }
+    if (plannerSettings.applyCseBeforeRuntimeFilter()) {
+      /*
+       * Remove common sub expressions.
+       */
+      if (plannerSettings.isCSEEnabled()) {
+        phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
+      }
 
-    /* 9.2)
-     * Remove common sub expressions.
-     */
-    if (plannerSettings.isCSEEnabled()) {
-      phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
-    }
+      /*
+       * add runtime filter information if applicable
+       */
+      if (plannerSettings.isRuntimeFilterEnabled()) {
+        phyRelNode = RuntimeFilterDecorator
+          .addRuntimeFilterToHashJoin(
+            phyRelNode,
+            plannerSettings.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
+      }
+    } else {
+      /*
+       * 9.1)
+       * add runtime filter information if applicable
+       */
+      if (plannerSettings.isRuntimeFilterEnabled()) {
+        phyRelNode = RuntimeFilterDecorator
+          .addRuntimeFilterToHashJoin(
+            phyRelNode,
+            plannerSettings.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
+      }
 
+      /* 9.2)
+       * Remove common sub expressions.
+       */
+      if (plannerSettings.isCSEEnabled()) {
+        phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
+      }
+    }
 
     final String textPlan;
     if (logger.isDebugEnabled() || config.getObserver() != null) {
@@ -975,106 +1012,23 @@ public class PrelTransformer {
     return reduced;
   }
 
-  private static RelNode convertToRelRootAndJdbc(SqlHandlerConfig config,
-      SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
-      SqlNode node,
-      RelTransformer relTransformer) throws RelConversionException {
-
-    // First try and convert without "expanding" exists/in/subqueries
-    final RelNode convertible = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, false, relTransformer);
-
-    // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
-    // rel node with RexSubQuery have the same JDBC convention.
-    final RelNode convertedNodeNotExpanded = convertible;
-    RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(null);
-    checker.visit(convertedNodeNotExpanded);
-
-    final RelNode convertedNodeWithoutRexSubquery;
-    final RelNode convertedNode;
-    if (!checker.foundRexSubQuery()) {
-      // If the not-expanded rel tree doesn't have any rex sub query, then everything is good.
-      convertedNode = convertedNodeNotExpanded;
-      convertedNodeWithoutRexSubquery = convertedNodeNotExpanded;
-    } else {
-      // If there is a rexSubQuery, then get the ones without (don't pass in SqlHandlerConfig here since we don't want to record it twice)
-      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, true, relTransformer);
-      if (!checker.canPushdownRexSubQuery()) {
-        // if there are RexSubQuery nodes with none-jdbc convention, abandon and expand the entire tree
-        convertedNode = convertedNodeWithoutRexSubquery;
-      } else {
-        convertedNode = convertedNodeNotExpanded;
-      }
-    }
-
-    final boolean leafLimitEnabled = config.getContext().getPlannerSettings().isLeafLimitsEnabled();
-
-    { // Set original root in volcano planner for acceleration (in this case, do not inject JdbcCrel or JdbcRel)
-      final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) convertedNodeNotExpanded.getCluster().getPlanner();
-
-      final RelNode originalRoot = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
-      volcanoPlanner.setOriginalRoot(originalRoot);
-    }
-
-    // Now, transform jdbc nodes to Convention.NONE.  To do so, we need to inject a jdbc logical on top
-    // of JDBC table scans with high cost and then plan to reduce the cost.
-    final Stopwatch stopwatch = Stopwatch.createStarted();
-    final RelNode injectJdbcLogical = ExpansionNode.removeFromTree(convertedNode.accept(new InjectSample(leafLimitEnabled)));
-
-    final RelNode jdbcPushedPartial = transform(config, PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, injectJdbcLogical, injectJdbcLogical.getTraitSet(), false);
-
-    // Transform all the subquery reltree into jdbc as well! If any of them fail, we abort and just use the expanded reltree.
-    final RelsWithRexSubQueryTransformer transformer = new RelsWithRexSubQueryTransformer(config);
-    final RelNode jdbcPushed = jdbcPushedPartial.accept(transformer);
-
-    // Check that we do not have non-jdbc subqueries, if we do, then we have to abort and do a complete conversion.
-    final FindNonJdbcConventionRexSubQuery noRexSubQueryChecker = new FindNonJdbcConventionRexSubQuery();
-    final boolean found = transformer.failed() ? false : noRexSubQueryChecker.visit(jdbcPushed);
-
-    final RelNode finalConvertedNode;
-    if (transformer.failed() || found) {
-      log("Failed to pushdown RexSubquery. Applying JDBC pushdown to query with IN/EXISTS/SCALAR sub-queries converted to joins.", jdbcPushed, logger, null);
-      final RelNode expandedWithSample = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
-      finalConvertedNode = transform(config,PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, expandedWithSample,
-        expandedWithSample.getTraitSet(), false).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.CALCITE_LOGICAL_BUILDER));
-    } else {
-      finalConvertedNode = jdbcPushed.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.CALCITE_LOGICAL_BUILDER));
-    }
-    config.getObserver().planRelTransform(PlannerPhase.JDBC_PUSHDOWN, null, convertedNode, finalConvertedNode, stopwatch.elapsed(TimeUnit.MILLISECONDS));
-
-
-
-    return finalConvertedNode;
-  }
-
   private static RelNode convertToRelRoot(SqlHandlerConfig config,
       SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
       SqlNode node,
       RelTransformer relTransformer) throws RelConversionException {
     final boolean leafLimitEnabled = config.getContext().getPlannerSettings().isLeafLimitsEnabled();
 
-    // First try and convert without "expanding" exists/in/subqueries
-    final RelNode convertible = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, false, relTransformer);
+    final RelNode convertible = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, true, relTransformer);
 
-    // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
-    // rel node with RexSubQuery have the same JDBC convention.
-    final RelNode convertedNodeNotExpanded = convertible;
-    RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(null);
-    checker.visit(convertedNodeNotExpanded);
 
-    final RelNode convertedNodeWithoutRexSubquery;
-    if (!checker.foundRexSubQuery()) {
-      convertedNodeWithoutRexSubquery = convertedNodeNotExpanded;
-    } else {
-      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, true, relTransformer);
-    }
 
     // Convert with "expanding" exists/in subqueries (if applicable)
     // if we are having a RexSubQuery, this expanded tree will
     // have LogicalCorrelate rel nodes.
-    final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) convertedNodeWithoutRexSubquery.getCluster().getPlanner();
-    final RelNode originalRoot = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
+    final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) convertible.getCluster().getPlanner();
+    final RelNode originalRoot = convertible.accept(new InjectSample(leafLimitEnabled));
     volcanoPlanner.setOriginalRoot(originalRoot);
-    return ExpansionNode.removeFromTree(convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled)));
+    return ExpansionNode.removeFromTree(convertible.accept(new InjectSample(leafLimitEnabled)));
   }
 
   private static RelNode convertToRel(SqlHandlerConfig config,
@@ -1084,11 +1038,8 @@ public class PrelTransformer {
     RelNode rel;
     final Catalog catalog = config.getContext().getCatalog();
     try {
-      if (config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
-        rel = convertToRelRoot(config, sqlValidatorAndToRelContext, node, relTransformer);
-      } else {
-        rel = convertToRelRootAndJdbc(config, sqlValidatorAndToRelContext, node, relTransformer);
-      }
+      rel = convertToRelRoot(config, sqlValidatorAndToRelContext, node, relTransformer);
+
     } catch (RelConversionException e) {
       if (catalog instanceof CachingCatalog) {
         config.getObserver().tablesCollected(catalog.getAllRequestedTables());
@@ -1099,9 +1050,14 @@ public class PrelTransformer {
     if (catalog instanceof CachingCatalog) {
       config.getObserver().tablesCollected(catalog.getAllRequestedTables());
     }
-    RelNode windowRel =  transform(config, PlannerType.HEP, PlannerPhase.WINDOW_REWRITE, rel, rel.getTraitSet(), true);
-    RelNode groupSetRel =  transform(config, PlannerType.HEP, PlannerPhase.GROUP_SET_REWRITE, windowRel, windowRel.getTraitSet(), true);
-    return groupSetRel;
+    RelNode expandedOperatorRel =
+      transform(config, PlannerType.HEP_AC, PlannerPhase.OPERATOR_EXPANSION, rel, rel.getTraitSet(), true);
+    if (RexSubQueryUtils.containsSubQuery(expandedOperatorRel)) {
+      throw UserException.planError()
+        .message("Failed to Decorrelate")
+        .buildSilently();
+    }
+    return expandedOperatorRel;
   }
 
   public static RelNode preprocessNode(OperatorTable operatorTable, RelNode rel) throws SqlUnsupportedException {

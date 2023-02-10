@@ -59,6 +59,7 @@ import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 
 import io.grpc.stub.StreamObserver;
+import io.opentelemetry.extension.annotations.WithSpan;
 
 /**
  * Class used to start remote fragment execution.
@@ -164,6 +165,37 @@ class FragmentStarter {
       fragmentMap.put(fragmentFull.getAssignment(), fragmentFull);
     }
 
+    PlanFragmentStats stats = new PlanFragmentStats();
+    Stopwatch stopwatch = Stopwatch.createStarted();
+
+    sendStartFragmentMessages(plan, fragmentMap, stats);
+
+    stopwatch.stop();
+    observer.fragmentsStarted(stopwatch.elapsed(TimeUnit.MILLISECONDS), stats.getSummary());
+
+    stopwatch.reset();
+
+    injector.injectChecked(executionControls, INJECTOR_AFTER_START_FRAGMENTS_ERROR,
+      IllegalStateException.class);
+
+    this.observer = observer;
+    stopwatch.start();
+    injector.injectPause(executionControls, INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_PAUSE, logger);
+
+    sendActivateFragmentMessages(plan, fragmentMap);
+
+    stopwatch.stop();
+
+    injector.injectChecked(executionControls, INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR,
+      IllegalStateException.class);
+
+    // No waiting on acks of sent activate fragment rpcs; so this number is not reliable
+    observer.fragmentsActivated(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+  }
+
+  @WithSpan("send-start-fragments")
+  private void sendStartFragmentMessages(ExecutionPlan plan, Multimap<NodeEndpoint, PlanFragmentFull> fragmentMap, PlanFragmentStats stats) {
+    final int numFragments = fragmentMap.keySet().size();
     /*
      * We need to wait for the start rpcs to be sent before sending the activate rpcs. We'll use
      * this latch to wait for the responses.
@@ -172,14 +204,11 @@ class FragmentStarter {
      * count down (see FragmentSubmitFailures), but we count the number of failures so that we'll
      * know if any submissions did fail.
      */
-    final int numFragments = fragmentMap.keySet().size();
     final ExtendedLatch endpointLatch = new ExtendedLatch(numFragments);
     final FragmentSubmitFailures fragmentSubmitFailures = new FragmentSubmitFailures();
     final FragmentSubmitSuccess fragmentSubmitSuccess = new FragmentSubmitSuccess();
     final List<NodeEndpoint> endpointsIndex = plan.getIndexBuilder().getEndpointsIndexBuilder().getAllEndpoints();
 
-    PlanFragmentStats stats = new PlanFragmentStats();
-    Stopwatch stopwatch = Stopwatch.createStarted();
     // send rpcs to start fragments
     for (final NodeEndpoint ep : fragmentMap.keySet()) {
       final List<MinorAttr> sharedAttrs =
@@ -195,7 +224,7 @@ class FragmentStarter {
       boolean first = true;
       for (final NodeEndpoint ep: endpointsIndex) {
         if (!fragmentSubmitSuccess.submissionSuccesses.contains(ep) &&
-            !fragmentSubmitFailures.listContains(ep)) {
+          !fragmentSubmitFailures.listContains(ep)) {
           // The fragment sent to this endPoint timed out.
           if (first) {
             first = false;
@@ -206,15 +235,13 @@ class FragmentStarter {
         }
       }
       throw UserException.connectionError()
-          .message(
-              "Exceeded timeout (%d) while waiting after sending work fragments to remote nodes. " +
-                  "Sent %d and only heard response back from %d nodes",
-              timeout, numFragments, numFragments - numberRemaining)
+        .message(
+          "Exceeded timeout (%d) while waiting after sending work fragments to remote nodes. " +
+            "Sent %d and only heard response back from %d nodes",
+          timeout, numFragments, numFragments - numberRemaining)
         .addContext("Node(s) that did not respond", sb.toString())
         .build(logger);
     }
-    stopwatch.stop();
-    observer.fragmentsStarted(stopwatch.elapsed(TimeUnit.MILLISECONDS), stats.getSummary());
 
     // if any of the fragment submissions failed, fail the query
     final List<FragmentSubmitFailures.SubmissionException> submissionExceptions = fragmentSubmitFailures.submissionExceptions;
@@ -235,20 +262,14 @@ class FragmentStarter {
         }
       }
       throw UserException.connectionError(submissionExceptions.get(0).rpcException)
-          .message("Error setting up remote fragment execution")
-          .addContext("Nodes with failures", sb.toString())
-          .build(logger);
+        .message("Error setting up remote fragment execution")
+        .addContext("Nodes with failures", sb.toString())
+        .build(logger);
     }
-    stopwatch.reset();
+  }
 
-    injector.injectChecked(executionControls, INJECTOR_AFTER_START_FRAGMENTS_ERROR,
-      IllegalStateException.class);
-
-    this.observer = observer;
-    stopwatch.start();
-
-    injector.injectPause(executionControls, INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_PAUSE, logger);
-
+  @WithSpan("send-activate-fragments")
+  private void sendActivateFragmentMessages(ExecutionPlan plan, Multimap<NodeEndpoint, PlanFragmentFull> fragmentMap) {
     /*
      * Send the activate fragment rpcs; we don't wait for these. Any problems will come in through
      * the regular sendListener event delivery.
@@ -260,13 +281,6 @@ class FragmentStarter {
     for (final NodeEndpoint ep : fragmentMap.keySet()) {
       sendActivateFragments(ep, activateFragments);
     }
-    stopwatch.stop();
-
-    injector.injectChecked(executionControls, INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR,
-      IllegalStateException.class);
-
-    // No waiting on acks of sent activate fragment rpcs; so this number is not reliable
-    observer.fragmentsActivated(stopwatch.elapsed(TimeUnit.MILLISECONDS));
   }
 
   /**
@@ -323,6 +337,7 @@ class FragmentStarter {
     executorServiceClientFactory.getClientForEndpoint(assignment).startFragments(initFrags, listener);
   }
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private void sendActivateFragments(final NodeEndpoint assignment, ActivateFragments activateFragments) {
     logger.debug("Sending activate for remote fragments to \nNode:\n{} \n\nData:\n{}", assignment, activateFragments);
     final FragmentSubmitListener listener =

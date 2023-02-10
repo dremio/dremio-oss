@@ -21,8 +21,8 @@
   output:
     completions:
      -
-      detail: "Computes the absolute value of a numeric expression."
-      insertText: "ABS(${1:FLOAT})"
+      detail: "Computes the absolute value of a numeric expression.\n"
+      insertText: "ABS(${1:NUMERIC})"
       kind: "Function"
       label: "ABS(???)"
     functionContext: null
@@ -44,26 +44,53 @@
       label: "DEPTNO"
     functionContext:
       function:
-        description: "Computes the absolute value of a numeric expression."
+        description: "Computes the absolute value of a numeric expression.\n"
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "MATH"
         name: "ABS"
         signatures:
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Returns a numeric or NULL if the <numeric_expression> is NULL. (Same return type as the input)"
+          parameters:
+           -
+            description: "BINARY, DECIMAL, DOUBLE, NUMERIC, INTEGER"
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT ABS(0.0)"
+            result: "0.0"
+           -
+            call: "SELECT ABS(-2)"
+            result: "2"
+           -
+            call: "SELECT ABS(NULL)"
+            result: ""
       missingTypes:
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
       signaturesMatched:
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Returns a numeric or NULL if the <numeric_expression> is NULL. (Same return type as the input)"
+        parameters:
+         -
+          description: "BINARY, DECIMAL, DOUBLE, NUMERIC, INTEGER"
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT ABS(0.0)"
+          result: "0.0"
+         -
+          call: "SELECT ABS(-2)"
+          result: "2"
+         -
+          call: "SELECT ABS(NULL)"
+          result: ""
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -122,7 +149,7 @@
       kind: "Column"
       label: "ENAME"
      -
-      detail: "Returns Euler's number, a constant approximately equal to 2.718281828459045."
+      detail: "Returns Euler's number, a constant approximately equal to 2.718281828459045.\n"
       insertText: "E()"
       kind: "Function"
       label: "E()"

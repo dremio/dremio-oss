@@ -17,8 +17,6 @@ package com.dremio.service.nessie;
 
 
 import static com.dremio.service.nessie.NessieRepoMaintenanceTask.MAINTENANCE_PERIOD_MINUTES;
-import static com.dremio.service.nessie.NessieRepoMaintenanceTask.NO_COMPACTION_LENGTH;
-import static com.dremio.service.nessie.NessieRepoMaintenanceTask.NO_COMPACTION_WITHIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 
@@ -32,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.ImmutableGlobalLogCompactionParams;
 import org.projectnessie.versioned.persist.adapter.RepoMaintenanceParams;
 
 import com.dremio.common.config.SabotConfig;
@@ -78,19 +75,12 @@ class TestNessieRepoMaintenanceTask {
     Mockito.verify(scheduler, Mockito.times(1)).schedule(any(), runnable.capture());
     assertThat(runnable.getValue()).isNotNull();
 
-    Mockito.when(options.getOption(NO_COMPACTION_LENGTH)).thenReturn(11L);
-    Mockito.when(options.getOption(NO_COMPACTION_WITHIN)).thenReturn(22L);
-
     runnable.getValue().run();
 
     ArgumentCaptor<RepoMaintenanceParams> params = ArgumentCaptor.forClass(RepoMaintenanceParams.class);
     Mockito.verify(adapter, Mockito.times(1)).repoMaintenance(params.capture());
     assertThat(params.getValue())
       .isEqualTo(EmbeddedRepoMaintenanceParams.builder()
-        .setGlobalLogCompactionParams(ImmutableGlobalLogCompactionParams.builder()
-          .noCompactionUpToLength(11)
-          .noCompactionWhenCompactedWithin(22)
-          .build())
         .setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder().setDryRun(false).build())
         .build());
   }

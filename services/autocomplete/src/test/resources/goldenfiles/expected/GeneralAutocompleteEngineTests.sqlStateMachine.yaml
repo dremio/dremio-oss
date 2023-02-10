@@ -38,10 +38,10 @@
       label: ";"
      -
       kind: "Keyword"
-      label: "EXCEPT"
+      label: "AS"
      -
       kind: "Keyword"
-      label: "FETCH"
+      label: "EXCEPT"
     functionContext: null
     hasMoreResults: true
  -

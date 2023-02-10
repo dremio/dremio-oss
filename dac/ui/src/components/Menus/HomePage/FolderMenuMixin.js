@@ -16,6 +16,7 @@
 import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
 import MenuItemLink from "components/Menus/MenuItemLink";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -27,7 +28,7 @@ export default function (input) {
       return (
         <Menu>
           <MenuItemLink
-            href={folder.getIn(["links", "self"])}
+            href={wrapBackendLink(folder.getIn(["links", "self"]))}
             text={la("Browse Contents")}
             closeMenu={closeMenu}
           />

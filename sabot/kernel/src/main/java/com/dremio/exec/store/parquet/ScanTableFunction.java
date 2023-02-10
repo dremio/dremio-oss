@@ -71,6 +71,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   private VarBinaryVector inputColIds;
   private int batchSize;
   private int currentRow;
+  private long maxRecordCount;
+  private long currentReaderRecordCount;
   private BatchSchema schema;
   private List<SchemaPath> selectedColumns;
   private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
@@ -88,6 +90,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     this.props = props;
     this.schema = functionConfig.getFunctionContext().getFullSchema();
     this.selectedColumns = functionConfig.getFunctionContext().getColumns() == null ? null : ImmutableList.copyOf(functionConfig.getFunctionContext().getColumns());
+    this.maxRecordCount = 0;
+    this.currentReaderRecordCount = 0;
   }
 
   @Override
@@ -187,13 +191,16 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       addBoostSplits();
       currentRecordReader.close();
       currentRecordReader = null;
+      context.getStats();
+      maxRecordCount = Math.max(maxRecordCount, currentReaderRecordCount);
+      currentReaderRecordCount = 0;
       if (!getRecordReaderIterator().hasNext()) {
         return 0;
       }
-
       setupNextReader();
       currentRecordReader.allocate(fieldVectorMap);
     }
+    currentReaderRecordCount += records;
     outgoing.setRecordCount(records);
     outgoing.setAllCount(records);
     return records;
@@ -284,5 +291,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     currentRecordReader = null;
     this.context.getStats().setReadIOStats();
     this.context.getStats().setScanRuntimeFilterDetailsInProfile();
+    this.context.getStats().setLongStat(ScanOperator.Metric.MAX_RECORD_READ_PER_READER, maxRecordCount);
   }
 }

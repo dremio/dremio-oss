@@ -18,19 +18,10 @@
 
 :global {
   .new-branch-dialog {
-    .MuiDialog-paper {
-      width: 600px;
+    width: 600px;
 
-      .MuiDialogTitle-root,
-      .MuiDialogActions-root {
-        height: 55px;
-      }
-
-      .MuiDialogContent-root {
-        height: 150px;
-        padding-left: 16px;
-        padding-top: 24px;
-      }
+    .dremio-dialog-content__main {
+      height: 190px;
     }
 
     &-header {
@@ -51,19 +42,22 @@
     }
 
     &-body {
-      .MuiDialogContentText-root {
-        margin-bottom: 4px;
-        font-size: 14px;
-        font-weight: 400;
-        color: @BLACK;
-      }
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 400;
+      color: @BLACK;
 
       .MuiFormControl-fullWidth {
-        margin-top: 0;
+        margin-top: 4px;
 
         .MuiOutlinedInput-root {
           height: 32px;
           font-size: 14px;
+          &:hover {
+            fieldset {
+              border-color: var(--dremio--color--neutral--300);
+            }
+          }
 
           .MuiOutlinedInput-input {
             padding-left: 8px;
@@ -82,6 +76,21 @@
         .MuiFormHelperText-root {
           font-size: 12px;
           margin-left: 8px;
+        }
+      }
+
+      &-from {
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 24px;
+        &-label {
+          padding-bottom: 8px;
+        }
+        &-name {
+          dremio-icon {
+            color: var(--dremio--color--neutral--600);
+            margin-right: 2px;
+          }
         }
       }
     }

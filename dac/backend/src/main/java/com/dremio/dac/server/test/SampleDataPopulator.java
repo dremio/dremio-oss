@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -61,6 +63,8 @@ import com.dremio.dac.proto.model.dataset.TransformCreateFromParent;
 import com.dremio.dac.proto.model.dataset.TransformType;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.ServerErrorException;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
+import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
@@ -74,6 +78,7 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -110,6 +115,7 @@ public class SampleDataPopulator implements AutoCloseable {
   private final SabotContext context;
   private final String username;
   private final Path path;
+  private CollaborationHelper collaborationService;
 
   @Inject
   public SampleDataPopulator(
@@ -118,7 +124,8 @@ public class SampleDataPopulator implements AutoCloseable {
       DatasetVersionMutator datasetService,
       final UserService userService,
       final NamespaceService namespaceService,
-      final String username) throws Exception {
+      final String username,
+      CollaborationHelper collaborationService) throws Exception {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.sourceService = sourceService;
@@ -126,6 +133,7 @@ public class SampleDataPopulator implements AutoCloseable {
     this.username = username;
     this.context = context;
     this.path = Files.createTempDirectory("sample-data-");
+    this.collaborationService = collaborationService;
   }
 
   /**
@@ -338,6 +346,10 @@ public class SampleDataPopulator implements AutoCloseable {
       dacSample1.setName("dac-sample1.json");
       dacSample1.setPhysicalDataset(new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
       namespaceService.addOrUpdateDataset(dacSample1Path.toNamespaceKey(), dacSample1);
+      // adding tags for table (physical dataset)
+      List<String> tagList = Arrays.asList("tag3", "tag4");
+      Tags newTags = new Tags(tagList, null);
+      collaborationService.setTags(dacSample1.getId().getId(), newTags);
     }
 
     {
@@ -349,7 +361,11 @@ public class SampleDataPopulator implements AutoCloseable {
       dacSample2.setName("dac-sample2.json");
       dacSample2.setPhysicalDataset(new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
       namespaceService.addOrUpdateDataset(dacSample2Path.toNamespaceKey(), dacSample2);
+      // adding empty tags for table (physical dataset)
+      Tags newTags = new Tags(new ArrayList<>(), null);
+      collaborationService.setTags(dacSample2.getId().getId(), newTags);
     }
+
 
     putDS("Prod-Sample", "ds1", new FromTable("LocalFS1.\"dac-sample1.json\"").wrap());
     putDS("Prod-Sample", "ds2", new FromSQL("select * from LocalFS1.\"dac-sample1.json\" where age <= 20").wrap());
@@ -385,13 +401,24 @@ public class SampleDataPopulator implements AutoCloseable {
     putDS("DG", "dsg8", new FromSQL("select t1.age, t2.A from DG.dsg3 t1 inner join DG.dsg4 t2 on t1.age=t2.A").wrap());
     putDS("DG", "dsg9", new FromSQL("select age A, age B from DG.dsg3 union select A, B from DG.dsg2").wrap());
     putDS("DG", "dsg10", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
+
+    // adding tags for view (virtual dataset)
+    DatasetConfig dsg3 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("DG", "dsg3")));
+    List<String> tagList = Arrays.asList("tag1", "tag2");
+    Tags newTags = new Tags(tagList, null);
+    collaborationService.setTags(dsg3.getId().getId(), newTags);
+
+    DatasetConfig dsg4 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("DG", "dsg4")));
+    Tags emptyTags = new Tags(new ArrayList<>(), null);
+    collaborationService.setTags(dsg4.getId().getId(), emptyTags);
+
     long t = sw.elapsed(MILLISECONDS);
     if ( t > 100) {
       logger.warn(String.format("com.dremio.dac.daemon.SampleDataPopulator.populateInitialData() took %dms", t));
     }
   }
 
-  public static String getFileContentsFromClassPath(String resource) throws IOException {
+  private static String getFileContentsFromClassPath(String resource) throws IOException {
     final URL url = Resources.getResource(resource);
     if (url == null) {
       throw new IOException(String.format("Unable to find path %s.", resource));

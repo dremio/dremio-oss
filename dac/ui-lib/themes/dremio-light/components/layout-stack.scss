@@ -14,16 +14,4 @@
  * limitations under the License.
  */
 
-.dremio-layout-stack {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-
-  > * {
-    margin-block: 0;
-  }
-
-  > * + * {
-    margin-block-start: var(--space);
-  }
-}
+@use "../../base/components/layout-stack";

@@ -62,7 +62,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 
 public abstract class HashAggTemplate implements HashAggregator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggregator.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggTemplate.class);
 
   private static final int VARIABLE_WIDTH_VALUE_SIZE = 50;
 

@@ -21,25 +21,27 @@
   output:
     completions:
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      detail: "Computes the absolute value of a numeric expression.\n"
+      insertText: "ABS(${1:NUMERIC})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "ABS(???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      detail: "Computes the arcccosine (inverse cosine) of a value in radians\n"
+      insertText: "ACOS(${1:NUMERIC})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "ACOS(???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_MAX(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_MAX(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_MIN(${1:BYTES})"
+      insertText: "ALTERNATE()"
       kind: "Function"
-      label: "$HISTOGRAM_MIN(???)"
+      label: "ALTERNATE()"
     functionContext: null
     hasMoreResults: true
  -
@@ -177,17 +179,19 @@
       kind: "Column"
       label: "NAME"
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      detail: "Computes the absolute value of a numeric expression.\n"
+      insertText: "ABS(${1:NUMERIC})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "ABS(???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      detail: "Computes the arcccosine (inverse cosine) of a value in radians\n"
+      insertText: "ACOS(${1:NUMERIC})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "ACOS(???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "AES_DECRYPT(???, ???)"
     functionContext: null
     hasMoreResults: true
  -

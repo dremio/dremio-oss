@@ -168,23 +168,25 @@ describe("FileUtils", () => {
     });
   });
 
-  describe("getDatasetIdForClientTools", () => {
+  describe("getDatasetPathForClientTools", () => {
     it("should default to empty string", () => {
-      expect(FileUtils.getDatasetIdForClientTools()).to.equal("");
+      expect(FileUtils.getDatasetPathForClientTools()).to.equal("");
     });
 
-    it("should return entityId if provided", () => {
+    it("should return displayFullPath joined by / if displayFullPath is provided", () => {
       expect(
-        FileUtils.getDatasetIdForClientTools(
-          Immutable.fromJS({ entityId: "abc", id: "aaa" })
+        FileUtils.getDatasetPathForClientTools(
+          Immutable.fromJS({ displayFullPath: ["a", "b"] })
         )
-      ).to.equal("abc");
+      ).to.equal("a/b");
     });
 
-    it("should return id if entityId is not provided", () => {
+    it("should return fullPathList joined by / if fullPathList is provided", () => {
       expect(
-        FileUtils.getDatasetIdForClientTools(Immutable.fromJS({ id: "aaa" }))
-      ).to.equal("aaa");
+        FileUtils.getDatasetPathForClientTools(
+          Immutable.fromJS({ fullPathList: ["a", "b"] })
+        )
+      ).to.equal("a/b");
     });
   });
 });

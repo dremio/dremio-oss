@@ -105,9 +105,11 @@ export default class FileUtils {
     return `${(bytes / BYTES_IN_TERABYTE).toFixed(2)} TB`;
   }
 
-  static getDatasetIdForClientTools(dataset) {
+  static getDatasetPathForClientTools(dataset) {
     if (dataset) {
-      return dataset.get("entityId") || dataset.get("id");
+      const path =
+        dataset.get("displayFullPath") ?? dataset.get("fullPathList") ?? "";
+      return path.join("/");
     } else {
       return "";
     }

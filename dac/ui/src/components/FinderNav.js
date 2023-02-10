@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { withRouter } from "react-router";
-import classNames from "classnames";
+import classNames from "clsx";
 import { IconButton } from "dremio-ui-lib";
 import FinderNavSection from "./FinderNavSection";
 import LinkWithRef from "./LinkWithRef/LinkWithRef";

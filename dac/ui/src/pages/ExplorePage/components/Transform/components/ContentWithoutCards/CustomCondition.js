@@ -55,7 +55,7 @@ class CustomCondition extends Component {
           //todo DX-12762
           blockHeight={140}
           sqlHeight={142}
-          functionPaneHeight={142}
+          functionPaneHeight={152}
           activeMode
           dragType="help-func"
         />

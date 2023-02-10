@@ -1,0 +1,33 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+:root {
+  /* stylelint-disable-next-line value-keyword-case */
+  --dremio--font-family: "Inter", sans-serif;
+  --dremio--font-family--monospace: "Fira Code", monospace;
+
+  /**
+    Use rem in case the user has overridden their browser's default font size (not zoom)
+    Until we remove the html { font-size: 65% } hack we need to assume it's 10px
+  */
+  --dremio--font-size--xs: calc(10rem / 10);
+  --dremio--font-size--sm: calc(12rem / 10);
+  --dremio--font-size--md: calc(14rem / 10);
+  --dremio--font-size--lg: calc(16rem / 10);
+  --dremio--font-size--xl: calc(18rem / 10);
+
+  --dremio--font-size--default: var(--dremio--font-size--md);
+}

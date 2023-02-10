@@ -1,0 +1,41 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Explodes compound values into multiple rows. This function takes a `LIST`
+  column and produces a lateral view (that is, an inline view that contains correlation
+  referring to other tables that precede it in the FROM clause).
+functionCategories:
+- CONVERSION
+name: FLATTEN
+signatures:
+- description: null
+  parameters:
+  - description: The expression that will be unpacked into rows. The expression must
+      be of data type `LIST`.
+    kind: REGULAR
+    name: expression
+    type: LIST
+  returnType: LIST
+  sampleCodes:
+  - call: SELECT FLATTEN(CONVERT_FROM ('["Ford", "BMW", "Fiat"]', 'json'))
+    result: 'Ford
+
+      -- BMW
+
+      -- Fiat
+
+      '

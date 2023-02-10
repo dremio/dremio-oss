@@ -52,6 +52,9 @@ import com.dremio.dac.service.support.SupportBundleRPC.LogRequest;
 import com.dremio.exec.server.SabotContext;
 import com.google.protobuf.ByteString;
 
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 
@@ -257,7 +260,13 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
       }
 
     } catch (Exception e) {
-      responseObserver.onError(e);
+      if (e instanceof StatusRuntimeException) {
+        responseObserver.onError((StatusRuntimeException) e);
+      } else if (e instanceof StatusException) {
+        responseObserver.onError((StatusException) e);
+      } else {
+        responseObserver.onError(Status.UNKNOWN.withDescription(String.format("Failed to write file %s to gRPC response observer", file.getPath())).withCause(e).asRuntimeException());
+      }
     }
   }
 

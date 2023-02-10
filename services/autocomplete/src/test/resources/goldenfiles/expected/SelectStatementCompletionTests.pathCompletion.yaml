@@ -139,10 +139,7 @@
   description: "INVALID PATH"
   input: "SELECT * FROM \"path\".\"that\".\"does\".\"not\".\"exist\".^"
   output:
-    completions:
-     -
-      kind: "Keyword"
-      label: "*"
+    completions: []
     functionContext: null
     hasMoreResults: false
  -
@@ -289,24 +286,9 @@
   description: "APPLY mid path"
   input: "SELECT * FROM \"space\".\"folder\".\"physical dataset\" APPLY \"space\".\"folder\".^"
   output:
-    completions:
-     -
-      kind: "Keyword"
-      label: "("
-     -
-      kind: "Keyword"
-      label: ","
-     -
-      kind: "Keyword"
-      label: ";"
-     -
-      kind: "Keyword"
-      label: "CROSS"
-     -
-      kind: "Keyword"
-      label: "EXCEPT"
+    completions: []
     functionContext: null
-    hasMoreResults: true
+    hasMoreResults: false
  -
   description: "Path with special character incorrect."
   input: "SELECT * FROM @^"

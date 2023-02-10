@@ -14,22 +14,24 @@
  * limitations under the License.
  */
 
-import classNames from "classnames";
+import classNames from "clsx";
 import PropTypes from "prop-types";
 import { Link, withRouter } from "react-router";
 import { FormattedMessage } from "react-intl";
+import { Tooltip } from "dremio-ui-lib";
 import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
 import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import "./userNavigation.less";
 
 const UserNavigation = (props) => {
   const { location, sections, title, titleObject, navigationSection } = props;
+  // urlability
+  const loc = rmProjectBase(location.pathname) || "/";
   const renderMenuItems = (menuItems) => {
     return menuItems.map((item, i) => {
-      const selected =
-        location.pathname === item.url ||
-        location.pathname.startsWith(`${item.url}/`);
+      const selected = loc === item.url || loc.startsWith(`${item.url}/`);
       const className = classNames(
         "userNavigation__link",
         "userNavigation__item",
@@ -66,9 +68,10 @@ const UserNavigation = (props) => {
       );
     }
 
+    const sectionUrlWithoutProjBase = rmProjectBase(section.url) || "/";
     const selected =
-      location.pathname === section.url ||
-      location.pathname.startsWith(`${section.url}/`);
+      loc === sectionUrlWithoutProjBase ||
+      loc.startsWith(`${sectionUrlWithoutProjBase}/`);
     const itemClassName = classNames(
       { userNavigation__headerLink: !isNavigation },
       { userNavigation__navigation: isNavigation },
@@ -141,10 +144,9 @@ const UserNavigation = (props) => {
                 </span>
               )}
             />
-
-            <p className="text-ellipsis" title={titleObject.title}>
-              {titleObject.title}
-            </p>
+            <Tooltip title={titleObject.title}>
+              <p className="text-ellipsis">{titleObject.title}</p>
+            </Tooltip>
           </div>
         </div>
       ) : (

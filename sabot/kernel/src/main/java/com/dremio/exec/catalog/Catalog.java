@@ -100,4 +100,6 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
    * @return resulting transformed catalog
    */
   Catalog visit(Function<Catalog, Catalog> catalogRewrite);
+
+  public default void addCatalogStats() {}
 }

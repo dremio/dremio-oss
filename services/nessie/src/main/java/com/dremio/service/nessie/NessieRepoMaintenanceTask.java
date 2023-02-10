@@ -18,8 +18,6 @@ package com.dremio.service.nessie;
 import java.util.Map;
 
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.GlobalLogCompactionParams;
-import org.projectnessie.versioned.persist.adapter.ImmutableGlobalLogCompactionParams;
 
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
@@ -38,16 +36,6 @@ public class NessieRepoMaintenanceTask {
 
   public static final TypeValidators.PositiveLongValidator MAINTENANCE_PERIOD_MINUTES = new TypeValidators.PositiveLongValidator(
     "nessie.kvversionstore.maintenance.period_minutes", Integer.MAX_VALUE, 4 * 60L); // 4 hours
-
-  public static final TypeValidators.PositiveLongValidator NO_COMPACTION_LENGTH = new TypeValidators.PositiveLongValidator(
-    "nessie.kvversionstore.maintenance.global_log.no_compaction_up_to_length",
-    Integer.MAX_VALUE,
-    GlobalLogCompactionParams.DEFAULT_NO_COMPACTION_UP_TO_LENGTH);
-
-  public static final TypeValidators.PositiveLongValidator NO_COMPACTION_WITHIN = new TypeValidators.PositiveLongValidator(
-    "nessie.kvversionstore.maintenance.global_log.no_compaction_within",
-    Integer.MAX_VALUE,
-    GlobalLogCompactionParams.DEFAULT_NO_COMPACTION_WHEN_COMPACTED_WITHIN);
 
   private final DatabaseAdapter adapter;
   private final OptionManager optionManager;
@@ -70,10 +58,6 @@ public class NessieRepoMaintenanceTask {
     try {
       logger.debug("Starting Nessie repository maintenance");
       EmbeddedRepoMaintenanceParams params = EmbeddedRepoMaintenanceParams.builder()
-        .setGlobalLogCompactionParams(ImmutableGlobalLogCompactionParams.builder()
-          .noCompactionUpToLength((int) optionManager.getOption(NO_COMPACTION_LENGTH))
-          .noCompactionWhenCompactedWithin((int) optionManager.getOption(NO_COMPACTION_WITHIN))
-          .build())
         .setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder().setDryRun(false).build())
         .build();
 

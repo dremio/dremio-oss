@@ -16,8 +16,8 @@
 
 // https://docs.dremio.com/software/deployment/system-requirements/#browsers
 module.exports = [
-  "chrome >= 54",
+  "chrome >= 79",
   "edge >= 79",
-  "firefox >= 50",
-  "safari >= 11",
+  "firefox >= 67",
+  "safari >= 13",
 ];

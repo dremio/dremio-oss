@@ -45,6 +45,9 @@ public class LazyDocumentIterator<KEY_TYPE, VALUE_TYPE> implements Iterator<VALU
 
     try {
       Document<KEY_TYPE, VALUE_TYPE> nextDoc = docs.next();
+      if (nextDoc == null) {
+        throw new NoSuchElementException("Next call returned no element (null)");
+      }
       return nextDoc.getValue();
     } catch (NoSuchElementException e) {
       /* We checked that hasNext() returned true but still didn't receive the doc from the next() call.

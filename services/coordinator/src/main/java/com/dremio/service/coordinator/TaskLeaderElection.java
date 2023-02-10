@@ -109,7 +109,7 @@ public class TaskLeaderElection implements AutoCloseable {
     this.leaseExpirationTime.set(leaseExpirationTime);
     this.currentEndPoint = currentEndPoint;
     this.taskLeaderStatusListener = new TaskLeaderStatusListener(serviceName, clusterServiceSetManagerProvider);
-    this.failSafeLeaderUnavailableDuration = failSafeLeaderUnavailableDuration;
+    this.failSafeLeaderUnavailableDuration = failSafeLeaderUnavailableDuration != null ? failSafeLeaderUnavailableDuration : LEADER_UNAVAILABLE_DURATION_SECS;
     this.electionListenerProvider = electionListenerProvider;
 
     if (executorService == null) {
@@ -164,6 +164,7 @@ public class TaskLeaderElection implements AutoCloseable {
         Object electionLock = electionHandle == null ? this : electionHandle.synchronizer();
         synchronized (electionLock) {
           if (electionHandleClosed) {
+            logger.info("onElected Event: election handle closed for {}. Will not proceed with the on elected function", serviceName);
             return;
           }
 
@@ -174,7 +175,7 @@ public class TaskLeaderElection implements AutoCloseable {
           // therefore checking if we were a leader before registering
           // and doing other operations
           if (isTaskLeader.compareAndSet(false, true)) {
-            logger.info("Electing Leader for {}", serviceName);
+            logger.info("onElected Event: Electing Leader for {}", serviceName);
             LEADERSHIP_LAST_ELECTED_TIMER.update(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
             LEADERSHIP_ELECTION_SUCCESS_COUNTER.increment();
             // registering node with service
@@ -183,12 +184,15 @@ public class TaskLeaderElection implements AutoCloseable {
 
             // start thread only if relinquishing leadership time was set
             if (leaseExpirationTime.get() != null) {
+              logger.info("onElected Event: Restarting leadership lease expiration task {} with {} ms timeout", serviceName, leaseExpirationTime.get());
               leadershipReleaseFuture = executorService.schedule(
                 new LeadershipReset(),
                 leaseExpirationTime.get(),
                 TimeUnit.MILLISECONDS
               );
             }
+          } else {
+            logger.debug("onElected Event: This node is already the leader for {}", serviceName);
           }
         }
       }
@@ -196,14 +200,15 @@ public class TaskLeaderElection implements AutoCloseable {
       @Override
       public void onCancelled() {
         if (isTaskLeader.compareAndSet(true, false)) {
-          logger.info("Rejecting Leader for {}", serviceName);
+          logger.info("onCancelled Event: Rejecting Leader for {}", serviceName);
           if (leadershipReleaseFuture != null) {
             leadershipReleaseFuture.cancel(false);
           }
           // unregistering node from service
           nodeEndpointRegistrationHandle.close();
           listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipLost);
-
+        } else {
+          logger.debug("onCancelled Event: This node is already NOT the leader for {}", serviceName);
         }
       }
     };
@@ -227,6 +232,23 @@ public class TaskLeaderElection implements AutoCloseable {
 
   public boolean isTaskLeader() {
     return isTaskLeader.get();
+  }
+
+  @VisibleForTesting
+  public void onElectedLeadership() {
+    isTaskLeader.set(true);
+    listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipGained);
+  }
+
+  @VisibleForTesting
+  public void onCancelledLeadership() {
+    isTaskLeader.set(false);
+    listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipLost);
+  }
+
+  @VisibleForTesting
+  public void onLeadershipReliquish() {
+    listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipRelinquished);
   }
 
   public Long getLeaseExpirationTime() {
@@ -312,13 +334,15 @@ public class TaskLeaderElection implements AutoCloseable {
             synchronized (electionHandle.synchronizer()) {
               electionHandleClosed = true;
               LEADERSHIP_ELECTION_FAILSAFE_COUNTER.increment();
-              logger.info("Closing current election handle and reentering elections for {} as there is no leader for {} secs",
-                serviceName, leaderUnavailableDuration);
               if (isTaskLeader.compareAndSet(true, false)) {
+                logger.warn("this is the leader, but looks like leader is not available - closing current election handle and reentering elections for {} as there is no leader for {} secs",
+                  serviceName, leaderUnavailableDuration);
                 LeadershipReset leadershipReset = new LeadershipReset();
                 leadershipReset.reset();
                 this.cancel(false);
               } else {
+                logger.warn("this is NOT the leader, and looks like there is no leader available - closing current election handle and reentering elections for {} as there is no leader for {} secs",
+                  serviceName, leaderUnavailableDuration);
                 try {
                   AutoCloseables.close(electionHandle);
                   enterElections();

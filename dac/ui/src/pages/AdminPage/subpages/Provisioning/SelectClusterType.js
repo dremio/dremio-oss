@@ -39,7 +39,7 @@ class SelectClusterType extends Component {
       <SelectConnectionButton
         key={cluster.get("clusterType")}
         label={cluster.get("label")}
-        iconType={`provisionManagers/${cluster.get("iconType")}`}
+        dremioIcon={cluster.get("dremioIcon")}
         disabled={!cluster.get("connected")}
         pillText={cluster.get("connected") ? "" : la("coming soon")}
         onClick={this.handleSelectClusterType.bind(this, cluster)}

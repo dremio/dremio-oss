@@ -28,6 +28,7 @@ import java.io.PrintWriter;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -66,7 +67,6 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -226,7 +226,7 @@ public class TestReflectionJob extends BaseTestReflection {
     final Optional<ReflectionEntry> reflection = getReflectionService().getEntry(rawId);
     assertTrue("reflection entry not found", reflection.isPresent());
     assertTrue("reflection materialization failed", reflection.get().getNumFailures().equals(0));
-    assertTrue("raw should depend on dataset", dependsOn(rawId, datasetDependency));
+    assertDependsOn(rawId, datasetDependency);
     return reflection.get();
   }
 

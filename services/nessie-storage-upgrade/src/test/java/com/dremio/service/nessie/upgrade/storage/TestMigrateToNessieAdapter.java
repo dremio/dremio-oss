@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
@@ -40,7 +41,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.IcebergTable;
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.ImmutablePut;
@@ -50,13 +50,11 @@ import org.projectnessie.versioned.VersionStore;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.KeyFilterPredicate;
+import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.store.PersistVersionStore;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
@@ -69,13 +67,9 @@ import com.google.protobuf.ByteString;
 /**
  * Unit tests for {@link MigrateToNessieAdapter}.
  */
-class TestMigrateToNessieAdapter {
-
-  private static final ScanResult scanResult = ClassPathScanner.fromPrescan(SabotConfig.create());
+class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
 
   private static final String UPGRADE_BRANCH_NAME = "upgrade-test";
-
-  private final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
 
   private MigrateToNessieAdapter task;
   private LocalKVStoreProvider storeProvider;
@@ -98,7 +92,8 @@ class TestMigrateToNessieAdapter {
       .build();
     adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConfig(adapterCfg)
-      .withConnector(nessieDatastore).build(worker);
+      .withConnector(nessieDatastore)
+      .build();
     // Note: adapter.initializeRepo() will be called by the upgrade task
   }
 
@@ -131,11 +126,11 @@ class TestMigrateToNessieAdapter {
     // This particular test needs to initialize the repo to be able to inject previous history
     adapter.initializeRepo("main");
 
-    VersionStore<Content, CommitMeta, Content.Type> versionStore = new PersistVersionStore<>(adapter, worker);
+    VersionStore versionStore = new PersistVersionStore(adapter);
 
     Key extraKey = Key.of("existing", "table", "abc");
     versionStore.commit(BranchName.of("main"), Optional.empty(), CommitMeta.fromMessage("test"),
-      Collections.singletonList(ImmutablePut.<Content>builder()
+      Collections.singletonList(ImmutablePut.builder()
         .key(extraKey)
         .value(IcebergTable.of("test-metadata-location", 1, 2, 3, 4, "extra-content-id"))
         .build()));
@@ -143,8 +138,9 @@ class TestMigrateToNessieAdapter {
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME, c -> {});
 
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
-    assertThat(adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL))
-      .anySatisfy(kt -> assertThat(kt.getKey()).isEqualTo(extraKey));
+    try(Stream<KeyListEntry> keys = adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL)) {
+      assertThat(keys).anySatisfy(kt -> assertThat(kt.getKey()).isEqualTo(extraKey));
+    }
   }
 
   @Test
@@ -155,8 +151,9 @@ class TestMigrateToNessieAdapter {
     adapter.create(BranchName.of(UPGRADE_BRANCH_NAME), adapter.noAncestorHash());
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME, c -> {});
 
-    assertThat(adapter.namedRefs(GetNamedRefsParams.DEFAULT))
-      .noneMatch(r -> r.getNamedRef().getName().equals(UPGRADE_BRANCH_NAME));
+    try (Stream<ReferenceInfo<ByteString>> refs = adapter.namedRefs(GetNamedRefsParams.DEFAULT)) {
+      assertThat(refs).noneMatch(r -> r.getNamedRef().getName().equals(UPGRADE_BRANCH_NAME));
+    }
   }
 
   @ParameterizedTest
@@ -178,7 +175,7 @@ class TestMigrateToNessieAdapter {
       }
     });
 
-    VersionStore<Content, CommitMeta, Content.Type> versionStore = new PersistVersionStore<>(adapter, worker);
+    VersionStore versionStore = new PersistVersionStore(adapter);
 
     Map<Key, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
 
@@ -189,7 +186,10 @@ class TestMigrateToNessieAdapter {
     })).containsExactlyInAnyOrder(testEntries.toArray(new String[0]));
 
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
-    List<CommitLogEntry> mainLog = adapter.commitLog(main.getHash()).collect(Collectors.toList());
+    List<CommitLogEntry> mainLog;
+    try (Stream<CommitLogEntry> log = adapter.commitLog(main.getHash())) {
+      mainLog = log.collect(Collectors.toList());
+    }
 
     // Each upgrade commit contains at most MAX_ENTRIES_PER_COMMIT entries
     int logSize = numCommits / MAX_ENTRIES_PER_COMMIT

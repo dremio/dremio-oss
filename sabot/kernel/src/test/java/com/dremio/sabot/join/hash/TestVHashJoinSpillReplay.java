@@ -24,11 +24,13 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
+import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 
 // Test join with replay of spill
 @Ignore("TestVHashJoinSpillBuildAndReplay is a superset of this test")
 public class TestVHashJoinSpillReplay extends TestVHashJoinSpill {
   private final OptionManager options = testContext.getOptions();
+  private final int minReserve = VectorizedSpillingHashJoinOperator.MIN_RESERVE;
 
   @Before
   public void before() {
@@ -37,6 +39,7 @@ public class TestVHashJoinSpillReplay extends TestVHashJoinSpill {
     // If this option is set, the operator starts with a DiskPartition. This forces the code-path of spill write,
     // read and replay, thus testing the recursion & replay code.
     options.setOption(OptionValue.createString(OptionType.SYSTEM, HashJoinOperator.TEST_SPILL_MODE.getOptionName(), "replay"));
+    VectorizedSpillingHashJoinOperator.MIN_RESERVE = 9 * 1024 * 1024;
   }
 
   @After
@@ -44,5 +47,6 @@ public class TestVHashJoinSpillReplay extends TestVHashJoinSpill {
     options.setOption(HashJoinOperator.ENABLE_SPILL.getDefault());
     options.setOption(ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault());
     options.setOption(HashJoinOperator.TEST_SPILL_MODE.getDefault());
+    VectorizedSpillingHashJoinOperator.MIN_RESERVE = minReserve;
   }
 }

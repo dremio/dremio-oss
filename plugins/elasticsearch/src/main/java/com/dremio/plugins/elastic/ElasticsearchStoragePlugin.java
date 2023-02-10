@@ -300,7 +300,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
       final String schema = datasetPath.getComponents().get(1);
       final String type = datasetPath.getComponents().get(2);
       final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata()
-          .setIndex(datasetPath.getComponents().get(1)), false);
+          .setIndex(schema), false);
       final List<ElasticIndex> indices = clusterMetadata.getIndices();
       if (indices.isEmpty()) {
         return Optional.empty();
@@ -349,6 +349,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     final ArrayListMultimap<ElasticAliasMappingName, ElasticIndex> aliases = ArrayListMultimap.create();
     final boolean includeHiddenSchemas = config.isShowHiddenIndices();
 
+    logger.debug("Listing indexes for dataset handles.");
     for (ElasticIndex index : clusterMetadata.getIndices()) {
       for (ElasticMapping mapping : index.getMappings()) {
         if (includeHiddenSchemas || !index.getName().startsWith(".")) {
@@ -362,6 +363,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
       }
     }
 
+    logger.debug("Listing aliases for dataset handles.");
     for (ElasticAliasMappingName alias : aliases.keySet()) {
       final List<ElasticIndex> indices = aliases.get(alias);
       final List<String> indicesList = indices.stream().map(ElasticIndex::getName).collect(Collectors.toList());

@@ -1,0 +1,78 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Finds strings that match the given regular expression and replaces the
+  strings with the given string.
+functionCategories:
+- CHARACTER
+name: REGEXP_REPLACE
+signatures:
+- description: sample signature description
+  parameters:
+  - description: The expression to search for a matching string.
+    kind: REGULAR
+    name: input
+    type: CHARACTERS
+  - description: The PCRE regular expression to match against.
+    kind: REGULAR
+    name: regex
+    type: CHARACTERS
+  - description: The string with which to replace the matching string.
+    kind: REGULAR
+    name: replacement_string
+    type: CHARACTERS
+  returnType: CHARACTERS
+  sampleCodes:
+  - call: SELECT s_store_id, regexp_replace(s_hours, '\Q-\E', ' to ') AS s_hours,
+      s_street_number, s_street_name, s_street_type, s_city, s_state FROM Samples."samples.dremio.com"."tpcds_sf1000".store
+    result: "Raw data\n  -- AAAAAAAABAAAAAAA, 8AM-4PM, 767, Spring, Wy, Spring Valley,\
+      \ SD\n  -- AAAAAAAACAAAAAAA, 8AM-4PM, 255, Sycamore, Dr., Buena Vista, MN\n\
+      \  -- AAAAAAAACAAAAAAA, 8AM-4PM, 877, Park Laurel, Road, Mount Pleasant, NE\n\
+      \  -- AAAAAAAAEAAAAAAA, 8AM-4PM, 27, Lake, Ln, Harmony, AL\n  -- ...\n  \n--\
+      \ Returned data\n  -- AAAAAAAABAAAAAAA, 8AM to 4PM, 767, Spring, Wy, Spring\
+      \ Valley, SD\n  -- AAAAAAAACAAAAAAA, 8AM to 4PM, 255, Sycamore, Dr., Buena Vista,\
+      \ MN\n  -- AAAAAAAACAAAAAAA, 8AM to 4PM, 877, Park Laurel, Road, Mount Pleasant,\
+      \ NE\n  -- AAAAAAAAEAAAAAAA, 8AM to 4PM, 27, Lake, Ln, Harmony, AL\n  -- ...\n"
+  - call: "SELECT s_store_id, s_street_number, s_street_name, \n  CASE \n    WHEN\
+      \ regexp_like(s_street_type, '^\\QCir.\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QCir.\\E.*?', 'Circle') \n    WHEN regexp_like(s_street_type, '^\\QWy\\\
+      E.*?') THEN regexp_replace(s_street_type, '^\\QWy\\E', 'Way') \n    WHEN regexp_like(s_street_type,\
+      \ '^\\QDr.\\E.*?') THEN regexp_replace(s_street_type, '^\\QDr.\\E', 'Drive')\
+      \ \n    WHEN regexp_like(s_street_type, '^\\QLn\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QLn\\E', 'Lane') \n    WHEN regexp_like(s_street_type, '^\\QRD\\E.*?')\
+      \ THEN regexp_replace(s_street_type, '^\\QRD\\E', 'Road') \n    WHEN regexp_like(s_street_type,\
+      \ '^\\QBlvd\\E.*?') THEN regexp_replace(s_street_type, '^\\QBlvd\\E', 'Boulevard')\n\
+      \    WHEN regexp_like(s_street_type, '^\\QPkwy\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QPkwy\\E', 'Parkway')  \n    WHEN regexp_like(s_street_type, '^\\QST\\\
+      E.*?') THEN regexp_replace(s_street_type, '^\\QST\\E', 'Street') \n    WHEN\
+      \ regexp_like(s_street_type, '^\\QCt.\\E.*?') THEN regexp_replace(s_street_type,\
+      \ '^\\QCt.\\E', 'Court') \n    ELSE s_street_type \n    END \n    AS s_street_type,\
+      \ \n  s_city, s_state, s_zip \n  FROM Samples.\"samples.dremio.com\".\"tpcds_sf1000\"\
+      .store\n"
+    result: "Raw data\n  -- AAAAAAAABAAAAAAA, 767, Spring , Wy, Spring Valley, SD,\
+      \ 56060\n  -- AAAAAAAACAAAAAAA, 255, Sycamore , Dr., Buena Vista, MN, 55752\n\
+      \  -- AAAAAAAACAAAAAAA, 877, Park Laurel, Road, Mount Pleasant, NE, 61933\n\
+      \  -- AAAAAAAAEAAAAAAA, 27, Lake , Ln, Harmony, AL, 35804\n  -- AAAAAAAAEAAAAAAA,\
+      \ 27, Lee 6th, Court, Union, NC, 28721\n  -- AAAAAAAAEAAAAAAA, 220, 6th , Lane,\
+      \ Glendale, OH, 43951\n  -- AAAAAAAAHAAAAAAA, 811, Lee , Circle, Glendale, OH,\
+      \ 43951\n  -- ...\n\n-- Returned data\n  -- AAAAAAAABAAAAAAA, 767, Spring, Way,\
+      \ Spring Valley, SD, 56060\n  -- AAAAAAAACAAAAAAA, 255, Sycamore, Drive, Buena\
+      \ Vista, MN, 55752\n  -- AAAAAAAACAAAAAAA, 877, Park Laurel, Road, Mount Pleasant,\
+      \ NE, 61933\n  -- AAAAAAAAEAAAAAAA, 27, Lake, Lane, Harmony, AL, 35804\n  --\
+      \ AAAAAAAAEAAAAAAA, 27, Lee 6th, Court, Union, NC, 28721\n  -- AAAAAAAAEAAAAAAA,\
+      \ 220, 6th, Lane, Glendale, OH, 43951\n  -- AAAAAAAAHAAAAAAA, 811, Lee, Circle,\
+      \ Glendale, OH, 43951\n  -- ...\n"

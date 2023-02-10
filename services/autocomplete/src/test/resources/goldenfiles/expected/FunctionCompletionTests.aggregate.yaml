@@ -221,10 +221,10 @@
   output:
     completions:
      -
-      detail: "Computes the average of a set of values."
-      insertText: "AVG(${1:NUMERIC})"
+      detail: "Computes the average of a set of values.\n"
+      insertText: "AVG(${1|ALL,DISTINCT|} ${2:value})"
       kind: "Function"
-      label: "AVG(???)"
+      label: "AVG({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -284,14 +284,49 @@
       label: "SAL"
     functionContext:
       function:
-        description: "Computes the average of a set of values."
+        description: "Computes the average of a set of values.\n"
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
         name: "AVG"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the average of all the values."
+          parameters:
+           -
+            description: "DOUBLE, NUMERIC, INTEGER, INTERVAL_DATE, INTERVAL_YEAR"
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT AVG(3)"
+            result: "3.0"
+           -
+            call: "SELECT AVG(\"val\")"
+            result: "-0.333333"
+          snippetOverride: "AVG(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the average of all the values."
+        parameters:
+         -
+          description: "DOUBLE, NUMERIC, INTEGER, INTERVAL_DATE, INTERVAL_YEAR"
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT AVG(3)"
+          result: "3.0"
+         -
+          call: "SELECT AVG(\"val\")"
+          result: "-0.333333"
+        snippetOverride: "AVG(${1|ALL,DISTINCT|} ${2:value})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -353,14 +388,49 @@
       label: "SAL"
     functionContext:
       function:
-        description: "Computes the average of a set of values."
+        description: "Computes the average of a set of values.\n"
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
         name: "AVG"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the average of all the values."
+          parameters:
+           -
+            description: "DOUBLE, NUMERIC, INTEGER, INTERVAL_DATE, INTERVAL_YEAR"
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT AVG(3)"
+            result: "3.0"
+           -
+            call: "SELECT AVG(\"val\")"
+            result: "-0.333333"
+          snippetOverride: "AVG(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the average of all the values."
+        parameters:
+         -
+          description: "DOUBLE, NUMERIC, INTEGER, INTERVAL_DATE, INTERVAL_YEAR"
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT AVG(3)"
+          result: "3.0"
+         -
+          call: "SELECT AVG(\"val\")"
+          result: "-0.333333"
+        snippetOverride: "AVG(${1|ALL,DISTINCT|} ${2:value})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -422,14 +492,49 @@
       label: "SAL"
     functionContext:
       function:
-        description: "Computes the average of a set of values."
+        description: "Computes the average of a set of values.\n"
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
         name: "AVG"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the average of all the values."
+          parameters:
+           -
+            description: "DOUBLE, NUMERIC, INTEGER, INTERVAL_DATE, INTERVAL_YEAR"
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT AVG(3)"
+            result: "3.0"
+           -
+            call: "SELECT AVG(\"val\")"
+            result: "-0.333333"
+          snippetOverride: "AVG(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the average of all the values."
+        parameters:
+         -
+          description: "DOUBLE, NUMERIC, INTEGER, INTERVAL_DATE, INTERVAL_YEAR"
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT AVG(3)"
+          result: "3.0"
+         -
+          call: "SELECT AVG(\"val\")"
+          result: "-0.333333"
+        snippetOverride: "AVG(${1|ALL,DISTINCT|} ${2:value})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -462,9 +567,10 @@
   output:
     completions:
      -
-      insertText: "BIT_AND(${1:BOOLEAN})"
+      detail: "Returns the bitwise AND of all non-null input values, or null if none; integer and binary types are supported."
+      insertText: "BIT_AND(${1|ALL,DISTINCT|} ${2:numericExpression})"
       kind: "Function"
-      label: "BIT_AND(???)"
+      label: "BIT_AND({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -505,41 +611,92 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "JOB"
-          type: "VARCHAR"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "JOB"
+      label: "SAL"
     functionContext:
       function:
+        description: "Returns the bitwise AND of all non-null input values, or null if none; integer and binary types are supported."
+        dremioVersion: "<DREMIO VERSION GOES HERE>"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "BIT_AND"
         signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Takes the bitwise and of a numeric expression."
+          parameters:
+           -
+            description: "The expression to bitwise and."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT BIT_AND(ALL NUMERIC_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:numericExpression})"
+         -
+          description: "Takes the bitwise and of a binary expression."
+          parameters:
+           -
+            description: "The binary expression to take the bitwise and of."
+            kind: "REGULAR"
+            name: "binaryExpression"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "SELECT BIT_AND(ALL BINARY_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
+       - "BYTES"
       signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Takes the bitwise and of a numeric expression."
+        parameters:
+         -
+          description: "The expression to bitwise and."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT BIT_AND(ALL NUMERIC_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:numericExpression})"
+       -
+        description: "Takes the bitwise and of a binary expression."
+        parameters:
+         -
+          description: "The binary expression to take the bitwise and of."
+          kind: "REGULAR"
+          name: "binaryExpression"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "SELECT BIT_AND(ALL BINARY_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -582,41 +739,92 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "JOB"
-          type: "VARCHAR"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "JOB"
+      label: "SAL"
     functionContext:
       function:
+        description: "Returns the bitwise AND of all non-null input values, or null if none; integer and binary types are supported."
+        dremioVersion: "<DREMIO VERSION GOES HERE>"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "BIT_AND"
         signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Takes the bitwise and of a numeric expression."
+          parameters:
+           -
+            description: "The expression to bitwise and."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT BIT_AND(ALL NUMERIC_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:numericExpression})"
+         -
+          description: "Takes the bitwise and of a binary expression."
+          parameters:
+           -
+            description: "The binary expression to take the bitwise and of."
+            kind: "REGULAR"
+            name: "binaryExpression"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "SELECT BIT_AND(ALL BINARY_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
+       - "BYTES"
       signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Takes the bitwise and of a numeric expression."
+        parameters:
+         -
+          description: "The expression to bitwise and."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT BIT_AND(ALL NUMERIC_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:numericExpression})"
+       -
+        description: "Takes the bitwise and of a binary expression."
+        parameters:
+         -
+          description: "The binary expression to take the bitwise and of."
+          kind: "REGULAR"
+          name: "binaryExpression"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "SELECT BIT_AND(ALL BINARY_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -659,41 +867,92 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "JOB"
-          type: "VARCHAR"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "JOB"
+      label: "SAL"
     functionContext:
       function:
+        description: "Returns the bitwise AND of all non-null input values, or null if none; integer and binary types are supported."
+        dremioVersion: "<DREMIO VERSION GOES HERE>"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "BIT_AND"
         signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Takes the bitwise and of a numeric expression."
+          parameters:
+           -
+            description: "The expression to bitwise and."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT BIT_AND(ALL NUMERIC_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:numericExpression})"
+         -
+          description: "Takes the bitwise and of a binary expression."
+          parameters:
+           -
+            description: "The binary expression to take the bitwise and of."
+            kind: "REGULAR"
+            name: "binaryExpression"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "SELECT BIT_AND(ALL BINARY_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
+       - "BYTES"
       signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Takes the bitwise and of a numeric expression."
+        parameters:
+         -
+          description: "The expression to bitwise and."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT BIT_AND(ALL NUMERIC_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:numericExpression})"
+       -
+        description: "Takes the bitwise and of a binary expression."
+        parameters:
+         -
+          description: "The binary expression to take the bitwise and of."
+          kind: "REGULAR"
+          name: "binaryExpression"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "SELECT BIT_AND(ALL BINARY_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_AND(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -726,9 +985,10 @@
   output:
     completions:
      -
-      insertText: "BIT_OR(${1:BOOLEAN})"
+      detail: "Returns the bitwise OR of all non-null input values, or null if none; integer and binary types are supported."
+      insertText: "BIT_OR(${1|ALL,DISTINCT|} ${2:numericExpression})"
       kind: "Function"
-      label: "BIT_OR(???)"
+      label: "BIT_OR({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -769,41 +1029,92 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "JOB"
-          type: "VARCHAR"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "JOB"
+      label: "SAL"
     functionContext:
       function:
+        description: "Returns the bitwise OR of all non-null input values, or null if none; integer and binary types are supported."
+        dremioVersion: "<DREMIO VERSION GOES HERE>"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "BIT_OR"
         signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Takes the bitwise and of a numeric expression."
+          parameters:
+           -
+            description: "The expression to bitwise and."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT BIT_OR(ALL NUMERIC_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:numericExpression})"
+         -
+          description: "Takes the bitwise and of a binary expression."
+          parameters:
+           -
+            description: "The binary expression to take the bitwise and of."
+            kind: "REGULAR"
+            name: "binaryExpression"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "SELECT BIT_OR(ALL BINARY_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
+       - "BYTES"
       signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Takes the bitwise and of a numeric expression."
+        parameters:
+         -
+          description: "The expression to bitwise and."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT BIT_OR(ALL NUMERIC_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:numericExpression})"
+       -
+        description: "Takes the bitwise and of a binary expression."
+        parameters:
+         -
+          description: "The binary expression to take the bitwise and of."
+          kind: "REGULAR"
+          name: "binaryExpression"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "SELECT BIT_OR(ALL BINARY_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -846,41 +1157,92 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "JOB"
-          type: "VARCHAR"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "JOB"
+      label: "SAL"
     functionContext:
       function:
+        description: "Returns the bitwise OR of all non-null input values, or null if none; integer and binary types are supported."
+        dremioVersion: "<DREMIO VERSION GOES HERE>"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "BIT_OR"
         signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Takes the bitwise and of a numeric expression."
+          parameters:
+           -
+            description: "The expression to bitwise and."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT BIT_OR(ALL NUMERIC_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:numericExpression})"
+         -
+          description: "Takes the bitwise and of a binary expression."
+          parameters:
+           -
+            description: "The binary expression to take the bitwise and of."
+            kind: "REGULAR"
+            name: "binaryExpression"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "SELECT BIT_OR(ALL BINARY_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
+       - "BYTES"
       signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Takes the bitwise and of a numeric expression."
+        parameters:
+         -
+          description: "The expression to bitwise and."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT BIT_OR(ALL NUMERIC_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:numericExpression})"
+       -
+        description: "Takes the bitwise and of a binary expression."
+        parameters:
+         -
+          description: "The binary expression to take the bitwise and of."
+          kind: "REGULAR"
+          name: "binaryExpression"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "SELECT BIT_OR(ALL BINARY_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -923,41 +1285,92 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "JOB"
-          type: "VARCHAR"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "JOB"
+      label: "SAL"
     functionContext:
       function:
+        description: "Returns the bitwise OR of all non-null input values, or null if none; integer and binary types are supported."
+        dremioVersion: "<DREMIO VERSION GOES HERE>"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "BIT_OR"
         signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Takes the bitwise and of a numeric expression."
+          parameters:
+           -
+            description: "The expression to bitwise and."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT BIT_OR(ALL NUMERIC_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:numericExpression})"
+         -
+          description: "Takes the bitwise and of a binary expression."
+          parameters:
+           -
+            description: "The binary expression to take the bitwise and of."
+            kind: "REGULAR"
+            name: "binaryExpression"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "SELECT BIT_OR(ALL BINARY_COLUMN)"
+            result: "42"
+          snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
+       - "BYTES"
       signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Takes the bitwise and of a numeric expression."
+        parameters:
+         -
+          description: "The expression to bitwise and."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT BIT_OR(ALL NUMERIC_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:numericExpression})"
+       -
+        description: "Takes the bitwise and of a binary expression."
+        parameters:
+         -
+          description: "The binary expression to take the bitwise and of."
+          kind: "REGULAR"
+          name: "binaryExpression"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "SELECT BIT_OR(ALL BINARY_COLUMN)"
+          result: "42"
+        snippetOverride: "BIT_OR(${1|ALL,DISTINCT|} ${2:binaryExpression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -1259,14 +1672,52 @@
     functionContext:
       function:
         description: "Returns the total number of records for the specified expression."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COUNT"
         signatures:
-         - "() -> BIGINT\n\tCOUNT(*)"
-         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+         -
+          description: "Returns the total number of records in the dataset."
+          parameters: []
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(*) FROM EMP"
+            result: "93456745"
+          snippetOverride: "COUNT(*)"
+         -
+          description: "Returns the total number of records for the specified expression."
+          parameters:
+           -
+            description: "Expression to evaluate number of records for."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(column_name) FROM my_table"
+            result: "89"
+          snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes:
        - "ANY"
       signaturesMatched:
-       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+       -
+        description: "Returns the total number of records for the specified expression."
+        parameters:
+         -
+          description: "Expression to evaluate number of records for."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "BIGINT"
+        sampleCodes:
+         -
+          call: "SELECT COUNT(column_name) FROM my_table"
+          result: "89"
+        snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -1329,14 +1780,52 @@
     functionContext:
       function:
         description: "Returns the total number of records for the specified expression."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COUNT"
         signatures:
-         - "() -> BIGINT\n\tCOUNT(*)"
-         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+         -
+          description: "Returns the total number of records in the dataset."
+          parameters: []
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(*) FROM EMP"
+            result: "93456745"
+          snippetOverride: "COUNT(*)"
+         -
+          description: "Returns the total number of records for the specified expression."
+          parameters:
+           -
+            description: "Expression to evaluate number of records for."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(column_name) FROM my_table"
+            result: "89"
+          snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes:
        - "ANY"
       signaturesMatched:
-       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+       -
+        description: "Returns the total number of records for the specified expression."
+        parameters:
+         -
+          description: "Expression to evaluate number of records for."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "BIGINT"
+        sampleCodes:
+         -
+          call: "SELECT COUNT(column_name) FROM my_table"
+          result: "89"
+        snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -1399,14 +1888,52 @@
     functionContext:
       function:
         description: "Returns the total number of records for the specified expression."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COUNT"
         signatures:
-         - "() -> BIGINT\n\tCOUNT(*)"
-         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+         -
+          description: "Returns the total number of records in the dataset."
+          parameters: []
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(*) FROM EMP"
+            result: "93456745"
+          snippetOverride: "COUNT(*)"
+         -
+          description: "Returns the total number of records for the specified expression."
+          parameters:
+           -
+            description: "Expression to evaluate number of records for."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(column_name) FROM my_table"
+            result: "89"
+          snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes:
        - "ANY"
       signaturesMatched:
-       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+       -
+        description: "Returns the total number of records for the specified expression."
+        parameters:
+         -
+          description: "Expression to evaluate number of records for."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "BIGINT"
+        sampleCodes:
+         -
+          call: "SELECT COUNT(column_name) FROM my_table"
+          result: "89"
+        snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -1437,151 +1964,17 @@
   description: "COLLECT AGGREGATE PARTIAL NAME"
   input: "SELECT COLLEC^"
   output:
-    completions: []
+    completions:
+     -
+      detail: "Returns a multiset of the values."
+      insertText: "COLLECT(${1|ALL,DISTINCT|} ${2:expression})"
+      kind: "Function"
+      label: "COLLECT({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
   description: "COLLECT AGGREGATE ONLY NAME"
   input: "SELECT COLLECT( ^ FROM EMP"
-  output:
-    completions:
-     -
-      kind: "Keyword"
-      label: "SELECT"
-     -
-      kind: "Keyword"
-      label: ")"
-     -
-      kind: "Keyword"
-      label: "VALUES"
-     -
-      kind: "Keyword"
-      label: "*"
-     -
-      kind: "Keyword"
-      label: "CASE"
-    functionContext:
-      function:
-        name: "COLLECT"
-        signatures: []
-      missingTypes: []
-      signaturesMatched: []
-      suppliedParameterTypes:
-        afterCursor: []
-        beforeCursor: []
-    hasMoreResults: true
- -
-  description: "COLLECT AGGREGATE WITH ALL"
-  input: "SELECT COLLECT( ALL ^ FROM EMP"
-  output:
-    completions:
-     -
-      kind: "Keyword"
-      label: "MULTISET"
-     -
-      kind: "Keyword"
-      label: "SELECT"
-     -
-      kind: "Keyword"
-      label: "("
-     -
-      kind: "Keyword"
-      label: "+"
-     -
-      kind: "Keyword"
-      label: "-"
-    functionContext:
-      function:
-        name: "COLLECT"
-        signatures: []
-      missingTypes: []
-      signaturesMatched: []
-      suppliedParameterTypes:
-        afterCursor: []
-        beforeCursor: []
-    hasMoreResults: true
- -
-  description: "COLLECT AGGREGATE WITH DISTINCT"
-  input: "SELECT COLLECT( DISTINCT ^ FROM EMP"
-  output:
-    completions:
-     -
-      kind: "Keyword"
-      label: "MULTISET"
-     -
-      kind: "Keyword"
-      label: "("
-     -
-      kind: "Keyword"
-      label: "+"
-     -
-      kind: "Keyword"
-      label: "-"
-     -
-      kind: "Keyword"
-      label: "?"
-    functionContext:
-      function:
-        name: "COLLECT"
-        signatures: []
-      missingTypes: []
-      signaturesMatched: []
-      suppliedParameterTypes:
-        afterCursor: []
-        beforeCursor: []
-    hasMoreResults: true
- -
-  description: "COLLECT AGGREGATE WITH DISTINCT VALUE"
-  input: "SELECT COLLECT( DISTINCT EMP.ENAME ^ FROM EMP"
-  output:
-    completions:
-     -
-      kind: "Keyword"
-      label: ")"
-     -
-      kind: "Keyword"
-      label: "="
-     -
-      kind: "Keyword"
-      label: "<"
-     -
-      kind: "Keyword"
-      label: "AND"
-     -
-      kind: "Keyword"
-      label: ">"
-    functionContext: null
-    hasMoreResults: true
- -
-  description: "MAX AGGREGATE PARTIAL NAME"
-  input: "SELECT MA^"
-  output:
-    completions:
-     -
-      insertText: "MAPPIFY(${1:ANY})"
-      kind: "Function"
-      label: "MAPPIFY(???)"
-     -
-      insertText: "MASK(${1:BOOLEAN})"
-      kind: "Function"
-      label: "MASK(???)"
-     -
-      insertText: "MASK(${1:BOOLEAN}, ${2:ANY})"
-      kind: "Function"
-      label: "MASK(???, ???)"
-     -
-      insertText: "MASK_FIRST_N(${1:BOOLEAN})"
-      kind: "Function"
-      label: "MASK_FIRST_N(???)"
-     -
-      insertText: "MASK_FIRST_N(${1:BOOLEAN}, ${2:ANY})"
-      kind: "Function"
-      label: "MASK_FIRST_N(???, ???)"
-    functionContext: null
-    hasMoreResults: true
- -
-  description: "MAX AGGREGATE ONLY NAME"
-  input: "SELECT MAX( ^ FROM EMP"
   output:
     completions:
      -
@@ -1636,44 +2029,362 @@
       label: "HIREDATE"
     functionContext:
       function:
+        description: "Returns a multiset of the values."
+        functionCategories:
+         - "AGGREGATE"
+        name: "COLLECT"
+        signatures:
+         -
+          description: "Collects the expression into a multiset."
+          parameters:
+           -
+            description: "The expression to collect."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "ANY"
+          snippetOverride: "COLLECT(${1|ALL,DISTINCT|} ${2:expression})"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       -
+        description: "Collects the expression into a multiset."
+        parameters:
+         -
+          description: "The expression to collect."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "ANY"
+        snippetOverride: "COLLECT(${1|ALL,DISTINCT|} ${2:expression})"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COLLECT AGGREGATE WITH ALL"
+  input: "SELECT COLLECT( ALL ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns a multiset of the values."
+        functionCategories:
+         - "AGGREGATE"
+        name: "COLLECT"
+        signatures:
+         -
+          description: "Collects the expression into a multiset."
+          parameters:
+           -
+            description: "The expression to collect."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "ANY"
+          snippetOverride: "COLLECT(${1|ALL,DISTINCT|} ${2:expression})"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       -
+        description: "Collects the expression into a multiset."
+        parameters:
+         -
+          description: "The expression to collect."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "ANY"
+        snippetOverride: "COLLECT(${1|ALL,DISTINCT|} ${2:expression})"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COLLECT AGGREGATE WITH DISTINCT"
+  input: "SELECT COLLECT( DISTINCT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "column (VARCHAR) in EMP"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "column (TIMESTAMP) in EMP"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext:
+      function:
+        description: "Returns a multiset of the values."
+        functionCategories:
+         - "AGGREGATE"
+        name: "COLLECT"
+        signatures:
+         -
+          description: "Collects the expression into a multiset."
+          parameters:
+           -
+            description: "The expression to collect."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "ANY"
+          snippetOverride: "COLLECT(${1|ALL,DISTINCT|} ${2:expression})"
+      missingTypes:
+       - "ANY"
+      signaturesMatched:
+       -
+        description: "Collects the expression into a multiset."
+        parameters:
+         -
+          description: "The expression to collect."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "ANY"
+        snippetOverride: "COLLECT(${1|ALL,DISTINCT|} ${2:expression})"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
+    hasMoreResults: true
+ -
+  description: "COLLECT AGGREGATE WITH DISTINCT VALUE"
+  input: "SELECT COLLECT( DISTINCT EMP.ENAME ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ")"
+     -
+      kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
+      label: ">"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "MAX AGGREGATE PARTIAL NAME"
+  input: "SELECT MA^"
+  output:
+    completions:
+     -
+      insertText: "MAPPIFY(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MAPPIFY(???)"
+     -
+      detail: "Returns all keys from a map expression."
+      insertText: "MAP_KEYS(${1:MAP})"
+      kind: "Function"
+      label: "MAP_KEYS(???)"
+     -
+      detail: "Returns all values from a map expression."
+      insertText: "MAP_VALUES(${1:MAP})"
+      kind: "Function"
+      label: "MAP_VALUES(???)"
+     -
+      insertText: "MASK(${1:BOOLEAN})"
+      kind: "Function"
+      label: "MASK(???)"
+     -
+      insertText: "MASK(${1:BOOLEAN}, ${2:NUMERIC})"
+      kind: "Function"
+      label: "MASK(???, ???)"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "MAX AGGREGATE ONLY NAME"
+  input: "SELECT MAX( ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "MGR"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
+      kind: "Column"
+      label: "MGR"
+     -
+      data:
+        column:
+          name: "SAL"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
+      kind: "Column"
+      label: "SAL"
+    functionContext:
+      function:
         description: "Returns the maximum value among the non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "MAX"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
-         - "(BYTES) -> BYTES"
-         - "(CHARACTERS) -> CHARACTERS"
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-         - "(DATE) -> DATE"
-         - "(TIME) -> TIME"
-         - "(TIMESTAMP) -> TIMESTAMP"
+         -
+          description: "Maximum value of the input expression."
+          parameters:
+           -
+            description: "The expression to take the max of across all rows."
+            kind: "REGULAR"
+            name: "expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT MAX(column_name) FROM my_table"
+            result: "Max of the values in the specified column."
+          snippetOverride: "MAX(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "BOOLEAN"
-       - "BYTES"
-       - "CHARACTERS"
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
-       - "DATE"
-       - "TIME"
-       - "TIMESTAMP"
+       - "NUMERIC"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
-       - "(BYTES) -> BYTES"
-       - "(CHARACTERS) -> CHARACTERS"
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-       - "(DATE) -> DATE"
-       - "(TIME) -> TIME"
-       - "(TIMESTAMP) -> TIMESTAMP"
+       -
+        description: "Maximum value of the input expression."
+        parameters:
+         -
+          description: "The expression to take the max of across all rows."
+          kind: "REGULAR"
+          name: "expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT MAX(column_name) FROM my_table"
+          result: "Max of the values in the specified column."
+        snippetOverride: "MAX(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -1716,63 +2427,63 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "HIREDATE"
+      label: "SAL"
     functionContext:
       function:
         description: "Returns the maximum value among the non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "MAX"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
-         - "(BYTES) -> BYTES"
-         - "(CHARACTERS) -> CHARACTERS"
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-         - "(DATE) -> DATE"
-         - "(TIME) -> TIME"
-         - "(TIMESTAMP) -> TIMESTAMP"
+         -
+          description: "Maximum value of the input expression."
+          parameters:
+           -
+            description: "The expression to take the max of across all rows."
+            kind: "REGULAR"
+            name: "expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT MAX(column_name) FROM my_table"
+            result: "Max of the values in the specified column."
+          snippetOverride: "MAX(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "BOOLEAN"
-       - "BYTES"
-       - "CHARACTERS"
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
-       - "DATE"
-       - "TIME"
-       - "TIMESTAMP"
+       - "NUMERIC"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
-       - "(BYTES) -> BYTES"
-       - "(CHARACTERS) -> CHARACTERS"
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-       - "(DATE) -> DATE"
-       - "(TIME) -> TIME"
-       - "(TIMESTAMP) -> TIMESTAMP"
+       -
+        description: "Maximum value of the input expression."
+        parameters:
+         -
+          description: "The expression to take the max of across all rows."
+          kind: "REGULAR"
+          name: "expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT MAX(column_name) FROM my_table"
+          result: "Max of the values in the specified column."
+        snippetOverride: "MAX(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -1815,63 +2526,63 @@
      -
       data:
         column:
-          name: "ENAME"
-          type: "VARCHAR"
+          name: "MGR"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.MGR"
       kind: "Column"
-      label: "ENAME"
+      label: "MGR"
      -
       data:
         column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
+          name: "SAL"
+          type: "INTEGER"
         tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
+      detail: "column (INTEGER) in EMP"
+      insertText: "EMP.SAL"
       kind: "Column"
-      label: "HIREDATE"
+      label: "SAL"
     functionContext:
       function:
         description: "Returns the maximum value among the non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "MAX"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
-         - "(BYTES) -> BYTES"
-         - "(CHARACTERS) -> CHARACTERS"
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-         - "(DATE) -> DATE"
-         - "(TIME) -> TIME"
-         - "(TIMESTAMP) -> TIMESTAMP"
+         -
+          description: "Maximum value of the input expression."
+          parameters:
+           -
+            description: "The expression to take the max of across all rows."
+            kind: "REGULAR"
+            name: "expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT MAX(column_name) FROM my_table"
+            result: "Max of the values in the specified column."
+          snippetOverride: "MAX(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "BOOLEAN"
-       - "BYTES"
-       - "CHARACTERS"
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
-       - "DATE"
-       - "TIME"
-       - "TIMESTAMP"
+       - "NUMERIC"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
-       - "(BYTES) -> BYTES"
-       - "(CHARACTERS) -> CHARACTERS"
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-       - "(DATE) -> DATE"
-       - "(TIME) -> TIME"
-       - "(TIMESTAMP) -> TIMESTAMP"
+       -
+        description: "Maximum value of the input expression."
+        parameters:
+         -
+          description: "The expression to take the max of across all rows."
+          kind: "REGULAR"
+          name: "expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT MAX(column_name) FROM my_table"
+          result: "Max of the values in the specified column."
+        snippetOverride: "MAX(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -1905,21 +2616,18 @@
     completions:
      -
       detail: "Returns the minimum value among the non-NULL input expressions."
-      insertText: "MIN(${1:BOOLEAN})"
+      insertText: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "MIN(???)"
+      label: "MIN({ALL,DISTINCT} ???)"
      -
-      insertText: "MINDIR(${1:CHARACTERS}, ${2:CHARACTERS})"
+      detail: "Returns the name of a subdirectory of a table in HDFS. The subdirectory has the name that ranks lowest in case-sensitive alphanumeric order."
+      insertText: "MINDIR(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:CHARACTERS})"
       kind: "Function"
-      label: "MINDIR(???, ???)"
+      label: "MINDIR(???, ???, ???)"
      -
-      insertText: "MINUTE(${1:DATEANDTIME})"
+      insertText: "MINUTE(${1:DATE})"
       kind: "Function"
       label: "MINUTE(???)"
-     -
-      insertText: "MIN_V2(${1:BOOLEAN})"
-      kind: "Function"
-      label: "MIN_V2(???)"
      -
       kind: "Keyword"
       label: "MINUS"
@@ -1983,43 +2691,43 @@
     functionContext:
       function:
         description: "Returns the minimum value among the non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "MIN"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
-         - "(BYTES) -> BYTES"
-         - "(CHARACTERS) -> CHARACTERS"
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-         - "(DATE) -> DATE"
-         - "(TIME) -> TIME"
-         - "(TIMESTAMP) -> TIMESTAMP"
+         -
+          description: "Minimum value of the input expressions."
+          parameters:
+           -
+            description: "Input expression."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "ANY"
+          sampleCodes:
+           -
+            call: "SELECT MIN(column_name)"
+            result: "Min of the values in the specified column."
+          snippetOverride: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "BOOLEAN"
-       - "BYTES"
-       - "CHARACTERS"
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
-       - "DATE"
-       - "TIME"
-       - "TIMESTAMP"
+       - "ANY"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
-       - "(BYTES) -> BYTES"
-       - "(CHARACTERS) -> CHARACTERS"
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-       - "(DATE) -> DATE"
-       - "(TIME) -> TIME"
-       - "(TIMESTAMP) -> TIMESTAMP"
+       -
+        description: "Minimum value of the input expressions."
+        parameters:
+         -
+          description: "Input expression."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "ANY"
+        sampleCodes:
+         -
+          call: "SELECT MIN(column_name)"
+          result: "Min of the values in the specified column."
+        snippetOverride: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2082,43 +2790,43 @@
     functionContext:
       function:
         description: "Returns the minimum value among the non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "MIN"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
-         - "(BYTES) -> BYTES"
-         - "(CHARACTERS) -> CHARACTERS"
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-         - "(DATE) -> DATE"
-         - "(TIME) -> TIME"
-         - "(TIMESTAMP) -> TIMESTAMP"
+         -
+          description: "Minimum value of the input expressions."
+          parameters:
+           -
+            description: "Input expression."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "ANY"
+          sampleCodes:
+           -
+            call: "SELECT MIN(column_name)"
+            result: "Min of the values in the specified column."
+          snippetOverride: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "BOOLEAN"
-       - "BYTES"
-       - "CHARACTERS"
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
-       - "DATE"
-       - "TIME"
-       - "TIMESTAMP"
+       - "ANY"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
-       - "(BYTES) -> BYTES"
-       - "(CHARACTERS) -> CHARACTERS"
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-       - "(DATE) -> DATE"
-       - "(TIME) -> TIME"
-       - "(TIMESTAMP) -> TIMESTAMP"
+       -
+        description: "Minimum value of the input expressions."
+        parameters:
+         -
+          description: "Input expression."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "ANY"
+        sampleCodes:
+         -
+          call: "SELECT MIN(column_name)"
+          result: "Min of the values in the specified column."
+        snippetOverride: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2181,43 +2889,43 @@
     functionContext:
       function:
         description: "Returns the minimum value among the non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "MIN"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
-         - "(BYTES) -> BYTES"
-         - "(CHARACTERS) -> CHARACTERS"
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-         - "(DATE) -> DATE"
-         - "(TIME) -> TIME"
-         - "(TIMESTAMP) -> TIMESTAMP"
+         -
+          description: "Minimum value of the input expressions."
+          parameters:
+           -
+            description: "Input expression."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "ANY"
+          sampleCodes:
+           -
+            call: "SELECT MIN(column_name)"
+            result: "Min of the values in the specified column."
+          snippetOverride: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "BOOLEAN"
-       - "BYTES"
-       - "CHARACTERS"
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
-       - "DATE"
-       - "TIME"
-       - "TIMESTAMP"
+       - "ANY"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
-       - "(BYTES) -> BYTES"
-       - "(CHARACTERS) -> CHARACTERS"
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-       - "(DATE) -> DATE"
-       - "(TIME) -> TIME"
-       - "(TIMESTAMP) -> TIMESTAMP"
+       -
+        description: "Minimum value of the input expressions."
+        parameters:
+         -
+          description: "Input expression."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "ANY"
+        sampleCodes:
+         -
+          call: "SELECT MIN(column_name)"
+          result: "Min of the values in the specified column."
+        snippetOverride: "MIN(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2250,17 +2958,20 @@
   output:
     completions:
      -
-      insertText: "STDDEV(${1:NUMERIC})"
+      detail: "Synonym for STDDEV_SAMP"
+      insertText: "STDDEV(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "STDDEV(???)"
+      label: "STDDEV({ALL,DISTINCT} ???)"
      -
-      insertText: "STDDEV_POP(${1:NUMERIC})"
+      detail: "Returns the population standard deviation of numeric across all input values."
+      insertText: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "STDDEV_POP(???)"
+      label: "STDDEV_POP({ALL,DISTINCT} ???)"
      -
-      insertText: "STDDEV_SAMP(${1:NUMERIC})"
+      detail: "Returns the sample standard deviation of numeric across all input values."
+      insertText: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "STDDEV_SAMP(???)"
+      label: "STDDEV_SAMP({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -2320,13 +3031,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Synonym for STDDEV_SAMP"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample standard deviation of the expression across all input values."
+          parameters:
+           -
+            description: "The expression to take the sample standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV(ALL MY_EXPRESSION) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample standard deviation of the expression across all input values."
+        parameters:
+         -
+          description: "The expression to take the sample standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV(ALL MY_EXPRESSION) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2388,13 +3129,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Synonym for STDDEV_SAMP"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample standard deviation of the expression across all input values."
+          parameters:
+           -
+            description: "The expression to take the sample standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV(ALL MY_EXPRESSION) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample standard deviation of the expression across all input values."
+        parameters:
+         -
+          description: "The expression to take the sample standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV(ALL MY_EXPRESSION) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2456,13 +3227,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Synonym for STDDEV_SAMP"
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample standard deviation of the expression across all input values."
+          parameters:
+           -
+            description: "The expression to take the sample standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV(ALL MY_EXPRESSION) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample standard deviation of the expression across all input values."
+        parameters:
+         -
+          description: "The expression to take the sample standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV(ALL MY_EXPRESSION) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2495,9 +3296,10 @@
   output:
     completions:
      -
-      insertText: "STDDEV_POP(${1:NUMERIC})"
+      detail: "Returns the population standard deviation of numeric across all input values."
+      insertText: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "STDDEV_POP(???)"
+      label: "STDDEV_POP({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -2557,13 +3359,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Returns the population standard deviation of numeric across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV_POP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the population standard deviation of numeric across all input values."
+          parameters:
+           -
+            description: "The expression to take the population standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV_POP(ALL MY_COLUMN) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the population standard deviation of numeric across all input values."
+        parameters:
+         -
+          description: "The expression to take the population standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV_POP(ALL MY_COLUMN) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2625,13 +3457,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Returns the population standard deviation of numeric across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV_POP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the population standard deviation of numeric across all input values."
+          parameters:
+           -
+            description: "The expression to take the population standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV_POP(ALL MY_COLUMN) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the population standard deviation of numeric across all input values."
+        parameters:
+         -
+          description: "The expression to take the population standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV_POP(ALL MY_COLUMN) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2693,13 +3555,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Returns the population standard deviation of numeric across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV_POP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the population standard deviation of numeric across all input values."
+          parameters:
+           -
+            description: "The expression to take the population standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV_POP(ALL MY_COLUMN) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the population standard deviation of numeric across all input values."
+        parameters:
+         -
+          description: "The expression to take the population standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV_POP(ALL MY_COLUMN) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV_POP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2732,9 +3624,10 @@
   output:
     completions:
      -
-      insertText: "STDDEV_SAMP(${1:NUMERIC})"
+      detail: "Returns the sample standard deviation of numeric across all input values."
+      insertText: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "STDDEV_SAMP(???)"
+      label: "STDDEV_SAMP({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -2794,13 +3687,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Returns the sample standard deviation of numeric across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV_SAMP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample standard deviation of numeric across all input values."
+          parameters:
+           -
+            description: "The expression to take the sample standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV_SAMP(ALL MY_COLUMN) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample standard deviation of numeric across all input values."
+        parameters:
+         -
+          description: "The expression to take the sample standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV_SAMP(ALL MY_COLUMN) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2862,13 +3785,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Returns the sample standard deviation of numeric across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV_SAMP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample standard deviation of numeric across all input values."
+          parameters:
+           -
+            description: "The expression to take the sample standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV_SAMP(ALL MY_COLUMN) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample standard deviation of numeric across all input values."
+        parameters:
+         -
+          description: "The expression to take the sample standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV_SAMP(ALL MY_COLUMN) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2930,13 +3883,43 @@
       label: "SAL"
     functionContext:
       function:
+        description: "Returns the sample standard deviation of numeric across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "MATH"
         name: "STDDEV_SAMP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample standard deviation of numeric across all input values."
+          parameters:
+           -
+            description: "The expression to take the sample standard deviation of."
+            kind: "REGULAR"
+            name: "numericExpression"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT STDDEV_SAMP(ALL MY_COLUMN) FROM MY_TABLE"
+            result: "42"
+          snippetOverride: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample standard deviation of numeric across all input values."
+        parameters:
+         -
+          description: "The expression to take the sample standard deviation of."
+          kind: "REGULAR"
+          name: "numericExpression"
+          type: "NUMERIC"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "SELECT STDDEV_SAMP(ALL MY_COLUMN) FROM MY_TABLE"
+          result: "42"
+        snippetOverride: "STDDEV_SAMP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -2969,29 +3952,31 @@
   output:
     completions:
      -
-      insertText: "SUBSTR(${1:CHARACTERS}, ${2:CHARACTERS})"
-      kind: "Function"
-      label: "SUBSTR(???, ???)"
-     -
-      insertText: "SUBSTR(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
-      kind: "Function"
-      label: "SUBSTR(???, ???, ???)"
-     -
-      insertText: "SUBSTR2(${1:CHARACTERS}, ${2:BIGINT}, ${3:BIGINT})"
-      kind: "Function"
-      label: "SUBSTR2(???, ???, ???)"
-     -
-      detail: "Returns the part of a string."
-      insertText: "SUBSTRING(${1:string} FROM ${2:fromIndex})"
+      detail: "Returns the portion of the STRING from the specified base expression starting at the specified characters."
+      insertText: "SUBSTRING(${1:stringValue} FROM ${2:startIndex})"
       kind: "Function"
       label: "SUBSTRING(??? FROM ???)"
      -
-      detail: "Returns the part of a string."
-      insertText: "SUBSTRING(${1:string} FROM ${2:fromIndex} FOR ${3:forLength})"
+      detail: "Returns the portion of the STRING from the specified base expression starting at the specified characters."
+      insertText: "SUBSTRING(${1:CHARACTERS}, ${2:CHARACTERS})"
+      kind: "Function"
+      label: "SUBSTRING(???, ???)"
+     -
+      detail: "Returns the portion of the STRING from the specified base expression starting at the specified characters."
+      insertText: "SUBSTRING(${1:stringValue} FROM ${2:startIndex} FOR ${3:length})"
       kind: "Function"
       label: "SUBSTRING(??? FROM ??? FOR ???)"
+     -
+      insertText: "SUBSTRING_INDEX(${1:CHARACTERS}, ${2:CHARACTERS}, ${3:INT})"
+      kind: "Function"
+      label: "SUBSTRING_INDEX(???, ???, ???)"
+     -
+      detail: "Returns the sum of non-NULL input expressions."
+      insertText: "SUM(${1|ALL,DISTINCT|} ${2:expression})"
+      kind: "Function"
+      label: "SUM({ALL,DISTINCT} ???)"
     functionContext: null
-    hasMoreResults: true
+    hasMoreResults: false
  -
   description: "SUM AGGREGATE ONLY NAME"
   input: "SELECT SUM( ^ FROM EMP"
@@ -3050,25 +4035,43 @@
     functionContext:
       function:
         description: "Returns the sum of non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "SUM"
         signatures:
-         - "(FLOAT) -> DOUBLE"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> BIGINT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Returns the sum of non-NULL input expressions."
+          parameters:
+           -
+            description: "Numeric input expression."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT SUM(column_name) FROM my_table"
+            result: "Sum of the values in the specified column."
+          snippetOverride: "SUM(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
       signaturesMatched:
-       - "(FLOAT) -> DOUBLE"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> BIGINT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Returns the sum of non-NULL input expressions."
+        parameters:
+         -
+          description: "Numeric input expression."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT SUM(column_name) FROM my_table"
+          result: "Sum of the values in the specified column."
+        snippetOverride: "SUM(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3131,25 +4134,43 @@
     functionContext:
       function:
         description: "Returns the sum of non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "SUM"
         signatures:
-         - "(FLOAT) -> DOUBLE"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> BIGINT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Returns the sum of non-NULL input expressions."
+          parameters:
+           -
+            description: "Numeric input expression."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT SUM(column_name) FROM my_table"
+            result: "Sum of the values in the specified column."
+          snippetOverride: "SUM(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
       signaturesMatched:
-       - "(FLOAT) -> DOUBLE"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> BIGINT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Returns the sum of non-NULL input expressions."
+        parameters:
+         -
+          description: "Numeric input expression."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT SUM(column_name) FROM my_table"
+          result: "Sum of the values in the specified column."
+        snippetOverride: "SUM(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3212,25 +4233,43 @@
     functionContext:
       function:
         description: "Returns the sum of non-NULL input expressions."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "SUM"
         signatures:
-         - "(FLOAT) -> DOUBLE"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> BIGINT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Returns the sum of non-NULL input expressions."
+          parameters:
+           -
+            description: "Numeric input expression."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT SUM(column_name) FROM my_table"
+            result: "Sum of the values in the specified column."
+          snippetOverride: "SUM(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
       signaturesMatched:
-       - "(FLOAT) -> DOUBLE"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> BIGINT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Returns the sum of non-NULL input expressions."
+        parameters:
+         -
+          description: "Numeric input expression."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT SUM(column_name) FROM my_table"
+          result: "Sum of the values in the specified column."
+        snippetOverride: "SUM(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3264,9 +4303,9 @@
     completions:
      -
       detail: "Returns the population variance of non-NULL records."
-      insertText: "VAR_POP(${1:NUMERIC})"
+      insertText: "VAR_POP(${1|ALL,DISTINCT|} ${2:expression})"
       kind: "Function"
-      label: "VAR_POP(???)"
+      label: "VAR_POP({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -3327,13 +4366,43 @@
     functionContext:
       function:
         description: "Returns the population variance of non-NULL records."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "VAR_POP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the population variance of the records."
+          parameters:
+           -
+            description: "The set of records to calculate variance for."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT VAR_POP(ALL pop) FROM \"zips.json\""
+            result: "1.5167869917122573E8"
+          snippetOverride: "VAR_POP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the population variance of the records."
+        parameters:
+         -
+          description: "The set of records to calculate variance for."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT VAR_POP(ALL pop) FROM \"zips.json\""
+          result: "1.5167869917122573E8"
+        snippetOverride: "VAR_POP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3396,13 +4465,43 @@
     functionContext:
       function:
         description: "Returns the population variance of non-NULL records."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "VAR_POP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the population variance of the records."
+          parameters:
+           -
+            description: "The set of records to calculate variance for."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT VAR_POP(ALL pop) FROM \"zips.json\""
+            result: "1.5167869917122573E8"
+          snippetOverride: "VAR_POP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the population variance of the records."
+        parameters:
+         -
+          description: "The set of records to calculate variance for."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT VAR_POP(ALL pop) FROM \"zips.json\""
+          result: "1.5167869917122573E8"
+        snippetOverride: "VAR_POP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3465,13 +4564,43 @@
     functionContext:
       function:
         description: "Returns the population variance of non-NULL records."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "VAR_POP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the population variance of the records."
+          parameters:
+           -
+            description: "The set of records to calculate variance for."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT VAR_POP(ALL pop) FROM \"zips.json\""
+            result: "1.5167869917122573E8"
+          snippetOverride: "VAR_POP(${1|ALL,DISTINCT|} ${2:expression})"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the population variance of the records."
+        parameters:
+         -
+          description: "The set of records to calculate variance for."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT VAR_POP(ALL pop) FROM \"zips.json\""
+          result: "1.5167869917122573E8"
+        snippetOverride: "VAR_POP(${1|ALL,DISTINCT|} ${2:expression})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3568,13 +4697,41 @@
     functionContext:
       function:
         description: "Returns the sample variance of non-NULL records."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "VAR_SAMP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample variance of the records."
+          parameters:
+           -
+            description: "The set of records to calculate variance for."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
+            result: "1.868747683518558"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample variance of the records."
+        parameters:
+         -
+          description: "The set of records to calculate variance for."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
+          result: "1.868747683518558"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3637,13 +4794,41 @@
     functionContext:
       function:
         description: "Returns the sample variance of non-NULL records."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "VAR_SAMP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample variance of the records."
+          parameters:
+           -
+            description: "The set of records to calculate variance for."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
+            result: "1.868747683518558"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample variance of the records."
+        parameters:
+         -
+          description: "The set of records to calculate variance for."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
+          result: "1.868747683518558"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3706,13 +4891,41 @@
     functionContext:
       function:
         description: "Returns the sample variance of non-NULL records."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "VAR_SAMP"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          description: "Returns the sample variance of the records."
+          parameters:
+           -
+            description: "The set of records to calculate variance for."
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
+            result: "1.868747683518558"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        description: "Returns the sample variance of the records."
+        parameters:
+         -
+          description: "The set of records to calculate variance for."
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT VAR_SAMP(passenger_count) FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\""
+          result: "1.868747683518558"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3745,9 +4958,15 @@
   output:
     completions:
      -
-      insertText: "LISTAGG(${1:BYTES}, ${2:STRING})"
+      detail: "Returns values concatenated into a string, delimited by separator (default ‘,’)"
+      insertText: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
       kind: "Function"
-      label: "LISTAGG(???, ???)"
+      label: "LISTAGG({ALL,DISTINCT} ???)"
+     -
+      detail: "Returns values concatenated into a string, delimited by separator (default ‘,’)"
+      insertText: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
+      kind: "Function"
+      label: "LISTAGG({ALL,DISTINCT} ???, ???)"
      -
       insertText: "LISTAGG_MERGE(${1:STRING}, ${2:STRING})"
       kind: "Function"
@@ -3780,29 +4999,94 @@
       kind: "Column"
       label: "JOB"
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "BIN(${1:INT})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "BIN(???)"
     functionContext:
       function:
+        description: "Returns values concatenated into a string, delimited by separator (default ‘,’)"
+        functionCategories:
+         - "AGGREGATE"
+         - "CHARACTER"
         name: "LISTAGG"
         signatures:
-         - "(BYTES, STRING?) -> BYTES"
-         - "(CHARACTERS, STRING?) -> CHARACTERS"
+         -
+          description: "Returns values concatenated into a string, delimited by comma separator."
+          parameters:
+           -
+            description: "The expression to concatenate across all rows."
+            kind: "REGULAR"
+            name: "characterExpression"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT LISTAGG(MY_COLUMN)"
+            result: "'Hello,World'"
+          snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
+         -
+          description: "Returns values concatenated into a string, delimited by separator of your choice."
+          parameters:
+           -
+            description: "The expression to concatenate across all rows."
+            kind: "REGULAR"
+            name: "characterExpression"
+            type: "CHARACTERS"
+           -
+            description: "The separator to use for delimiting the string."
+            kind: "REGULAR"
+            name: "separator"
+            type: "STRING"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT LISTAGG(MY_COLUMN, '-')"
+            result: "Hello-World"
+          snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
       missingTypes:
-       - "BYTES"
        - "CHARACTERS"
       signaturesMatched:
-       - "(BYTES, STRING?) -> BYTES"
-       - "(CHARACTERS, STRING?) -> CHARACTERS"
+       -
+        description: "Returns values concatenated into a string, delimited by comma separator."
+        parameters:
+         -
+          description: "The expression to concatenate across all rows."
+          kind: "REGULAR"
+          name: "characterExpression"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT LISTAGG(MY_COLUMN)"
+          result: "'Hello,World'"
+        snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
+       -
+        description: "Returns values concatenated into a string, delimited by separator of your choice."
+        parameters:
+         -
+          description: "The expression to concatenate across all rows."
+          kind: "REGULAR"
+          name: "characterExpression"
+          type: "CHARACTERS"
+         -
+          description: "The separator to use for delimiting the string."
+          kind: "REGULAR"
+          name: "separator"
+          type: "STRING"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT LISTAGG(MY_COLUMN, '-')"
+          result: "Hello-World"
+        snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3833,29 +5117,94 @@
       kind: "Column"
       label: "JOB"
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "BIN(${1:INT})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "BIN(???)"
     functionContext:
       function:
+        description: "Returns values concatenated into a string, delimited by separator (default ‘,’)"
+        functionCategories:
+         - "AGGREGATE"
+         - "CHARACTER"
         name: "LISTAGG"
         signatures:
-         - "(BYTES, STRING?) -> BYTES"
-         - "(CHARACTERS, STRING?) -> CHARACTERS"
+         -
+          description: "Returns values concatenated into a string, delimited by comma separator."
+          parameters:
+           -
+            description: "The expression to concatenate across all rows."
+            kind: "REGULAR"
+            name: "characterExpression"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT LISTAGG(MY_COLUMN)"
+            result: "'Hello,World'"
+          snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
+         -
+          description: "Returns values concatenated into a string, delimited by separator of your choice."
+          parameters:
+           -
+            description: "The expression to concatenate across all rows."
+            kind: "REGULAR"
+            name: "characterExpression"
+            type: "CHARACTERS"
+           -
+            description: "The separator to use for delimiting the string."
+            kind: "REGULAR"
+            name: "separator"
+            type: "STRING"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT LISTAGG(MY_COLUMN, '-')"
+            result: "Hello-World"
+          snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
       missingTypes:
-       - "BYTES"
        - "CHARACTERS"
       signaturesMatched:
-       - "(BYTES, STRING?) -> BYTES"
-       - "(CHARACTERS, STRING?) -> CHARACTERS"
+       -
+        description: "Returns values concatenated into a string, delimited by comma separator."
+        parameters:
+         -
+          description: "The expression to concatenate across all rows."
+          kind: "REGULAR"
+          name: "characterExpression"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT LISTAGG(MY_COLUMN)"
+          result: "'Hello,World'"
+        snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
+       -
+        description: "Returns values concatenated into a string, delimited by separator of your choice."
+        parameters:
+         -
+          description: "The expression to concatenate across all rows."
+          kind: "REGULAR"
+          name: "characterExpression"
+          type: "CHARACTERS"
+         -
+          description: "The separator to use for delimiting the string."
+          kind: "REGULAR"
+          name: "separator"
+          type: "STRING"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT LISTAGG(MY_COLUMN, '-')"
+          result: "Hello-World"
+        snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3886,29 +5235,94 @@
       kind: "Column"
       label: "JOB"
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "BIN(${1:INT})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "BIN(???)"
     functionContext:
       function:
+        description: "Returns values concatenated into a string, delimited by separator (default ‘,’)"
+        functionCategories:
+         - "AGGREGATE"
+         - "CHARACTER"
         name: "LISTAGG"
         signatures:
-         - "(BYTES, STRING?) -> BYTES"
-         - "(CHARACTERS, STRING?) -> CHARACTERS"
+         -
+          description: "Returns values concatenated into a string, delimited by comma separator."
+          parameters:
+           -
+            description: "The expression to concatenate across all rows."
+            kind: "REGULAR"
+            name: "characterExpression"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT LISTAGG(MY_COLUMN)"
+            result: "'Hello,World'"
+          snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
+         -
+          description: "Returns values concatenated into a string, delimited by separator of your choice."
+          parameters:
+           -
+            description: "The expression to concatenate across all rows."
+            kind: "REGULAR"
+            name: "characterExpression"
+            type: "CHARACTERS"
+           -
+            description: "The separator to use for delimiting the string."
+            kind: "REGULAR"
+            name: "separator"
+            type: "STRING"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT LISTAGG(MY_COLUMN, '-')"
+            result: "Hello-World"
+          snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
       missingTypes:
-       - "BYTES"
        - "CHARACTERS"
       signaturesMatched:
-       - "(BYTES, STRING?) -> BYTES"
-       - "(CHARACTERS, STRING?) -> CHARACTERS"
+       -
+        description: "Returns values concatenated into a string, delimited by comma separator."
+        parameters:
+         -
+          description: "The expression to concatenate across all rows."
+          kind: "REGULAR"
+          name: "characterExpression"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT LISTAGG(MY_COLUMN)"
+          result: "'Hello,World'"
+        snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression})"
+       -
+        description: "Returns values concatenated into a string, delimited by separator of your choice."
+        parameters:
+         -
+          description: "The expression to concatenate across all rows."
+          kind: "REGULAR"
+          name: "characterExpression"
+          type: "CHARACTERS"
+         -
+          description: "The separator to use for delimiting the string."
+          kind: "REGULAR"
+          name: "separator"
+          type: "STRING"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT LISTAGG(MY_COLUMN, '-')"
+          result: "Hello-World"
+        snippetOverride: "LISTAGG(${1|ALL,DISTINCT|} ${2:characterExpression}, ${3:separator})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -3941,6 +5355,7 @@
   output:
     completions:
      -
+      detail: "Returns the population covariance for non-NULL pairs across all input values."
       insertText: "COVAR_POP(${1:NUMERIC}, ${2:NUMERIC})"
       kind: "Function"
       label: "COVAR_POP(???, ???)"
@@ -3990,9 +5405,35 @@
       label: "?"
     functionContext:
       function:
+        description: "Returns the population covariance for non-NULL pairs across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COVAR_POP"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the dependent value."
+            kind: "REGULAR"
+            name: "expression1"
+            type: "NUMERIC"
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the independent value."
+            kind: "REGULAR"
+            name: "expression2"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "31.70536771189994"
+           -
+            call: "SELECT COVAR_POP(DISTINCT trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "302.59280681444307"
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "1.5543122344752192e-15"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -4022,9 +5463,35 @@
       label: "CASE"
     functionContext:
       function:
+        description: "Returns the population covariance for non-NULL pairs across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COVAR_POP"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the dependent value."
+            kind: "REGULAR"
+            name: "expression1"
+            type: "NUMERIC"
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the independent value."
+            kind: "REGULAR"
+            name: "expression2"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "31.70536771189994"
+           -
+            call: "SELECT COVAR_POP(DISTINCT trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "302.59280681444307"
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "1.5543122344752192e-15"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -4038,6 +5505,7 @@
   output:
     completions:
      -
+      detail: "Returns the sample covariance for non-NULL pairs across all input values."
       insertText: "COVAR_SAMP(${1:NUMERIC}, ${2:NUMERIC})"
       kind: "Function"
       label: "COVAR_SAMP(???, ???)"
@@ -4087,9 +5555,35 @@
       label: "?"
     functionContext:
       function:
+        description: "Returns the sample covariance for non-NULL pairs across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COVAR_SAMP"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the dependent value."
+            kind: "REGULAR"
+            name: "expression1"
+            type: "NUMERIC"
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the independent value."
+            kind: "REGULAR"
+            name: "expression2"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "31.70536780565699"
+           -
+            call: "SELECT COVAR_POP(DISTINCT trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "31.7053678056971"
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "2.442515362986122e-15"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -4119,193 +5613,41 @@
       label: "CASE"
     functionContext:
       function:
+        description: "Returns the sample covariance for non-NULL pairs across all input values."
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COVAR_SAMP"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the dependent value."
+            kind: "REGULAR"
+            name: "expression1"
+            type: "NUMERIC"
+           -
+            description: "An expression that evaluates to a numeric type. This parameter is the independent value."
+            kind: "REGULAR"
+            name: "expression2"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "31.70536780565699"
+           -
+            call: "SELECT COVAR_POP(DISTINCT trip_distance_mi, fare_amount)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "31.7053678056971"
+           -
+            call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\nFROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+            result: "2.442515362986122e-15"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
         afterCursor:
          - "CHARACTERS"
         beforeCursor: []
-    hasMoreResults: true
- -
-  description: "COMMA SEPARATED PARTIAL NAME"
-  input: "SELECT REGR_COUN^"
-  output:
-    completions: []
-    functionContext: null
-    hasMoreResults: false
- -
-  description: "COMMA SEPARATED NAME WITH ONE PARAMETER"
-  input: "SELECT REGR_COUNT(EMP.ENAME ^ FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
-        tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
-      kind: "Column"
-      label: "HIREDATE"
-    functionContext: null
-    hasMoreResults: true
- -
-  description: "COMMA SEPARATED NAME WITH ONE PARAMETER COMMA"
-  input: "SELECT REGR_COUNT(EMP.ENAME, ^ FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
-        tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
-      kind: "Column"
-      label: "HIREDATE"
-    functionContext: null
-    hasMoreResults: true
- -
-  description: "COMMA SEPARATED WITH SECOND PARAMETER"
-  input: "SELECT REGR_COUNT(^ , EMP.ENAME) FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
-        tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
-      kind: "Column"
-      label: "HIREDATE"
-    functionContext: null
     hasMoreResults: true
  -
   description: "COMMA SEPARATED PARTIAL NAME"
@@ -4362,9 +5704,30 @@
       label: "?"
     functionContext:
       function:
+        description: "<DESCRIPTION GOES HERE>"
+        functionCategories: []
         name: "REGR_SXX"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -4394,9 +5757,30 @@
       label: "CASE"
     functionContext:
       function:
+        description: "<DESCRIPTION GOES HERE>"
+        functionCategories: []
         name: "REGR_SXX"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -4459,9 +5843,30 @@
       label: "?"
     functionContext:
       function:
+        description: "<DESCRIPTION GOES HERE>"
+        functionCategories: []
         name: "REGR_SYY"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -4491,9 +5896,30 @@
       label: "CASE"
     functionContext:
       function:
+        description: "<DESCRIPTION GOES HERE>"
+        functionCategories: []
         name: "REGR_SYY"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "NUMERIC"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -4508,9 +5934,9 @@
     completions:
      -
       detail: "Returns the approximate number of rows that contain distinct values in a column. Ignores rows that contain a null value for the column."
-      insertText: "APPROX_COUNT_DISTINCT(${1:ANY})"
+      insertText: "APPROX_COUNT_DISTINCT(${1|ALL,DISTINCT|} ${2:value})"
       kind: "Function"
-      label: "APPROX_COUNT_DISTINCT(???)"
+      label: "APPROX_COUNT_DISTINCT({ALL,DISTINCT} ???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -4541,65 +5967,44 @@
   output:
     completions:
      -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
+      kind: "Keyword"
+      label: "("
      -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
+      kind: "Keyword"
+      label: "MULTISET"
      -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
+      kind: "Keyword"
+      label: "+"
      -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
+      kind: "Keyword"
+      label: "-"
      -
-      data:
-        column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
-        tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
-      kind: "Column"
-      label: "HIREDATE"
+      kind: "Keyword"
+      label: "?"
     functionContext:
       function:
         description: "Returns the approximate number of rows that contain distinct values in a column. Ignores rows that contain a null value for the column."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
         name: "APPROX_COUNT_DISTINCT"
         signatures:
-         - "(ANY...) -> BIGINT"
-      missingTypes:
-       - "ANY"
-      signaturesMatched:
-       - "(ANY...) -> BIGINT"
+         -
+          description: "Returns an NUMERIC"
+          parameters:
+           -
+            description: "The column can contain values of any data type."
+            kind: "REGULAR"
+            name: "column_name"
+            type: "ANY"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT APPROX_COUNT_DISTINCT(business_id) AS \"number_of_businesses\" FROM \"restaurant_reviews.parquet\";"
+            result: "62"
+          snippetOverride: "APPROX_COUNT_DISTINCT(${1|ALL,DISTINCT|} ${2:value})"
+      missingTypes: []
+      signaturesMatched: []
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -4628,379 +6033,31 @@
     functionContext:
       function:
         description: "Returns the approximate number of rows that contain distinct values in a column. Ignores rows that contain a null value for the column."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
         name: "APPROX_COUNT_DISTINCT"
         signatures:
-         - "(ANY...) -> BIGINT"
+         -
+          description: "Returns an NUMERIC"
+          parameters:
+           -
+            description: "The column can contain values of any data type."
+            kind: "REGULAR"
+            name: "column_name"
+            type: "ANY"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT APPROX_COUNT_DISTINCT(business_id) AS \"number_of_businesses\" FROM \"restaurant_reviews.parquet\";"
+            result: "62"
+          snippetOverride: "APPROX_COUNT_DISTINCT(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
         afterCursor:
          - "CHARACTERS"
         beforeCursor: []
-    hasMoreResults: true
- -
-  description: "EVERY CONDITIONED PARTIAL NAME"
-  input: "SELECT EVER^"
-  output:
-    completions:
-     -
-      insertText: "EVERY(${1:BOOLEAN})"
-      kind: "Function"
-      label: "EVERY(???)"
-    functionContext: null
-    hasMoreResults: false
- -
-  description: "EVERY CONDITIONED INCOMPLETE CONDITION"
-  input: "SELECT EVERY(EMP.ENAME ^ FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "JOB"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
-      kind: "Column"
-      label: "JOB"
-    functionContext:
-      function:
-        name: "EVERY"
-        signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-      missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
-      signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-      suppliedParameterTypes:
-        afterCursor: []
-        beforeCursor: []
-    hasMoreResults: true
- -
-  description: "EVERY CONDITIONED WITH CONDITION"
-  input: "SELECT EVERY(EMP.ENAME < 0 ^ FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "JOB"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.JOB"
-      kind: "Column"
-      label: "JOB"
-    functionContext:
-      function:
-        name: "EVERY"
-        signatures:
-         - "(BOOLEAN) -> INT"
-         - "(STRING) -> INT"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
-      missingTypes:
-       - "BOOLEAN"
-       - "STRING"
-       - "INT"
-       - "BIGINT"
-      signaturesMatched:
-       - "(BOOLEAN) -> INT"
-       - "(STRING) -> INT"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
-      suppliedParameterTypes:
-        afterCursor: []
-        beforeCursor: []
-    hasMoreResults: true
- -
-  description: "SOME CONDITIONED PARTIAL NAME"
-  input: "SELECT SOM^"
-  output:
-    completions: []
-    functionContext: null
-    hasMoreResults: false
- -
-  description: "SOME CONDITIONED INCOMPLETE CONDITION"
-  input: "SELECT SOME(EMP.ENAME ^ FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
-        tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
-      kind: "Column"
-      label: "HIREDATE"
-    functionContext: null
-    hasMoreResults: true
- -
-  description: "SOME CONDITIONED WITH CONDITION"
-  input: "SELECT SOME(EMP.ENAME < 0 ^ FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
-        tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
-      kind: "Column"
-      label: "HIREDATE"
-    functionContext: null
-    hasMoreResults: true
- -
-  description: "FUSION PARTIAL NAME"
-  input: "SELECT FUSIO^"
-  output:
-    completions: []
-    functionContext: null
-    hasMoreResults: false
- -
-  description: "FUSION WITH INCOMPLETE PARAMETER"
-  input: "SELECT FUSION(MULTISET(\"A\", \"B\") ^ FROM EMP"
-  output:
-    completions: []
-    functionContext: null
-    hasMoreResults: false
- -
-  description: "INTERSECTION PARTIAL NAME"
-  input: "SELECT INTERSECTIO^"
-  output:
-    completions: []
-    functionContext: null
-    hasMoreResults: false
- -
-  description: "INTERSECTION WITH INCOMPLETE PARAMETER"
-  input: "SELECT INTERSECTION(MULTISET(\"A\", \"B\") ^ FROM EMP"
-  output:
-    completions:
-     -
-      data:
-        column:
-          name: "COMM"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.COMM"
-      kind: "Column"
-      label: "COMM"
-     -
-      data:
-        column:
-          name: "DEPTNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.DEPTNO"
-      kind: "Column"
-      label: "DEPTNO"
-     -
-      data:
-        column:
-          name: "EMPNO"
-          type: "INTEGER"
-        tableAlias: "EMP"
-      detail: "column (INTEGER) in EMP"
-      insertText: "EMP.EMPNO"
-      kind: "Column"
-      label: "EMPNO"
-     -
-      data:
-        column:
-          name: "ENAME"
-          type: "VARCHAR"
-        tableAlias: "EMP"
-      detail: "column (VARCHAR) in EMP"
-      insertText: "EMP.ENAME"
-      kind: "Column"
-      label: "ENAME"
-     -
-      data:
-        column:
-          name: "HIREDATE"
-          type: "TIMESTAMP"
-        tableAlias: "EMP"
-      detail: "column (TIMESTAMP) in EMP"
-      insertText: "EMP.HIREDATE"
-      kind: "Column"
-      label: "HIREDATE"
-    functionContext: null
     hasMoreResults: true
  -
   description: "COUNT PARTIAL NAME"
@@ -5077,14 +6134,52 @@
     functionContext:
       function:
         description: "Returns the total number of records for the specified expression."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COUNT"
         signatures:
-         - "() -> BIGINT\n\tCOUNT(*)"
-         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+         -
+          description: "Returns the total number of records in the dataset."
+          parameters: []
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(*) FROM EMP"
+            result: "93456745"
+          snippetOverride: "COUNT(*)"
+         -
+          description: "Returns the total number of records for the specified expression."
+          parameters:
+           -
+            description: "Expression to evaluate number of records for."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(column_name) FROM my_table"
+            result: "89"
+          snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes:
        - "ANY"
       signaturesMatched:
-       - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+       -
+        description: "Returns the total number of records for the specified expression."
+        parameters:
+         -
+          description: "Expression to evaluate number of records for."
+          kind: "REGULAR"
+          name: "expression"
+          type: "ANY"
+        returnType: "BIGINT"
+        sampleCodes:
+         -
+          call: "SELECT COUNT(column_name) FROM my_table"
+          result: "89"
+        snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -5144,10 +6239,35 @@
     functionContext:
       function:
         description: "Returns the total number of records for the specified expression."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "AGGREGATE"
+         - "WINDOW"
         name: "COUNT"
         signatures:
-         - "() -> BIGINT\n\tCOUNT(*)"
-         - "(ANY[The expression to take the count of.]) -> BIGINT\n\tCOUNT(${1|ALL,DISTINCT|} ${2:value})"
+         -
+          description: "Returns the total number of records in the dataset."
+          parameters: []
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(*) FROM EMP"
+            result: "93456745"
+          snippetOverride: "COUNT(*)"
+         -
+          description: "Returns the total number of records for the specified expression."
+          parameters:
+           -
+            description: "Expression to evaluate number of records for."
+            kind: "REGULAR"
+            name: "expression"
+            type: "ANY"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "SELECT COUNT(column_name) FROM my_table"
+            result: "89"
+          snippetOverride: "COUNT(${1|ALL,DISTINCT|} ${2:value})"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:

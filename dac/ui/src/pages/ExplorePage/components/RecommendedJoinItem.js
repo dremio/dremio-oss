@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 import FontIcon from "components/Icon/FontIcon";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 

@@ -62,8 +62,11 @@ import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.Snapshot;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.core.TableFunctionScan;
+import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -100,6 +103,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 
 import com.carrotsearch.hppc.IntIntHashMap;
@@ -120,8 +124,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-
-import net.logstash.logback.encoder.org.apache.commons.lang3.StringUtils;
 
 /**
  * Utility class that is a subset of the RelOptUtil class and is a placeholder for Dremio specific
@@ -1243,17 +1245,16 @@ public final class MoreRelOptUtil {
 
     @Override
     public RelNode visit(LogicalProject project) {
-      RelNode newInput = project.getInput().accept(this);
       final ConditionFlattenter flattener = new ConditionFlattenter(project.getCluster().getRexBuilder());
-      List<RexNode> newExprs = project.getProjects().stream().map(expr -> expr.accept(flattener)).collect(Collectors.toList());
-      return LogicalProject.create(newInput, ImmutableList.of(), newExprs, project.getRowType().getFieldNames());
+      return super.visit(project)
+        .accept(flattener);
     }
 
     @Override
     public RelNode visit(LogicalFilter filter) {
-      RelNode newInput = filter.getInput().accept(this);
       final ConditionFlattenter flattener = new ConditionFlattenter(filter.getCluster().getRexBuilder());
-      return LogicalFilter.create(newInput, filter.getCondition().accept(flattener));
+      return super.visit(filter)
+        .accept(flattener);
     }
 
     public static RelNode rewrite(RelNode rel) {
@@ -1654,6 +1655,51 @@ public final class MoreRelOptUtil {
 
     public List<Integer> getIndices() {
       return indices;
+    }
+  }
+
+  /**
+   * Looks for a BROADCAST hint specified on a TableScan node at or below the given tree representing a side of a join.
+   * Will stop looking once it sees another Join.
+   */
+  public static class BroadcastHintCollector extends StatelessRelShuttleImpl {
+
+    private boolean shouldBroadcast;
+
+    public BroadcastHintCollector() {
+      this.shouldBroadcast = false;
+    }
+
+    @Override
+    public RelNode visit(RelNode other) {
+      if (other instanceof RelSubset) {
+        RelNode rel = ((RelSubset) other).getOriginal();
+        return rel == null ? other : rel.accept(this);
+      } else if (other instanceof HepRelVertex) {
+        RelNode rel = ((HepRelVertex) other).getCurrentRel();
+        return rel == null ? other : rel.accept(this);
+      } else if (other instanceof Join) {
+        return other;
+      } else {
+        return super.visit(other);
+      }
+    }
+
+    @Override
+    public RelNode visit(TableScan scan) {
+      List<RelHint> hints = scan.getHints();
+      this.shouldBroadcast = hints != null
+        && hints.stream().anyMatch(hint -> hint.hintName.equalsIgnoreCase("BROADCAST"));
+      return scan;
+    }
+
+    @Override
+    public RelNode visit(LogicalJoin join) {
+      return join;
+    }
+
+    public boolean shouldBroadcast() {
+      return this.shouldBroadcast;
     }
   }
 }

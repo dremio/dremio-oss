@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
@@ -93,7 +94,6 @@ import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.hadoop.DremioHadoopUtils;
-import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.planner.physical.WriterPrel;
@@ -110,6 +110,9 @@ import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
@@ -117,6 +120,7 @@ import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -149,7 +153,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   private static final int MINIMUM_RECORD_COUNT_FOR_CHECK = 100;
   private static final int MAXIMUM_RECORD_COUNT_FOR_CHECK = 10000;
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(ParquetRecordWriter.class);
 
+  @VisibleForTesting
+  public static final String INJECTOR_AFTER_RECORDS_WRITTEN_ERROR = "error-after-records-are-written";
   public static final String DRILL_VERSION_PROPERTY = "drill.version";
   public static final String DREMIO_VERSION_PROPERTY = "dremio.version";
   public static final String IS_DATE_CORRECT_PROPERTY = "is.date.correct";
@@ -163,7 +170,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private ParquetFileWriter parquetFileWriter;
   private MessageType schema;
   private Map<String, String> extraMetaData = new HashMap<>();
-  private int blockSize;
+  private long blockSize;
   private int pageSize;
   private boolean enableDictionary = false;
   private boolean enableDictionaryForBinary = false;
@@ -200,6 +207,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private org.apache.iceberg.Schema icebergSchema;
   private CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap;
   private PartitionSpec partitionSpec;
+  private final ExecutionControls executionControls;
 
   private final String queryUser;
 
@@ -222,6 +230,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         new ParquetDirectByteBufferAllocator(codecAllocator), pageSize);
     this.extraMetaData.put(DREMIO_VERSION_PROPERTY, DremioVersionInfo.getVersion());
     this.extraMetaData.put(IS_DATE_CORRECT_PROPERTY, "true");
+    this.executionControls = context.getExecutionControls();
 
     this.plugin = writer.getPlugin();
     this.queryUser = writer.getProps().getUserName();
@@ -234,14 +243,16 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     this.extension = config.outputExtension;
     if (writer.getOptions() != null) {
       this.partitionColumns = writer.getOptions().getPartitionColumns();
-      this.isIcebergWriter = (writer.getOptions().getIcebergWriterOperation() != WriterOptions.IcebergWriterOperation.NONE);
+      this.isIcebergWriter = writer.getOptions().getTableFormatOptions().isTableFormatWriter();
     } else {
       this.partitionColumns = null;
       this.isIcebergWriter = false;
     }
 
     if (this.isIcebergWriter) {
-      this.partitionSpec = writer.getOptions().getDeserializedPartitionSpec();
+      this.partitionSpec = Optional.ofNullable(writer.getOptions().getTableFormatOptions().getIcebergSpecificOptions()
+          .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+
       if (partitionSpec != null) {
         initIcebergColumnIDList(partitionSpec);
       } else if (writer.getOptions().getExtendedProperty() != null) {
@@ -250,7 +261,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
 
     memoryThreshold = (int) context.getOptions().getOption(ExecConstants.PARQUET_MEMORY_THRESHOLD_VALIDATOR);
-    blockSize = (int) context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR);
+    Long targetFileSize = writer.getOptions().getTableFormatOptions().getTargetFileSize();
+    blockSize = (long) ((targetFileSize != null && targetFileSize.longValue() != 0L) ? targetFileSize
+      : context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR));
     pageSize = (int) context.getOptions().getOption(ExecConstants.PARQUET_PAGE_SIZE_VALIDATOR);
     final String codecName = context.getOptions().getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR).toLowerCase();
     switch(codecName) {
@@ -344,6 +357,11 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path, plugin.getHadoopFsSupplier(path.toString(), plugin.getFsConfCopy(), queryUser).get(), context.getStats()), checkNotNull(schema), ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
         MAX_PADDING_SIZE_DEFAULT, DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, false);
     parquetFileWriter.start();
+  }
+
+  @VisibleForTesting
+  long getBlockSize() {
+    return blockSize;
   }
 
   private MessageType getParquetMessageTypeWithIds(BatchSchema batchSchema, String name) {
@@ -703,6 +721,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         partition.getBucketNumber(), getIcebergMetaData(), null, null, OperationType.ADD_DATAFILE.value);
       parquetFileWriter = null;
 
+      if(executionControls != null) {
+        injector.injectChecked(executionControls, INJECTOR_AFTER_RECORDS_WRITTEN_ERROR, UnsupportedOperationException.class);
+      }
       updateStats(memSize, recordCount);
 
       recordCount = 0;
@@ -1170,6 +1191,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   @Override
   public void abort() throws IOException {
+    fs.delete(path, true);
   }
 
   private void updateStats(long memSize, long recordCount) {
@@ -1243,6 +1265,16 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     public void writeField() throws IOException {
       writeValue();
     }
+  }
+
+  @Override
+  public FileSystem getFs(){
+    return fs;
+  }
+
+  @Override
+  public Path getLocation(){
+    return Path.of(location);
   }
 
   private String toIcebergFieldName (String parentField, String childField) {

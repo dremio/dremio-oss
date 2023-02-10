@@ -20,6 +20,7 @@ import {
   DATASET_ENTITY_TYPES,
 } from "@app/constants/Constants";
 import { TreeNode } from "./ResourceTree.types";
+import { uniqBy } from "lodash";
 
 export const starTabNames = {
   all: "All",
@@ -297,24 +298,15 @@ export function resourceTreeNodeDecorator(
 
     // If resources already exist, merge the payload results with current resources list
     if (currentResources && currentResources.size > 0) {
-      let sortedResources;
-      if (
-        resources.size === currentResources.size ||
-        resources.size < currentResources.size
-      ) {
-        sortedResources = resources.merge(currentResources);
-      } else {
-        // Combined both the current resources with the payload resources into 1 list and chooses
-        // payload resources item over current resources if there's a duplicate.
-        const updatedResources = resources
-          .toSet()
-          .union(currentResources.toSet())
-          .toList();
-        sortedResources = updatedResources.sort((a: any, b: any) => {
-          return a.get("name").localeCompare(b.get("name"));
-        });
-      }
-      return state.setIn(builtPath, sortedResources);
+      const merged = currentResources.merge(resources);
+      const sortedUniqueList = (
+        uniqBy(
+          merged.toJS(),
+          //Folders and some tables do not have an ID to compare
+          (entry: { id?: string; name: string }) => entry.id || entry.name
+        ) as any[]
+      ).sort((a, b) => a.name.localeCompare(b.name));
+      return state.setIn(builtPath, Immutable.fromJS(sortedUniqueList));
     } else {
       // Create new resource(s) for item
       return state.setIn(builtPath, resources);

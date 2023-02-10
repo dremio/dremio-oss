@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 package com.dremio.dac.resource;
-
 import java.io.IOException;
 import java.security.AccessControlException;
 import java.util.Arrays;
@@ -225,6 +224,16 @@ public class SourceResource extends BaseResourceWithAllocator {
       securityContext.getUserPrincipal().getName(),
       refType,
       refValue);
+  }
+
+  @DELETE
+  @Path("/folder/{path: .*}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public void deleteFolder(@PathParam("path") String path,
+                           @QueryParam("refType") String refType,
+                           @QueryParam("refValue") String refValue) {
+    SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
+    sourceService.deleteFolder(folderPath, sourceName, refType, refValue);
   }
 
   @POST

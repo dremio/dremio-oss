@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -324,6 +324,11 @@
 
     <dependency>
       <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
       <artifactId>commons-math</artifactId>
       <version>2.2</version>
     </dependency>
@@ -607,6 +612,12 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-grammar</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
@@ -785,6 +796,11 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-credential-provider</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -911,10 +927,9 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
-        <!-- Extract parser grammar template from calcite-core.jar and put
-          it under ${project.build.directory}/codegen/templates where all freemarker templates are. -->
+          <!-- Extract javacc parser grammar template from sabot-grammar -->
           <execution>
-            <id>unpack-parser-template</id>
+            <id>unpack-javacc-grammar</id>
             <phase>initialize</phase>
             <goals>
               <goal>unpack</goal>
@@ -922,18 +937,18 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>org.apache.calcite</groupId>
-                  <artifactId>calcite-core</artifactId>
+                  <groupId>com.dremio.sabot</groupId>
+                  <artifactId>dremio-sabot-grammar</artifactId>
+                  <version>${project.version}</version>
                   <type>jar</type>
-                  <overWrite>true</overWrite>
-                  <outputDirectory>${project.build.directory}/</outputDirectory>
-                  <includes>codegen/templates/Parser.jj,codegen/default_config.fmpp</includes>
+                  <overWrite>overWriteIfNewer</overWrite>
+                  <outputDirectory>${project.build.directory}/grammar</outputDirectory>
+                  <includes>javacc/*</includes>
                 </artifactItem>
               </artifactItems>
             </configuration>
           </execution>
-
-        <!-- Extract ValueVectorTypes.tdd from arrow-vector.jar and put
+          <!-- Extract ValueVectorTypes.tdd from arrow-vector.jar and put
           it under ${project.build.directory}/codegen/data where all freemarker data files are. -->
           <execution>
             <id>unpack-vector-types</id>
@@ -997,12 +1012,13 @@
               <config>${project.build.directory}/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
               <templates>${project.build.directory}/codegen/templates</templates>
-              <data>tdd(${project.basedir}/src/main/codegen/config.fmpp), default:tdd(${project.build.directory}/codegen/default_config.fmpp)</data>
+              <data>tdd(${project.basedir}/src/main/codegen/config.fmpp)</data>
             </configuration>
           </execution>
         </executions>
       </plugin>
-      <plugin> <!-- generate the parser (Parser.jj is itself generated wit fmpp above) -->
+      <plugin> <!-- generate the parser (Parser.jj is itself generated in sabot-grammar
+                    and copied here in initialize phase) -->
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>javacc-maven-plugin</artifactId>
         <executions>
@@ -1011,7 +1027,7 @@
             <phase>generate-sources</phase>
             <goals><goal>javacc</goal></goals>
             <configuration>
-              <sourceDirectory>${project.build.directory}/generated-sources/fmpp</sourceDirectory>
+              <sourceDirectory>${project.build.directory}/grammar/javacc</sourceDirectory>
               <includes>
                 <include>**/*.jj</include>
               </includes>

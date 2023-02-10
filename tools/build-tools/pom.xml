@@ -23,7 +23,7 @@
   <!-- This file doesn't use dremio parent to avoid circular dependencies -->
   <groupId>com.dremio.tools</groupId>
   <artifactId>dremio-build-tools</artifactId>
-  <version>23.1.0-202211250121140756-a79618c7</version>
+  <version>24.0.0-202302100528110223-3a169b7c</version>
   <packaging>jar</packaging>
   <name>Tools - Build tools</name>
 
@@ -45,6 +45,16 @@
             <validationSet>
               <dir>src/main/resources/dremio-owasp/</dir>
               <systemId>https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd</systemId>
+              <excludes>
+                <exclude>hints.xml</exclude>
+              </excludes>
+            </validationSet>
+            <validationSet>
+              <dir>src/main/resources/dremio-owasp/</dir>
+              <systemId>https://jeremylong.github.io/DependencyCheck/dependency-hint.1.1.xsd</systemId>
+              <includes>
+                <include>hints.xml</include>
+              </includes>
             </validationSet>
           </validationSets>
           <!-- Use of XML Catalog to avoid open resolution of entities -->
@@ -58,9 +68,20 @@
       <plugins>
         <!-- Please keep in sync with top level pom.xml -->
         <plugin>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.3.0</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.3.0</version>
+          <configuration>
+            <encoding>UTF-8</encoding>
+          </configuration>
+        </plugin>
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-install-plugin</artifactId>
-          <version>3.0.0-M1</version>
+          <version>3.0.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

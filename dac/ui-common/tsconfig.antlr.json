@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig",
+  "include": ["./dist-antlr/*"],
+  "exclude": ["./src/**/*"],
+  "compilerOptions": {
+    "declaration": true,
+    "module": "commonjs"
+  }
+}

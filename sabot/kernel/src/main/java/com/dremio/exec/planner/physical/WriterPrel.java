@@ -22,11 +22,13 @@ import java.util.List;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.planner.common.WriterRelBase;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
@@ -49,10 +51,12 @@ public class WriterPrel extends WriterRelBase implements Prel {
   public static final String PARTITION_COMPARATOR_FUNC = "newPartitionValue";
 
   private final RelDataType expectedInboundRowType;
+  private final TableFormatWriterOptions tableFormatWriterOptions;
 
   public WriterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, CreateTableEntry createTableEntry, RelDataType expectedInboundRowType) {
     super(Prel.PHYSICAL, cluster, traits, child, createTableEntry);
     this.expectedInboundRowType = expectedInboundRowType;
+    this.tableFormatWriterOptions = createTableEntry.getOptions().getTableFormatOptions();
   }
 
   @Override
@@ -118,5 +122,12 @@ public class WriterPrel extends WriterRelBase implements Prel {
     return Math.max(10, estimateInputRowCount / numRecords) * PrelUtil.getPlannerSettings(
             getCluster().getPlanner()).getOptions()
             .getOption(ExecConstants.PARQUET_FILES_ESTIMATE_SCALING_FACTOR_VALIDATOR);
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    return super.explainTerms(pw)
+      .itemIf("target_file_size_bytes", tableFormatWriterOptions.getTargetFileSize(),
+        tableFormatWriterOptions != null && tableFormatWriterOptions.getTargetFileSize() != null);
   }
 }

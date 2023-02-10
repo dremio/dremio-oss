@@ -19,6 +19,6 @@
   display: flex;
   align-items: center;
   font-size: $font;
-  margin: map-get($map: $gutter-sizes, $key: full) 0px;
+  margin: 8px 0px 4px 0px;
   color: $FIGMA_TEXT_MAIN;
 }

@@ -53,6 +53,7 @@ import com.dremio.sabot.exec.MaestroProxy;
 import com.dremio.sabot.exec.QueriesClerk;
 import com.dremio.sabot.exec.QueryTicket;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
+import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
@@ -78,7 +79,8 @@ public class TestFragmentExecutorBuilder extends DremioTest {
       CoordinationProtos.NodeEndpoint.newBuilder().build(), mock(MaestroProxy.class), mock(SabotConfig.class), mock(DremioConfig.class), mock(ClusterCoordinator.class), mock(ExecutorService.class),
       mock(OptionManager.class), mock(FragmentWorkManager.ExecConnectionCreator.class), mock(OperatorCreatorRegistry.class), mock(PhysicalPlanReader.class), mock(NamespaceService.class),
       mock(CatalogService.class), mock(ContextInformationFactory.class), mock(FunctionImplementationRegistry.class), mock(FunctionImplementationRegistry.class),
-      bootStrapContext.getNodeDebugContextProvider(), mock(SpillService.class), mock(CodeCompiler.class), mock(Set.class), mock(Provider.class), mock(Provider.class), mock(ExpressionSplitCache.class));
+      bootStrapContext.getNodeDebugContextProvider(), mock(SpillService.class), mock(CodeCompiler.class), mock(Set.class), mock(Provider.class), mock(Provider.class),
+      mock(ExpressionSplitCache.class), mock(HeapLowMemController.class));
 
     try {
       fragmentExecutorBuilder.build(mock(QueryTicket.class), planFragmentFull, 1, null, mock(EventProvider.class), null, mock(CachedFragmentReader.class));

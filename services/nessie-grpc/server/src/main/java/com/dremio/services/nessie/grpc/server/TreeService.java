@@ -43,6 +43,7 @@ import com.dremio.services.nessie.grpc.api.GetAllReferencesRequest;
 import com.dremio.services.nessie.grpc.api.GetAllReferencesResponse;
 import com.dremio.services.nessie.grpc.api.GetReferenceByNameRequest;
 import com.dremio.services.nessie.grpc.api.MergeRequest;
+import com.dremio.services.nessie.grpc.api.MergeResponse;
 import com.dremio.services.nessie.grpc.api.Reference;
 import com.dremio.services.nessie.grpc.api.TransplantRequest;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc;
@@ -141,30 +142,25 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
   }
 
   @Override
-  public void transplantCommitsIntoBranch(
-    TransplantRequest request, StreamObserver<Empty> observer) {
+  public void transplantCommitsIntoBranch(TransplantRequest request, StreamObserver<MergeResponse> observer) {
     handle(
-      () -> {
+      () -> toProto(
         bridge.get().transplantCommitsIntoBranch(
           request.getBranchName(),
           request.getHash(),
           request.getMessage(),
-          fromProto(request));
-        return Empty.getDefaultInstance();
-      },
+          fromProto(request))),
       observer);
   }
 
   @Override
-  public void mergeRefIntoBranch(MergeRequest request, StreamObserver<Empty> observer) {
+  public void mergeRefIntoBranch(MergeRequest request, StreamObserver<MergeResponse> observer) {
     handle(
-      () -> {
+      () -> toProto(
         bridge.get().mergeRefIntoBranch(
           request.getToBranch(),
           request.getExpectedHash(),
-          fromProto(request));
-        return Empty.getDefaultInstance();
-      },
+          fromProto(request))),
       observer);
   }
 

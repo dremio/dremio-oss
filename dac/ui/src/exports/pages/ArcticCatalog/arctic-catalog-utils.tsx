@@ -18,6 +18,9 @@ import { createContext, useContext } from "react";
 import { arcticCatalogTabs, ArcticCatalogTabsType } from "./ArcticCatalog";
 import { Type } from "@app/services/nessie/client";
 import * as PATHS from "../../paths";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 type ArcticCatalogContextType = {
   reservedNamespace: string;
@@ -49,7 +52,7 @@ export const getIconName = (tab: ArcticCatalogTabsType) => {
   }
 };
 
-export function getIconByType(type?: string | null, elements?: string[]) {
+export function getIconByType(type?: string | null) {
   switch (type) {
     case Type.IcebergTable:
       return { type: "IcebergTable", id: `Nessie.${type}` };
@@ -59,7 +62,7 @@ export function getIconByType(type?: string | null, elements?: string[]) {
       return { type: "IcebergView", id: `Nessie.${type}` };
     default:
       return {
-        type: elements && elements.length > 1 ? "Folder" : "Space",
+        type: "Folder",
         id: "Nessie.Namespace",
       };
   }
@@ -229,6 +232,10 @@ export const getArcticUrlForCatalog = (
           commitId: commitId,
         });
       }
+    case "settings":
+      return PATHS.arcticCatalogSettings({
+        arcticCatalogId: catalogId,
+      });
     default:
       return PATHS.arcticCatalog({
         arcticCatalogId: catalogId,
@@ -246,19 +253,21 @@ export const getArcticUrlForSource = (
   commitId?: string,
   hash?: string
 ) => {
-  const sourceId = baseUrl.split("/")[3];
+  const basePath = rmProjectBase(baseUrl) || "/";
+  const sourceId = basePath.split("/")[3];
   const separatedNamespace = namespace.split("/");
   const branch = separatedNamespace.shift();
   const curNamespace = separatedNamespace.join("/");
-
-  const prefix = PATHS.arcticSourceBase({ sourceId: sourceId });
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
+  const prefix = PATHS.arcticSourceBase({ sourceId, projectId });
 
   switch (tab) {
     case "data": {
       // if "data", user should be taken to the original source homepage
-      return `/source/${sourceId}${convertCatalogToSourceSpace(
-        namespace ?? ""
-      )}`;
+      return `${commonPaths.source.link({
+        resourceId: sourceId,
+        projectId,
+      })}${convertCatalogToSourceSpace(namespace ?? "")}`;
     }
     case "commits":
       if (!branch) {

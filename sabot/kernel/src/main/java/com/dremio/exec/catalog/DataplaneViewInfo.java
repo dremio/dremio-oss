@@ -21,7 +21,7 @@ public final class DataplaneViewInfo {
   private final String viewName;
   private final String schemaId;
   private final String path;
-  private final String tag;
+  private final String uniqueInstanceId;
   private final long createdAt;
   private final String sqlDefinition;
   private final String sqlContext;
@@ -32,7 +32,7 @@ public final class DataplaneViewInfo {
     this.viewName = builder.viewName;
     this.schemaId = builder.schemaId;
     this.path = builder.path;
-    this.tag = builder.tag;
+    this.uniqueInstanceId = builder.uniqueInstanceId;
     this.createdAt = builder.createdAt;
     this.sqlDefinition = builder.sqlDefinition;
     this.sqlContext = builder.sqlContext;
@@ -44,7 +44,7 @@ public final class DataplaneViewInfo {
     private String viewName;
     private String schemaId;
     private String path;
-    private String tag;
+    private String uniqueInstanceId;
     private long createdAt;
     private String sqlDefinition;
     private String sqlContext;
@@ -76,7 +76,7 @@ public final class DataplaneViewInfo {
     }
 
     public newBuilder tag (String tag) {
-      this.tag = tag;
+      this.uniqueInstanceId = tag;
       return this;
     }
 
@@ -132,7 +132,7 @@ public final class DataplaneViewInfo {
 
   public String getPath() {return this.path;}
 
-  public String getTag() {return this.tag;}
+  public String getUniqueInstanceId() {return this.uniqueInstanceId;}
 
   public long getCreatedAt() {return this.createdAt;}
 

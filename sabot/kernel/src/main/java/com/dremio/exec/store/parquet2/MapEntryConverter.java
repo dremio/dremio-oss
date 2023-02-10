@@ -70,10 +70,9 @@ public class MapEntryConverter extends ParquetGroupConverter {
     this.mapWriter = mapWriter;
     this.fieldName = fieldName;
     Type keyType = schema.getFields().get(0);
-    String entryFieldName = fieldName.concat(".").concat("list.element");
     Type valueType = schema.getFields().get(1);
-    addChildConverter(entryFieldName, mutator, arrowSchema, columns.iterator(), keyType, Functions.identity());
-    addChildConverter(entryFieldName, mutator, arrowSchema, columns.iterator(), valueType, Functions.identity());
+    addChildConverter(fieldName, mutator, arrowSchema, columns.iterator(), keyType, Functions.identity());
+    addChildConverter(fieldName, mutator, arrowSchema, columns.iterator(), valueType, Functions.identity());
   }
 
   @Override

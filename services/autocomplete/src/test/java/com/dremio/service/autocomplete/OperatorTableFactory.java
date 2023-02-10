@@ -88,6 +88,10 @@ public final class OperatorTableFactory {
     return chainWithTimeTravel(operatorTable);
   }
 
+  public static SqlOperatorTable createWithProductionFunctions() {
+    return createWithProductionFunctions(ImmutableList.of());
+  }
+
   public static SqlOperatorTable createWithProductionFunctions(List<SqlOperator> operators) {
     OperatorTable operatorTable = new OperatorTable(FUNCTION_REGISTRY);
     for (SqlOperator sqlOperator : operators) {

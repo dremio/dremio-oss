@@ -28,12 +28,15 @@ import com.dremio.exec.store.VersionedDatasetHandle;
 public class ViewHandle implements VersionedDatasetHandle {
   private EntityPath viewPath;
   private ViewVersionMetadata viewVersionMetadata;
-  private String tag;
+  private String id;
+  private String uniqueId;
 
-  private ViewHandle(final EntityPath viewpath, ViewVersionMetadata viewVersionMetadata, String tag) {
+  private ViewHandle(final EntityPath viewpath, ViewVersionMetadata viewVersionMetadata, String id, String uniqueId) {
     this.viewPath = viewpath;
     this.viewVersionMetadata = viewVersionMetadata;
-    this.tag = tag;
+    this.id = id;
+    this.uniqueId = uniqueId;
+
   }
 
   public static Builder newBuilder() {
@@ -50,13 +53,17 @@ public class ViewHandle implements VersionedDatasetHandle {
     return vda.translateIcebergView(accessUserName);
   }
 
+  @Override
+  public String getUniqueInstanceId() {
+    return uniqueId;
+  }
+
   public ViewVersionMetadata getViewVersionMetadata() {
     return viewVersionMetadata;
   }
 
-  public String getTag() {
-    return tag;
-  }
+  @Override
+  public String getContentId() { return id;}
 
   @Override
   public EntityPath getDatasetPath() {
@@ -66,7 +73,8 @@ public class ViewHandle implements VersionedDatasetHandle {
   public static final class Builder {
     private EntityPath viewPath;
     private ViewVersionMetadata viewVersionMetadata;
-    private String tag;
+    String id;
+    String uniqueId;
 
     public Builder datasetpath(EntityPath viewpath) {
       this.viewPath = viewpath;
@@ -78,14 +86,19 @@ public class ViewHandle implements VersionedDatasetHandle {
       return this;
     }
 
-    public Builder tag(String tag) {
-      this.tag = tag;
+    public Builder id(String id) {
+      this.id = id;
+      return this;
+    }
+
+    public Builder uniqueId(String uid) {
+      this.uniqueId = uid;
       return this;
     }
 
     public ViewHandle build() {
       Objects.requireNonNull(viewPath, "dataset path is required");
-      return new ViewHandle(viewPath, viewVersionMetadata, tag);
+      return new ViewHandle(viewPath, viewVersionMetadata, id, uniqueId);
     }
   }
 }

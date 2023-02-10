@@ -65,12 +65,15 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.config.ImmutableManifestScanFilters;
+import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SystemSchemas;
+import com.dremio.exec.util.LongRange;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -391,6 +394,69 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
     validateOutputBufferNotReused(getPop(SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA, ManifestContent.DATA), input, 2);
   }
 
+  @Test
+  public void testFilterOnFileSizeExcludeAll() throws Exception {
+    RecordSet input = inputRecordSet();
+
+    BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.addColumns(
+      ImmutableList.of(
+        Field.nullable("date_val", new ArrowType.Int(32, true))));
+    LongRange excludeAllRange = new LongRange(0L, Long.MAX_VALUE);
+    ManifestScanFilters manifestScanFilters = new ImmutableManifestScanFilters.Builder()
+      .setSkipDataFileSizeRange(excludeAllRange).setMinPartitionSpecId(1).build();
+    OperatorStats stats = validateSingle(getPop(outputSchema, ManifestContent.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
+      TableFunctionOperator.class, input, null, 10);
+
+    assertThat(stats.getLongStat(NUM_MANIFEST_FILE)).isEqualTo(2);
+    assertThat(stats.getLongStat(NUM_DATA_FILE)).isEqualTo(0);
+  }
+
+  @Test
+  public void testFilterOnFileSizeExcludeSome() throws Exception {
+    RecordSet input = inputRecordSet();
+
+    BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.addColumns(
+      ImmutableList.of(
+        Field.nullable("date_val", new ArrowType.Int(32, true))));
+
+    // Data file 2 skipped from output because it's size is 200 bytes
+    RecordSet output = rs(outputSchema,
+      r("datafile1.parquet", 100L, 1L, 1, serializedKey1,
+        createDatePartitionInfo("date", 10, 0), COL_IDS, 10),
+      r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
+        createDatePartitionInfo("date", 20, 0), COL_IDS, 20));
+    LongRange excludeDataFile2Range = new LongRange(200L, 250L);
+    ManifestScanFilters manifestScanFilters = new ImmutableManifestScanFilters.Builder()
+      .setSkipDataFileSizeRange(excludeDataFile2Range).setMinPartitionSpecId(1).build();
+    validateSingle(getPop(outputSchema, ManifestContent.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
+      TableFunctionOperator.class, input, output, 10);
+  }
+
+  @Test
+  public void testFilterWithPartitionSpecEvolutionChecks() throws Exception {
+    RecordSet input = inputRecordSet();
+
+    BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.addColumns(
+      ImmutableList.of(
+        Field.nullable("date_val", new ArrowType.Int(32, true))));
+
+    RecordSet output = rs(outputSchema,
+      r("datafile1.parquet", 100L, 1L, 1, serializedKey1,
+        createDatePartitionInfo("date", 10, 0), COL_IDS, 10),
+      r("datafile2.parquet", 200L, 1L, 1, serializedKey2,
+        createDatePartitionInfo("date", 20, 0), COL_IDS, 20),
+      r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
+        createDatePartitionInfo("date", 20, 0), COL_IDS, 20));
+
+    LongRange excludeAllRange = new LongRange(0L, Long.MAX_VALUE);
+    int evolvedPartitionSpecId = PARTITION_SPEC_1.specId() + 1;
+    ManifestScanFilters manifestScanFilters = new ImmutableManifestScanFilters.Builder()
+      .setSkipDataFileSizeRange(excludeAllRange).setMinPartitionSpecId(evolvedPartitionSpecId).build();
+
+    validateSingle(getPop(outputSchema, ManifestContent.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
+      TableFunctionOperator.class, input, output, 10);
+  }
+
   private RecordSet inputRecordSet() {
     return rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
         inputRow(manifestFile1, COL_IDS),
@@ -431,7 +497,12 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
   }
 
   private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContent manifestContent,
-      Map<Integer, PartitionSpec> partitionSpecMap) throws Exception {
+                                  Map<Integer, PartitionSpec> partitionSpecMap) throws Exception {
+    return getPop(outputSchema, manifestContent, partitionSpecMap, ManifestScanFilters.empty());
+  }
+
+  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContent manifestContent,
+      Map<Integer, PartitionSpec> partitionSpecMap, ManifestScanFilters manifestScanFilters) throws Exception {
     return new TableFunctionPOP(
         PROPS,
         null,
@@ -442,7 +513,6 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
                 null,
                 ByteString.copyFrom(IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap)),
                 SchemaParser.toJson(SCHEMA),
-                IcebergSerDe.serializeToByteArray(null),
                 null,
                 outputSchema,
                 SchemaConverter.getBuilder().setTableName(TABLE_NAME).build().fromIceberg(SCHEMA),
@@ -459,7 +529,8 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
                 false,
                 true,
                 null,
-                manifestContent)));
+                manifestContent,
+                manifestScanFilters)));
   }
 
   private static ManifestFile createDataManifest(String path, PartitionSpec spec,  List<DataFile> files)

@@ -83,6 +83,7 @@ public class ExecutorServiceProductClient implements ExecutorServiceClient {
   public void getNodeStats(Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver) {
     RpcOutcomeListener outcomeListener = new RpcOutcomeListener<CoordExecRPC.NodeStatResp>() {
       @Override
+      @SuppressWarnings("DremioGRPCStreamObserverOnError")
       public void failed(RpcException ex) {
         responseObserver.onError(ex);
       }
@@ -94,6 +95,7 @@ public class ExecutorServiceProductClient implements ExecutorServiceClient {
       }
 
       @Override
+      @SuppressWarnings("DremioGRPCStreamObserverOnError")
       public void interrupted(final InterruptedException ex) {
         responseObserver.onError(ex);
       }
@@ -101,9 +103,11 @@ public class ExecutorServiceProductClient implements ExecutorServiceClient {
     tunnelCreator.getTunnel(endpoint).requestNodeStats(outcomeListener);
   }
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private <T extends MessageLite> EndpointListener getEndpointListener(T value, StreamObserver<Empty> responseObserver) {
     return new EndpointListener<GeneralRPCProtos.Ack, MessageLite>(endpoint, value) {
       @Override
+      @SuppressWarnings("DremioGRPCStreamObserverOnError")
       public void failed(RpcException ex) {
         responseObserver.onError(ex);
       }
@@ -114,6 +118,7 @@ public class ExecutorServiceProductClient implements ExecutorServiceClient {
       }
 
       @Override
+      @SuppressWarnings("DremioGRPCStreamObserverOnError")
       public void interrupted(final InterruptedException ex) {
         responseObserver.onError(ex);
       }

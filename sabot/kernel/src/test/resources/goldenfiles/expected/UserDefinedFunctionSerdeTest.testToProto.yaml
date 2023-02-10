@@ -19,6 +19,9 @@
  -
   description: "No args"
   input:
+    fullPath:
+      - "dir"
+      - "space"
     createdAt: null
     functionArgsList: []
     functionSql: "SELECT 1"
@@ -30,7 +33,9 @@
       AABmAAAA
   output:
     createdAt: null
-    fullPathList: null
+    fullPathList:
+      - "dir"
+      - "space"
     functionDefinitionsList:
       -
         functionArgList: []
@@ -47,6 +52,7 @@
   description: "1 arg"
   input:
     createdAt: null
+    fullPath: null
     functionArgsList:
      -
       dataType: !!binary |-

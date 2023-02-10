@@ -22,7 +22,6 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 
 public class TestComplexTypeWriter  extends BaseTestQuery{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestComplexTypeReader.class);
 
   @Test
   //basic case. convert varchar into json.

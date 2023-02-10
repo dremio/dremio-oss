@@ -28,7 +28,9 @@ import StatefulTableViewer from "components/StatefulTableViewer";
 
 import { pageContent, page } from "uiTheme/radium/general";
 import { DeleteButton } from "@app/components/tableRowButtons/DeleteButton";
-
+// @ts-ignore
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import * as adminPaths from "dremio-ui-common/paths/admin.js";
 import * as classes from "./UsersView.module.less";
 
 const getPathname = (location) => location.pathname;
@@ -97,10 +99,11 @@ class UsersView extends PureComponent {
 
   getTableData() {
     // todo: styling: col alignment and spacing
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
     return this.props.users.map((user, index) => {
       const userName = user.getIn(["userConfig", "userName"]);
       const editUserLink = {
-        pathname: "/admin/users",
+        pathname: adminPaths.users.link({ projectId }),
         state: {
           modal: "EditUserModal",
           userId: user.get("id"),

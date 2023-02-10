@@ -1768,7 +1768,6 @@ public class TestServerExplore extends BaseTestServer {
         .buildPost(entity(join, JSON)), InitialPendingTransformResponse.class);
   }
 
-
   @Ignore("Fails with Missing function implementation: [to_time(FLOAT8-OPTIONAL)]")
   @Test
   public void testConvertNumberToDate() throws Exception {
@@ -2267,7 +2266,7 @@ public class TestServerExplore extends BaseTestServer {
       getBuilder(
         getAPIv2()
           .path(endpoint)
-          .path(ui.getEntityId())
+          .path(String.join("/", ui.getDisplayFullPath()))
       )
         .header("Accept", "*/*")
         .header("host", "localhost")

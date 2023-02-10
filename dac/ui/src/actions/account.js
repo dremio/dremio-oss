@@ -15,7 +15,6 @@
  */
 import { RSAA } from "redux-api-middleware";
 
-import intercomUtils from "utils/intercomUtils";
 import { addNotification } from "actions/notification";
 import { APIV2Call } from "@app/core/APICall";
 
@@ -178,20 +177,11 @@ const fetchEditAccount = (accountData, oldName) => {
   };
 };
 
-const intercomMissingHandler = (dispatch) => (error) => {
-  console.warn(error);
-  return dispatch(
-    addNotification(la("Sorry, chat is not currently available."), "warning")
-  );
-};
-
 // always fulfills ("success")
 export const callIfChatAllowedOrWarn =
   (action = () => {}) =>
   (dispatch) => {
-    if (intercomUtils.ifChatAllowed(intercomMissingHandler(dispatch))) {
-      action();
-    }
+    action();
   };
 
 export const CHECK_USER_START = "CHECK_USER_START";

@@ -31,7 +31,6 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.WritableBatch;
-import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
@@ -49,7 +48,7 @@ import com.google.common.collect.Lists;
  */
 public class ArrowRecordWriter implements RecordWriter {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EventBasedRecordWriter.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowRecordWriter.class);
 
   private final EasyWriter writerConfig;
   private final OperatorContext context;
@@ -207,5 +206,15 @@ public class ArrowRecordWriter implements RecordWriter {
   @Override
   public void close() throws Exception {
     closeCurrentFile();
+  }
+
+  @Override
+  public FileSystem getFs(){
+    return fs;
+  }
+
+  @Override
+  public Path getLocation(){
+    return location;
   }
 }

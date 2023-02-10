@@ -23,11 +23,6 @@ import {
 import { getViewState } from "@app/selectors/resources";
 import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
 
-/**
- * Indicates if load process in progress. Used to not send several requests at a time
- */
-let isInProgress = false;
-
 const mapStateToProps = (state) => ({
   isDataInvalidated:
     getViewState(state, ALL_SPACES_VIEW_ID).get("invalidated") || false,
@@ -37,11 +32,7 @@ const mapDispatchToProps = {
   loadSpaceListData,
 };
 
-/**
- * Component that loads space list and does not allow more than one request be sent a time.
- * If there is a request for spaces happen, while previous request is not finished, then
- * a new request would be ignored
- */
+// Component that loads space list
 export class SpacesLoader extends PureComponent {
   static propTypes = {
     isDataInvalidated: PropTypes.bool.isRequired,
@@ -62,18 +53,12 @@ export class SpacesLoader extends PureComponent {
   };
 
   load() {
-    if (!isInProgress) {
-      isInProgress = true;
-      this.props
-        .loadSpaceListData()
-        .then((result) => {
-          isInProgress = false;
-          return result;
-        })
-        .catch(() => {
-          isInProgress = false;
-        });
-    }
+    this.props
+      .loadSpaceListData()
+      .then((result) => {
+        return result;
+      })
+      .catch(() => {});
   }
 
   render() {

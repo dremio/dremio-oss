@@ -15,6 +15,8 @@
  */
 import BreadcrumbLink from "../../Common/BreadcrumbLink/BreadcrumbLink";
 import * as PATHS from "@app/exports/paths";
+//@ts-ignore
+import * as commonPaths from "dremio-ui-common/paths/common";
 import { withRouter, WithRouterProps } from "react-router";
 
 const ServiceCrumb = (props: WithRouterProps) => {
@@ -24,8 +26,8 @@ const ServiceCrumb = (props: WithRouterProps) => {
 
   return (
     <BreadcrumbLink
-      to={isArctic ? PATHS.arcticCatalogs() : PATHS.sonarProjects()}
-      text={isArctic ? "Arctic" : "Sonar"}
+      to={isArctic ? PATHS.arcticCatalogs() : commonPaths.projectsList.link()}
+      text={isArctic ? "Arctic (Preview)" : "Sonar"}
       iconName={isArctic ? "corporate/arctic" : "corporate/sonar"}
     />
   );

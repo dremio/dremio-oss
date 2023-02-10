@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 export const getPathPart = (pageType) =>
   pageType && pageType !== PageTypes.default ? `/${pageType}` : "";
@@ -35,11 +36,10 @@ const countSlashes = (str) => {
 };
 // explore page has the following url pattern (see routes.js):
 // So page type may or may not be presented.
-const patternSlashCount = countSlashes(
-  "/resources/resourceId/tableId(/:pageType)"
-);
-const isPageTypeContainedInPath = (pathname) =>
-  patternSlashCount === countSlashes(pathname);
+const isPageTypeContainedInPath = (pathname) => {
+  const patternSlashCount = countSlashes(sqlPaths.existingDataset.fullRoute());
+  return patternSlashCount === countSlashes(pathname);
+};
 
 export const excludePageType = (pathname) => {
   let pathWithoutPageType = pathname;

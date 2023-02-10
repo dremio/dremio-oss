@@ -46,6 +46,7 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -111,7 +112,6 @@ import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
@@ -246,7 +246,7 @@ public class ReflectionManager implements Runnable {
   /**
    * Computes deletionGracePeriod based on whether materialization cache and query cache are enabled.
    * If either are enabled, deletion has to allow one {@link PlanCacheSynchronizer#sync} to occur or
-   * else the next sync won't invalidate cache that uses the deleted reflections.
+   * else plan cache could end up referring to a disabled/deleted reflection.
    *
    * @return deletionGracePeriod
    */
@@ -459,7 +459,7 @@ public class ReflectionManager implements Runnable {
   private void handleRefreshingEntry(final ReflectionEntry entry, DependencyResolutionContext dependencyResolutionContext) {
     // handle job completion
     final Materialization m = Preconditions.checkNotNull(materializationStore.getLastMaterialization(entry.getId()),
-      "Reflection in refreshing state has no materialization entries", entry.getId());
+      "Reflection %s in refreshing state has no materialization entries", entry.getId());
     if (m.getState() != MaterializationState.RUNNING) {
       // Reflection in refreshing state should have a materialization in RUNNING state but if somehow we end up
       // in this weird state where the materialization store has an entry not in RUNNING state, we need to cleanup that entry.
@@ -504,7 +504,8 @@ public class ReflectionManager implements Runnable {
     switch (lastAttempt.getState()) {
       case COMPLETED:
         try {
-          logger.debug("Job {} completed successfully for {}", job.getJobId().getId(), getId(m));
+          logger.debug("Job {} completed successfully for {} took {} s", job.getJobId().getId(), getId(m),
+            TimeUnit.MILLISECONDS.toSeconds(lastAttempt.getInfo().getFinishTime() - lastAttempt.getInfo().getStartTime()));
           handleSuccessfulJob(entry, m, job, handler);
         } catch (Exception e) {
           final String message = String.format("Error occurred during job %s: %s", job.getJobId().getId(), e.getMessage());
@@ -533,8 +534,8 @@ public class ReflectionManager implements Runnable {
           updateDependenciesIfPossible(entry, lastAttempt, handler);
         }
         rollbackIcebergTableIfNecessary(m, lastAttempt, handler);
-        final String jobFailure = Optional.fromNullable(lastAttempt.getInfo().getFailureInfo())
-          .or("Reflection Job failed without reporting an error message");
+        final String jobFailure = Optional.ofNullable(lastAttempt.getInfo().getFailureInfo())
+          .orElse("Reflection Job failed without reporting an error message");
         m.setState(MaterializationState.FAILED)
           .setFailure(new Failure().setMessage(jobFailure));
         materializationStore.save(m);
@@ -773,7 +774,7 @@ public class ReflectionManager implements Runnable {
 
   private void handleMaterializationDone(ReflectionEntry entry, Materialization materialization) {
     final long now = System.currentTimeMillis();
-    final long materializationExpiry = Optional.fromNullable(materialization.getExpiration()).or(0L);
+    final long materializationExpiry = Optional.ofNullable(materialization.getExpiration()).orElse(0L);
     if (materializationExpiry <= now) {
       materialization.setState(MaterializationState.FAILED)
         .setFailure(new Failure().setMessage("Successful materialization already expired"));
@@ -874,7 +875,7 @@ public class ReflectionManager implements Runnable {
     if (materialization.getState() != MaterializationState.FAILED) {
 
       // expiration may not be set if materialization has failed
-      final long materializationExpiry = Optional.fromNullable(materialization.getExpiration()).or(0L);
+      final long materializationExpiry = Optional.ofNullable(materialization.getExpiration()).orElse(0L);
       if (materializationExpiry <= System.currentTimeMillis()) {
         materialization.setState(MaterializationState.FAILED)
           .setFailure(new Failure().setMessage("Successful materialization already expired"));

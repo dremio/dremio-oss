@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import { injectIntl } from "react-intl";
+import { FormattedMessage } from "react-intl";
 import { connect } from "react-redux";
 
 import config from "dyn-load/utils/config";
@@ -33,7 +33,6 @@ import {
   openPowerBI,
 } from "actions/explore/download";
 
-@injectIntl
 export class AnalyzeMenuItem extends PureComponent {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
@@ -104,7 +103,7 @@ export class AnalyzeMenuItem extends PureComponent {
           </SubMenu>,
         ]}
       >
-        {la("Analyze With")}
+        <FormattedMessage id="Dataset.AnalyzeWith" />
       </MenuItem>
     );
   }

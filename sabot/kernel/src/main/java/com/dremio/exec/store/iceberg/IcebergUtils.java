@@ -114,6 +114,10 @@ import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VersionedPlugin;
+import com.dremio.exec.physical.base.IcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -122,6 +126,7 @@ import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
+import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.proto.UserBitShared;
@@ -718,6 +723,12 @@ public class IcebergUtils {
   }
 
   public static ByteString getCurrentPartitionSpec(PhysicalDataset physicalDataset, BatchSchema batchSchema, List<String> partitionColumns) {
+    PartitionSpec partitionSpec = getCurrentPartitionSpec(physicalDataset);
+    partitionSpec = partitionSpec != null ? partitionSpec: getIcebergPartitionSpec(batchSchema, partitionColumns, null);
+    return ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec));
+  }
+
+  public static PartitionSpec getCurrentPartitionSpec(PhysicalDataset physicalDataset) {
     PartitionSpec partitionSpec = null;
     if (physicalDataset.getIcebergMetadata() != null) {
       if (physicalDataset.getIcebergMetadata().getPartitionSpecsJsonMap() != null) {
@@ -726,10 +737,8 @@ public class IcebergUtils {
       } else if (physicalDataset.getIcebergMetadata().getPartitionSpecs() != null) {
         partitionSpec = getPartitionSpecFromMap(IcebergSerDe.deserializePartitionSpecMap(physicalDataset.getIcebergMetadata().getPartitionSpecs().toByteArray()));
       }
-    } else {
-      partitionSpec = getIcebergPartitionSpec(batchSchema, partitionColumns, null);
     }
-    return ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec));
+    return partitionSpec;
   }
 
   public static String getCurrentIcebergSchema(PhysicalDataset physicalDataset, BatchSchema batchSchema) {
@@ -755,7 +764,9 @@ public class IcebergUtils {
     // current parquet writer uses a few extra columns in the schema for partitioning and distribution
     // For iceberg, filter those extra columns
     Set<String> extraFields = new HashSet<>();
-    PartitionSpec partitionSpec = writerOptions.getDeserializedPartitionSpec();
+    PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+        .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+
     if (partitionSpec != null) {
       extraFields = partitionSpec.fields().stream()
               .map(IcebergUtils::getPartitionFieldName)
@@ -882,7 +893,8 @@ public class IcebergUtils {
     }
   }
 
-  public static CreateTableEntry getIcebergCreateTableEntry(SqlHandlerConfig config, Catalog catalog, DremioTable table, SqlKind sqlKind) {
+  public static CreateTableEntry getIcebergCreateTableEntry(SqlHandlerConfig config, Catalog catalog, DremioTable table,
+                                                            SqlKind sqlKind, OptimizeOptions optimizeOptions) {
     final NamespaceKey key = table.getPath();
     final DatasetConfig datasetConfig = table.getDatasetConfig();
     final ReadDefinition readDefinition = datasetConfig.getReadDefinition();
@@ -906,6 +918,19 @@ public class IcebergUtils {
       getCurrentPartitionSpec(physicalDataset, batchSchema, partitionColumnsList),
       getCurrentIcebergSchema(physicalDataset, batchSchema));
 
+    boolean isSingleWriter = false;
+
+    IcebergWriterOptions icebergOptions = new ImmutableIcebergWriterOptions.Builder()
+      .setIcebergTableProps(icebergTableProps).build();
+    ImmutableTableFormatWriterOptions.Builder tableFormatOptionsBuilder = new ImmutableTableFormatWriterOptions.Builder()
+      .setIcebergSpecificOptions(icebergOptions).setOperation(getTableFormatOperation(sqlKind));
+
+    if (optimizeOptions != null) {
+      tableFormatOptionsBuilder.setMinInputFilesBeforeOptimize(optimizeOptions.getMinInputFiles());
+      tableFormatOptionsBuilder.setTargetFileSize(optimizeOptions.getTargetFileSizeBytes());
+      isSingleWriter = optimizeOptions.isSingleDataWriter();
+    }
+
     final WriterOptions options = new WriterOptions(
       (int) config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT),
       partitionColumnsList,
@@ -914,13 +939,12 @@ public class IcebergUtils {
       config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)
         ? PartitionDistributionStrategy.HASH : PartitionDistributionStrategy.UNSPECIFIED,
       null,
-      false,
+      isSingleWriter,
       Long.MAX_VALUE,
-      getIcebergWriterOperation(sqlKind),
+      tableFormatOptionsBuilder.build(),
       readDefinition.getExtendedProperty(),
       version);
 
-    options.setIcebergTableProps(icebergTableProps);
     BatchSchema writerSchema = getWriterSchema(batchSchema, options);
     icebergTableProps.setFullSchema(writerSchema);
     icebergTableProps.setPersistedFullSchema(batchSchema);
@@ -939,19 +963,23 @@ public class IcebergUtils {
           return IcebergCommandType.UPDATE;
         case MERGE:
           return IcebergCommandType.MERGE;
+        case OTHER:
+          return IcebergCommandType.OPTIMIZE;
         default:
           throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", sqlKind));
       }
   }
 
-  private static WriterOptions.IcebergWriterOperation getIcebergWriterOperation(SqlKind sqlKind) {
+  private static TableFormatOperation getTableFormatOperation(SqlKind sqlKind) {
     switch (sqlKind) {
       case DELETE:
-        return WriterOptions.IcebergWriterOperation.DELETE;
+        return TableFormatOperation.DELETE;
       case UPDATE:
-        return WriterOptions.IcebergWriterOperation.UPDATE;
+        return TableFormatOperation.UPDATE;
       case MERGE:
-        return WriterOptions.IcebergWriterOperation.MERGE;
+        return TableFormatOperation.MERGE;
+      case OTHER:
+        return TableFormatOperation.OPTIMIZE;
       default:
         throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", sqlKind));
     }

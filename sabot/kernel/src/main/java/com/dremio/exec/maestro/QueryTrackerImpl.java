@@ -42,23 +42,20 @@ import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import io.opentelemetry.extension.annotations.WithSpan;
+
 public class QueryTrackerImpl implements QueryTracker {
+  @VisibleForTesting
+  public static final String INJECTOR_EXECUTION_PLANNING_ERROR = "executionPlanningError";
+  @VisibleForTesting
+  public static final String INJECTOR_EXECUTION_PLANNING_PAUSE = "executionPlanningPause";
+  @VisibleForTesting
+  public static final String INJECTOR_NODE_COMPLETION_ERROR = "nodeCompletionError";
+  @VisibleForTesting
+  public static final String INJECTOR_STARTING_PAUSE = "startingPause";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryTrackerImpl.class);
   private static final ControlsInjector injector =
     ControlsInjectorFactory.getInjector(QueryTrackerImpl.class);
-
-  @VisibleForTesting
-  public static final String INJECTOR_EXECUTION_PLANNING_ERROR = "executionPlanningError";
-
-  @VisibleForTesting
-  public static final String INJECTOR_EXECUTION_PLANNING_PAUSE = "executionPlanningPause";
-
-  @VisibleForTesting
-  public static final String INJECTOR_NODE_COMPLETION_ERROR = "nodeCompletionError";
-
-  @VisibleForTesting
-  public static final String INJECTOR_STARTING_PAUSE = "startingPause";
-
   private final QueryId queryId;
   private final QueryContext context;
   private final PhysicalPlanReader reader;
@@ -104,6 +101,7 @@ public class QueryTrackerImpl implements QueryTracker {
       queryCloser, executorServiceClientFactory, executorSetService, closeableSchedulerThreadPool);
   }
 
+  @WithSpan("allocate-resources")
   @Override
   public void allocateResources() throws ExecutionSetupException, ResourceAllocationException  {
     resourceTracker = new ResourceTracker(physicalPlan, context, queryResourceManager, observer);
@@ -128,6 +126,7 @@ public class QueryTrackerImpl implements QueryTracker {
     physicalPlan = null; // no longer needed
   }
 
+  @WithSpan("start-fragments")
   @Override
   public void startFragments() throws ExecutionSetupException {
     Preconditions.checkNotNull(executionPlan, "execution plan required");

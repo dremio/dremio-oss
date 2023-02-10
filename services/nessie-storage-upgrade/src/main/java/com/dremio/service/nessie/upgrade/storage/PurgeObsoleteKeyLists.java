@@ -17,9 +17,7 @@ package com.dremio.service.nessie.upgrade.storage;
 
 import java.util.Map;
 
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.GlobalLogCompactionParams;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 
 import com.dremio.dac.cmd.AdminLogger;
@@ -66,7 +64,6 @@ public class PurgeObsoleteKeyLists extends UpgradeTask {
   @VisibleForTesting
   String upgrade(KVStoreProvider storeProvider) throws Exception {
     EmbeddedRepoMaintenanceParams params = EmbeddedRepoMaintenanceParams.builder()
-      .setGlobalLogCompactionParams(GlobalLogCompactionParams.builder().isEnabled(false).build())
       .setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder()
         .setDryRun(false)
         .setProgressReporter(new ProgressReporter(PROGRESS_CYCLE))
@@ -79,11 +76,10 @@ public class PurgeObsoleteKeyLists extends UpgradeTask {
         .build());
       store.initialize();
 
-      TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
         .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build())
-        .build(worker);
+        .build();
 
       Map<String, Map<String, String>> result = adapter.repoMaintenance(params);
 

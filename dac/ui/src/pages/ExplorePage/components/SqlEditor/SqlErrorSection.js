@@ -15,10 +15,8 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import Immutable from "immutable";
-
-import FontIcon from "components/Icon/FontIcon";
 
 import "./SqlErrorSection.less";
 
@@ -55,7 +53,7 @@ class SqlErrorSection extends Component {
     });
     return visible ? (
       <div className={holderClasses}>
-        <FontIcon type="fa-exclamation-circle" />
+        <dremio-icon className="fa" name="interface/warning" />
         {errorData.get("msg")}
         <span onClick={this.toggleDetails.bind(this)} className="details-link">
           {this.state.detailsVisible ? "Hide details" : "Show details"}

@@ -15,30 +15,38 @@
  */
 package com.dremio.dac.resource;
 
+import java.util.Map;
+
 import javax.ws.rs.core.Response;
 
+import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.explore.DatasetResourceUtils;
+import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.exec.catalog.DatasetCatalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.TypeValidators;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Base class for resources that are for loading datasets in BI Tools.
  */
 public abstract class BaseBIToolResource {
-  private final NamespaceService namespace;
   private final ProjectOptionManager optionManager;
-  private final String datasetId;
+  private final DatasetCatalog datasetCatalog;
+  private final DatasetPath path;
+  private final Map<String, VersionContextReq> references;
 
-  protected BaseBIToolResource(NamespaceService namespace, ProjectOptionManager optionManager, String datasetId) {
-    this.namespace = namespace;
+  protected BaseBIToolResource(ProjectOptionManager optionManager, DatasetCatalog datasetCatalog,
+                               String path, String refType, String refValue) {
     this.optionManager = optionManager;
-    this.datasetId = datasetId;
+    this.datasetCatalog = datasetCatalog;
+    this.path = new DatasetPath(PathUtils.toPathComponents(path));
+    this.references = DatasetResourceUtils.createSourceVersionMapping(this.path.getRoot().getName(), refType, refValue);
   }
 
   /**
@@ -47,7 +55,7 @@ public abstract class BaseBIToolResource {
    * @param host The host to specify to the BI tool. Can be null.
    * @return A response providing a way to load the given dataset in the BI tool.
    */
-  protected Response getWithHostHelper(String host) throws DatasetNotFoundException, NamespaceException {
+  protected Response getWithHostHelper(String host) throws DatasetNotFoundException {
     // Check the endpoint is enabled.
     final TypeValidators.BooleanValidator endpointEnabledOption = getClientToolOption();
     if (endpointEnabledOption != null) {
@@ -61,11 +69,13 @@ public abstract class BaseBIToolResource {
     }
 
     // Make sure path exists
-    final NameSpaceContainer container = namespace.getEntityById(datasetId);
-    if (container == null || container.getType() != NameSpaceContainer.Type.DATASET) {
-      throw new DatasetNotFoundException(String.format("Unable to find dataset with id %s", datasetId));
+    final DatasetCatalog datasetNewCatalog =
+      datasetCatalog.resolveCatalog(DatasetResourceUtils.createSourceVersionMapping(references));
+    final DremioTable table = datasetNewCatalog.getTable(path.toNamespaceKey());
+    if (table == null) {
+      throw new DatasetNotFoundException(path);
     }
-    final DatasetConfig datasetConfig = container.getDataset();
+    final DatasetConfig datasetConfig = table.getDatasetConfig();
     final Response.ResponseBuilder builder =  Response.ok().entity(datasetConfig);
     return buildResponseWithHost(builder, host).build();
   }

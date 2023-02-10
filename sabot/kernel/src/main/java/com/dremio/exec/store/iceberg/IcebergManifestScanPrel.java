@@ -17,8 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -32,6 +30,7 @@ import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.ScanRelBase;
@@ -41,6 +40,7 @@ import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.util.LongRange;
 
 /**
  * Prel for the Iceberg manifest scan table function.  This supports both data and delete manifest scans.
@@ -55,7 +55,7 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       TableMetadata tableMetadata,
       BatchSchema schema,
       List<SchemaPath> projectedColumns,
-      Expression pruneExpression,
+      ManifestScanFilters manifestScanFilters,
       Long survivingRecords,
       ManifestContent manifestContent) {
     this(
@@ -65,7 +65,7 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
         child,
         tableMetadata,
         TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, projectedColumns, schema, null,
-            pruneExpression, manifestContent),
+            manifestContent, manifestScanFilters),
         ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
         survivingRecords);
   }
@@ -92,16 +92,20 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
   public RelWriter explainTableFunction(RelWriter pw) {
     ManifestScanTableFunctionContext context =
         getTableFunctionConfig().getFunctionContext(ManifestScanTableFunctionContext.class);
-    Expression icebergAnyColExpression;
-    try {
-      icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(context.getIcebergAnyColExpression());
-    } catch (IOException e) {
-      throw new UncheckedIOException("failed to deserialize ManifestFile Filter AnyColExpression", e);
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException("failed to deserialize ManifestFile Filter AnyColExpression" , e);
-    }
-    if (icebergAnyColExpression != null) {
+    ManifestScanFilters manifestScanFilters = context.getManifestScanFilters();
+
+    if (manifestScanFilters.doesIcebergAnyColExpressionExists()) {
+      Expression icebergAnyColExpression = manifestScanFilters.getIcebergAnyColExpressionDeserialized();
       pw.item("ManifestFile Filter AnyColExpression", icebergAnyColExpression.toString());
+    }
+
+    if (manifestScanFilters.doesMinPartitionSpecIdExist()) {
+      pw.item("partition_spec_id <", manifestScanFilters.getMinPartitionSpecId());
+    }
+
+    if (manifestScanFilters.doesSkipDataFileSizeRangeExist()) {
+      LongRange range = manifestScanFilters.getSkipDataFileSizeRange();
+      pw.item("data_file.file_size_in_bytes between", range);
     }
     pw.item("manifestContent", context.getManifestContent());
 

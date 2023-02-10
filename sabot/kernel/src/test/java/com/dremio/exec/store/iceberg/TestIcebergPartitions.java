@@ -16,7 +16,9 @@
 package com.dremio.exec.store.iceberg;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -51,6 +53,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
@@ -110,6 +113,25 @@ public class TestIcebergPartitions extends BaseTestQuery {
       }
     }
     return null;
+  }
+
+  @Test
+  public void testHasNonIdentityPartitionColumns() {
+    PartitionSpec partitionSpec = spec;
+    assertFalse("all partition columns should be 'identity'", WriterOptions.hasNonIdentityPartitionColumns(partitionSpec));
+
+    partitionSpec = PartitionSpec
+      .builderFor(schema)
+      .truncate(ID, 2)
+      .identity(NAME)
+      .build();
+    assertTrue("there is one partition column is not 'identity'", WriterOptions.hasNonIdentityPartitionColumns(partitionSpec));
+
+    partitionSpec = PartitionSpec
+      .builderFor(schema)
+      .truncate(ID, 2)
+      .build();
+    assertTrue("there is one partition column is not 'identity'", WriterOptions.hasNonIdentityPartitionColumns(partitionSpec));
   }
 
   @Test

@@ -72,26 +72,53 @@
       label: "SAL"
     functionContext:
       function:
-        description: "Computes the absolute value of a numeric expression."
+        description: "Computes the absolute value of a numeric expression.\n"
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "MATH"
         name: "ABS"
         signatures:
-         - "(FLOAT) -> FLOAT"
-         - "(DECIMAL) -> DECIMAL"
-         - "(DOUBLE) -> DOUBLE"
-         - "(INT) -> INT"
-         - "(BIGINT) -> BIGINT"
+         -
+          description: "Returns a numeric or NULL if the <numeric_expression> is NULL. (Same return type as the input)"
+          parameters:
+           -
+            description: "BINARY, DECIMAL, DOUBLE, NUMERIC, INTEGER"
+            kind: "REGULAR"
+            name: "numeric_expression"
+            type: "NUMERIC"
+          returnType: "NUMERIC"
+          sampleCodes:
+           -
+            call: "SELECT ABS(0.0)"
+            result: "0.0"
+           -
+            call: "SELECT ABS(-2)"
+            result: "2"
+           -
+            call: "SELECT ABS(NULL)"
+            result: ""
       missingTypes:
-       - "FLOAT"
-       - "DECIMAL"
-       - "DOUBLE"
-       - "INT"
-       - "BIGINT"
+       - "NUMERIC"
       signaturesMatched:
-       - "(FLOAT) -> FLOAT"
-       - "(DECIMAL) -> DECIMAL"
-       - "(DOUBLE) -> DOUBLE"
-       - "(INT) -> INT"
-       - "(BIGINT) -> BIGINT"
+       -
+        description: "Returns a numeric or NULL if the <numeric_expression> is NULL. (Same return type as the input)"
+        parameters:
+         -
+          description: "BINARY, DECIMAL, DOUBLE, NUMERIC, INTEGER"
+          kind: "REGULAR"
+          name: "numeric_expression"
+          type: "NUMERIC"
+        returnType: "NUMERIC"
+        sampleCodes:
+         -
+          call: "SELECT ABS(0.0)"
+          result: "0.0"
+         -
+          call: "SELECT ABS(-2)"
+          result: "2"
+         -
+          call: "SELECT ABS(NULL)"
+          result: ""
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -106,14 +133,6 @@
       kind: "Function"
       label: "CLASSIFIER()"
      -
-      insertText: "CONVERT_FROM()"
-      kind: "Function"
-      label: "CONVERT_FROM()"
-     -
-      insertText: "CONVERT_TO()"
-      kind: "Function"
-      label: "CONVERT_TO()"
-     -
       insertText: "CURRENT_CATALOG()"
       kind: "Function"
       label: "CURRENT_CATALOG()"
@@ -121,17 +140,72 @@
       insertText: "CURRENT_PATH()"
       kind: "Function"
       label: "CURRENT_PATH()"
+     -
+      insertText: "CURRENT_ROLE()"
+      kind: "Function"
+      label: "CURRENT_ROLE()"
+     -
+      detail: "Returns the path/schema in use by the current session."
+      insertText: "CURRENT_SCHEMA()"
+      kind: "Function"
+      label: "CURRENT_SCHEMA()"
     functionContext:
       function:
-        description: "Removes all occurrences of a specified substring and replaces them with another string."
+        description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "REPLACE"
         signatures:
-         - "(BYTES, STRING, STRING) -> BYTES"
-         - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+         -
+          description: "Returns the string after the replacements have been made."
+          parameters:
+           -
+            description: "String expression in which to do the replacements."
+            kind: "REGULAR"
+            name: "string_expression"
+            type: "CHARACTERS"
+           -
+            description: "The pattern you want replace in the string_expression."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+           -
+            description: "The string to replace the occurrences of the pattern with."
+            kind: "REGULAR"
+            name: "replacement"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+            result: "sample return 1"
       missingTypes:
-       - "STRING"
+       - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+       -
+        description: "Returns the string after the replacements have been made."
+        parameters:
+         -
+          description: "String expression in which to do the replacements."
+          kind: "REGULAR"
+          name: "string_expression"
+          type: "CHARACTERS"
+         -
+          description: "The pattern you want replace in the string_expression."
+          kind: "REGULAR"
+          name: "pattern"
+          type: "CHARACTERS"
+         -
+          description: "The string to replace the occurrences of the pattern with."
+          kind: "REGULAR"
+          name: "replacement"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+          result: "sample return 1"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -185,28 +259,74 @@
       kind: "Column"
       label: "JOB"
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "BIN(${1:INT})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "BIN(???)"
     functionContext:
       function:
-        description: "Removes all occurrences of a specified substring and replaces them with another string."
+        description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "REPLACE"
         signatures:
-         - "(BYTES, STRING, STRING) -> BYTES"
-         - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+         -
+          description: "Returns the string after the replacements have been made."
+          parameters:
+           -
+            description: "String expression in which to do the replacements."
+            kind: "REGULAR"
+            name: "string_expression"
+            type: "CHARACTERS"
+           -
+            description: "The pattern you want replace in the string_expression."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+           -
+            description: "The string to replace the occurrences of the pattern with."
+            kind: "REGULAR"
+            name: "replacement"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+            result: "sample return 1"
       missingTypes:
-       - "STRING"
+       - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+       -
+        description: "Returns the string after the replacements have been made."
+        parameters:
+         -
+          description: "String expression in which to do the replacements."
+          kind: "REGULAR"
+          name: "string_expression"
+          type: "CHARACTERS"
+         -
+          description: "The pattern you want replace in the string_expression."
+          kind: "REGULAR"
+          name: "pattern"
+          type: "CHARACTERS"
+         -
+          description: "The string to replace the occurrences of the pattern with."
+          kind: "REGULAR"
+          name: "replacement"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+          result: "sample return 1"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -260,28 +380,74 @@
       kind: "Column"
       label: "JOB"
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "BIN(${1:INT})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "BIN(???)"
     functionContext:
       function:
-        description: "Removes all occurrences of a specified substring and replaces them with another string."
+        description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "REPLACE"
         signatures:
-         - "(BYTES, STRING, STRING) -> BYTES"
-         - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+         -
+          description: "Returns the string after the replacements have been made."
+          parameters:
+           -
+            description: "String expression in which to do the replacements."
+            kind: "REGULAR"
+            name: "string_expression"
+            type: "CHARACTERS"
+           -
+            description: "The pattern you want replace in the string_expression."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+           -
+            description: "The string to replace the occurrences of the pattern with."
+            kind: "REGULAR"
+            name: "replacement"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+            result: "sample return 1"
       missingTypes:
-       - "STRING"
+       - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+       -
+        description: "Returns the string after the replacements have been made."
+        parameters:
+         -
+          description: "String expression in which to do the replacements."
+          kind: "REGULAR"
+          name: "string_expression"
+          type: "CHARACTERS"
+         -
+          description: "The pattern you want replace in the string_expression."
+          kind: "REGULAR"
+          name: "pattern"
+          type: "CHARACTERS"
+         -
+          description: "The string to replace the occurrences of the pattern with."
+          kind: "REGULAR"
+          name: "replacement"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+          result: "sample return 1"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -314,28 +480,74 @@
       kind: "Column"
       label: "JOB"
      -
-      insertText: "$HISTOGRAM(${1:NUMERIC})"
+      insertText: "AES_DECRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM(???)"
+      label: "AES_DECRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_FIRST_VALUE(${1:BYTES})"
+      insertText: "AES_ENCRYPT(${1:CHARACTERS}, ${2:CHARACTERS})"
       kind: "Function"
-      label: "$HISTOGRAM_FIRST_VALUE(???)"
+      label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "$HISTOGRAM_LAST_VALUE(${1:BYTES})"
+      insertText: "BIN(${1:INT})"
       kind: "Function"
-      label: "$HISTOGRAM_LAST_VALUE(???)"
+      label: "BIN(???)"
     functionContext:
       function:
-        description: "Removes all occurrences of a specified substring and replaces them with another string."
+        description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "REPLACE"
         signatures:
-         - "(BYTES, STRING, STRING) -> BYTES"
-         - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+         -
+          description: "Returns the string after the replacements have been made."
+          parameters:
+           -
+            description: "String expression in which to do the replacements."
+            kind: "REGULAR"
+            name: "string_expression"
+            type: "CHARACTERS"
+           -
+            description: "The pattern you want replace in the string_expression."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+           -
+            description: "The string to replace the occurrences of the pattern with."
+            kind: "REGULAR"
+            name: "replacement"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+            result: "sample return 1"
       missingTypes:
-       - "STRING"
+       - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+       -
+        description: "Returns the string after the replacements have been made."
+        parameters:
+         -
+          description: "String expression in which to do the replacements."
+          kind: "REGULAR"
+          name: "string_expression"
+          type: "CHARACTERS"
+         -
+          description: "The pattern you want replace in the string_expression."
+          kind: "REGULAR"
+          name: "pattern"
+          type: "CHARACTERS"
+         -
+          description: "The string to replace the occurrences of the pattern with."
+          kind: "REGULAR"
+          name: "replacement"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+          result: "sample return 1"
       suppliedParameterTypes:
         afterCursor:
          - "CHARACTERS"
@@ -364,11 +576,35 @@
       label: "?"
     functionContext:
       function:
-        description: "Removes all occurrences of a specified substring and replaces them with another string."
+        description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."
+        dremioVersion: "1.0+"
+        functionCategories:
+         - "CHARACTER"
         name: "REPLACE"
         signatures:
-         - "(BYTES, STRING, STRING) -> BYTES"
-         - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+         -
+          description: "Returns the string after the replacements have been made."
+          parameters:
+           -
+            description: "String expression in which to do the replacements."
+            kind: "REGULAR"
+            name: "string_expression"
+            type: "CHARACTERS"
+           -
+            description: "The pattern you want replace in the string_expression."
+            kind: "REGULAR"
+            name: "pattern"
+            type: "CHARACTERS"
+           -
+            description: "The string to replace the occurrences of the pattern with."
+            kind: "REGULAR"
+            name: "replacement"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "SELECT REPLACE('THE CATATONIC CAT', 'CAT', 'DOG')"
+            result: "sample return 1"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:

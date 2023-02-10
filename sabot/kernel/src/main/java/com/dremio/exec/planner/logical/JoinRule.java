@@ -31,8 +31,6 @@ import com.google.common.collect.ImmutableList;
  * {@link JoinRel}, which is implemented by Dremio "join" operation.
  */
 public class JoinRule extends RelOptRule {
-  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinRule.class);
-
   public static final RelOptRule INSTANCE = new JoinRule(DremioRelFactories.LOGICAL_BUILDER);
 
   private final RelBuilderFactory factory;

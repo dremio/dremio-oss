@@ -34,6 +34,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
@@ -43,9 +44,6 @@ import com.google.common.base.Throwables;
  * Removes column from the table specified by {@link SqlAlterTableDropColumn}
  */
 public class DropColumnHandler extends SimpleDirectHandler {
-
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropColumnHandler.class);
-
   private final Catalog catalog;
   private final SqlHandlerConfig config;
 
@@ -58,7 +56,7 @@ public class DropColumnHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlAlterTableDropColumn sqlDropColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropColumn.class);
 
-    NamespaceKey path = catalog.resolveSingle(sqlDropColumn.getTable());
+    NamespaceKey path = DmlUtils.getTablePath(catalog, sqlDropColumn.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     DremioTable table = catalog.getTableNoResolve(path);

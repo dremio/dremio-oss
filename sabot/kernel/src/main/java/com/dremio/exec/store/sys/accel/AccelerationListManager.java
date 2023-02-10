@@ -20,7 +20,6 @@ import java.util.Iterator;
 
 import com.dremio.service.Service;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
-import com.google.common.base.Optional;
 
 /**
  * Exposes the acceleration store to the execution engine
@@ -308,8 +307,8 @@ public interface AccelerationListManager extends Service {
       return new MaterializationInfo(
         materializationInfoProto.getReflectionId(),
         materializationInfoProto.getMaterializationId(),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getCreated().getSeconds()).or(0L)),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getExpires().getSeconds()).or(0L)),
+        new Timestamp(materializationInfoProto.getCreated().getSeconds()),
+        new Timestamp(materializationInfoProto.getExpires().getSeconds()),
         materializationInfoProto.getSizeBytes(),
         materializationInfoProto.getSeriesId(),
         materializationInfoProto.getInitRefreshJobId(),
@@ -318,8 +317,8 @@ public interface AccelerationListManager extends Service {
         materializationInfoProto.getState(),
         materializationInfoProto.getFailureMsg(),
         materializationInfoProto.getDataPartitions(),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFromPds().getSeconds()).or(0L)),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFinished().getSeconds()).or(0L)),
+        new Timestamp(materializationInfoProto.getLastRefreshFromPds().getSeconds()),
+        new Timestamp(materializationInfoProto.getLastRefreshFinished().getSeconds()),
         materializationInfoProto.getLastRefreshDurationMillis()
       );
     }
@@ -393,12 +392,12 @@ public interface AccelerationListManager extends Service {
         refreshInfoProto.getId(),
         refreshInfoProto.getReflectionId(),
         refreshInfoProto.getSeriesId(),
-        new Timestamp(Optional.fromNullable(refreshInfoProto.getCreatedAt()).or(0L)),
-        new Timestamp(Optional.fromNullable(refreshInfoProto.getModifiedAt()).or(0L)),
+        new Timestamp(refreshInfoProto.getCreatedAt()),
+        new Timestamp(refreshInfoProto.getModifiedAt()),
         refreshInfoProto.getPath(),
         refreshInfoProto.getJobId(),
-        new Timestamp(Optional.fromNullable(refreshInfoProto.getJobStart()).or(0L)),
-        new Timestamp(Optional.fromNullable(refreshInfoProto.getJobEnd()).or(0L)),
+        new Timestamp(refreshInfoProto.getJobStart()),
+        new Timestamp(refreshInfoProto.getJobEnd()),
         refreshInfoProto.getInputBytes(),
         refreshInfoProto.getInputRecords(),
         refreshInfoProto.getOutputBytes(),

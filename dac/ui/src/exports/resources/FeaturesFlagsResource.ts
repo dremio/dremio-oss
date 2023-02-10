@@ -16,18 +16,47 @@
 
 import { SmartResource } from "smart-resource";
 import { getFeatureFlagEnabled } from "../endpoints/Features/getFeatureFlagEnabled";
+import { Flag } from "../flags/Flag.type";
 
-const createFeatureFetcher = () => {
-  const featureFlags = new Map<string, boolean>();
-  return async (featureId: string) => {
-    try {
-      featureFlags.set(featureId, await getFeatureFlagEnabled(featureId));
-    } catch (e) {
-      featureFlags.set(featureId, false);
-    }
+const featureFlags = new Map<string, boolean>();
+const pendingRequests = new Set<string>();
 
-    return featureFlags;
-  };
+/**
+ * The "backend" for this resource is internally stitched together by the UI from
+ * multiple lazily-loaded backend requests. Flags should be loaded with the
+ * `loadFeatureFlags` function, which will then trigger a refresh of the resource
+ * every time the `featureFlags` map is updated.
+ */
+export const FeaturesFlagsResource = new SmartResource(
+  () => new Map(featureFlags)
+);
+
+/**
+ * Loads the requested flag into `FeaturesFlagsResource`. You must subscribe
+ * to the resource to receive updates once the flag has been loaded.
+ */
+export const loadFeatureFlags = (flag: Flag): Promise<void> | undefined => {
+  const flags = Array.isArray(flag) ? flag : [flag];
+
+  const unfetchedFlags = flags.filter(
+    (flag) => !featureFlags.has(flag) && !pendingRequests.has(flag)
+  );
+
+  if (unfetchedFlags.length) {
+    return (
+      Promise.all(
+        unfetchedFlags.map((unfetchedFlag) => {
+          return getFeatureFlagEnabled(unfetchedFlag)
+            .then((enabled) => featureFlags.set(unfetchedFlag, enabled))
+            .catch(() => featureFlags.set(unfetchedFlag, false))
+            .finally(() => {
+              pendingRequests.delete(unfetchedFlag);
+            });
+        })
+      )
+        // Trigger a refresh on the resource now that we've updated the map
+        .then(() => FeaturesFlagsResource.fetch())
+        .catch(() => FeaturesFlagsResource.fetch())
+    );
+  }
 };
-
-export const FeaturesFlagsResource = new SmartResource(createFeatureFetcher());

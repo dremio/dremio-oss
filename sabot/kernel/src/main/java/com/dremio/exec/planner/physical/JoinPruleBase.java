@@ -124,52 +124,67 @@ public abstract class JoinPruleBase extends Prule {
     return distFields.build();
   }
 
-  public static boolean checkBroadcastConditions(JoinRelType joinType, RelNode probe, RelNode build, double probeRowCount, double buildRowCount) {
+  public static boolean checkBroadcastConditions(
+    JoinRelType joinType,
+    RelNode probe,
+    RelNode build,
+    double probeRowCount,
+    double buildRowCount,
+    boolean hasBroadcastHint) {
     // Probe = Left side, Build = Right side
     // Build node is the one that is being considered to be broadcasted.
+    if (probe.getTraitSet().getTrait(DistributionTraitDef.INSTANCE).equals(DistributionTrait.SINGLETON)
+      || (joinType != JoinRelType.INNER && joinType != JoinRelType.LEFT))
+    {
+      return false;
+    }
+
+    // Now that we have checked this join supports broadcast, we can go ahead and return true if the user specified
+    // the BROADCAST hint without needing to check on the costing.
+    if (hasBroadcastHint) {
+      return true;
+    }
+
     final int buildColumnCount = build.getRowType().getFieldCount();
     final double buildCellCount = buildRowCount * buildColumnCount;
     final PlannerSettings plannerSettings = PrelUtil.getSettings(probe.getCluster());
-
-    if (buildRowCount < plannerSettings.getBroadcastThreshold()
-        && !probe.getTraitSet().getTrait(DistributionTraitDef.INSTANCE).equals(DistributionTrait.SINGLETON)
-        && (joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)) {
-      // DX-3862:  For broadcast joins, the cost should not just consider the traits and join type.  If the broadcast table is small enough,
-      // we shouldn't need to worry too much and allow broadcast join and see what the planner picks.
-      double cellCountThreshold = plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_CELL_COUNT_THRESHOLD);
-      if (buildCellCount > cellCountThreshold) {
-        // DX-17913 : For cases when the table is too big due to large number of columns, we should not do the broadcast join.
-        logger.debug("Won't do broadcast join if the size of the table is too big based of total number of cells (rows x columns)");
-        return false;
-      }
-      if (buildRowCount <= plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_MIN_THRESHOLD)) {
-        logger.debug("Enable broadcast plan? true (rightRowCount {} smaller than minimum broadcast threshold)", buildRowCount);
-        return true;
-      }
-
-      final long maxWidthPerNode = plannerSettings.getMaxWidthPerNode();
-
-      if (maxWidthPerNode <= 0) {
-        logger.debug("No executors are available. Won't do broadcast join");
-        return false;
-      }
-
-      // In this case, the broadcast table is big-ish.  So, we should check to see if it is reasonable to do broadcast.
-      // The broadcasted table will be sent at most (numEndPoints * maxWidthPerNode) times, (rightRowCount) rows.  We add a
-      // penalty to broadcast (broadcastFactor).
-      final double broadcastFactor = plannerSettings.getBroadcastFactor();
-
-      final int numEndPoints = plannerSettings.numEndPoints();
-      final long maxWidthPerQuery = plannerSettings.getOptions().getOption(ExecConstants.MAX_WIDTH_GLOBAL);
-      final long sliceTarget = plannerSettings.getSliceTarget();
-      final double minFactor = Doubles.min(probeRowCount * 1.0 / sliceTarget, numEndPoints * maxWidthPerNode, maxWidthPerQuery);
-      final boolean enableBroadCast = (minFactor * broadcastFactor * buildRowCount < probeRowCount);
-      logger.debug("Enable broadcast plan? {} minFactor {} (numEndPoints {}, maxWidthPerNode {}, rightRowCount {}, broadcastFactor {}, leftRowCount {}, sliceTarget {}, maxWidthPerQuery {})",
-          enableBroadCast, minFactor, numEndPoints, maxWidthPerNode, buildRowCount, broadcastFactor, probeRowCount, sliceTarget, maxWidthPerQuery);
-      return enableBroadCast;
+    if (buildRowCount >= plannerSettings.getBroadcastThreshold()) {
+      return false;
     }
 
-    return false;
+    // DX-3862:  For broadcast joins, the cost should not just consider the traits and join type.  If the broadcast table is small enough,
+    // we shouldn't need to worry too much and allow broadcast join and see what the planner picks.
+    double cellCountThreshold = plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_CELL_COUNT_THRESHOLD);
+    if (buildCellCount > cellCountThreshold) {
+      // DX-17913 : For cases when the table is too big due to large number of columns, we should not do the broadcast join.
+      logger.debug("Won't do broadcast join if the size of the table is too big based of total number of cells (rows x columns)");
+      return false;
+    }
+    if (buildRowCount <= plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_MIN_THRESHOLD)) {
+      logger.debug("Enable broadcast plan? true (rightRowCount {} smaller than minimum broadcast threshold)", buildRowCount);
+      return true;
+    }
+
+    final long maxWidthPerNode = plannerSettings.getMaxWidthPerNode();
+
+    if (maxWidthPerNode <= 0) {
+      logger.debug("No executors are available. Won't do broadcast join");
+      return false;
+    }
+
+    // In this case, the broadcast table is big-ish.  So, we should check to see if it is reasonable to do broadcast.
+    // The broadcasted table will be sent at most (numEndPoints * maxWidthPerNode) times, (rightRowCount) rows.  We add a
+    // penalty to broadcast (broadcastFactor).
+    final double broadcastFactor = plannerSettings.getBroadcastFactor();
+
+    final int numEndPoints = plannerSettings.numEndPoints();
+    final long maxWidthPerQuery = plannerSettings.getOptions().getOption(ExecConstants.MAX_WIDTH_GLOBAL);
+    final long sliceTarget = plannerSettings.getSliceTarget();
+    final double minFactor = Doubles.min(probeRowCount * 1.0 / sliceTarget, numEndPoints * maxWidthPerNode, maxWidthPerQuery);
+    final boolean enableBroadCast = (minFactor * broadcastFactor * buildRowCount < probeRowCount);
+    logger.debug("Enable broadcast plan? {} minFactor {} (numEndPoints {}, maxWidthPerNode {}, rightRowCount {}, broadcastFactor {}, leftRowCount {}, sliceTarget {}, maxWidthPerQuery {})",
+        enableBroadCast, minFactor, numEndPoints, maxWidthPerNode, buildRowCount, broadcastFactor, probeRowCount, sliceTarget, maxWidthPerQuery);
+    return enableBroadCast;
   }
 
   protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,

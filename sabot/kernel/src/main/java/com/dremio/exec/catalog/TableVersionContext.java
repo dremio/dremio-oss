@@ -17,6 +17,8 @@ package com.dremio.exec.catalog;
 
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 
 /**
@@ -35,7 +37,9 @@ public class TableVersionContext {
   public static final TableVersionContext LATEST_VERSION =
     new TableVersionContext(TableVersionType.LATEST_VERSION, null);
 
-  public TableVersionContext(TableVersionType type, Object value) {
+  @JsonCreator
+  public TableVersionContext(@JsonProperty("type") TableVersionType type,
+                             @JsonProperty("value") Object value) {
     this.type = Preconditions.checkNotNull(type);
     this.value = validateTypeAndSpecifier(type, value);
   }
@@ -123,4 +127,20 @@ public class TableVersionContext {
       throw new AssertionError("Unsupported type " + type);
     }
   }
+
+  public static TableVersionContext of(ResolvedVersionContext resolvedVersionContext) {
+    Preconditions.checkNotNull(resolvedVersionContext);
+    switch (resolvedVersionContext.getType()) {
+      case TAG:
+        return new TableVersionContext(TableVersionType.TAG, resolvedVersionContext.getRefName());
+      case BRANCH:
+        return new TableVersionContext(TableVersionType.BRANCH,resolvedVersionContext.getRefName());
+      case BARE_COMMIT:
+        return new TableVersionContext(TableVersionType.COMMIT_HASH_ONLY,resolvedVersionContext.getCommitHash());
+      default:
+        throw new IllegalStateException("Unexpected value: " + resolvedVersionContext.getType());
+    }
+  }
+
+
 }

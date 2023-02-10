@@ -27,6 +27,10 @@ import init from "@app/reducers/init";
 import user from "@inject/reducers/user";
 import featureFlag from "@inject/reducers/featureFlag";
 import additionalReducers from "@inject/reducers/additionalReducers";
+import {
+  PollingSonarProjectsResource,
+  SonarProjectsResource,
+} from "@app/exports/resources/SonarProjectsResource";
 import { getExploreState } from "@app/selectors/explore";
 import { log } from "@app/utils/logger";
 
@@ -139,6 +143,9 @@ export default cancelAction(function rootReducer(state, action) {
   // (we also don't want to do anything differently on failure)
   // also need to clear out and socket close for NO_USERS_ERROR
   if (action.type === LOGOUT_USER_START || action.type === NO_USERS_ERROR) {
+    PollingSonarProjectsResource.reset();
+    SonarProjectsResource.reset();
+    window.sessionStorage.removeItem("projectContext");
     // reset the app state (but keep routing and init state)
     // (this needs to happen before other reducers so that they go back to their initial state - thus why this is in this file)
     const { routing, init: initState } = state || {};
@@ -149,10 +156,6 @@ export default cancelAction(function rootReducer(state, action) {
   return result;
 });
 
-export const getIsExplorePreviewMode = (state) => {
-  const exploreState = getExploreState(state);
-  return exploreState ? exploreState.view.isPreviewMode : false;
-};
 export const getIsDatasetMetadataLoaded = (state) => {
   const exploreState = getExploreState(state);
   return exploreState ? exploreState.view.isDatasetMetadataLoaded : false;

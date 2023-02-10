@@ -35,7 +35,7 @@ import {
   secondColumn,
   rowOfInputs,
 } from "@app/uiTheme/less/forms.less";
-import classNames from "classnames";
+import classNames from "clsx";
 import TransformForm, { formWrapperProps } from "./../../forms/TransformForm";
 import { transformProps } from "./../../forms/TransformationPropTypes";
 import NonMatchingValues from "./../NonMatchingValues";

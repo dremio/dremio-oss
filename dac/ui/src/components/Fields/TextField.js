@@ -18,7 +18,7 @@ import { Component, createRef } from "react";
 import { IconButton } from "dremio-ui-lib";
 
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import {
   textInput,
   numberInput,
@@ -34,6 +34,8 @@ import {
 
 import forms from "uiTheme/radium/forms";
 import { intl } from "@app/utils/intl";
+
+import * as classes from "./TextField.module.less";
 
 const initializeValue = (initialValue) => {
   // If the value is not passed or if it is an empty string,
@@ -119,6 +121,7 @@ class TextField extends Component {
       wrapperClassName,
       numberInputWrapperStyles,
       disableCommas,
+      prefix,
       ...props
     } = this.props;
 
@@ -145,7 +148,7 @@ class TextField extends Component {
         : null
     );
 
-    const handleBlur = () => {
+    const handleBlur = (e) => {
       this.setState({ isFocused: false });
       this.props.onBlur?.();
     };
@@ -188,7 +191,7 @@ class TextField extends Component {
       ...(this.props.disabled && forms.textInputDisabled),
     };
 
-    return type !== "number" ? (
+    const getTextField = () => (
       <input
         ref={this.inputRef}
         {...props}
@@ -200,6 +203,20 @@ class TextField extends Component {
         className={classNames(["field", textInput, className])}
         style={composedStyles}
       />
+    );
+
+    let inputElement = getTextField();
+    if (prefix) {
+      inputElement = (
+        <div className={classes["container"]}>
+          {prefix && <span className={classes["prefix"]}>{prefix}</span>}
+          {getTextField()}
+        </div>
+      );
+    }
+
+    return type !== "number" ? (
+      inputElement
     ) : (
       <div
         className={numberInputWrapperClass}

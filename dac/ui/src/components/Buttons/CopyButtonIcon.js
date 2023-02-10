@@ -46,6 +46,7 @@ export default class CopyButtonIcon extends PureComponent {
     // Directly use Tooltip instead of IconButton to work around bug where tooltip is overflowing the page content
     return (
       <span
+        onMouseOver={(e) => e.stopPropagation()}
         style={{ ...styles.wrap, ...(disabled && styles.disabled), ...style }}
         className={className}
       >

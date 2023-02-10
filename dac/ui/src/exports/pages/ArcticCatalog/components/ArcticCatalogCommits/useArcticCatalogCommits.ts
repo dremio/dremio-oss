@@ -14,17 +14,34 @@
  * limitations under the License.
  */
 
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useMemo, useReducer, useRef } from "react";
 import { SmartResource } from "smart-resource";
 import { useResourceSnapshot, useResourceStatus } from "smart-resource/react";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { LogEntry } from "@app/services/nessie/client/index";
+import { useArcticCatalogContext } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
+import { FetchOption, LogEntry } from "@app/services/nessie/client/index";
 
-const newArrayReducer = (state: LogEntry[], action: any): LogEntry[] => {
-  if (action.type === "reset") {
-    return [];
-  } else if (action.type === "nextPage") {
-    return [...state, ...action.payload];
+type CommitsState = {
+  logEntries: LogEntry[] | null;
+  key?: string;
+};
+
+const getInitialState = (key: string) => ({
+  logEntries: null,
+  key,
+});
+
+const commitsReducer = (state: CommitsState, action: any): CommitsState => {
+  if (action.type === "nextPage") {
+    const { key, logEntries } = action.payload;
+    return {
+      ...state,
+      key,
+      logEntries:
+        key === state.key
+          ? [...(state.logEntries || []), ...logEntries]
+          : logEntries,
+    };
   } else {
     return state;
   }
@@ -33,6 +50,7 @@ const newArrayReducer = (state: LogEntry[], action: any): LogEntry[] => {
 export const useArcticCatalogCommits = ({
   filter,
   branch,
+  hash,
   pageSize = 50,
   pageToken,
 }: {
@@ -40,17 +58,49 @@ export const useArcticCatalogCommits = ({
   branch?: string;
   pageSize?: number;
   pageToken?: string;
+  hash?: string | null;
 }) => {
   const { api } = useNessieContext();
+  const { reservedNamespace } = useArcticCatalogContext() ?? {};
+
+  const extractedPath = useMemo(
+    () => reservedNamespace?.split("/")?.slice(1) ?? [],
+    [reservedNamespace]
+  );
+
+  const genFilter = (path: string[], search: string) => {
+    const clauses: string[] = [];
+
+    if (path.length) {
+      const namespace = path
+        .map((folder) => decodeURIComponent(folder))
+        .join(".");
+
+      clauses.push(`operations.exists(op, op.namespace == '${namespace}')`);
+    }
+
+    if (search) {
+      const searchClause: string[] = [];
+      const searchFilter = search.toLowerCase();
+
+      searchClause.push(
+        `commit.author.contains('${searchFilter}')`,
+        `commit.hash.contains('${searchFilter}')`
+      );
+
+      clauses.push(`(${searchClause.join(" || ")})`);
+    }
+
+    return clauses.join(" && ");
+  };
 
   const ArcticCatalogCommitsResource = useRef(
-    new SmartResource(({ name, search, token }) =>
+    new SmartResource(({ name, hash, search, path, token }) =>
       api.getCommitLog({
         ref: name,
-        filter: search
-          ? `commit.author.contains('${search}') || \
-          commit.hash.contains('${search}')`
-          : undefined,
+        fetch: path.length ? FetchOption.All : FetchOption.Minimal,
+        ...(hash && { endHash: hash }),
+        filter: genFilter(path, search),
         maxRecords: pageSize,
         pageToken: token,
       })
@@ -62,27 +112,34 @@ export const useArcticCatalogCommits = ({
       ArcticCatalogCommitsResource.current.fetch({
         name: branch,
         search: filter,
+        path: extractedPath,
+        hash,
         token: pageToken,
       });
     }
-  }, [branch, filter, pageToken]);
+  }, [branch, hash, filter, extractedPath, pageToken]);
 
-  const [tags, setNextPage] = useReducer(newArrayReducer, []);
+  const key = useRef("");
+  key.current = `${branch}-${hash}-${filter}-${reservedNamespace}`;
+
+  const [commitState, setCommitState] = useReducer(
+    commitsReducer,
+    getInitialState(key.current)
+  );
   const [next, error] = useResourceSnapshot(
     ArcticCatalogCommitsResource.current
   );
 
   useEffect(() => {
-    setNextPage({ type: "reset" });
-  }, [branch, filter]);
-
-  useEffect(() => {
-    if (next?.logEntries)
-      setNextPage({ type: "nextPage", payload: next.logEntries });
+    if (!next?.logEntries) return;
+    setCommitState({
+      type: "nextPage",
+      payload: { logEntries: next.logEntries, key: key.current },
+    });
   }, [next?.logEntries]);
 
   return [
-    { logEntries: tags, pageToken: next?.token },
+    { logEntries: commitState.logEntries, pageToken: next?.token },
     error,
     useResourceStatus(ArcticCatalogCommitsResource.current),
   ] as const;

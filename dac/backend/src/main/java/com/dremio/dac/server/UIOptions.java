@@ -34,7 +34,7 @@ public final class UIOptions {
 
   public static final StringValidator WHITE_LABEL_URL  = new StringValidator("ui.whitelabel.url", "dremio");
 
-  public static final BooleanValidator ALLOW_FORMATTING = new BooleanValidator("ui.formatter.allow", false);
+  public static final BooleanValidator ALLOW_FORMATTING = new BooleanValidator("ui.formatter.allow", true);
 
   /*
   * Specifies weather non admin users are able to perform CRUD operations for spaces
@@ -48,13 +48,19 @@ public final class UIOptions {
    */
   public static final BooleanValidator JOBS_UI_CHECK = new BooleanValidator("dremio.jobs.new.ui", true);
 
+  /*
+   * False (Default) - Shows new reflections UI
+   * True - Shows old reflections UI
+   */
+  public static final BooleanValidator REFLECTIONSLISTING_UI_CHECK = new BooleanValidator("ui.reflectionslisting.disable", false);
+
   /**
    * Specifies the Content Security Policy (CSP) header used by the Dremio UI.
    */
   public static final StringValidator CSP_HEADER_VALUE = new StringValidator("ui.csp.value",
-    "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    "default-src 'self' 'unsafe-inline'"
       + " blob: ws: wss: *.dremio.com *.googletagmanager.com *.intercom.io *.intercomcdn.com *.intercomusercontent.com"
-      + " *.cloudfront.net *.sentry.io *.walkme.com;"
+      + " *.cloudfront.net sentry.io *.sentry.io *.walkme.com;"
       + " img-src 'self' blob: data: *;"
       + " font-src 'self' data: *.intercomcdn.com;"
       + " object-src 'none';");

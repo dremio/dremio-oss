@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -74,6 +75,7 @@ public class SQLResource extends BaseResourceWithAllocator {
   private final SecurityContext securityContext;
   private final SabotContext sabotContext;
   private final ProjectOptionManager projectOptionManager;
+  private final FunctionsListService functionsListService;
 
   @Inject
   public SQLResource(
@@ -87,6 +89,10 @@ public class SQLResource extends BaseResourceWithAllocator {
     this.securityContext = securityContext;
     this.sabotContext = sabotContext;
     this.projectOptionManager = projectOptionManager;
+    this.functionsListService = new FunctionsListService(
+      sabotContext,
+      securityContext,
+      projectOptionManager);
   }
 
   @POST
@@ -216,5 +222,12 @@ public class SQLResource extends BaseResourceWithAllocator {
 
     ValidationResponse response = new ValidationResponse(sqlErrors);
     return response;
+  }
+
+  @GET
+  @Path("/functions")
+  @Produces(MediaType.APPLICATION_JSON)
+  public FunctionsListService.Response getFunctions() {
+    return functionsListService.getFunctions();
   }
 }

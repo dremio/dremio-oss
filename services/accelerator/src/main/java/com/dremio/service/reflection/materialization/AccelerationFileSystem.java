@@ -39,7 +39,7 @@ class AccelerationFileSystem extends FilterFileSystem {
       return super.getAsyncByteReader(fileKey, options);
     }
 
-    Preconditions.checkState(datasetKey.size() == 3, "dataset size is more than 3 in acceleration filesystem", datasetKey.size());
+    Preconditions.checkState(datasetKey.size() == 3, "dataset size is not 3 in acceleration filesystem: %s", datasetKey.size());
     // The dataset used by accelerations should not include the materialization id. Strip the materialization id
     return super.getAsyncByteReader(AsyncByteReader.FileKey.of(fileKey.getPath(), fileKey.getVersion(), fileKey.getFileType(), datasetKey.subList(0, 2)), options);
   }

@@ -34,7 +34,7 @@ import com.google.common.base.Stopwatch;
 
 public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOperations {
 
-  private static final Logger logger = LoggerFactory.getLogger(IcebergNessieTableOperations.class);
+  private static final Logger logger = LoggerFactory.getLogger(IcebergNessieVersionedTableOperations.class);
 
   private final OperatorStats operatorStats;
   private final FileIO fileIO;
@@ -43,6 +43,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   private final String fullTableName;
   private final ResolvedVersionContext version;
   private final String jobId;
+  private String baseContentId;
 
   public IcebergNessieVersionedTableOperations(OperatorStats operatorStats,
                                                FileIO fileIO,
@@ -58,6 +59,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
     this.tableKey = nessieVersionedTableIdentifier.getTableKey();
     this.version = nessieVersionedTableIdentifier.getVersion();
     this.jobId = jobId;
+    this.baseContentId = null;
   }
 
   @Override
@@ -72,6 +74,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
 
   @Override
   protected void doRefresh() {
+    baseContentId = nessieClient.getContentId(tableKey, version, jobId);
     String metadataLocation = nessieClient.getMetadataLocation(tableKey, version, jobId);
     refreshFromMetadataLocation(metadataLocation, 2);
   }
@@ -90,8 +93,13 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
       nessieClient.commitTable(tableKey,
         newMetadataLocation,
         new NessieClientTableMetadata(
-          metadata.currentSnapshot().snapshotId(), metadata.currentSchemaId(), metadata.defaultSpecId(), metadata.sortOrder().orderId()),
-        version, jobId);
+          metadata.currentSnapshot().snapshotId(),
+          metadata.currentSchemaId(),
+          metadata.defaultSpecId(),
+          metadata.sortOrder().orderId()),
+        version,
+        baseContentId,
+        jobId);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {

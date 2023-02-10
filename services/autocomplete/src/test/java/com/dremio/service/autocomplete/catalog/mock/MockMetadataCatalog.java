@@ -28,8 +28,6 @@ import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.store.ColumnExtendedProperty;
-import com.dremio.service.autocomplete.catalog.Metadata;
-import com.dremio.service.autocomplete.nessie.MockNessieElementReader;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
@@ -188,7 +186,7 @@ public class MockMetadataCatalog implements SimpleCatalog<MockMetadataCatalog> {
   }
 
   @Override
-  public DremioTable getTable(java.lang.String datasetId) {
+  public DremioTable getTable(String datasetId) {
     throw new UnsupportedOperationException();
   }
 
@@ -209,6 +207,11 @@ public class MockMetadataCatalog implements SimpleCatalog<MockMetadataCatalog> {
 
   @Override
   public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean supportsVersioning(NamespaceKey namespaceKey) {
     throw new UnsupportedOperationException();
   }
 

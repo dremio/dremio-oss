@@ -35,6 +35,7 @@ import io.grpc.stub.StreamObserver;
 public final class JobsRpcUtils {
   private static final Logger logger = LoggerFactory.getLogger(JobsRpcUtils.class);
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError") //the exception is already a grpc exception
   static <V> void handleException(StreamObserver<V> responseObserver, Throwable t) {
     Preconditions.checkNotNull(t, "exception");
     responseObserver.onError(convertToGrpcException(t));

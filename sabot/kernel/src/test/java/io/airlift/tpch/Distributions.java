@@ -31,12 +31,12 @@ package io.airlift.tpch;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.tpch.DistributionLoader.loadDistribution;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.Resources;
 
@@ -50,7 +50,7 @@ public class Distributions
             try {
                 URL resource = Resources.getResource("dists.dss");
                 checkState(resource != null, "Distribution file 'dists.dss' not found");
-                DEFAULT_DISTRIBUTIONS = new Distributions(loadDistribution(Resources.asCharSource(resource, Charsets.UTF_8)));
+                DEFAULT_DISTRIBUTIONS = new Distributions(loadDistribution(Resources.asCharSource(resource, UTF_8)));
             }
             catch (IOException e) {
                 throw Throwables.propagate(e);
@@ -214,7 +214,7 @@ public class Distributions
     private static Distribution getDistribution(Map<String, Distribution> distributions, String name)
     {
         Distribution distribution = distributions.get(name);
-        checkArgument(distribution != null, "Distribution %s does not exist");
+        checkArgument(distribution != null, "Distribution does not exist: %s", name);
         return distribution;
     }
 }

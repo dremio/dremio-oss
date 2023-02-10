@@ -28,6 +28,8 @@ import { SHOW_ADD_FILE } from "@inject/pages/HomePage/components/HeaderButtonCon
 import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 import MenuItem from "@app/components/Menus/MenuItem";
 import { parseResourceId } from "@app/utils/pathUtils";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 import * as classes from "./HeaderButtonAddActions.module.less";
 
@@ -53,7 +55,8 @@ const HeaderButtonAddActions = (
       displayUploadFile = true;
     }
   }
-  const newQueryUrl = "/new_query";
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
+  const newQueryUrl = sqlPaths.sqlEditor.link({ projectId });
   const resourceId = parseResourceId(location.pathname, context.username);
   const newQueryUrlParams = "?context=" + encodeURIComponent(resourceId);
 

@@ -97,14 +97,10 @@ public class MaterializationExpander {
 
       RelNode tableRel = expandSchemaPath(descriptor.getPath());
 
-      if (tableRel == null) {
-        throw new ExpansionException("Unable to find read metadata for materialization.");
-      }
 
       BatchSchema schema = ((ScanCrel) tableRel).getBatchSchema();
       final RelDataType strippedQueryRowType = stripResult.getNormalized().getRowType();
       tableRel = tableRel.accept(new IncrementalUpdateUtils.RemoveDirColumn(strippedQueryRowType));
-
       // Namespace table removes UPDATE_COLUMN from scans, but for incremental materializations, we need to add it back
       // to the table scan
       if (descriptor.getIncrementalUpdateSettings().isIncremental()) {
@@ -225,21 +221,29 @@ public class MaterializationExpander {
     return false;
   }
 
-  private RelNode expandSchemaPath(final List<String> path) {
+  @VisibleForTesting
+  RelNode expandSchemaPath(final List<String> path) {
     final DremioCatalogReader catalog = new DremioCatalogReader(parent.getCatalog(), parent.getTypeFactory());
-    final RelOptTable table = catalog.getTable(path);
-    if(table == null){
-      return null;
+    final RelOptTable table;
+    try {
+      table = catalog.getTable(path);
+    } catch (Exception e) {
+      // Can occur if Iceberg table no longer exists or accelerator path changed
+      throw new ExpansionException("Unable to get accelerator table: " + path, e);
+    }
+
+    if (table == null) {
+      throw new ExpansionException("Unable to get accelerator table: " + path);
     }
 
     ToRelContext context = DremioToRelContext.createSerializationContext(parent.getCluster());
 
     NamespaceTable newTable = table.unwrap(NamespaceTable.class);
-    if(newTable != null){
+    if (newTable != null){
       return newTable.toRel(context, table);
     }
 
-    throw new IllegalStateException("Unable to expand path for table: " + table);
+    throw new ExpansionException("Unable to get accelerator table: " + path);
   }
 
 
@@ -267,6 +271,9 @@ public class MaterializationExpander {
   public static class ExpansionException extends RuntimeException {
     public ExpansionException(String message) {
       super(message);
+    }
+    public ExpansionException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 

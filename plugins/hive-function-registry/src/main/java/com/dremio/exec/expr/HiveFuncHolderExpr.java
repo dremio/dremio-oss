@@ -25,7 +25,6 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.fn.HiveFuncHolder;
 
 public class HiveFuncHolderExpr extends FunctionHolderExpression implements Iterable<LogicalExpression>{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionHolderExpr.class);
   private HiveFuncHolder holder;
 
   public HiveFuncHolderExpr(String nameUsed, HiveFuncHolder holder, List<LogicalExpression> args) {

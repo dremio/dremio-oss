@@ -1,0 +1,46 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns the rank of the current row within its partition and ordering.
+  Rows that are equal will have the same rank.
+functionCategories:
+- WINDOW
+name: DENSE_RANK
+signatures:
+- description: null
+  parameters:
+  - description: An optional expression that groups rows into partitions.
+    kind: REGULAR
+    name: partition_expression
+    type: CHARACTERS
+  - description: An optional expression that specifies the order of the rows within
+      each partition.
+    kind: REGULAR
+    name: order_expression
+    type: CHARACTERS
+  returnType: BIGINT
+  sampleCodes:
+  - call: "SELECT \"Category\", \n  \"Descript\", \n  \"DayOfWeek\",\n  DENSE_RANK()\
+      \ \n    OVER (\n      PARTITION BY \"Category\" \n      ORDER BY \"DayOfWeek\"\
+      )\nFROM Samples.\"samples.dremio.com\".\"SF_incidents2016.json\"\n"
+    result: 'Category, Descript, DayOfWeek, EXPR$3
+
+      -- ARSON, ARSON, Friday, 1
+
+      -- ARSON, ARSON, Monday, 2
+
+      '

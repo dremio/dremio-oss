@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -60,7 +60,27 @@
     </dependency>
     <dependency>
       <groupId>org.projectnessie</groupId>
+      <artifactId>nessie-services</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie</groupId>
       <artifactId>nessie-versioned-persist-store</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie</groupId>
+      <artifactId>nessie-versioned-spi</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie</groupId>
+      <artifactId>nessie-versioned-persist-adapter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie</groupId>
+      <artifactId>nessie-versioned-persist-serialize</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie</groupId>
+      <artifactId>nessie-versioned-persist-non-transactional</artifactId>
     </dependency>
     <dependency>
       <groupId>org.projectnessie</groupId>

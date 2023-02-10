@@ -1,0 +1,196 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto3";
+package plan;
+
+import "PRelDataType.proto";
+import "PRelTraitSet.proto";
+import "google/protobuf/any.proto";
+
+option java_package = "com.dremio.plan.serialization";
+option optimize_for = SPEED;
+option java_multiple_files = true;
+option java_outer_classname = "PRexNodeTypes";
+
+
+message PRexNode {
+  oneof rex_type {
+    PRexInputRef rex_input_ref = 2;
+    PRexLocalRef rex_local_ref = 3;
+    PRexLiteral rex_literal = 4;
+    PRexCall rex_call = 5;
+    PRexOver rex_over = 6;
+    PRexCorrelVariable rex_correl_variable = 7;
+    PRexFieldAccess rex_field_access = 8;
+    PRexSubQuery rex_subquery = 9;
+    PRexDynamicParam rex_dynamic_param = 10;
+    PRexRangeRef rex_range_ref = 11;
+    PRexPatternFieldRef rex_pattern_field_ref = 12;
+  }
+}
+
+message PRexLocalRef {
+  PRelDataType data_type = 1;
+  int32 index = 2;
+}
+
+message PRexInputRef {
+  PRelDataType data_type = 1;
+  int32 index = 2;
+}
+
+message PRexLiteral {
+  PRelDataType data_type = 1;
+  oneof value_type {
+    PBigDecimal decimal_value = 2;
+    string string_value = 3;
+    bool boolean_value = 4;
+    bytes binary_value = 5;
+    int64 long_value = 6;
+    PSymbol symbol_value = 9;
+  }
+  string charset = 7;
+  PSqlCollation collation = 8;
+  PSqlTypeName typeName = 10;
+}
+
+message PRexCall {
+  PRelDataType data_type = 1;
+  PSqlOperator sql_operator = 2;
+  repeated PRexNode operands = 3;
+  int32 index = 4;
+}
+
+message PRexOver {
+  PRelDataType data_type = 1;
+  PSqlOperator sql_operator = 2;
+  repeated PRexNode operands = 3;
+  PRexWindow rex_window = 4;
+  bool distinct = 5;
+}
+
+message PRexWindow {
+  repeated PRexNode partition_keys = 1;
+  repeated PRexFieldCollation order_keys = 2;
+  PRexWindowBound lower_bound = 3;
+  PRexWindowBound upper_bound = 4;
+  bool is_rows = 5;
+}
+
+message PRexFieldCollation {
+  reserved 2 /*collation_direction*/ , 3 /*null_direction*/;
+  enum PSortFlag {
+    UNKNOWN_SORT_FLAG = 0;
+    DESCENDING = 1;
+    NULLS_FIRST = 2;
+    NULLS_LAST = 3;
+  }
+
+  PRexNode left = 1;
+  repeated PSortFlag right = 4;
+}
+
+message PRexWindowBound {
+  oneof rex_window_bound {
+    PRexWindowBoundBounded bounded = 1;
+    PRexWindowBoundCurrentRow current_row = 2;
+    PRexWindowBoundUnbounded unbounded = 3;
+  }
+}
+
+enum PBoundOption {
+  UNKOWN_BOUND_OPTION = 0;
+  PRECEDING = 1;
+  FOLLOWING = 2;
+}
+
+message PRexWindowBoundBounded {
+  PRexNode offset = 1;
+  PBoundOption bound_option = 2;
+}
+
+message PRexWindowBoundCurrentRow {}
+
+message PRexWindowBoundUnbounded {
+  PBoundOption bound_option = 1;
+}
+
+message PRexFieldAccess {
+  PRexNode expression = 1;
+  PRelDataTypeField field = 2;
+}
+
+message PRexCorrelVariable {
+  PRelDataType data_type = 1;
+  string name = 2;
+  int32 correlation_id = 3;
+  string correlation_name = 4;
+}
+
+message PRexSubQuery {
+  PRelDataType data_type = 1;
+  PSqlOperator sql_operator = 2;
+  repeated PRexNode operands = 3;
+  repeated google.protobuf.Any details  = 4; // this is a PRelNode but is kept as bytes to avoid circular references in protobuf.
+}
+
+message PRexVariable {
+  string name = 1;
+  PRelDataType type = 2;
+}
+
+message PRexDynamicParam {
+  PRexVariable rexVariable = 1;
+  int32 index = 2;
+}
+
+message PRexRangeRef {
+  PRelDataType type = 1;
+  int32 offset = 2;
+}
+
+message PSqlOperator {
+  oneof sql_operator_type {
+    string name = 1;
+    string dname = 2;
+    bytes sig = 3;
+  }
+  string class_name = 4;
+  int32 min_operands = 5;
+  int32 max_operands = 6;
+}
+
+enum PSqlSyntax {
+  UNKNOWN_SQL_SYNTAX = 0;
+  FUNCTION = 1;
+  FUNCTION_STAR = 2;
+  BINARY_SYNTAX = 3;
+  PREFIX = 4;
+  POSTFIX = 5;
+  SPECIAL = 6;
+  FUNCTION_ID = 7;
+  INTERNAL = 8;
+}
+
+message PBigDecimal {
+  int32 scale = 1;
+  bytes twos_complement_value = 2;
+}
+
+message PRexPatternFieldRef {
+  PRexInputRef rex_input_ref = 1;
+  string alpha = 2;
+}

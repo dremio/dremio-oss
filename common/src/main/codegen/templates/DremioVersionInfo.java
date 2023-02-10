@@ -47,6 +47,8 @@ public class DremioVersionInfo {
       "${maven.project.artifact.selectedVersion.qualifier!}"
   );
 
+  private static final String arrowVersion = "${maven.project.properties["arrow.version"]}";
+
   /**
    * Get the Dremio version from pom
    * @return the version number as x.y.z
@@ -94,5 +96,7 @@ public class DremioVersionInfo {
   public static String getQualifier() {
     return VERSION.getQualifier();
    }
+
+  public  static String getArrowVersion() { return arrowVersion; }
 }
 

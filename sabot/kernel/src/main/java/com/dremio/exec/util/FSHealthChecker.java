@@ -34,7 +34,7 @@ import com.google.common.collect.ImmutableSet;
 public interface FSHealthChecker {
 
   Set<String> S3_SCHEME = ImmutableSet.of("s3a", "s3", "s3n", "dremios3");
-  Logger logger = LoggerFactory.getLogger(FSHealthChecker.class);
+  final Logger logger = LoggerFactory.getLogger(FSHealthChecker.class);
 
   static Optional<FSHealthChecker> getInstance(Path path, String urlScheme, Configuration fsConf) {
     try {

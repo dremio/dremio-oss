@@ -31,6 +31,7 @@ import { last } from "lodash";
 import ArcticCatalogDataItem from "./ArcticCatalogDataItem";
 import ProjectHistoryButton from "../ProjectHistoryButton";
 import { Skeleton } from "dremio-ui-lib/dist-esm";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import "./ArcticCatalogData.less";
 import * as headerClasses from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
@@ -65,7 +66,7 @@ const ArcticCatalogData = (props: WithRouterProps) => {
 
   const path = useMemo(() => {
     return parseArcticCatalogUrl(
-      location.pathname,
+      rmProjectBase(location.pathname) || "/",
       `/arctic/${params?.arcticCatalogId}/data/${params?.branchName}`,
       "data",
       params?.branchName
@@ -89,12 +90,16 @@ const ArcticCatalogData = (props: WithRouterProps) => {
             .includes(searchFilter.toLowerCase())
         );
     return filteredItems.flatMap((entry, i) => {
+      const elements = entry?.name?.elements ?? [];
       return {
         id: i,
         rowClassName: "row" + i,
         data: {
           name: {
             node: () => <ArcticCatalogDataItem entry={entry} />,
+            ...(elements?.length > 0 && {
+              value: elements[elements.length - 1],
+            }),
           },
         },
       };
@@ -108,6 +113,7 @@ const ArcticCatalogData = (props: WithRouterProps) => {
         className={headerClasses["arctic-table-header"]}
         rightContent={
           <span className={headerClasses["arctic-table-header__right"]}>
+            <ProjectHistoryButton onClick={() => router.push(pushPath)} />
             <SearchField
               placeholder={intl.formatMessage({
                 id: "ArcticCatalog.FilterName",
@@ -117,7 +123,6 @@ const ArcticCatalogData = (props: WithRouterProps) => {
               showIcon
               className={headerClasses["arctic-search-box"]}
             />
-            <ProjectHistoryButton onClick={() => router.push(pushPath)} />
           </span>
         }
       />

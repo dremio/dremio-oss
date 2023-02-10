@@ -1443,6 +1443,73 @@ public class ITHiveStorage extends HiveTestBase {
       .go();
   }
 
+  @Test
+  public void testHiveFlattenORC() throws Exception {
+    String aaa = "aaa 1", ccc = "ccc 1";
+    JsonStringHashMap<String, Object> bb = new JsonStringHashMap<>();
+    Double f1 = 1.6789, f2 = 54331.0;
+    Long in_col = Long.valueOf(1);
+
+    testBuilder()
+      .sqlQuery("select t.flatten_list.fl.f1, t.flatten_list.fl.f2 from (select flatten(ooa) flatten_list from hive.flatten_orc) t")
+      .unOrdered()
+      .baselineColumns("f1","f2")
+      .baselineValues(null, null)
+      .baselineValues(f1, f2)
+      .baselineValues(null, null)
+      .go();
+
+    testBuilder()
+      .sqlQuery("select t.flatten_list.in_col from (select flatten(ooa) flatten_list from hive.flatten_orc) t")
+      .unOrdered()
+      .baselineColumns("in_col")
+      .baselineValues(in_col)
+      .baselineValues(in_col)
+      .baselineValues(null)
+      .go();
+
+    testBuilder()
+      .sqlQuery("select t.flatten_list.a.aa.aaa from (select flatten(ooa) flatten_list from hive.flatten_orc) t")
+      .unOrdered()
+      .baselineColumns("aaa")
+      .baselineValues(null)
+      .baselineValues(null)
+      .baselineValues(aaa)
+      .go();
+
+    testBuilder()
+      .sqlQuery("select t.flatten_list.b.bb from (select flatten(ooa) flatten_list from hive.flatten_orc) t")
+      .unOrdered()
+      .baselineColumns("bb")
+      .baselineValues(null)
+      .baselineValues(null)
+      .baselineValues(bb)
+      .go();
+
+    testBuilder()
+      .sqlQuery("select t.flatten_list.c.cc.ccc from (select flatten(ooa) flatten_list from hive.flatten_orc) t")
+      .unOrdered()
+      .baselineColumns("ccc")
+      .baselineValues(null)
+      .baselineValues(null)
+      .baselineValues(ccc)
+      .go();
+
+    testBuilder()
+      .sqlQuery("select t.flatten_list from (select flatten(ooa) flatten_list from hive.flatten_orc) t")
+      .unOrdered()
+      .sqlBaselineQuery("select t.flatten_list from (select flatten(ooa) flatten_list from hive.flatten_parquet) t")
+      .build()
+      .run();
+
+    testBuilder()
+      .sqlQuery("select t.flatten_list.in_col, t.flatten_list.fl, t.flatten_list.a, t.flatten_list.b, t.flatten_list.c  from (select flatten(ooa) flatten_list from hive.flatten_orc) t")
+      .unOrdered()
+      .sqlBaselineQuery("select t.flatten_list.in_col, t.flatten_list.fl, t.flatten_list.a, t.flatten_list.b, t.flatten_list.c from (select flatten(ooa) flatten_list from hive.flatten_parquet) t")
+      .build()
+      .run();
+  }
+
   private List<FileSystemCachedEntity> getCachedEntities(DatasetConfig datasetConfig) throws Exception{
     final HiveReadSignature readSignature = HiveReadSignature.parseFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray());
     // for now we only support fs based read signatures
@@ -1602,17 +1669,24 @@ public class ITHiveStorage extends HiveTestBase {
         mapstruct3.put("value", index + 2);
       }
 
+      JsonStringHashMap<String, Object> mapstructValue = new JsonStringHashMap<>();
+      mapstructValue.put("key", new Text("key" + index));
+      JsonStringHashMap<String, Object> mapstructValue2 = new JsonStringHashMap<>();
+      mapstructValue2.put("type", new Text("struct" + index));
+      mapstructValue.put("value", mapstructValue2);
+
       testBuilder()
           .sqlQuery("SELECT * FROM hive." + table + " order by rownum limit 1 offset " + index)
           .ordered()
-          .baselineColumns("rownum", "list_field", "struct_field", "struct_list_field", "list_struct_field", "map_field")
+          .baselineColumns("rownum", "list_field", "struct_field", "struct_list_field", "list_struct_field", "map_field", "map_struct_field")
           .baselineValues(
               index,
               asList(index, index + 1, index + 2, index + 3, index + 4),
               structrow1,
               structlistrow1,
               asList(liststruct1, liststruct2),
-              index % 2 == 0 ? asList(mapstruct1, mapstruct2, mapstruct3) : asList(mapstruct1, mapstruct2))
+              index % 2 == 0 ? asList(mapstruct1, mapstruct2, mapstruct3) : asList(mapstruct1, mapstruct2),
+              asList(mapstructValue))
           .go();
     }
   }

@@ -1437,7 +1437,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
 
   private void assertInternalState(InternalState internalState) {
     Preconditions.checkState(internalStateMachine == internalState,
-                             "Error: detected incorrect internal state, expecting: {}", internalState.toString());
+                             "Error: detected incorrect internal state, expecting: %s", internalState);
   }
 
   /**

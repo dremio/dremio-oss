@@ -20,6 +20,7 @@ import static org.apache.calcite.sql.SqlKind.IDENTIFIER;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -43,7 +44,6 @@ import com.dremio.service.jobs.metadata.proto.Order;
 import com.dremio.service.jobs.metadata.proto.Order.OrderDirection;
 import com.dremio.service.jobs.metadata.proto.VirtualDatasetState;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 
 /**
  * Allows us to convert user submitted queries into internal dataset state to provide better queries upon transformation.
@@ -60,7 +60,7 @@ public final class QuerySemantics {
   @VisibleForTesting
   public static Optional<VirtualDatasetState> extract(QueryMetadata metadata) {
     if (!metadata.getSqlNode().isPresent()) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     RelDataType relDataType = metadata.getRowType();

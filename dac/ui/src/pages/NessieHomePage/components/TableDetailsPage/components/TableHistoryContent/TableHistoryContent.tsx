@@ -60,7 +60,7 @@ function TableHistoryContent({ path }: { path: string[] }) {
         )}
       </span>
       {commitMeta && reference && (
-        <CommitDetails branch={reference.name} commitMeta={commitMeta} />
+        <CommitDetails branch={reference} commitMeta={commitMeta} />
       )}
     </div>
   );

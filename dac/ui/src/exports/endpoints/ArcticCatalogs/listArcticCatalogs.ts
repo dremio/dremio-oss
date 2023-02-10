@@ -14,25 +14,21 @@
  * limitations under the License.
  */
 
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import type {
   ArcticCatalog,
   ArcticCatalogResponse,
 } from "./ArcticCatalog.type";
 import { transformCatalog } from "./transformCatalog";
-import { APIV3Call } from "@app/core/APICall";
 
-export const listArcticCatalogsUrl = new APIV3Call()
-  .projectScope(false)
-  .paths("arctic/catalogs")
-  .toString();
+export const listArcticCatalogsUrl = new URL(
+  "/ui/arctic/catalogs",
+  window.location.origin
+);
 
 export const listArcticCatalogs = (): Promise<ArcticCatalog[]> =>
-  fetch(listArcticCatalogsUrl, {
-    headers: {
-      Authorization: localStorageUtils!.getAuthToken(),
-    },
-  })
+  getApiContext()
+    .fetch(listArcticCatalogsUrl)
     .then((res) => res.json())
     .then((catalogsResponse: ArcticCatalogResponse[]) =>
       catalogsResponse.map(transformCatalog)

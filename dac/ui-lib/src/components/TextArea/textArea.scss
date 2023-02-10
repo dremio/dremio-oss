@@ -61,6 +61,10 @@ $gutter-quadruple: map-get(
       resize: vertical;
       width: 100%;
 
+      &:hover {
+        border: 1px solid $FIGMA_NEUTRAL_300;
+      }
+
       &:focus {
         border: 1px solid $FIGMA_PRIMARY_500;
         outline: none;

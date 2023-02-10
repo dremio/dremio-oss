@@ -25,11 +25,11 @@ import com.google.common.collect.ImmutableList;
  */
 public abstract class Statement {
   private final ImmutableList<DremioToken> tokens;
-  private final ImmutableList<Statement> children;
+  private final ImmutableList<? extends Statement> children;
 
   protected Statement(
     ImmutableList<DremioToken> tokens,
-    ImmutableList<Statement> children) {
+    ImmutableList<? extends Statement> children) {
     this.tokens = tokens;
     this.children = children;
   }

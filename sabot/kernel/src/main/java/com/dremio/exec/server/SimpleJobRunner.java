@@ -28,5 +28,5 @@ public interface SimpleJobRunner {
    * @throws Exception when the job failed. The exception caught is rethrown as is.
    * @throws IllegalStateException when the job is canceled.
    */
-  void runQueryAsJob(String query, String userName, String queryType) throws Exception;
+  void runQueryAsJob(String query, String userName, String queryType, String queryLabel) throws Exception;
 }

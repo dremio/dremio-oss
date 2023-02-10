@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import LoginTitle from "@app/pages/AuthenticationPage/components/LoginTitle";
 import { welcomePage, contentWrapper } from "./WelcomePage.less";

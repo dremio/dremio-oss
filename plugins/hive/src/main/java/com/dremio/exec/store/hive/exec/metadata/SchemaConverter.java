@@ -46,6 +46,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Type.NestedType;
 import org.apache.iceberg.types.Type.PrimitiveType;
@@ -80,7 +81,6 @@ import com.google.common.collect.Lists;
  * Converter for iceberg schema to BatchSchema, and vice-versa.
  */
 public final class SchemaConverter {
-
   private final String tableName;
   private final boolean isMapTypeEnabled;
 
@@ -108,6 +108,7 @@ public final class SchemaConverter {
                 .spec()
                 .fields()
                 .stream()
+                .filter(partitionField -> !partitionField.transform().equals(Transforms.alwaysNull()))
                 .map(PartitionField::sourceId)
                 .map(table.schema()::findColumnName) // column name from schema
                 .distinct()
@@ -179,15 +180,14 @@ public final class SchemaConverter {
               }
               return new CompleteType(CompleteType.MAP.getType(), CompleteType.struct(keyValueFields).toField(MapVector.DATA_VECTOR_NAME, false));
             } else {
-                // drop map type and all other unknown iceberg column types
+                // drop other unknown iceberg column types
                 return null;
             }
         }
     }
 
   private boolean isEligibleForMapVector(NestedType nestedType) {
-    return isMapTypeEnabled && nestedType.isMapType() && nestedType.asMapType().keyType().isPrimitiveType()
-      && nestedType.asMapType().keyType().typeId() == Type.TypeID.STRING && nestedType.asMapType().valueType().isPrimitiveType();
+    return isMapTypeEnabled && nestedType.isMapType() && nestedType.asMapType().keyType().isPrimitiveType();
   }
 
     public CompleteType fromIcebergPrimitiveType(PrimitiveType type) {

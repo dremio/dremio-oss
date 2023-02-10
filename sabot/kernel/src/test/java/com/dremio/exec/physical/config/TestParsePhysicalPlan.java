@@ -25,7 +25,6 @@ import org.mockito.Mockito;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.store.StoragePluginConfig;
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -41,8 +40,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestParsePhysicalPlan extends ExecTest {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestParsePhysicalPlan.class);
@@ -57,7 +54,7 @@ public class TestParsePhysicalPlan extends ExecTest {
 
     PhysicalPlanReader reader = new PhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT, lpp, CoordinationProtos.NodeEndpoint.getDefaultInstance(), DirectProvider.wrap(Mockito.mock(CatalogService.class)), sabotContext);
     ObjectWriter writer = lpp.getMapper().writer();
-    PhysicalPlan plan = reader.readPhysicalPlan(Files.toString(FileUtils.getResourceAsFile("/physical_test1.json"), Charsets.UTF_8));
+    PhysicalPlan plan = reader.readPhysicalPlan(readResourceAsString("/physical_test1.json"));
     String unparse = plan.unparse(writer);
   }
 

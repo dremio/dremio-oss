@@ -19,7 +19,7 @@ import com.dremio.plugins.ExternalNamespaceEntry;
 
 public class DataplaneTableInfo {
   private final String name;
-  private final String tag;
+  private final String uniqueInstanceId;
   private final String path;
   private final long createdAt;
   private final String tableId;
@@ -29,7 +29,7 @@ public class DataplaneTableInfo {
 
   public DataplaneTableInfo(newBuilder builder) {
     this.name = builder.name;
-    this.tag = builder.tag;
+    this.uniqueInstanceId = builder.uniqueInstanceId;
     this.path = builder.path;
     this.createdAt = builder.createdAt;
     this.tableId = builder.tableId;
@@ -41,7 +41,7 @@ public class DataplaneTableInfo {
   public static class newBuilder {
 
     private String name;
-    private String tag;
+    private String uniqueInstanceId;
     private String path;
     private long createdAt;
     private String tableId;
@@ -57,7 +57,7 @@ public class DataplaneTableInfo {
     }
 
     public newBuilder tag(String tag) {
-      this.tag = tag;
+      this.uniqueInstanceId = tag;
       return this;
     }
 
@@ -112,8 +112,8 @@ public class DataplaneTableInfo {
     return this.name;
   }
 
-  public String getTag() {
-    return this.tag;
+  public String getUniqueInstanceId() {
+    return this.uniqueInstanceId;
   }
 
   public String getPath() {

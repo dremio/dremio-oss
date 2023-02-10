@@ -15,8 +15,11 @@
  */
 package com.dremio.service.nessie.upgrade.storage;
 
+import static org.projectnessie.versioned.CommitMetaSerializer.METADATA_SERIALIZER;
+
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,7 +27,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.IcebergTable;
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
@@ -38,6 +40,7 @@ import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.ImmutableCommitParams;
 import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
+import org.projectnessie.versioned.store.DefaultStoreWorker;
 
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.upgrade.UpgradeContext;
@@ -105,12 +108,11 @@ public class MigrateToNessieAdapter extends UpgradeTask {
         .build());
       store.initialize();
 
-      TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder().withConnector(store)
         .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
           .keyListDistance(Integer.MAX_VALUE)
           .build())
-        .build(worker);
+        .build();
 
       // Ensure the Embedded Nessie repo is initialized. This is an idempotent operation in the context
       // of upgrade tasks since they run on only one machine.
@@ -149,7 +151,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
           commit.set(ImmutableCommitParams.builder()
             .toBranch(upgradeBranch)
             .commitMetaSerialized(
-              worker.getMetadataSerializer().toBytes(
+              METADATA_SERIALIZER.toBytes(
                 CommitMeta.builder()
                   .message("Upgrade")
                   .author("MigrateToNessieAdapter")
@@ -170,14 +172,13 @@ public class MigrateToNessieAdapter extends UpgradeTask {
         // at that time (hopefully).
         IcebergTable table = IcebergTable.of(location, 0, 0, 0, 0, UUID.randomUUID().toString());
 
-        ContentId contentId = ContentId.of(worker.getId(table));
-        commit.get().putGlobal(contentId, worker.toStoreGlobalState(table));
+        ContentId contentId = ContentId.of(Objects.requireNonNull(table.getId()));
         commit.get().addPuts(
           KeyWithBytes.of(
             key,
             contentId,
-            worker.getPayload(table),
-            worker.toStoreOnReferenceState(table)));
+            DefaultStoreWorker.payloadForContent(table),
+            DefaultStoreWorker.instance().toStoreOnReferenceState(table, a -> commit.get().addAttachments(a))));
 
         if (numEntries.incrementAndGet() >= MAX_ENTRIES_PER_COMMIT) {
           commit(adapter, commit.get(), numEntries.get(), totalEntries);
@@ -188,7 +189,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
 
       commit(adapter, commit.get(), numEntries.get(), totalEntries);
 
-      commitKeyList(worker, store, upgradeBranch, totalEntries);
+      commitKeyList(store, upgradeBranch, totalEntries);
 
       // Tag old `main` branch
       TagName oldMain = TagName.of("main-before-upgrade-" + getTaskUUID());
@@ -203,8 +204,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
     }
   }
 
-  private void commitKeyList(TableCommitMetaStoreWorker worker,
-                             NessieDatastoreInstance store,
+  private void commitKeyList(NessieDatastoreInstance store,
                              BranchName branch,
                              AtomicInteger totalEntries)
     throws ReferenceNotFoundException, ReferenceConflictException {
@@ -219,12 +219,12 @@ public class MigrateToNessieAdapter extends UpgradeTask {
       .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
         .keyListDistance(1)
         .build())
-      .build(worker);
+      .build();
 
     ImmutableCommitParams emptyCommit = ImmutableCommitParams.builder()
       .toBranch(branch)
       .commitMetaSerialized(
-        worker.getMetadataSerializer().toBytes(
+        METADATA_SERIALIZER.toBytes(
           CommitMeta.builder()
             .message("Upgrade - Generate key list")
             .author("MigrateToNessieAdapter")

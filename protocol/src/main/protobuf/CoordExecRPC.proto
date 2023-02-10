@@ -286,6 +286,7 @@ message NodeQueryStatus {
 message NodePhaseStatus {
   optional int32 major_fragment_id = 1;
   optional int64 max_memory_used = 2;
+  optional int32 phase_weight = 3;
 }
 
 // profile and metrics from one executor node.

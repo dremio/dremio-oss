@@ -29,9 +29,6 @@ import com.dremio.service.namespace.NamespaceKey;
  * Drops the primary key info from a table
  */
 public class DropPrimaryKeyHandler extends SimpleDirectHandler {
-
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropPrimaryKeyHandler.class);
-
   private final Catalog catalog;
 
   public DropPrimaryKeyHandler(Catalog catalog) {

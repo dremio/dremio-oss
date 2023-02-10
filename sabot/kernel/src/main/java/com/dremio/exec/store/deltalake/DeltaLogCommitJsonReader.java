@@ -100,7 +100,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
                     final int minReaderVersion = get(json, 1, JsonNode::intValue, DELTA_FIELD_PROTOCOL,
                             PROTOCOL_MIN_READER_VERSION);
                     Preconditions.checkState(minReaderVersion <= 1,
-                            "Protocol version {} is incompatible for Dremio plugin", minReaderVersion);
+                            "Protocol version %s is incompatible for Dremio plugin", minReaderVersion);
                 } else if (json.has(DELTA_FIELD_COMMIT_INFO)) {
                     snapshot = OBJECT_MAPPER.readValue(nextLine, DeltaLogSnapshot.class);
                     foundCommitInfo = true;

@@ -52,6 +52,7 @@ import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
 
 /**
  * Discovers the schema from the incoming data vectors instead of config. The manifest files are kept in memory, and
@@ -100,7 +101,7 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
             currentSchema = currentSchema.mergeWithUpPromotion(schemaAtThisRow, this);
           } catch (NoSupportedUpPromotionOrCoercionException e) {
             e.addDatasetPath(config.getDatasetPath().getPathComponents());
-            throw UserException.unsupportedError().message(e.getMessage()).build();
+            throw UserException.unsupportedError(e).message(e.getMessage()).build();
           }
             if (currentSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
               throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
@@ -139,9 +140,9 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
     }
 
     @Override
-    public void commit() throws Exception {
+    public void commit(WriterCommitterOutputHandler outputHandler) throws Exception {
         initializeIcebergOpCommitter();
-        super.commit();
+        super.commit(outputHandler);
         icebergManifestFiles.clear();
         deletedDataFiles.clear();
     }

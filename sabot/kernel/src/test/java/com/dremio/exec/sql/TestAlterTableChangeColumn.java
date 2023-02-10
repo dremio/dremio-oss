@@ -343,7 +343,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
 
         Thread.sleep(1001);
         String changeColQuery = String.format("ALTER TABLE %s CHANGE n_RegiOnkey regionkey int", tableName);
-        errorMsgTestHelper(changeColQuery, "Table [changecol9] not found");
+        errorMsgTestHelper(changeColQuery, "Table [changecol9] does not exist");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }

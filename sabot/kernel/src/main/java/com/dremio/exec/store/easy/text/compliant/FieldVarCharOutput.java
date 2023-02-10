@@ -26,7 +26,6 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -36,28 +35,8 @@ import com.dremio.sabot.op.scan.OutputMutator;
  * a record batch with a set of varchar vectors. A varchar vector contains all the field
  * values for a given column. Each record is a single value within each vector of the set.
  */
-class FieldVarCharOutput extends TextOutput {
+class FieldVarCharOutput extends FieldTypeOutput {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldVarCharOutput.class);
-
-  // array of output vector
-  private final VarCharVector[] vectors;
-  // boolean array indicating which fields are selected (if star query entire array is set to true)
-  private final boolean[] selectedFields;
-  // current vector to which field will be added
-  private VarCharVector currentVector;
-  // track which field is getting appended
-  private int currentFieldIndex = -1;
-  // track chars within field
-  private int currentDataPointer = 0;
-  // track if field is still getting appended
-  private boolean fieldOpen = true;
-  // holds chars for a field
-  private final byte[] fieldBytes;
-
-  private boolean collect = true;
-  private boolean rowHasData = false;
-  private int recordCount = 0;
-  private int maxField = 0;
 
   /**
    * We initialize and add the varchar vector for each incoming field in this
@@ -70,14 +49,13 @@ class FieldVarCharOutput extends TextOutput {
    * @throws SchemaChangeException
    */
   public FieldVarCharOutput(OutputMutator outputMutator, String[] fieldNames, Collection<SchemaPath> columns, boolean isStarQuery, int sizeLimit) throws SchemaChangeException {
-    super(sizeLimit);
+    super(sizeLimit, (fieldNames.length + columns.size()));
 
     int totalFields = fieldNames.length;
     List<String> outputColumns = new ArrayList<>(Arrays.asList(fieldNames));
 
     if (isStarQuery) {
       maxField = totalFields - 1;
-      this.selectedFields = new boolean[totalFields];
       Arrays.fill(selectedFields, true);
     } else {
       List<Integer> columnIds = new ArrayList<Integer>();
@@ -97,14 +75,11 @@ class FieldVarCharOutput extends TextOutput {
       }
       Collections.sort(columnIds);
 
-      this.selectedFields = new boolean[totalFields];
       for(Integer i : columnIds) {
         selectedFields[i] = true;
         maxField = i;
       }
     }
-
-    this.vectors = new VarCharVector[totalFields];
 
     for (int i = 0; i <= maxField; i++) {
       if (selectedFields[i]) {
@@ -112,100 +87,10 @@ class FieldVarCharOutput extends TextOutput {
         this.vectors[i] = outputMutator.addField(field, VarCharVector.class);
       }
     }
-
-    this.fieldBytes = new byte[sizeLimit];
-  }
-
-  /**
-   * Start a new record batch. Resets all pointers
-   */
-  @Override
-  public void startBatch() {
-    this.recordCount = 0;
-    this.currentFieldIndex = -1;
-    this.collect = true;
-    this.fieldOpen = false;
-  }
-
-  private int getIndexOf(List<String> outputColumns, String pathStr) {
-    for (int i = 0; i < outputColumns.size(); i++) {
-      if (outputColumns.get(i).equalsIgnoreCase(pathStr)) {
-        return i;
-      }
-    }
-    return -1;
   }
 
   @Override
-  public void startField(int index) {
-    currentFieldIndex = index;
-    currentDataPointer = 0;
-    fieldOpen = true;
-    collect = selectedFields[index];
-    currentVector = vectors[index];
+  protected void writeValueInCurrentVector(int index, byte[] fieldBytes, int startIndex, int endIndex) {
+    ((VarCharVector) currentVector).setSafe(recordCount, fieldBytes, 0, currentDataPointer);
   }
-
-  @Override
-  public void append(byte data) {
-    if (!collect) {
-      return;
-    }
-
-    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
-    fieldBytes[currentDataPointer++] = data;
-  }
-
-  @Override
-  public boolean endField() {
-    fieldOpen = false;
-    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
-
-    if(collect) {
-      assert currentVector != null;
-      currentVector.setSafe(recordCount, fieldBytes, 0, currentDataPointer);
-    }
-
-    if (currentDataPointer > 0) {
-      this.rowHasData = true;
-    }
-
-    return currentFieldIndex < maxField;
-  }
-
-  @Override
-  public boolean endEmptyField() {
-    return endField();
-  }
-
- @Override
-  public void finishRecord() {
-    if(fieldOpen){
-      endField();
-    }
-
-    recordCount++;
-  }
-
-  // Sets the record count in this batch within the value vector
-  @Override
-  public void finishBatch() {
-
-    for (int i = 0; i <= maxField; i++) {
-      if (this.vectors[i] != null) {
-        this.vectors[i].setValueCount(recordCount);
-      }
-    }
-
-  }
-
-  @Override
-  public long getRecordCount() {
-    return recordCount;
-  }
-
-  @Override
-  public boolean rowHasData() {
-    return this.rowHasData;
-  }
-
  }

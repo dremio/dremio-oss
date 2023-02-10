@@ -134,6 +134,8 @@ describe("explore/join reducer", () => {
           recommendedJoins: [],
           activeRecommendedJoin: {},
         },
+
+        joinReference: null,
       });
     });
   });

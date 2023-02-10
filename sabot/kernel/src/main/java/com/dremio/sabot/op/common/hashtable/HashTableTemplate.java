@@ -46,7 +46,7 @@ import com.google.common.base.Throwables;
 
 public abstract class HashTableTemplate implements HashTable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashTable.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashTableTemplate.class);
   private static final boolean EXTRA_DEBUG = false;
 
   private static final int EMPTY_SLOT = -1;

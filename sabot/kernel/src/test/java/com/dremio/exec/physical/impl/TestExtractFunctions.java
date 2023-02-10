@@ -169,7 +169,7 @@ public class TestExtractFunctions extends BaseTestFunction {
 //      bit.run();
 //      client.connect();
 //      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-//        Files.toString(FileUtils.getResourceAsFile("/functions/extractFrom.json"), Charsets.UTF_8)
+//        readResourceAsString("/functions/extractFrom.json")
 //        .replace("#{TEST_TYPE}", fromType)
 //        .replace("#{TEST_FILE}", testDataFile)
 //        .replace("#{COLUMN_NAME}", columnName));

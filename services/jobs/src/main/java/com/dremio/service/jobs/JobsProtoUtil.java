@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.dremio.datastore.LegacyProtobufSerializer;
@@ -56,7 +57,6 @@ import com.dremio.service.jobs.metadata.proto.VirtualDatasetState;
 import com.dremio.service.namespace.dataset.proto.DatasetCommonProtobuf;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.GeneratedMessageV3;
@@ -643,6 +643,27 @@ public final class JobsProtoUtil {
   }
 
   /**
+   * Utility method that maps protostuf (proto2) QueryLabel to protobuf (proto3) QueryLabel
+   */
+  public static com.dremio.service.job.QueryLabel toBuf(com.dremio.service.job.proto.QueryLabel queryLabel) {
+    if (queryLabel == null) {
+      return com.dremio.service.job.QueryLabel.NONE;
+    }
+    switch (queryLabel) {
+      case CTAS:
+        return com.dremio.service.job.QueryLabel.CTAS;
+      case OPTIMIZATION:
+        return com.dremio.service.job.QueryLabel.OPTIMIZATION;
+      case COPY:
+        return com.dremio.service.job.QueryLabel.COPY;
+      case DML:
+        return com.dremio.service.job.QueryLabel.DML;
+      default:
+        return com.dremio.service.job.QueryLabel.NONE;
+    }
+  }
+
+  /**
    * Utility method that maps protostuf (proto2) requestType to protobuf (proto3) requestType
    */
   public static com.dremio.service.job.RequestType toBuf(RequestType requestType) {
@@ -783,6 +804,27 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.proto.QueryType.INTERNAL_ICEBERG_METADATA_DROP;
       default:
         return com.dremio.service.job.proto.QueryType.UNKNOWN;
+    }
+  }
+
+  /**
+   * Utility method that maps protobuf (proto3) QueryLabel to protostuf (proto2) QueryLabel
+   */
+  public static com.dremio.service.job.proto.QueryLabel toStuff(com.dremio.service.job.QueryLabel queryLabel) {
+    if (queryLabel == null) {
+      return com.dremio.service.job.proto.QueryLabel.NONE;
+    }
+    switch (queryLabel) {
+      case CTAS:
+        return com.dremio.service.job.proto.QueryLabel.CTAS;
+      case OPTIMIZATION:
+        return com.dremio.service.job.proto.QueryLabel.OPTIMIZATION;
+      case COPY:
+        return com.dremio.service.job.proto.QueryLabel.COPY;
+      case DML:
+        return com.dremio.service.job.proto.QueryLabel.DML;
+      default:
+        return com.dremio.service.job.proto.QueryLabel.NONE;
     }
   }
 

@@ -25,16 +25,16 @@
       label: "WHERE"
      -
       kind: "Keyword"
+      label: "."
+     -
+      kind: "Keyword"
+      label: "MATCH_RECOGNIZE"
+     -
+      kind: "Keyword"
       label: "JOIN"
      -
       kind: "Keyword"
       label: "ORDER"
-     -
-      kind: "Keyword"
-      label: ","
-     -
-      kind: "Keyword"
-      label: "NATURAL"
     functionContext: null
     hasMoreResults: true
  -
@@ -47,16 +47,16 @@
       label: "BRANCH"
      -
       kind: "Keyword"
-      label: "COMMIT"
-     -
-      kind: "Keyword"
       label: "TAG"
      -
       kind: "Keyword"
-      label: "REF"
+      label: "COMMIT"
      -
       kind: "Keyword"
-      label: "REFERENCE"
+      label: "SNAPSHOT"
+     -
+      kind: "Keyword"
+      label: "TIMESTAMP"
     functionContext: null
     hasMoreResults: true
  -
@@ -77,8 +77,20 @@
      -
       kind: "Keyword"
       label: "COMMIT"
+     -
+      kind: "Keyword"
+      label: "CASE"
+     -
+      kind: "Keyword"
+      label: "CEILING"
+     -
+      kind: "Keyword"
+      label: "CONTAINS("
+     -
+      kind: "Keyword"
+      label: "CURRENT"
     functionContext: null
-    hasMoreResults: false
+    hasMoreResults: true
  -
   description: "JUST FINISHED TABLE NAME WITH AT"
   input: "SELECT * FROM EMP AT T^"
@@ -87,6 +99,18 @@
      -
       kind: "Keyword"
       label: "TAG"
+     -
+      kind: "Keyword"
+      label: "TIMESTAMP"
+     -
+      kind: "Keyword"
+      label: "TIME"
+     -
+      kind: "Keyword"
+      label: "TIMESTAMP"
+     -
+      kind: "Keyword"
+      label: "TRUE"
     functionContext: null
     hasMoreResults: false
  -
@@ -118,8 +142,14 @@
         type: "BRANCH"
       kind: "NessieElement"
       label: "Branch C"
+     -
+      kind: "Keyword"
+      label: "!="
+     -
+      kind: "Keyword"
+      label: "%"
     functionContext: null
-    hasMoreResults: false
+    hasMoreResults: true
  -
   description: "COMMIT"
   input: "SELECT * FROM EMP AT COMMIT ^"
@@ -155,8 +185,14 @@
         type: "COMMIT"
       kind: "NessieElement"
       label: "B0BACAFE"
+     -
+      kind: "Keyword"
+      label: "!="
+     -
+      kind: "Keyword"
+      label: "%"
     functionContext: null
-    hasMoreResults: false
+    hasMoreResults: true
  -
   description: "TAG"
   input: "SELECT * FROM EMP AT TAG ^"
@@ -186,8 +222,14 @@
         type: "TAG"
       kind: "NessieElement"
       label: "Tag C"
+     -
+      kind: "Keyword"
+      label: "!="
+     -
+      kind: "Keyword"
+      label: "%"
     functionContext: null
-    hasMoreResults: false
+    hasMoreResults: true
  -
   description: "Column With Reference"
   input: "SELECT ^ FROM EMP AT BRANCH \"Branch A\""

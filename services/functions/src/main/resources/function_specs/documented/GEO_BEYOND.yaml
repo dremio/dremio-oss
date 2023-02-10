@@ -1,0 +1,50 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+description: Returns whether or not the two points are beyond the distance specified
+  in meters.
+functionCategories:
+- GEOSPATIAL
+name: GEO_BEYOND
+signatures:
+- description: null
+  parameters:
+  - description: The latitude of the source location in degrees.
+    kind: REGULAR
+    name: lat1
+    type: FLOAT
+  - description: The longitude of the source location in degrees.
+    kind: REGULAR
+    name: lon1
+    type: FLOAT
+  - description: The latitude of the destination location in degrees.
+    kind: REGULAR
+    name: lat2
+    type: FLOAT
+  - description: The longitude of the destination location in degrees.
+    kind: REGULAR
+    name: lon2
+    type: FLOAT
+  - description: The specified distance between the two points in meters.
+    kind: REGULAR
+    name: distance
+    type: DOUBLE
+  returnType: BOOLEAN
+  sampleCodes:
+  - call: SELECT GEO_BEYOND(CAST(45.4408 AS FLOAT), CAST(12.3155 AS FLOAT), CAST(48.8566
+      AS FLOAT), CAST(2.3522 AS FLOAT), CAST(800000 AS DOUBLE))
+    result: true

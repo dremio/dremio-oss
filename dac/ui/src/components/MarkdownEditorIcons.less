@@ -1,0 +1,70 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.editor-icon(@iconpath) {
+  &::before {
+    background-image: url(@iconpath);
+    background-size: cover;
+    opacity: 0.65; // simulate color--neutral--600 with opacity
+    display: block;
+    content: "";
+    height: 24px;
+    width: 24px;
+  }
+}
+
+:global {
+  .editor-toolbar {
+    > * {
+      align-items: center;
+      background: none !important;
+      display: inline-flex !important;
+      justify-content: center;
+      margin: 4px !important;
+      vertical-align: top;
+    }
+    .fa-bold {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/bold.svg");
+    }
+    .fa-italic {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/italic.svg");
+    }
+    .fa-strikethrough {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/strikethrough.svg");
+    }
+    .fa-underline {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/underline.svg");
+    }
+    .fa-header {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/header.svg");
+    }
+    .fa-quote-left {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/quote.svg");
+    }
+    .fa-list-ul {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/list-bullet.svg");
+    }
+    .fa-list-ol {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/list-numbered.svg");
+    }
+    .fa-link {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/link.svg");
+    }
+    .fa-picture-o {
+      .editor-icon("dremio-ui-lib/icons/dremio/editor/image.svg");
+    }
+  }
+}

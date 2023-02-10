@@ -146,6 +146,7 @@ public class IcebergTestTables {
       // to enumerate files in the table directory
       if (resource.getScheme().equals("jar")) {
         try (java.nio.file.FileSystem fileSystem = FileSystems.newFileSystem(resource, Collections.emptyMap())) {
+          src = !src.startsWith("/") ?  "/" + src : src;
           java.nio.file.Path srcDir = fileSystem.getPath(src);
           try (Stream<java.nio.file.Path> stream = Files.walk(srcDir)) {
             stream.forEach(source -> {

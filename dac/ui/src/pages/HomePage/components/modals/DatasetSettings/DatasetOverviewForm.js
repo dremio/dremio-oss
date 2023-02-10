@@ -23,7 +23,11 @@ import { FormattedMessage } from "react-intl";
 import { FormBody, FormTitle } from "components/Forms";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 
-import { getIconDataTypeFromEntity } from "utils/iconUtils";
+import {
+  getIconDataTypeFromEntity,
+  getIcebergIconTypeFromEntity,
+} from "utils/iconUtils";
+import { isArcticSource } from "@app/utils/sourceUtils";
 
 import DatasetOverviewFormMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin"; // eslint-disable-line max-len
 
@@ -31,17 +35,20 @@ import DatasetOverviewFormMixin from "dyn-load/pages/HomePage/components/modals/
 export default class DatasetOverviewForm extends PureComponent {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
+    source: PropTypes.object,
     location: PropTypes.object,
   };
 
   render() {
-    const { entity } = this.props;
+    const { entity, source } = this.props;
 
     if (!entity) {
       return null;
     }
 
-    const typeIcon = getIconDataTypeFromEntity(entity);
+    const typeIcon = isArcticSource(source?.type)
+      ? getIcebergIconTypeFromEntity(entity)
+      : getIconDataTypeFromEntity(entity);
 
     // todo: if a real form likely want wrapped in ModalForm like siblings?
     return (
@@ -55,6 +62,7 @@ export default class DatasetOverviewForm extends PureComponent {
             fullPath={entity.get("fullPathList")}
             showFullPath
             typeIcon={typeIcon}
+            showSummaryOverlay={!isArcticSource(source?.type)}
           />
         </div>
       </FormBody>

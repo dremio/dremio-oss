@@ -89,7 +89,12 @@ export class LoginForm extends PureComponent {
               labelStyle={styles.label}
               style={{ ...formLabel, ...styles.field }}
             >
-              <TextField {...userName} initialFocus style={styles.input} />
+              <TextField
+                {...userName}
+                initialFocus
+                style={styles.input}
+                autoComplete="username"
+              />
             </FieldWithError>
             <FieldWithError
               {...password}
@@ -98,7 +103,12 @@ export class LoginForm extends PureComponent {
               labelStyle={styles.label}
               style={{ ...formLabel, ...styles.field }}
             >
-              <TextField {...password} type="password" style={styles.input} />
+              <TextField
+                {...password}
+                type="password"
+                style={styles.input}
+                autoComplete="current-password"
+              />
             </FieldWithError>
           </div>
           <div style={styles.submitWrapper}>

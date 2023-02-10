@@ -117,6 +117,7 @@ import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.parser.ParserUtil;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.SessionId;
@@ -166,6 +167,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
   private final DatasetPath datasetPath;
   private final DatasetVersion version;
   private final HistogramGenerator histograms;
+  private final CatalogService catalogService;
 
   @Inject
   public DatasetVersionResource (
@@ -178,21 +180,23 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     @Context SecurityContext securityContext,
     @PathParam("cpath") DatasetPath datasetPath,
     @PathParam("version") DatasetVersion version,
-    BufferAllocatorFactory allocatorFactory
+    BufferAllocatorFactory allocatorFactory,
+    CatalogService catalogService
   ) {
     this(
       executor,
       datasetService,
       jobsService,
       new Recommenders(executor, datasetPath, version),
-      new Transformer(context, jobsService, namespaceService, datasetService, executor, securityContext),
+      new Transformer(context, jobsService, namespaceService, datasetService, executor, securityContext, catalogService),
       joinRecommender,
       new DatasetTool(datasetService, jobsService, executor, securityContext),
       new HistogramGenerator(executor),
       securityContext,
       datasetPath,
       version,
-      allocatorFactory);
+      allocatorFactory,
+      catalogService);
   }
 
   public DatasetVersionResource(
@@ -207,7 +211,8 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       SecurityContext securityContext,
       DatasetPath datasetPath,
       DatasetVersion version,
-      BufferAllocator allocator
+      BufferAllocator allocator,
+      CatalogService catalogService
       ) {
     super(allocator);
     this.executor = executor;
@@ -221,6 +226,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     this.securityContext = securityContext;
     this.datasetPath = datasetPath;
     this.version = version;
+    this.catalogService = catalogService;
   }
 
   protected DatasetVersionResource(
@@ -235,7 +241,8 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     SecurityContext securityContext,
     DatasetPath datasetPath,
     DatasetVersion version,
-    BufferAllocatorFactory allocatorFactory
+    BufferAllocatorFactory allocatorFactory,
+    CatalogService catalogService
   ) {
     super(allocatorFactory);
     this.executor = executor;
@@ -249,6 +256,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     this.securityContext = securityContext;
     this.datasetPath = datasetPath;
     this.version = version;
+    this.catalogService = catalogService;
   }
 
 

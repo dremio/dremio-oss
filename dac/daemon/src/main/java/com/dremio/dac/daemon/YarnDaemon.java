@@ -96,6 +96,7 @@ public class YarnDaemon implements Runnable, AutoCloseable {
   }
 
   private String getYarnWatchdogLogLevel() {
+    @SuppressWarnings("Slf4jIllegalPassedClass") // intentionally using logger from another class
     final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(YarnWatchdog.class);
     if (logger.isTraceEnabled()) {
       return "TRACE";

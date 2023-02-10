@@ -17,6 +17,7 @@
 package com.dremio.exec.catalog;
 
 import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
+import static com.dremio.exec.ExecConstants.VERSIONED_INFOSCHEMA_ENABLED;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,6 +34,7 @@ import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.dremio.service.catalog.Catalog;
 import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SchemaType;
@@ -70,10 +72,11 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.SPACE.getNumber())
   );
 
+  private static final SearchTypes.SearchQuery DATASET_FILTER =
+    SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.DATASET.getNumber());
+
   private static final Predicate<Map.Entry<NamespaceKey, NameSpaceContainer>> IS_NOT_INTERNAL =
     entry -> !entry.getKey().getRoot().startsWith("__");
-  private static final Predicate<Map.Entry<NamespaceKey, NameSpaceContainer>> IS_DATASET =
-    entry -> entry.getValue().getType() == NameSpaceContainer.Type.DATASET;
 
   private static final ImmutableSet<String> SYSTEM_FIELDS =
     ImmutableSet.of(IncrementalUpdateUtils.UPDATE_COLUMN);
@@ -83,10 +86,12 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InformationSchemaCatalogImpl.class);
 
+  private OptionManager options;
 
-  public InformationSchemaCatalogImpl(NamespaceService userNamespace, PluginRetriever pluginRetriever) {
+  public InformationSchemaCatalogImpl(NamespaceService userNamespace, PluginRetriever pluginRetriever, OptionManager options) {
     this.userNamespace = userNamespace;
     this.pluginRetriever = pluginRetriever;
+    this.options = options;
   }
 
   private static LegacyFindByCondition getCondition(SearchQuery searchQuery) {
@@ -216,15 +221,13 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     final Iterator<Schema>[] res = new Iterator[]{Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    //Todo(DX-54506): it should work when searchQuery is not null
-    if (versionedPlugins != null) {
-      if (searchQuery == null) {
+    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
         versionedPlugins.forEach(
-          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaSchemataInfo().iterator())
+          versionedPlugin -> {
+            Stream<com.dremio.service.catalog.Schema> schemata = versionedPlugin.getAllInformationSchemaSchemataInfo(searchQuery);
+            res[0] = Iterators.concat(res[0], schemata.iterator());
+          }
         );
-      } else {
-        logger.warn(String.format("Filtering INFORMATION_SCHEMA.SCHEMATA is not supported for Arctic/Nessie sources"));
-      }
     }
 
     final SearchTypes.SearchQuery query;
@@ -255,27 +258,25 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
   @Override
   public Iterator<Table> listTables(SearchQuery searchQuery) {
+
     final Iterator[] res = {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    //Todo(DX-54506): it should work when searchQuery is not null
-    if (versionedPlugins != null) {
-      if (searchQuery == null) {
-        versionedPlugins.forEach(
-          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaTableInfo().iterator())
-        );
-      } else {
-        logger.warn(String.format("Filtering INFORMATION_SCHEMA.\"TABLES\" is not supported for Arctic/Nessie sources"));
-      }
+    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
+      versionedPlugins.forEach(
+        versionedPlugin -> {
+          Stream<com.dremio.service.catalog.Table> tables = versionedPlugin.getAllInformationSchemaTableInfo(searchQuery);
+          res[0] = Iterators.concat(res[0], tables.iterator());
+        }
+      );
     }
 
     final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-      userNamespace.find(getCondition(searchQuery));
+      userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
 
     return Iterators.concat(res[0],
       StreamSupport.stream(searchResults.spliterator(), false)
       .filter(IS_NOT_INTERNAL)
-      .filter(IS_DATASET)
       .map(input -> {
         final String sourceName = input.getKey().getRoot();
 
@@ -302,24 +303,21 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     final Iterator[] res = {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    //Todo(DX-54506): it should work when searchQuery is not null
-    if (versionedPlugins != null) {
-      if (searchQuery == null) {
+    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
         versionedPlugins.forEach(
-          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaViewInfo().iterator())
+          versionedPlugin -> {
+            Stream<com.dremio.service.catalog.View> views = versionedPlugin.getAllInformationSchemaViewInfo(searchQuery);
+            res[0] = Iterators.concat(res[0], views.iterator());
+          }
         );
-      } else {
-        logger.warn(String.format("Filtering INFORMATION_SCHEMA.VIEWS is not supported for Arctic/Nessie sources"));
-      }
     }
 
       final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-        userNamespace.find(getCondition(searchQuery));
+        userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
 
       return Iterators.concat(res[0],
         StreamSupport.stream(searchResults.spliterator(), false)
         .filter(IS_NOT_INTERNAL)
-        .filter(IS_DATASET)
         .filter(entry -> entry.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET)
         .map(entry -> View.newBuilder()
           .setCatalogName(DEFAULT_CATALOG_NAME)
@@ -333,24 +331,22 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
   public Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery) {
     final Iterator[] res = {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
-    //Todo(DX-54506): it should work when searchQuery is not null
-    if (versionedPlugins != null) {
-      if (searchQuery == null) {
+
+    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
         versionedPlugins.forEach(
-          versionedPlugin -> res[0] = Iterators.concat(res[0], versionedPlugin.getAllInformationSchemaColumnInfo().iterator())
+          versionedPlugin -> {
+            Stream<com.dremio.service.catalog.TableSchema> columns = versionedPlugin.getAllInformationSchemaColumnInfo(searchQuery);
+            res[0] = Iterators.concat(res[0], columns.iterator());
+          }
         );
-      } else {
-        logger.warn("Filtering INFORMATION_SCHEMA.COLUMNS is not supported for Arctic/Nessie sources");
-      }
     }
 
     final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-      userNamespace.find(getCondition(searchQuery));
+      userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
 
    return Iterators.concat(res[0],
      StreamSupport.stream(searchResults.spliterator(), false)
        .filter(IS_NOT_INTERNAL)
-       .filter(IS_DATASET)
        .filter(entry -> DatasetHelper.getSchemaBytes(entry.getValue().getDataset()) != null)
        .map(entry -> TableSchema.newBuilder()
          .setCatalogName(DEFAULT_CATALOG_NAME)
@@ -369,5 +365,17 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     );
 
     return ByteString.copyFrom(rewrittenSchema.serialize());
+  }
+
+  /**
+   * Adds a dataset filter to a given search query. If query is null, return just the
+   * dataset filter.
+   */
+  private SearchTypes.SearchQuery addDatasetFilter(SearchQuery searchQuery) {
+    if (searchQuery == null) {
+      return DATASET_FILTER;
+    } else {
+      return SearchQueryUtils.and(toSearchQuery(searchQuery), DATASET_FILTER);
+    }
   }
 }

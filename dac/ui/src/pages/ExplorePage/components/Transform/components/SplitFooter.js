@@ -23,7 +23,7 @@ import TextField from "components/Fields/TextField";
 import FieldWithError from "components/Fields/FieldWithError";
 import { applyValidators, isRequired } from "utils/validation";
 import { formLabel } from "uiTheme/radium/typography";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import { sectionMargin } from "@app/uiTheme/less/layout.less";
 import {

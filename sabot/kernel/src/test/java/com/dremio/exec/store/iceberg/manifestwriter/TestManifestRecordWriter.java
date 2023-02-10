@@ -70,6 +70,10 @@ import org.mockito.ArgumentCaptor;
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.base.IcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
@@ -889,7 +893,10 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     when(icebergTableProps.isMetadataRefresh()).thenReturn(true);
     when(icebergTableProps.getPartitionColumnNames()).thenReturn(Collections.singletonList("id"));
     when(icebergTableProps.getFullSchema()).thenReturn(BatchSchema.of(Field.nullable("id", new ArrowType.Int(32, false))));
-    when(writerOptions.getIcebergTableProps()).thenReturn(icebergTableProps);
+    IcebergWriterOptions icebergOptions = new ImmutableIcebergWriterOptions.Builder().setIcebergTableProps(icebergTableProps).build();
+    TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
+      .setIcebergSpecificOptions(icebergOptions).build();
+    when(writerOptions.getTableFormatOptions()).thenReturn(tableFormatOptions);
     when(writerOptions.getExtendedProperty()).thenReturn(null);
     return manifestWriterPOP;
   }

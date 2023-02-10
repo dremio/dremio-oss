@@ -290,20 +290,20 @@ public class TestDeltaLakeSchemaConverter {
          * |    |-- value: string (nullable = true)
          */
         final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(true).fromSchemaString(schemaString);
-        assertEquals(2, batchSchema.getFieldCount());
+        assertEquals(5, batchSchema.getFieldCount());
 
+        Field intKey = batchSchema.findField("intKey");
+        assertEquals(ArrowType.ArrowTypeID.Map, intKey.getType().getTypeID());
+        assertEquals(ArrowType.ArrowTypeID.Int, intKey.getChildren().get(0).getChildren().get(0).getType().getTypeID());
         Field stringValue = batchSchema.findField("stringValue");
         assertEquals(ArrowType.ArrowTypeID.Map, stringValue.getType().getTypeID());
         assertEquals(ArrowType.ArrowTypeID.Int, stringValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
         Field bothString = batchSchema.findField("bothString");
         assertEquals(ArrowType.ArrowTypeID.Map, bothString.getType().getTypeID());
         assertEquals(ArrowType.ArrowTypeID.Utf8, bothString.getChildren().get(0).getChildren().get(1).getType().getTypeID());
-
-
-//        Field structValue = batchSchema.findField("structValue");
-//        assertEquals(ArrowType.ArrowTypeID.Struct, structValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
-
-//        Field arrayValue = batchSchema.findField("arrayValue");
-//        assertEquals(ArrowType.ArrowTypeID.List, arrayValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
+        Field structValue = batchSchema.findField("structValue");
+        assertEquals(ArrowType.ArrowTypeID.Struct, structValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
+        Field arrayValue = batchSchema.findField("arrayValue");
+        assertEquals(ArrowType.ArrowTypeID.List, arrayValue.getChildren().get(0).getChildren().get(1).getType().getTypeID());
     }
 }

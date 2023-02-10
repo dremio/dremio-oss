@@ -84,6 +84,11 @@ public class DremioServlet implements Servlet {
     HttpServletRequest httpReq = (HttpServletRequest) req;
     String requestUri = httpReq.getRequestURI();
 
+    if (requestUri.startsWith("/static")) {
+      staticResources.service(httpReq, res);
+        return;
+    }
+
     for (String extension : EXTENSIONS) {
       if (requestUri.endsWith(extension)) {
         staticResources.service(httpReq, res);
@@ -139,6 +144,7 @@ public class DremioServlet implements Servlet {
       .setDownloadRecordsLimit(options.getOption(DatasetDownloadManager.DOWNLOAD_RECORDS_LIMIT))
       .setShowMetadataValidityCheckbox(options.getOption(CatalogOptions.SHOW_METADATA_VALIDITY_CHECKBOX))
       .setShowNewJobsPage(options.getOption(UIOptions.JOBS_UI_CHECK))
+      .setShowOldReflectionsListing(options.getOption(UIOptions.REFLECTIONSLISTING_UI_CHECK))
       .setAllowAutoComplete(options.getOption(UIOptions.ALLOW_AUTOCOMPLETE))
       .setAllowFormatting(options.getOption(UIOptions.ALLOW_FORMATTING));
   }

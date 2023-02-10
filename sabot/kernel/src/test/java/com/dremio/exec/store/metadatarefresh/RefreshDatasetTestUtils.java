@@ -54,7 +54,7 @@ public class RefreshDatasetTestUtils {
   }
 
   private static int getTotalFileCount(Table icebergTable) {
-    return icebergTable.currentSnapshot().dataManifests().stream().map(x -> x.addedFilesCount() + x.existingFilesCount()).reduce(0, Integer::sum);
+    return icebergTable.currentSnapshot().dataManifests(icebergTable.io()).stream().map(x -> x.addedFilesCount() + x.existingFilesCount()).reduce(0, Integer::sum);
   }
 
   public static Table getIcebergTable(String tableFolderPath) {
@@ -99,7 +99,7 @@ public class RefreshDatasetTestUtils {
 
   public static List<String> getAddedFilePaths(Table icebergTable) {
     List<String> addedPaths = new ArrayList<>();
-    for (DataFile dataFile : icebergTable.currentSnapshot().addedFiles()) {
+    for (DataFile dataFile : icebergTable.currentSnapshot().addedDataFiles(icebergTable.io())) {
       addedPaths.add(dataFile.path().toString());
     }
     return addedPaths;
@@ -107,7 +107,7 @@ public class RefreshDatasetTestUtils {
 
   public static List<String> getDeletedFilePaths(Table icebergTable) {
     List<String> deletedPaths = new ArrayList<>();
-    for (DataFile dataFile : icebergTable.currentSnapshot().deletedFiles()) {
+    for (DataFile dataFile : icebergTable.currentSnapshot().removedDataFiles(icebergTable.io())) {
       deletedPaths.add(dataFile.path().toString());
     }
     return deletedPaths;

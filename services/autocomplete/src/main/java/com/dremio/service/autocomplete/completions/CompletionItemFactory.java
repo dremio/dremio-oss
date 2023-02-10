@@ -25,21 +25,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.dremio.service.autocomplete.catalog.Node;
 import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
-import com.dremio.service.autocomplete.functions.Function;
-import com.dremio.service.autocomplete.functions.FunctionSnippetFactory;
 import com.dremio.service.autocomplete.nessie.Branch;
 import com.dremio.service.autocomplete.nessie.Commit;
 import com.dremio.service.autocomplete.nessie.NessieElement;
 import com.dremio.service.autocomplete.nessie.NessieElementVisitor;
 import com.dremio.service.autocomplete.nessie.Tag;
-import com.dremio.service.autocomplete.snippets.Choice;
-import com.dremio.service.autocomplete.snippets.Placeholder;
-import com.dremio.service.autocomplete.snippets.Snippet;
-import com.dremio.service.autocomplete.snippets.SnippetElement;
-import com.dremio.service.autocomplete.snippets.Tabstop;
-import com.dremio.service.autocomplete.snippets.Text;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenEscaper;
+import com.dremio.service.functions.model.Function;
+import com.dremio.service.functions.model.FunctionSignature;
+import com.dremio.service.functions.model.Parameter;
+import com.dremio.service.functions.snippets.Choice;
+import com.dremio.service.functions.snippets.Placeholder;
+import com.dremio.service.functions.snippets.Snippet;
+import com.dremio.service.functions.snippets.SnippetElement;
+import com.dremio.service.functions.snippets.Tabstop;
+import com.dremio.service.functions.snippets.Text;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -106,9 +107,10 @@ public final class CompletionItemFactory {
       .getSignatures()
       .stream()
       .map(signature -> {
-        Snippet snippet = signature
-          .getSnippetOverride()
-          .orElse(FunctionSnippetFactory.create(function.getName(), signature));
+        Snippet snippet = signature.getSnippetOverride();
+        if (snippet == null) {
+          snippet = createSnippet(function.getName(), signature);
+        }
 
         StringBuilder labelBuilder = new StringBuilder();
         for (SnippetElement snippetElement : snippet.getSnippetElements()) {
@@ -127,7 +129,11 @@ public final class CompletionItemFactory {
           }
         }
 
-        String detail = function.getDescription().orElse(null);
+        String detail = function.getDescription();
+        if ((detail != null) && detail.startsWith("<") && detail.endsWith(">")) {
+          // This means the doc writers have yet to fill out the yaml source.
+          detail = null;
+        }
 
         return ImmutableCompletionItem.builder()
           .label(labelBuilder.toString())
@@ -162,6 +168,25 @@ public final class CompletionItemFactory {
       .label(label)
       .kind(CompletionItemKind.NessieElement)
       .data(nessieElement)
+      .build();
+  }
+
+  private static Snippet createSnippet(String name, FunctionSignature functionSignature) {
+    Snippet.Builder snippetBuilder = Snippet.builder()
+      .addText(name)
+      .addText("(");
+
+    for (int i = 0; i < functionSignature.getParameters().size(); i++) {
+      if (i != 0) {
+        snippetBuilder.addText(", ");
+      }
+
+      Parameter parameter = functionSignature.getParameters().get(i);
+      snippetBuilder.addPlaceholder(parameter.getType().toString());
+    }
+
+    return snippetBuilder
+      .addText(")")
       .build();
   }
 

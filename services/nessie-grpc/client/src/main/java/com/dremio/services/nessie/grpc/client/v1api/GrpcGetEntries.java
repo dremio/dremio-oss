@@ -19,10 +19,13 @@ import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleNessieNotFoundEx;
 
+import java.util.stream.Stream;
+
 import javax.annotation.Nullable;
 
 import org.projectnessie.api.params.EntriesParams;
 import org.projectnessie.api.params.EntriesParamsBuilder;
+import org.projectnessie.client.StreamingUtil;
 import org.projectnessie.client.api.GetEntriesBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.EntriesResponse;
@@ -77,7 +80,18 @@ final class GrpcGetEntries implements GetEntriesBuilder {
 
   @Override
   public EntriesResponse get() throws NessieNotFoundException {
+    return get(params.build());
+  }
+
+  private EntriesResponse get(EntriesParams p) throws NessieNotFoundException {
     return handleNessieNotFoundEx(
-      () -> fromProto(stub.getEntries(toProto(refName, params.build()))));
+      () -> fromProto(stub.getEntries(toProto(refName, p))));
+  }
+
+  @Override
+  public Stream<EntriesResponse.Entry> stream() throws NessieNotFoundException {
+    EntriesParams p = params.build();
+    return StreamingUtil.generateStream(
+      EntriesResponse::getEntries, pageToken -> get(p.forNextPage(pageToken)));
   }
 }

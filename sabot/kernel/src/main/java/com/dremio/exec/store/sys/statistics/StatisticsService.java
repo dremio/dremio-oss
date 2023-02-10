@@ -21,8 +21,6 @@ import java.util.Set;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.Service;
@@ -31,8 +29,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 public interface StatisticsService extends Service, StatisticsAdministrationService {
   Iterable<StatisticsListManager.StatisticsInfo> getStatisticsInfos();
-
-  Logger logger = LoggerFactory.getLogger(StatisticsService.class);
 
   interface Histogram {
     double quantile(double q);

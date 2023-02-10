@@ -40,9 +40,6 @@ import com.dremio.service.namespace.NamespaceKey;
 
 // Direct Handler for dropping a table.
 public class DropTableHandler extends SimpleDirectHandler {
-
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropTableHandler.class);
-
   private final Catalog catalog;
   private final UserSession userSession;
 

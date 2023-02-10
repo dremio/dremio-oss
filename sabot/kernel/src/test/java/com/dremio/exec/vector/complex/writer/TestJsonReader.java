@@ -52,8 +52,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 
 public class TestJsonReader extends PlanTestBase {
@@ -160,7 +158,7 @@ public class TestJsonReader extends PlanTestBase {
       System.out.println("===================");
       System.out.println("source data in json");
       System.out.println("===================");
-      System.out.println(Files.toString(FileUtils.getResourceAsFile(filename), Charsets.UTF_8));
+      System.out.println(readResourceAsString(filename));
     }
 
     int i = 0;
@@ -364,7 +362,7 @@ public class TestJsonReader extends PlanTestBase {
   @Test
   @Ignore
   public void testProjectPushdown() throws Exception {
-    String[] queries = {Files.toString(FileUtils.getResourceAsFile("/store/json/project_pushdown_json_physical_plan.json"), Charsets.UTF_8)};
+    String[] queries = {readResourceAsString("/store/json/project_pushdown_json_physical_plan.json")};
     long[] rowCounts = {3};
     String filename = "/store/json/schema_change_int_to_string.json";
     runTestsOnFile(filename, UserBitShared.QueryType.PHYSICAL, queries, rowCounts);

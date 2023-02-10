@@ -63,6 +63,18 @@ public interface MutablePlugin extends StoragePlugin {
   void truncateTable(NamespaceKey tableSchemaPath,
                      SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions);
 
+  void rollbackTable(NamespaceKey tableSchemaPath,
+                     DatasetConfig datasetConfig,
+                     SchemaConfig schemaConfig,
+                     RollbackOption rollbackOption,
+                     TableMutationOptions tableMutationOptions);
+
+  void vacuumTable(NamespaceKey tableSchemaPath,
+                   DatasetConfig datasetConfig,
+                   SchemaConfig schemaConfig,
+                   VacuumOption vacuumOption,
+                   TableMutationOptions tableMutationOptions);
+
   boolean createOrUpdateView(NamespaceKey tableSchemaPath,
                              SchemaConfig schemaConfig,
                              View view, ViewOptions viewOptions) throws IOException;

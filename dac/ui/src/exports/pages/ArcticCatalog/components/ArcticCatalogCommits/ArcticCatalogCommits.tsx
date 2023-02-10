@@ -32,9 +32,13 @@ import { useArcticCatalogCommits } from "./useArcticCatalogCommits";
 import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
 import { debounce } from "lodash";
 import { getGoToDataButton } from "./utils";
+import { LogEntry } from "@app/services/nessie/client/index";
+import { useDispatch } from "react-redux";
+import * as headerClasses from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
+import { setReference } from "@app/actions/nessie/nessie";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 import * as classes from "./ArcticCatalogCommits.module.less";
-import * as headerClasses from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
 
 type ArcticCatalogCommitsProps = WithRouterProps;
 
@@ -45,24 +49,48 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
   const {
     state: { reference, hash },
     baseUrl,
+    source,
   } = useNessieContext();
   const { isCatalog, reservedNamespace } = useArcticCatalogContext() ?? {};
+  const dispatch = useDispatch();
 
-  const getPath = (tab: ArcticCatalogTabsType) => {
+  const getPath = (tab: ArcticCatalogTabsType, item?: LogEntry) => {
+    const toHash = item?.commitMeta?.hash ?? hash ?? "";
     return constructArcticUrl({
       type: isCatalog ? "catalog" : "source",
       baseUrl,
       tab,
       namespace: reservedNamespace ?? "",
-      hash: hash ? `?hash=${hash}` : "",
+      hash: toHash ? `?hash=${toHash}` : "",
     });
   };
 
-  const handlePush = (tab: ArcticCatalogTabsType) => router.push(getPath(tab));
+  const handleReference = (item: LogEntry) => {
+    if (item.commitMeta?.hash && reference?.name) {
+      dispatch(
+        setReference(
+          {
+            reference: {
+              type: "BRANCH",
+              name: reference.name,
+              hash: item.commitMeta.hash,
+            },
+            hash: item.commitMeta.hash,
+          },
+          source.name
+        )
+      );
+    }
+  };
+
+  const handleTabNavigation = (tab: ArcticCatalogTabsType, item?: LogEntry) => {
+    if (item) handleReference(item);
+    return router.push(getPath(tab, item));
+  };
 
   const path = useMemo(() => {
     return parseArcticCatalogUrl(
-      location.pathname,
+      rmProjectBase(location.pathname) || "/",
       `${baseUrl}/commits/${params?.branchName}`,
       "commits",
       params?.branchName
@@ -70,23 +98,22 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
   }, [location, params, baseUrl]);
 
   const onRowClick = (rowId: Record<string, any>) => {
-    const hash: string = rowId.rowData.id;
-
-    const url = constructArcticUrl({
-      type: isCatalog ? "catalog" : "source",
-      baseUrl,
-      tab: "commit",
-      namespace: params?.branchName,
-      commitId: hash,
-    });
-
-    router.push(url);
+    router.push(
+      constructArcticUrl({
+        type: isCatalog ? "catalog" : "source",
+        baseUrl,
+        tab: "commit",
+        namespace: params?.branchName,
+        commitId: rowId.rowData.id as string,
+      })
+    );
   };
 
   const [token, setToken] = useState<string | undefined>();
   const [data, , status] = useArcticCatalogCommits({
     filter: searchFilter,
     branch: reference?.name,
+    hash,
     pageToken: token,
   });
 
@@ -106,6 +133,8 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
     setSearchFilter(val);
   }, 250);
 
+  const loading = isSmartFetchLoading(status);
+
   return (
     <div className={classes["arctic-catalog-commits"]}>
       <PageBreadcrumbHeader
@@ -113,7 +142,7 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
         className={headerClasses["arctic-table-header"]}
         rightContent={
           <span className={headerClasses["arctic-table-header__right"]}>
-            {getGoToDataButton(handlePush)}
+            {getGoToDataButton(handleTabNavigation)}
             <SearchField
               placeholder={intl.formatMessage({
                 id: "ArcticCatalog.Commits.SearchPlaceholder",
@@ -122,18 +151,20 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
               showCloseIcon
               showIcon
               className={headerClasses["arctic-search-box"]}
+              loading={data?.logEntries && loading}
             />
           </span>
         }
       />
       <div className={classes["arctic-commits__content"]}>
-        {!data?.logEntries?.length && isSmartFetchLoading(status) ? (
+        {!data?.logEntries && loading ? (
           <Spinner className={classes["arctic-commits-spinner"]} />
         ) : (
           <ArcticCatalogCommitsTable
-            commits={data.logEntries}
+            commits={data.logEntries || []}
             onRowClick={onRowClick}
             loadNextPage={loadNextPage}
+            goToDataTab={handleTabNavigation}
           />
         )}
       </div>

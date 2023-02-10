@@ -41,7 +41,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
  */
 @NotThreadSafe
 public class HiveRecordReaderIterator implements RecordReaderIterator {
-    private static Logger logger = LoggerFactory.getLogger(HiveRecordReaderIterator.class);
+    private static final Logger logger = LoggerFactory.getLogger(HiveRecordReaderIterator.class);
 
     private final OperatorContext context;
     private final CompositeReaderConfig readerConfig;

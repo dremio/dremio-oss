@@ -15,9 +15,10 @@
  */
 import { PureComponent, createRef, Fragment } from "react";
 import { Popover, MouseEvents } from "@app/components/Popover";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import PropTypes from "prop-types";
+import { Tooltip } from "dremio-ui-lib";
 
 import {
   disabled as disabledCls,
@@ -47,7 +48,7 @@ export class SelectView extends PureComponent {
   static propTypes = {
     content: nodeOrRenderProps,
     children: nodeOrRenderProps,
-    menuHeader: PropTypes.string,
+    menuHeader: PropTypes.oneOfType([PropTypes.node, PropTypes.string]),
     /** If true, an icon with an arrow is hidden */
     hideExpandIcon: PropTypes.bool,
     disabled: PropTypes.bool,
@@ -73,6 +74,7 @@ export class SelectView extends PureComponent {
     closeOnSelect: PropTypes.bool,
     hasSpecialIcon: PropTypes.bool,
     iconId: PropTypes.string,
+    iconTooltip: PropTypes.string,
   };
 
   static defaultProps = {
@@ -121,8 +123,10 @@ export class SelectView extends PureComponent {
   isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl);
 
   renderIcon = () => {
-    const { disabled, hasSpecialIcon, iconId, iconClass } = this.props;
-    return !hasSpecialIcon ? (
+    const { disabled, hasSpecialIcon, iconId, iconClass, iconTooltip } =
+      this.props;
+
+    const icon = !hasSpecialIcon ? (
       <dremio-icon
         name="interface/caretDown"
         class={disabled ? disabledIconCls : ""}
@@ -130,6 +134,8 @@ export class SelectView extends PureComponent {
     ) : (
       <dremio-icon name={iconId} class={iconClass} />
     );
+
+    return iconTooltip ? <Tooltip title={iconTooltip}>{icon}</Tooltip> : icon;
   };
 
   renderMenuHeader() {

@@ -44,10 +44,10 @@ import org.apache.arrow.vector.holders.*;
 @SuppressWarnings("unused")
 
 /**
- * generated from ${.template_name} 
+ * generated from ${.template_name}
  */
 public class ${inputType.className}Functions {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(${inputType.className}Functions.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(${inputType.className}Functions.class);
 
 <#list inputType.types as type>
 

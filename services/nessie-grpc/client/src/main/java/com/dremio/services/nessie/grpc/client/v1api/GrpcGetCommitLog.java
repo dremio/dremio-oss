@@ -19,11 +19,14 @@ import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleNessieNotFoundEx;
 
+import java.util.stream.Stream;
+
 import javax.annotation.Nullable;
 
 import org.projectnessie.api.params.CommitLogParams;
 import org.projectnessie.api.params.CommitLogParamsBuilder;
 import org.projectnessie.api.params.FetchOption;
+import org.projectnessie.client.StreamingUtil;
 import org.projectnessie.client.api.GetCommitLogBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.LogResponse;
@@ -84,7 +87,18 @@ final class GrpcGetCommitLog implements GetCommitLogBuilder {
 
   @Override
   public LogResponse get() throws NessieNotFoundException {
+    return get(params.build());
+  }
+
+  private LogResponse get(CommitLogParams p) throws NessieNotFoundException {
     return handleNessieNotFoundEx(
-      () -> fromProto(stub.getCommitLog(toProto(refName, params.build()))));
+      () -> fromProto(stub.getCommitLog(toProto(refName, p))));
+  }
+
+  @Override
+  public Stream<LogResponse.LogEntry> stream() throws NessieNotFoundException {
+    CommitLogParams p = params.build();
+    return StreamingUtil.generateStream(
+      LogResponse::getLogEntries, pageToken -> get(p.forNextPage(pageToken)));
   }
 }

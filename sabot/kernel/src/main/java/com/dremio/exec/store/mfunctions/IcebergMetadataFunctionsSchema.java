@@ -50,9 +50,9 @@ final class IcebergMetadataFunctionsSchema {
       )))
     ));
     MANIFESTS = schemaConverter.fromIceberg(MetadataTableUtils.createMetadataTableInstance(null,
-      null,null, MetadataTableType.ALL_MANIFESTS).schema());
+      null,null, MetadataTableType.MANIFESTS).schema());
     TABLE_FILES = schemaConverter.fromIceberg(new Schema(
-      Types.NestedField.optional(134, "content", Types.IntegerType.get(),
+      Types.NestedField.optional(134, "content", Types.StringType.get(),
         "Contents of the file: 0=data, 1=position deletes, 2=equality deletes"),
       Types.NestedField.required(100, "file_path", Types.StringType.get(), "Location URI with FS scheme"),
       Types.NestedField.required(101, "file_format", Types.StringType.get(),
@@ -89,7 +89,8 @@ final class IcebergMetadataFunctionsSchema {
         "Splittable offsets"),
       Types.NestedField.optional(135, "equality_ids", Types.ListType.ofRequired(136, Types.IntegerType.get()),
         "Equality comparison field IDs"),
-      Types.NestedField.optional(140, "sort_order_id", Types.IntegerType.get(), "Sort order ID")));
+      Types.NestedField.optional(140, "sort_order_id", Types.IntegerType.get(), "Sort order ID"),
+      Types.NestedField.optional(141, "spec_id", Types.IntegerType.get(), "Partition spec ID")));
   }
 
   public static BatchSchema getHistoryRecordSchema() {

@@ -46,7 +46,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 @Options
 public interface FileDatasetHandle extends DatasetTypeHandle {
   TypeValidators.LongValidator DFS_MAX_FILES = new TypeValidators.RangeLongValidator("dremio.store.dfs.max_files", 1L, Integer.MAX_VALUE, 20000000L);
-  Logger logger = LoggerFactory.getLogger(FileDatasetHandle.class);
+  final Logger logger = LoggerFactory.getLogger(FileDatasetHandle.class);
 
   DatasetMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException;
 

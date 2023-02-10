@@ -99,7 +99,7 @@ describe("explore selectors", () => {
         const contextInput = `${space}.${folder}`;
         const location = {
           query: {
-            context: encodeURIComponent(contextInput), // url parameter should be encoded. See NewQueryButton.getNewQueryHref
+            context: encodeURIComponent(contextInput),
           },
         };
         const state = { routing: { locationBeforeTransitions: location } };

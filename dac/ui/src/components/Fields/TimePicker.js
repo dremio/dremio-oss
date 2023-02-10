@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import moment from "@app/utils/dayjs";
 import { FormattedMessage } from "react-intl";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import { dateTypeToFormat } from "@app/constants/DataTypes";
 

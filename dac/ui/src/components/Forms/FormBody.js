@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import { formBody } from "uiTheme/less/forms.less";
 

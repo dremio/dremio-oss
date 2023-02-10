@@ -17,9 +17,9 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.type.RelDataType;
@@ -45,7 +45,7 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlColumnPolicyPair;
 import com.dremio.exec.planner.sql.parser.SqlCreateFunction;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
@@ -93,7 +93,6 @@ public class CreateFunctionHandler extends SimpleDirectHandler {
 
     final List<SqlNode> argList = createFunction.getFieldList().getList();
     final List<UserDefinedFunction.FunctionArg> convertedArgList = new ArrayList<>();
-    final Map<String, RexNode> inputMap = new HashMap<>();
 
     for (int i = 0 ; i < argList.size() ; i++) {
       List<SqlNode> arg = ((SqlNodeList) argList.get(i)).getList();
@@ -101,7 +100,7 @@ public class CreateFunctionHandler extends SimpleDirectHandler {
       SqlDataTypeSpec dataTypeSpec = (SqlDataTypeSpec) arg.get(1);
       Field field = SqlHandlerUtil.fieldFromSqlColDeclaration(
         TYPE_FACTORY,
-        new SqlColumnDeclaration(
+        new DremioSqlColumnDeclaration(
           SqlParserPos.ZERO,
           new SqlColumnPolicyPair(SqlParserPos.ZERO, new SqlIdentifier(name, SqlParserPos.ZERO), null),
           dataTypeSpec,
@@ -109,23 +108,17 @@ public class CreateFunctionHandler extends SimpleDirectHandler {
         sql);
       CompleteType completeType = CompleteType.fromField(field);
 
-      if (inputMap.containsKey(name)) {
-        throw UserException.validationError().message(String.format(DUPLICATE_PARAMETER_ERROR_MSG, name)).build(logger);
-      }
-
-      inputMap.put(name, REX_BUILDER.makeInputRef(
-        CalciteArrowHelper.toCalciteType(field, TYPE_FACTORY, true), i));
       convertedArgList.add(new UserDefinedFunction.FunctionArg(name, completeType));
     }
 
     final SqlNode expression = extractScalarExpression(createFunction.getExpression());
-    RexNode parsedExpression = validate(expression, convertedArgList, inputMap);
+    RexNode parsedExpression = validate(expression, functionKey.getName(), convertedArgList);
     Field returnField = SqlHandlerUtil.fieldFromSqlColDeclaration(
       TYPE_FACTORY,
-      new SqlColumnDeclaration(
+      new DremioSqlColumnDeclaration(
         SqlParserPos.ZERO,
         new SqlColumnPolicyPair(SqlParserPos.ZERO, new SqlIdentifier("return", SqlParserPos.ZERO), null),
-        createFunction.getReturnType(),
+        createFunction.getScalarReturnType(),
         null),
       sql);
     final RelDataType expectedReturnType = CalciteArrowHelper.toCalciteType(returnField, TYPE_FACTORY, true);
@@ -137,7 +130,7 @@ public class CreateFunctionHandler extends SimpleDirectHandler {
       UserDefinedFunction newUdf = new UserDefinedFunction(functionKey.toString(), createFunction.getExpression()
         .toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
         completeReturnType,
-        convertedArgList);
+        convertedArgList, functionKey.getPathComponents());
       if (exists) {
         catalog.updateFunction(functionKey, newUdf);
         return Collections.singletonList(SimpleCommandResult.successful(String.format("Function, %s, is updated.", functionKey)));
@@ -145,13 +138,18 @@ public class CreateFunctionHandler extends SimpleDirectHandler {
         catalog.createFunction(functionKey, newUdf);
         return Collections.singletonList(SimpleCommandResult.successful(String.format("Function, %s, is created.", functionKey)));
       }
+    } else {
+      throw UserException.validationError()
+        .message("Row types are different.\nDefined: %s\nActual: %s",
+          expectedReturnRowType,
+          returnDataType)
+        .build(logger);
     }
-    throw UserException.validationError().message("Row types are different.\nDefined: %s\nActual: %s", expectedReturnRowType, returnDataType).build(logger);
   }
 
   private RexNode validate(SqlNode expressionNode,
-      List<UserDefinedFunction.FunctionArg> args,
-      Map<String, RexNode> inputMap) {
+    String functionName,
+    List<UserDefinedFunction.FunctionArg> args) {
     SqlConverter converter = new SqlConverter(
       context.getPlannerSettings(),
       context.getOperatorTable(),
@@ -166,12 +164,21 @@ public class CreateFunctionHandler extends SimpleDirectHandler {
       context.getScanResult(),
       context.getRelMetadataQuerySupplier());
 
-    final SqlValidatorAndToRelContext sqlValidatorAndToRelContext = SqlValidatorAndToRelContext.builder(converter)
-      .withContextualSqlOperatorTable(
-        new FunctionOperatorTable(FunctionParameterImpl.createParameters(args)))
-      .build();
+    final SqlValidatorAndToRelContext sqlValidatorAndToRelContext =
+      SqlValidatorAndToRelContext.builder(converter)
+        .withContextualSqlOperatorTable(
+          new FunctionOperatorTable(functionName, FunctionParameterImpl.createParameters(args)))
+        .build();
 
-    return sqlValidatorAndToRelContext.validateAndConvertFunction(expressionNode, inputMap);
+    Set<String> paramNames = new HashSet<>();
+    for(UserDefinedFunction.FunctionArg functionArg: args) {
+      if(!paramNames.add(functionArg.getName())) {
+        throw UserException.validationError()
+          .message(String.format(DUPLICATE_PARAMETER_ERROR_MSG, functionArg.getName()))
+          .buildSilently();
+      }
+    }
+    return sqlValidatorAndToRelContext.validateAndConvertScalarFunction(expressionNode, functionName, FunctionParameterImpl.createParameters(args)).getFunctionBody();
   }
 
   private SqlNode extractScalarExpression(SqlNode expression) {

@@ -172,7 +172,8 @@ public class ScanOperator implements ProducerOperator {
     NUM_METADATA_IO_READ,
     HIVE_FILE_FORMATS,// File Formats in hive sub scan represented as bitmap. Indices correspond to HiveFilFormat enum
     NUM_ZERO_SIZED_COLUMN, // Number of zero sized column
-    NUM_EXTRA_FOOTER_READS // Number of times footer is read for a split.
+    NUM_EXTRA_FOOTER_READS, // Number of times footer is read for a split.
+    MAX_RECORD_READ_PER_READER // Maximum number of record read from Reader
     ;
 
     private final DisplayType displayType;

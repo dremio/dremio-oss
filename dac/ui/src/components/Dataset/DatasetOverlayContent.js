@@ -27,8 +27,8 @@ import ViewStateWrapper from "components/ViewStateWrapper";
 import ColumnMenuItem from "components/DragComponents/ColumnMenuItem";
 import FontIcon from "components/Icon/FontIcon";
 import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
-
 import DatasetOverlayContentMixin from "dyn-load/components/Dataset/DatasetOverlayContentMixin";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 import { formDescription } from "uiTheme/radium/typography";
 import { CELL_EXPANSION_HEADER, WHITE } from "uiTheme/radium/colors";
@@ -97,7 +97,7 @@ export class DatasetOverlayContent extends PureComponent {
           {/* disabled pending DX-6596 Edit link from DatasetOverlay is broken */}
           {false && this.renderPencil(summaryDataset)}
           <Link
-            to={summaryDataset.getIn(["links", "query"])}
+            to={wrapBackendLink(summaryDataset.getIn(["links", "query"]))}
             onClick={(e) => e.stopPropagation()}
           >
             <FontIcon tooltip={la("Query")} type="Query" />

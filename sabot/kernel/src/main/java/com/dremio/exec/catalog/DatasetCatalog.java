@@ -100,6 +100,10 @@ public interface DatasetCatalog extends PrivilegeCatalog {
 
   void truncateTable(NamespaceKey path, TableMutationOptions tableMutationOptions);
 
+  void rollbackTable(NamespaceKey path, DatasetConfig datasetConfig, RollbackOption rollbackOption, TableMutationOptions tableMutationOptions);
+
+  void vacuumTable(NamespaceKey path, DatasetConfig datasetConfig, VacuumOption vacuumOption, TableMutationOptions tableMutationOptions);
+
   void addColumns(NamespaceKey datasetKey, DatasetConfig datasetConfig, List<Field> colsToAdd, TableMutationOptions tableMutationOptions);
 
   void dropColumn(NamespaceKey datasetKey, DatasetConfig datasetConfig, String columnToDrop, TableMutationOptions tableMutationOptions);

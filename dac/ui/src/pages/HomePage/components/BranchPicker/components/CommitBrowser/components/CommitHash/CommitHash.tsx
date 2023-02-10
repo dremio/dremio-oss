@@ -17,6 +17,10 @@
 import { CopyToClipboard } from "dremio-ui-lib";
 import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
 import { getShortHash } from "@app/utils/nessieUtils";
+import { useDispatch } from "react-redux";
+import { setReference } from "@app/actions/nessie/nessie";
+import { Reference } from "@app/types/nessie";
+import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 
 import "./CommitHash.less";
 
@@ -27,16 +31,35 @@ function CommitHash({
   enableCopy = true,
 }: {
   disabled?: boolean;
-  branch: string;
+  branch: Reference;
   hash: string;
   enableCopy?: boolean;
 }) {
+  const dispatch = useDispatch();
+  const nessieCtx = useNessieContext();
+  const nessieBranch = nessieCtx.state.reference?.name;
+  const isDifferentBranch = nessieBranch && nessieBranch !== branch.name;
+
+  const switchBranchRef = () => {
+    dispatch(
+      setReference(
+        {
+          reference: {
+            ...branch,
+          } as Reference,
+        },
+        nessieCtx.source.name
+      )
+    );
+  };
+
   return (
     <div className="commitEntryHash">
       <NessieLink
         disabled={disabled}
-        to={`/commit/${encodeURIComponent(branch)}/${hash}`}
+        to={`/commit/${encodeURIComponent(branch.name)}/${hash}`}
         title={hash}
+        {...(isDifferentBranch && { onClick: () => switchBranchRef() })}
       >
         {getShortHash(hash)}
       </NessieLink>

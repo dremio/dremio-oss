@@ -15,7 +15,7 @@
  */
 const HOVER_COLOR = "#EEEEEE";
 
-import classnames from "classnames";
+import classnames from "clsx";
 import { fixedWidthDefault, fixedWidthBold } from "uiTheme/radium/typography";
 
 export default function getTheme(canSelect) {

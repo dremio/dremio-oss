@@ -36,6 +36,8 @@ import com.google.common.collect.Lists;
  * Holds statistics of a particular (minor) fragment.
  */
 public class FragmentStats {
+  private static final long MIN_RUNTIME_THRESHOLD = MILLISECONDS.toNanos(20);
+  private static final long MAX_RUNTIME_THRESHOLD = MILLISECONDS.toNanos(200);
 
   private List<OperatorStats> operators = Lists.newArrayList();
   private final long startTime;
@@ -52,6 +54,10 @@ public class FragmentStats {
   private long blockedOnSharedResourceDuration;
 
   private long numRuns;
+  private long numSlices;
+  private long numShortSlices;
+  private long numLongSlices;
+  private long numInRunQ;
 
   private final Stopwatch runWatch = Stopwatch.createUnstarted();
   private final Stopwatch setupWatch = Stopwatch.createUnstarted();
@@ -107,6 +113,10 @@ public class FragmentStats {
     prfB.setSetupDuration(setupWatch.elapsed(MILLISECONDS));
     prfB.setFinishDuration(finishWatch.elapsed(MILLISECONDS));
     prfB.setNumRuns(numRuns);
+    prfB.setRunQLoad(numInRunQ);
+    prfB.setNumSlices(numSlices);
+    prfB.setNumLongSlices(numLongSlices);
+    prfB.setNumShortSlices(numShortSlices);
   }
 
   private long getMemoryUsedForIncoming() {
@@ -139,6 +149,11 @@ public class FragmentStats {
     return stats;
   }
 
+  public void sliceStarted(int runQLoad) {
+    numSlices++;
+    numInRunQ += runQLoad;
+  }
+
   public void runStarted() {
     if (notStartedYet) {
       notStartedYet = false;
@@ -146,6 +161,14 @@ public class FragmentStats {
     }
     runWatch.start();
     numRuns++;
+  }
+
+  public void sliceEnded(long runTimeNanos) {
+    if (runTimeNanos > MAX_RUNTIME_THRESHOLD) {
+      numLongSlices++;
+    } else if (runTimeNanos < MIN_RUNTIME_THRESHOLD) {
+      numShortSlices++;
+    }
   }
 
   public void runEnded() {

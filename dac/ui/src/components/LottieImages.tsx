@@ -22,13 +22,14 @@ import { Tooltip } from "dremio-ui-lib";
 
 type LottieImagesProps = {
   src: string;
-  alt: string;
-  title: any;
-  interactive: boolean;
-  tooltipOpen: boolean;
-  imageHeight: number;
-  imageWidth: number;
-  style: any;
+  alt?: string;
+  title?: any;
+  interactive?: boolean;
+  tooltipOpen?: boolean;
+  imageHeight?: number;
+  imageWidth?: number;
+  style?: any;
+  wrapperClassname?: string;
 };
 
 const LottieImages = ({
@@ -39,6 +40,7 @@ const LottieImages = ({
   imageHeight,
   imageWidth,
   style,
+  wrapperClassname,
   ...props
 }: LottieImagesProps) => {
   let { title } = props;
@@ -55,7 +57,7 @@ const LottieImages = ({
     },
   };
   return title ? (
-    <div>
+    <div className={wrapperClassname}>
       <Tooltip title={title} interactive={interactive} open={tooltipOpen}>
         <div>
           <Lottie
@@ -68,7 +70,7 @@ const LottieImages = ({
       </Tooltip>
     </div>
   ) : (
-    <div>
+    <div className={wrapperClassname}>
       <Lottie
         options={defaultOptions}
         height={imageHeight}

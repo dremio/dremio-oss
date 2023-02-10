@@ -42,10 +42,10 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.compile.ClassTransformer.ClassNames;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Resources;
 
 /**
  * Test classloading issues with {@code JDKClassCompiler} and {@code JaninoClassCompiler}
@@ -72,7 +72,7 @@ public class TestClassCompilers {
     fileManager.setLocation(StandardLocation.CLASS_OUTPUT, ImmutableList.of(classes));
 
     SimpleJavaFileObject compilationUnit = new SimpleJavaFileObject(URI.create("FooTest.java"), Kind.SOURCE) {
-      private final String fooTestSource = Resources.toString(Resources.getResource("com/dremio/exec/compile/FooTest.java"), UTF_8);
+      private final String fooTestSource = TestTools.readTestResourceAsString("com/dremio/exec/compile/FooTest.java");
       @Override
       public CharSequence getCharContent(boolean ignoreEncodingErrors) throws IOException {
         return fooTestSource;
@@ -100,7 +100,7 @@ public class TestClassCompilers {
   }
 
   private void testCompilation(ClassCompiler compiler) throws IOException, ClassTransformationException, CompileException, ClassNotFoundException {
-    String barTestSource = Resources.toString(Resources.getResource("com/dremio/exec/compile/BarTest.java"), UTF_8);
+    String barTestSource = TestTools.readTestResourceAsString("com/dremio/exec/compile/BarTest.java");
 
     assertNotNull(compiler.getClassByteCode(new ClassNames("com.dremio.exec.compile.BarTest"), barTestSource, true));
   }

@@ -311,4 +311,86 @@ public class TestLocalSchedulerService {
     assertEquals(1, futures.size());
     assertTrue("1st future should be completed", futures.get(0).isDone());
   }
+
+  /**
+   * Verify that cancelling a long run task is possible when losing leadership
+   */
+  @Test
+  public void scheduleCancelledDuringLongRun() throws Exception {
+    final List<MockScheduledFuture<?>> futures = Lists.newArrayList();
+    final CloseableSchedulerThreadPool executorService = mock(CloseableSchedulerThreadPool.class);
+
+    doAnswer(new Answer<ScheduledFuture<Object>>() {
+      @Override
+      public ScheduledFuture<Object> answer(InvocationOnMock invocation) throws Throwable {
+        final Object[] arguments = invocation.getArguments();
+        MockScheduledFuture<Object> result =  new MockScheduledFuture<>(Clock.systemUTC(), Executors.callable((Runnable) arguments[0]), (long) arguments[1], (TimeUnit) arguments[2]);
+        futures.add(result);
+
+        return result;
+      }
+    }).when(executorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+
+    final CountDownLatch ready1 = new CountDownLatch(1);
+    final CountDownLatch done1 = new CountDownLatch(1);
+    final Runnable runnable1 = new Runnable() {
+      @Override
+      public void run() {
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e) {
+          // nothing
+        }
+      }
+    };
+
+    final CountDownLatch ready2 = new CountDownLatch(1);
+    final CountDownLatch done2 = new CountDownLatch(1);
+    final Runnable runnable2 = new Runnable() {
+      @Override
+      public void run() {
+        try {
+          Thread.sleep(4000);
+        } catch (InterruptedException e) {
+          // nothing
+        }
+      }
+    };
+
+    @SuppressWarnings("resource")
+    final LocalSchedulerService service = new LocalSchedulerService(executorService, null, null, null,
+      false);
+    final Cancellable cancellable1 = service.schedule(Schedule.Builder.everyHours(1).build(), runnable1);
+    final Cancellable cancellable2 = service.schedule(Schedule.Builder.everyHours(1).build(), runnable2);
+
+    // Making a copy as running pending future will alter the list
+    ImmutableList<MockScheduledFuture<?>> copyOfFutures = ImmutableList.copyOf(futures);
+    for(final MockScheduledFuture<?> future: copyOfFutures) {
+      try {
+        new Thread(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              future.call();
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
+          }
+        }, "test-TestLocalScheduler").start();
+      } catch (IllegalStateException e) {
+        // it should have been cancelled already
+      }
+    }
+
+    service.getTaskLeaderChangeListener(cancellable1).onLeadershipLost();
+    // should not lock the 2nd one because we will be able to cancel the task run (long run or indefinitely run)
+    service.getTaskLeaderChangeListener(cancellable2).onLeadershipLost();
+
+    // if we are here so the long-running is not blocking the callbacks
+
+    // onLeadershipLost sets cancellable to false again
+    assertTrue("Cancellable1 should have been cancelled", !cancellable1.isCancelled());
+    assertTrue("Cancellable2 should have been cancelled", !cancellable2.isCancelled());
+  }
 }

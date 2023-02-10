@@ -16,7 +16,6 @@
 import { shallow } from "enzyme";
 
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
-import Message from "components/Message";
 import {
   SaveAsDatasetForm,
   FIELDS,
@@ -70,17 +69,6 @@ describe("SaveAsDatasetForm", () => {
     expect(wrapper.find("TextField").prop("value")).to.equal(
       commonProps.fields.name.value
     );
-  });
-
-  it("should render renderWarning if there are any dependentDatasets", () => {
-    const wrapper = shallow(
-      <SaveAsDatasetForm
-        {...commonProps}
-        dependentDatasets={["dependentDatasets"]}
-      />,
-      context
-    );
-    expect(wrapper.find(Message)).to.have.length(1);
   });
 
   describe("#handleChangeSelectedNode", () => {

@@ -31,8 +31,6 @@ import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TextRecordReaderTest extends PopUnitTestBase {
 
@@ -46,8 +44,7 @@ public class TextRecordReaderTest extends PopUnitTestBase {
       bit1.run();
       client.connect();
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-              Files.toString(
-                      FileUtils.getResourceAsFile("/store/text/test.json"), Charsets.UTF_8)
+          readResourceAsString("/store/text/test.json")
                       .replace("#{DATA_FILE}", FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString()));
       int count = 0;
       RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());

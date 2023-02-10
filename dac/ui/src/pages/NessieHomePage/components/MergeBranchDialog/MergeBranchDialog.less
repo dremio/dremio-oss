@@ -18,19 +18,11 @@
 
 :global {
   .merge-branch-dialog {
-    .MuiDialog-paper {
-      width: 600px;
+    width: 600px;
+    overflow: visible;
 
-      .MuiDialogTitle-root,
-      .MuiDialogActions-root {
-        height: 55px;
-      }
-
-      .MuiDialogContent-root {
-        height: 150px;
-        padding-left: 16px;
-        padding-top: 24px;
-      }
+    .dremio-dialog-content__main {
+      height: 150px;
     }
 
     &-header {
@@ -52,19 +44,35 @@
     }
 
     &-body {
-      .MuiDialogContentText-root {
-        font-size: 14px;
-        font-weight: 400;
-        color: @DARK_900;
-      }
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--dremio--color--text--main);
 
       &-error {
         color: #f44336;
       }
     }
 
+    &-into {
+      margin-bottom: 4px;
+    }
+
     &-actions {
       border-top: 1px solid @SECONDARY_200;
     }
+
+    &-select {
+      input {
+        height: 32px;
+        min-height: 32px;
+        &:hover {
+          border-color: var(--dremio--color--neutral--300);
+        }
+      }
+    }
+  }
+
+  .modal-container-overflow {
+    overflow: visible;
   }
 }

@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -46,7 +47,6 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -63,8 +63,8 @@ public class ReflectionSuggester {
     @Override
     public int compare(final ColumnStats left, final ColumnStats right) {
       return Long.compare(
-        Optional.fromNullable(left.getCardinality()).or(Long.MAX_VALUE),
-        Optional.fromNullable(right.getCardinality()).or(Long.MAX_VALUE)
+        Optional.ofNullable(left.getCardinality()).orElse(Long.MAX_VALUE),
+        Optional.ofNullable(right.getCardinality()).orElse(Long.MAX_VALUE)
       );
     }
   };
@@ -149,7 +149,7 @@ public class ReflectionSuggester {
 
 
     final Map<String, ViewFieldType> schema = FluentIterable
-      .from(Optional.fromNullable(ViewFieldsHelper.getViewFields(datasetConfig)).or(Collections.<ViewFieldType>emptyList()))
+      .from(Optional.ofNullable(ViewFieldsHelper.getViewFields(datasetConfig)).orElse(Collections.emptyList()))
       .uniqueIndex(new Function<ViewFieldType, String>() {
         @Override
         public String apply(final ViewFieldType input) {
@@ -278,7 +278,7 @@ public class ReflectionSuggester {
       dimensionFields.add(dimensions.get(0));
       long currentCardinalityProduct = dimensions.get(0).getCardinality();
 
-      double cardinalityLimit  = (Optional.fromNullable(count).or(100_000L)) * .01;
+      double cardinalityLimit  = (Optional.ofNullable(count).orElse(100_000L)) * .01;
 
       for (int i = 1; i < dimensions.size(); i++) {
         final ColumnStats field = dimensions.get(i);
@@ -300,7 +300,7 @@ public class ReflectionSuggester {
           }).toList();
       return Optional.of(new  AggregationDescriptor(ImmutableList.copyOf(dimensionFields), measureFields));
     }
-    return Optional.absent();
+    return Optional.empty();
   }
 
   private static List<ReflectionDimensionField> toReflectionDimensionFields(final Iterable<ColumnStats> columns) {

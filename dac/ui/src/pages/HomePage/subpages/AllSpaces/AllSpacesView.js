@@ -19,10 +19,10 @@ import moment from "@app/utils/dayjs";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import clsx from "clsx";
+import { IconButton } from "dremio-ui-lib";
 import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 import EntityLink from "@app/pages/HomePage/components/EntityLink";
-import SpacesLoader from "@app/pages/HomePage/components/SpacesLoader";
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import { manageSpaceRule } from "@app/utils/authUtils";
 import { EntityIcon } from "@app/pages/HomePage/components/EntityIcon";
@@ -41,10 +41,16 @@ import { SortDirection } from "@app/components/Table/TableUtils";
 
 import BrowseTable from "../../components/BrowseTable";
 import { tableStyles } from "../../tableStyles";
+import { getSettingsLocation } from "components/Menus/HomePage/AllSpacesMenu";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 
 const mapStateToProps = (state) => ({
   spaces: getSpaces(state),
 });
+
+const btnTypes = {
+  settings: "settings"
+};
 
 export class AllSpacesView extends PureComponent {
   static propTypes = {
@@ -99,21 +105,76 @@ export class AllSpacesView extends PureComponent {
                 item.get("createdAt") ? new Date(item.get("createdAt")) : "",
             },
             [action.key]: {
-              node: () => (
-                <span className="action-wrap">
-                  <SettingsBtn
-                    routeParams={this.context.location.query}
-                    menu={<AllSpacesMenu spaceId={item.get("id")} />}
-                    dataQa={itemName}
-                    aria-label="Options"
-                  />
-                </span>
-              ),
+              node: () => this.getActionCell(item)
             },
           },
         };
       });
   };
+
+  getActionCell(item) {
+    return <ActionWrap>{this.getActionCellButtons(item)}</ActionWrap>
+  }
+
+  getActionCellButtons(item) {
+    const allBtns = [{
+      label: this.getInlineIcon("interface/settings"),
+      tooltip: "Common.Settings",
+      link: getSettingsLocation(this.context.location, item.get("id")),
+      type: btnTypes.settings
+    }]
+    return [
+      ...allBtns
+        // return rendered link buttons
+        .map((btnType, index) => (
+          <IconButton
+            as={LinkWithRef}
+            to={btnType.link}
+            tooltip={btnType.tooltip}
+            key={item.get("id") + index}
+            className="main-settings-btn min-btn"
+            data-qa={btnType.type}
+          >
+            {btnType.label}
+          </IconButton>
+        )),
+      this.getSettingsBtnByType(
+        <AllSpacesMenu
+          spaceId={item.get("id")}
+        />,
+        item
+      ),
+    ];
+  }
+
+  handleSettingsClose(settingsWrap) {
+    $(settingsWrap).parents("tr").removeClass("hovered");
+  }
+
+  handleSettingsOpen(settingsWrap) {
+    $(settingsWrap).parents("tr").addClass("hovered");
+  }
+
+  getSettingsBtnByType(menu, item) {
+    return (
+      <SettingsBtn
+        handleSettingsClose={this.handleSettingsClose.bind(this)}
+        handleSettingsOpen={this.handleSettingsOpen.bind(this)}
+        dataQa={item.get("name")}
+        menu={menu}
+        classStr="main-settings-btn min-btn catalog-btn"
+        key={`${item.get("name")}-${item.get("id")}`}
+        tooltip="Common.More"
+        hideArrowIcon
+      >
+        {this.getInlineIcon("interface/more")}
+      </SettingsBtn>
+    );
+  }
+
+  getInlineIcon(icon) {
+    return <dremio-icon name={icon} data-qa={icon} />;
+  }
 
   getTableColumns() {
     const { intl } = this.props;
@@ -123,10 +184,13 @@ export class AllSpacesView extends PureComponent {
         label: intl.formatMessage({ id: "Common.Name" }),
         flexGrow: 1,
       },
-      { key: "created", label: intl.formatMessage({ id: "Common.Created" }) },
+      { 
+        key: "created", 
+        label: intl.formatMessage({ id: "Common.Created" })
+      },
       {
         key: "action",
-        label: intl.formatMessage({ id: "Common.Action" }),
+        label: "",
         style: tableStyles.actionColumn,
         disableSort: true,
         width: 60,
@@ -139,7 +203,6 @@ export class AllSpacesView extends PureComponent {
     const numberOfSpaces = spaces ? spaces.size : 0;
     return (
       <Fragment>
-        <SpacesLoader />
         <BrowseTable
           title={`${intl.formatMessage({
             id: "Space.AllSpaces",
@@ -161,11 +224,20 @@ export class AllSpacesView extends PureComponent {
           }
           tableData={this.getTableData()}
           columns={this.getTableColumns()}
+          disableZebraStripes={true}
+          rowHeight={40}
         />
       </Fragment>
     );
   }
 }
 AllSpacesView = injectIntl(AllSpacesView);
+
+function ActionWrap({ children }) {
+  return <span className="action-wrap">{children}</span>;
+}
+ActionWrap.propTypes = {
+  children: PropTypes.node,
+};
 
 export default connect(mapStateToProps)(AllSpacesView);

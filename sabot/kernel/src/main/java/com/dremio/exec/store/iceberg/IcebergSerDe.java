@@ -23,6 +23,7 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -177,6 +178,14 @@ public class IcebergSerDe {
     }
   }
 
+  public static byte[] serializeToByteArrayUnchecked(Object object) {
+    try {
+      return serializeToByteArray(object);
+    } catch (IOException ioe) {
+      throw new UncheckedIOException(ioe);
+    }
+  }
+
   public static byte[] serializeToByteArray(Object object) throws IOException {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
       ObjectOutput out = new ObjectOutputStream(bos)) {
@@ -186,6 +195,9 @@ public class IcebergSerDe {
   }
 
   public static <T> T deserializeFromByteArray(byte[] bytes) throws IOException, ClassNotFoundException {
+    if (bytes == null || bytes.length == 0) {
+      return null;
+    }
     try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
       ObjectInput in = new ObjectInputStream(bis)) {
       return (T) in.readObject();

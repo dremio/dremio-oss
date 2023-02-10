@@ -17,8 +17,10 @@ package com.dremio.dac.explore;
 
 import static com.dremio.dac.explore.DatasetTool.TMP_DATASET_PATH;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -45,6 +47,7 @@ import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.explore.model.FromBase;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
+import com.dremio.dac.explore.model.InitialUntitledRunResponse;
 import com.dremio.dac.explore.model.NewUntitledFromParentRequest;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.model.common.DACRuntimeException;
@@ -64,12 +67,15 @@ import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.resource.BaseResourceWithAllocator;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
+import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.service.search.SearchContainer;
 import com.dremio.datastore.SearchTypes.SortOrder;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.DremioTable;
@@ -105,6 +111,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   private final ConnectionReader connectionReader;
   private final DatasetCatalog datasetCatalog;
   private final CatalogServiceHelper catalogServiceHelper;
+  private CollaborationHelper collaborationService;
 
   @Inject
   public DatasetsResource(
@@ -116,11 +123,11 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     @Context SecurityContext securityContext,
     DatasetCatalog datasetCatalog,
     CatalogServiceHelper catalogServiceHelper,
-    BufferAllocatorFactory allocatorFactory
-      ) {
+    BufferAllocatorFactory allocatorFactory,
+    CollaborationHelper collaborationService) {
     this(namespaceService, datasetService,
       new DatasetTool(datasetService, jobsService, executor, securityContext),
-      connectionReader, datasetCatalog, catalogServiceHelper, allocatorFactory);
+      connectionReader, datasetCatalog, catalogServiceHelper, allocatorFactory, collaborationService);
   }
 
   protected DatasetsResource(NamespaceService namespaceService,
@@ -129,7 +136,8 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       ConnectionReader connectionReader,
       DatasetCatalog datasetCatalog,
       CatalogServiceHelper catalogServiceHelper,
-      BufferAllocatorFactory allocatorFactory
+      BufferAllocatorFactory allocatorFactory,
+      CollaborationHelper collaborationService
       )
    {
      super(allocatorFactory);
@@ -139,6 +147,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     this.connectionReader = connectionReader;
     this.datasetCatalog = datasetCatalog;
     this.catalogServiceHelper = catalogServiceHelper;
+    this.collaborationService = collaborationService;
   }
 
   private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath,
@@ -146,19 +155,22 @@ public class DatasetsResource extends BaseResourceWithAllocator {
                                              Integer limit,
                                              String engineName,
                                              String sessionId,
-                                             Map<String, VersionContextReq> references)
+                                             Map<String, VersionContextReq> references,
+                                             String triggerJob)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FromTable from = new FromTable(fromDatasetPath.toPathString());
     DatasetSummary summary = getDatasetSummary(fromDatasetPath, references);
-
-    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit, engineName, sessionId, references);
+    if (DatasetTool.shouldTriggerJob(triggerJob)) {
+      return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit, engineName, sessionId, references);
+    } else {
+      return tool.createPreviewResponseForPhysicalDataset(from, newVersion, fromDatasetPath.toParentPathList(), summary, references);
+    }
   }
 
   private InitialPreviewResponse newUntitled(FromBase from, DatasetVersion newVersion, List<String> context,
                                              DatasetSummary parentSummary, Integer limit, String engineName,
                                              String sessionId, Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-
     return tool.newUntitled(getOrCreateAllocator("newUntitled"),
       from, newVersion, context, parentSummary, false, limit, engineName, sessionId, references);
   }
@@ -195,6 +207,37 @@ public class DatasetsResource extends BaseResourceWithAllocator {
         sql.getReferences());
   }
 
+  /**
+   * A user clicked "SQL Runner", then wrote a SQL query and then clicked "Preview". This is the first version of the dataset we will be creating (this is a "initial commit")
+   *
+   * @param newVersion The version id we should use for the new version of dataset (generated by client)
+   * @param sql The sql information to generate the new dataset
+   * @param limit The number of records to return in the initial response
+   * @return
+   * @throws DatasetNotFoundException
+   * @throws NamespaceException
+   */
+  @POST @Path("new_tmp_untitled_sql")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  public InitialUntitledRunResponse newTmpUntitledSql(
+    @QueryParam("newVersion") DatasetVersion newVersion,
+    @QueryParam("limit") Integer limit,
+    @QueryParam("sessionId") String sessionId,
+    /* body */ CreateFromSQL sql)
+    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
+    Preconditions.checkNotNull(newVersion, "newVersion should not be null");
+    return  tool.newTmpUntitled(
+      new FromSQL(sql.getSql()).setAlias("nested_0"),
+      newVersion,
+      sql.getContext(),
+      sql.getEngineName(),
+      sessionId,
+      sql.getReferences(),
+      limit // ignored
+    );
+  }
+
   @POST @Path("new_untitled_sql_and_run")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -206,6 +249,25 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
 
     return tool.newUntitledAndRun(
+      new FromSQL(sql.getSql()).setAlias("nested_0"),
+      newVersion,
+      sql.getContext(),
+      sql.getEngineName(),
+      sessionId,
+      sql.getReferences());
+  }
+
+  @POST @Path("new_tmp_untitled_sql_and_run")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  public InitialUntitledRunResponse newTmpUntitledSqlAndRun(
+    @QueryParam("newVersion") DatasetVersion newVersion,
+    @QueryParam("sessionId") String sessionId,
+    /* body */ CreateFromSQL sql)
+    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, InterruptedException {
+    Preconditions.checkNotNull(newVersion, "newVersion should not be null");
+
+    return tool.newTmpUntitledAndRun(
       new FromSQL(sql.getSql()).setAlias("nested_0"),
       newVersion,
       sql.getContext(),
@@ -236,6 +298,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     @QueryParam("limit") Integer limit,
     @QueryParam("engineName") String engineName,
     @QueryParam("sessionId") String sessionId,
+    @QueryParam("triggerJob") String triggerJob, // "true" or "false". Default - "false". On error - "false"
     /* body */ NewUntitledFromParentRequest reqBody)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
@@ -244,11 +307,11 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       sourceVersionMap = reqBody.getReferences();
     }
     try {
-      return newUntitled(parentDataset, newVersion, limit, engineName, sessionId, sourceVersionMap);
+      return newUntitled(parentDataset, newVersion, limit, engineName, sessionId, sourceVersionMap, triggerJob);
     } catch (DatasetNotFoundException | NamespaceException e) {
       // TODO: this should really be a separate API from the UI.
       // didn't find as virtual dataset, let's return as opaque sql (as this could be a source) .
-      return newUntitled(parentDataset, newVersion, limit, engineName, sessionId, sourceVersionMap);
+      return newUntitled(parentDataset, newVersion, limit, engineName, sessionId, sourceVersionMap, triggerJob);
     }
   }
 
@@ -316,19 +379,29 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       throw new DatasetNotFoundException(datasetPath);
     }
     final DatasetConfig datasetConfig = table.getDatasetConfig();
+    Optional<Tags> tags = Optional.empty();
+    String sourceName = datasetPath.toNamespaceKey().getRoot();
+    Boolean isVersioned = CatalogUtil.requestedPluginSupportsVersionedTables(sourceName, datasetService.getCatalog());
+    if (!isVersioned) {
+      // only use CollaborationHelper for non-versioned dataset from non-arctic source
+      // arctic source doesn't rely on NamespaceService while CollaborationHelper use NamespaceService underneath
+      tags = collaborationService.getTags(datasetConfig.getId().getId());
+    }
 
     return newDatasetSummary(datasetConfig,
       datasetService.getJobsCount(datasetPath.toNamespaceKey()),
       datasetService.getDescendantsCount(datasetPath.toNamespaceKey()),
-      references);
+      references,
+      tags.isPresent() ? tags.get().getTags() : Collections.emptyList());
   }
 
   protected DatasetSummary newDatasetSummary(
     DatasetConfig datasetConfig,
     int jobCount,
     int descendants,
-    Map<String, VersionContextReq> references) throws NamespaceException {
-    return DatasetSummary.newInstance(datasetConfig, jobCount, descendants, references);
+    Map<String, VersionContextReq> references,
+    List<String> tags) throws NamespaceException {
+    return DatasetSummary.newInstance(datasetConfig, jobCount, descendants, references, tags);
   }
 
   @GET

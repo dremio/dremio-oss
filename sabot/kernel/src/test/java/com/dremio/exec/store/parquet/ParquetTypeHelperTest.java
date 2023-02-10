@@ -88,6 +88,29 @@ public class ParquetTypeHelperTest extends BaseTestQuery {
   }
 
   @Test
+  public void testUnWrapNestedMapVectorSchema() throws Exception{
+    // file has following schema
+    // col1 map<int,array<map<int,struct<f1:map<int,map<int,array<int>>>>>>>
+    // Total there are 5 leaf level fields:
+    // col1.key, col1.value[].key, col1.value[].value.f1.key, col1.value[].value.f1.value.key, col1.value[].value.f1.value.value[]
+    Set<String> expectedKeys = new HashSet<>(Arrays.asList(
+      "col1.map.list.element.key",
+      "col1.map.list.element.value.list.element.map.list.element.key",
+      "col1.map.list.element.value.list.element.map.list.element.value.f1.map.list.element.key",
+      "col1.map.list.element.value.list.element.map.list.element.value.f1.map.list.element.value.map.list.element.key",
+      "col1.map.list.element.value.list.element.map.list.element.value.f1.map.list.element.value.map.list.element.value.list.element"
+    ));
+    URL complexParquet = getClass().getResource("/parquet/mapofmap.parquet");
+    Path filePath = Path.of(complexParquet.toURI());
+    ParquetMetadata parquetMetadata =
+      SingletonParquetFooterCache.readFooter(localFs, filePath, ParquetMetadataConverter.NO_FILTER,
+        ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
+    BlockMetaData block = parquetMetadata.getBlocks().get(0);
+    Map<String, ColumnChunkMetaData> unwrapSchema = ParquetTypeHelper.unWrapParquetSchema(block, parquetMetadata.getFileMetaData().getSchema(), null);
+    Assert.assertEquals(expectedKeys, unwrapSchema.keySet());
+  }
+
+  @Test
   public void testUnWrapScalarTypes() throws Exception{
     // file has following schema
     // boolean bool_col, int32 int_col, int64 bigint_col, float float4_col, double float8_col, int32 date_col, int64 timestamp_col,

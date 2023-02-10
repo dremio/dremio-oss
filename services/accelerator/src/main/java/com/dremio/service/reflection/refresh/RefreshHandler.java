@@ -19,6 +19,7 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.calcite.plan.RelOptUtil;
@@ -79,7 +80,6 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshDecision;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.users.SystemUser;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;

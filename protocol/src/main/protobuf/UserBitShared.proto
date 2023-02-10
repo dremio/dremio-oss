@@ -164,7 +164,7 @@ message DremioPBError{
     SCHEMA_CHANGE = 1012;
 
     /* I/O exception
-     * 
+     *
      * This is a new error type not present in Apache Drill
      */
     IO_EXCEPTION = 1013;
@@ -365,6 +365,41 @@ message QueryProfile {
   optional bytes serialized_plan = 37;
   repeated AttemptEvent state_list = 38;
   optional int32 num_plan_cache_used = 39;
+  map<string, RelNodeInfo> rel_info_map = 40;
+}
+
+message RelNodeInfo{
+  oneof info {
+     FilterInfo filter_info = 1;
+     JoinInfo join_info = 2;
+     ScanInfo scan_info = 3;
+     AggregateInfo aggregate_info = 4;
+  }
+}
+
+message AggExpressionInfo {
+  optional string aggregation = 1;
+  repeated string args = 2;
+}
+
+message AggregateInfo{
+  repeated string grouping_key = 1;
+  repeated AggExpressionInfo agg_expr = 2;
+}
+
+
+
+message FilterInfo{
+  optional string filter_string = 1;
+}
+
+message JoinInfo{
+  optional string join_filter_string = 1;
+  optional string extra_join_filter_string=2;
+}
+
+message ScanInfo{
+  optional string tableName = 1;
 }
 
 message AttemptEvent {
@@ -404,6 +439,7 @@ message ResourceSchedulingProperties {
   optional string client_type = 2;
   optional string query_type = 3;
   optional string tag = 4;
+  optional string query_label = 5;
 }
 
 message AccelerationProfile {
@@ -483,6 +519,7 @@ message MajorFragmentProfile {
   optional int32 major_fragment_id = 1;
   repeated MinorFragmentProfile minor_fragment_profile = 2;
   repeated NodePhaseProfile node_phase_profile = 3;
+  optional int32 phase_weight = 4;
 }
 
 enum SharedResourceCategory {
@@ -526,6 +563,10 @@ message MinorFragmentProfile {
   optional int64 blocked_on_shared_resource_duration = 1010;
   repeated BlockedResourceDuration per_resource_blocked_duration = 1011;
   optional int64 blocked_on_memory_duration = 1012;
+  optional int64 run_q_load = 1013;
+  optional int64 num_slices = 1014;
+  optional int64 num_long_slices = 1015;
+  optional int64 num_short_slices = 1016;
 }
 
 // Information about expression splits (in project/filter)

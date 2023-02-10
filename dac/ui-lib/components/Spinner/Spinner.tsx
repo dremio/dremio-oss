@@ -20,6 +20,7 @@ import clsx from "clsx";
 
 type SpinnerProps = {
   className?: string;
+  iconName?: string;
 };
 
 export const Spinner = forwardRef<HTMLDivElement, SpinnerProps>(
@@ -30,7 +31,7 @@ export const Spinner = forwardRef<HTMLDivElement, SpinnerProps>(
       ref={ref}
     >
       {/* @ts-ignore */}
-      <dremio-icon name="interface/spinner"></dremio-icon>
+      <dremio-icon name={props?.iconName || "interface/spinner"} />
     </div>
   )
 );

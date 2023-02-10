@@ -1057,4 +1057,19 @@
     <cve>CVE-2018-8012</cve>
   </suppress>
 
+  <!-- Azure-ResourceManager-AppPlatform -->
+  <suppress>
+    <notes><![CDATA[
+   file name: azure-resourcemanager-appplatform-2.19.0.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/com\.azure\.resourcemanager/azure\-resourcemanager\-appplatform@.*$</packageUrl>
+    <cve>CVE-2009-2500</cve>
+    <cve>CVE-2009-2501</cve>
+    <cve>CVE-2009-2502</cve>
+    <cve>CVE-2009-2503</cve>
+    <cve>CVE-2009-2504</cve>
+    <cve>CVE-2009-2528</cve>
+    <cve>CVE-2009-3126</cve>
+  </suppress>
+
 </suppressions>

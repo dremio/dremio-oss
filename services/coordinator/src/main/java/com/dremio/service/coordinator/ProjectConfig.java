@@ -49,6 +49,12 @@ public interface ProjectConfig {
   DistPathConfig getMetadataConfig();
 
   /**
+   * Get gandiva cache config
+   * @return config
+   */
+  DistPathConfig getGandivaPersistentCacheConfig();
+
+  /**
    *
    * @return
    */

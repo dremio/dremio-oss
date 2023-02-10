@@ -15,19 +15,10 @@
  */
 
 import { useState } from "react";
-import { connect } from "react-redux";
-import { intl } from "@app/utils/intl";
-import { FormattedMessage } from "react-intl";
-import { Button } from "dremio-ui-lib/dist-esm";
-import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
-import {
-  Dialog,
-  DialogTitle,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  TextField,
-} from "@mui/material";
+import { useDispatch } from "react-redux";
+import { FormattedMessage, useIntl } from "react-intl";
+import { Button, ModalContainer, DialogContent } from "dremio-ui-lib/dist-esm";
+import { TextField } from "@mui/material";
 import { Reference } from "@app/types/nessie";
 import { useNessieContext } from "../../utils/context";
 import { addNotification } from "actions/notification";
@@ -38,23 +29,21 @@ type NewTagDialogProps = {
   open: boolean;
   closeDialog: () => void;
   forkFrom: Reference;
-  addNotification: typeof addNotification;
-};
-
-type ConnectedProps = {
-  setReference: typeof setReferenceAction;
+  refetch?: () => void;
 };
 
 function NewTagDialog({
   open,
   closeDialog,
   forkFrom,
-  addNotification,
-}: NewTagDialogProps & ConnectedProps): JSX.Element {
+  refetch,
+}: NewTagDialogProps): JSX.Element {
   const { api } = useNessieContext();
   const [newTagName, setNewTagName] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
+  const intl = useIntl();
+  const dispatch = useDispatch();
 
   const updateInput = (event: any) => {
     setNewTagName(event.target.value);
@@ -63,6 +52,7 @@ function NewTagDialog({
   const onCancel = () => {
     closeDialog();
     setNewTagName("");
+    setErrorText(null);
   };
 
   const onAdd = async () => {
@@ -79,13 +69,16 @@ function NewTagDialog({
 
       setErrorText(null);
       closeDialog();
-      addNotification(
-        intl.formatMessage(
-          { id: "ArcticCatalog.Tags.Dialog.SuccessMessage" },
-          { tag_name: newTagName }
-        ),
-        "success"
+      dispatch(
+        addNotification(
+          intl.formatMessage(
+            { id: "ArcticCatalog.Tags.Dialog.SuccessMessage" },
+            { tag_name: newTagName }
+          ),
+          "success"
+        )
       );
+      refetch?.();
       setIsSending(false);
       setNewTagName("");
     } catch (error: any) {
@@ -106,16 +99,26 @@ function NewTagDialog({
   };
 
   return (
-    <div>
-      <Dialog open={open} onClose={closeDialog} className="new-tag-dialog">
-        <DialogTitle className="new-tag-dialog-header">
-          <span className="new-tag-dialog-header-title">
-            <FormattedMessage id="RepoView.Dialog.CreateTag.NewTag" />
-          </span>
-        </DialogTitle>
-        <DialogContent className="new-tag-dialog-body">
+    <ModalContainer open={() => {}} isOpen={open} close={closeDialog}>
+      <DialogContent
+        className="new-tag-dialog"
+        title={intl.formatMessage({
+          id: "RepoView.Dialog.CreateTag.NewTag",
+        })}
+        actions={
+          <>
+            <Button variant="secondary" onClick={onCancel} disabled={isSending}>
+              <FormattedMessage id="Common.Cancel" />
+            </Button>
+            <Button variant="primary" onClick={onAdd} disabled={isSending}>
+              <FormattedMessage id="Common.Add" />
+            </Button>
+          </>
+        }
+      >
+        <div className="new-tag-dialog-body">
           {forkFrom.hash && (
-            <DialogContentText>
+            <div className="new-tag-dialog-body-commitSection">
               <FormattedMessage id="Common.Commit" />
               <span className="new-tag-dialog-body-commit">
                 <dremio-icon name="vcs/commit" />
@@ -123,11 +126,9 @@ function NewTagDialog({
                   {forkFrom.hash.substring(0, 30)}
                 </span>
               </span>
-            </DialogContentText>
+            </div>
           )}
-          <DialogContentText>
-            <FormattedMessage id="RepoView.Dialog.CreateTag.TagName" />
-          </DialogContentText>
+          <FormattedMessage id="RepoView.Dialog.CreateTag.TagName" />
           <TextField
             onChange={updateInput}
             value={newTagName}
@@ -142,24 +143,10 @@ function NewTagDialog({
             variant="outlined"
             error={!!errorText}
             helperText={errorText}
-            label={errorText && <FormattedMessage id="Common.Error" />}
           ></TextField>
-        </DialogContent>
-        <DialogActions className="new-tag-dialog-actions">
-          <Button variant="secondary" onClick={onCancel} disabled={isSending}>
-            <FormattedMessage id="Common.Cancel" />
-          </Button>
-          <Button variant="primary" onClick={onAdd} disabled={isSending}>
-            <FormattedMessage id="Common.Add" />
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+        </div>
+      </DialogContent>
+    </ModalContainer>
   );
 }
-
-const mapDispatchToProps = {
-  setReference: setReferenceAction,
-  addNotification,
-};
-export default connect(null, mapDispatchToProps)(NewTagDialog);
+export default NewTagDialog;

@@ -33,6 +33,7 @@ import com.dremio.common.util.DateTimes;
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
+import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -48,7 +49,7 @@ import com.google.common.collect.ImmutableMap;
 public class DataJsonOutput {
   public static final DateTimeFormatter FORMAT_DATE = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD").withZoneUTC();
   public static final DateTimeFormatter FORMAT_TIMESTAMP = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").withZoneUTC();
-  public static final DateTimeFormatter FORMAT_TIME = DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS").withZoneUTC();
+  public static final DateTimeFormatter FORMAT_TIME = DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS.FFF").withZoneUTC();
   public static final String DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE = "DREMIO_JOB_DATA_NUMBERS_AS_STRINGS";
 
   /**
@@ -574,10 +575,10 @@ public class DataJsonOutput {
         return keyReader.readLocalDateTime().toString();
       case DECIMAL:
         return keyReader.readBigDecimal().toPlainString();
-      case VARBINARY:
-        return keyReader.readObject().toString();
       case VARCHAR:
         return keyReader.readText().toString();
+      case VARBINARY:
+        return Base64Variants.getDefaultVariant().encode(keyReader.readByteArray());
       case LIST:
       case STRUCT:
       case MAP:

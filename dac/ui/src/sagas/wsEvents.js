@@ -28,6 +28,7 @@ import {
   updateQVJobState,
 } from "actions/jobs/jobs";
 import { getJobList } from "@app/selectors/jobs";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 const getLocation = (state) => state.routing.locationBeforeTransitions;
 
@@ -35,8 +36,9 @@ function* handleUpdateJobDetails(action) {
   if (action.error) return;
 
   const location = yield select(getLocation);
-  if (location.pathname.indexOf("/jobs/reflection/") > -1) {
-    const split = location.pathname.split("/");
+  const loc = rmProjectBase(location.pathname);
+  if (loc.indexOf("/jobs/reflection/") > -1) {
+    const split = loc.split("/");
     const reflectionId = split[split.length - 1];
     yield put(loadReflectionJobDetails(action.payload.jobId.id, reflectionId));
   } else {

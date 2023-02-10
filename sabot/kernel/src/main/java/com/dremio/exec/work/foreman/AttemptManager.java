@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.dremio.common.EventProcessor;
 import com.dremio.common.ProcessExit;
@@ -108,6 +109,7 @@ public class AttemptManager implements Runnable {
   private static final Counter FAILED = Metrics.newCounter(Metrics.join("jobs", "failed"), ResetType.NEVER);
   private static final Counter SERVER_ERROR = Metrics.newCounter(Metrics.join("jobs", "server_error"), ResetType.NEVER);
   private static final Counter TOTAL = Metrics.newCounter(Metrics.join("jobs", "total"), ResetType.NEVER);
+
   private static final Set<UserBitShared.DremioPBError.ErrorType> CLIENT_ERRORS =
     ImmutableSet.of(UserBitShared.DremioPBError.ErrorType.PARSE,
       UserBitShared.DremioPBError.ErrorType.PERMISSION,
@@ -266,6 +268,7 @@ public class AttemptManager implements Runnable {
    */
   private class ScreenShuttle implements RpcOutcomeListener<Ack>{
     private final ResponseSender sender;
+    private AtomicBoolean acked = new AtomicBoolean(false);
 
     public ScreenShuttle(ResponseSender sender) {
       this.sender = sender;
@@ -285,6 +288,20 @@ public class AttemptManager implements Runnable {
     }
 
     @Override
+    public void dataOnWireCallback() {
+      // Sending early ack as soon as packet is on wire.
+      // The difference between ack here vs ack in success callback is
+      // success callback is called when packet is received by
+      // the destination.
+
+      if(getQueryContext().getOptions().getOption(ExecConstants.EARLY_ACK_ENABLED)) {
+        ackit();
+      } else {
+        logger.trace("Early ack is disabled");
+      }
+    }
+
+    @Override
     public void success(Ack paramV, ByteBuf paramByteBuf) {
       ackit();
     }
@@ -293,7 +310,10 @@ public class AttemptManager implements Runnable {
       // No matter what, we ack back to the original node. Since we manage
       // execution, we can cancel on failure from here. We don't ack until we've
       // passed data through, ensuring that we have full backpressure.
-      sender.send(new Response(RpcType.ACK, Acks.OK));
+
+      if (acked.compareAndSet(false,true)) {
+        sender.send(new Response(RpcType.ACK, Acks.OK));
+      }
     }
   }
 
@@ -389,7 +409,9 @@ public class AttemptManager implements Runnable {
       checkRunQueryAccessPrivilege(groupResourceInformation);
 
       // planning is done in the command pool
-      commandPool.submit(CommandPool.Priority.LOW, attemptId.toString() + ":foreman-planning",
+      commandPool.submit(CommandPool.Priority.LOW,
+        attemptId.toString() + ":foreman-planning",
+        "foreman-planning",
         (waitInMillis) -> {
           observer.commandPoolWait(waitInMillis);
 

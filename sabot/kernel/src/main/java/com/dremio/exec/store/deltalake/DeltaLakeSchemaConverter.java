@@ -88,7 +88,7 @@ public class DeltaLakeSchemaConverter {
         Preconditions.checkNotNull(schemaString);
         final JsonNode schemaJson = OBJECT_MAPPER.readTree(schemaString);
         final JsonNode fieldsJson = schemaJson.get(SCHEMA_STRING_FIELDS);
-        Preconditions.checkNotNull(fieldsJson, "Schema string doesn't contain any fields - {}", schemaString);
+        Preconditions.checkNotNull(fieldsJson, "Schema string doesn't contain any fields: %s", schemaString);
         return new BatchSchema(StreamSupport.stream(fieldsJson.spliterator(), false)
             .map(this::fromFieldJson)
             .filter(Objects::nonNull)
@@ -123,7 +123,7 @@ public class DeltaLakeSchemaConverter {
         } else if (DELTA_MAP.equalsIgnoreCase(typeNode.get(SCHEMA_STRING_FIELDS_TYPE).asText("")) && isMapDataTypeEnabled) {
             final JsonNode keyType = typeNode.get(SCHEMA_STRING_MAP_KEY_TYPE);
             final JsonNode valueType = typeNode.get(SCHEMA_STRING_MAP_VALUE_TYPE);
-            if (keyType.isObject() || !keyType.asText().equalsIgnoreCase(DELTA_STRING) || valueType.isObject()) {
+            if (keyType.isObject()) {
               return null;
             }
             final FieldType keyFieldType = fromPrimitiveType(keyType.asText(), false);

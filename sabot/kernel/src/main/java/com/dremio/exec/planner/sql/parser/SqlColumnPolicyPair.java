@@ -49,7 +49,7 @@ public class SqlColumnPolicyPair extends SqlCall {
   private final SqlPolicy policy;
 
   /**
-   * Creates a SqlColumnDeclaration.
+   * Creates a SqlColumnPolicyPair.
    */
   public SqlColumnPolicyPair(SqlParserPos pos, SqlIdentifier name, SqlPolicy policy) {
     super(pos);

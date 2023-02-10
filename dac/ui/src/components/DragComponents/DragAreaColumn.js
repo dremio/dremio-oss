@@ -17,7 +17,7 @@ import { Component } from "react";
 import { compose } from "redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 import { injectIntl } from "react-intl";
 
 import { DragAreaColumnWithMixin } from "@inject/components/DragComponents/DragAreaColumnMixin.js";

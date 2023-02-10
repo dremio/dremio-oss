@@ -19,7 +19,7 @@ import Immutable from "immutable";
 import { connect } from "react-redux";
 import { injectIntl } from "react-intl";
 import { getExploreState } from "@app/selectors/explore";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import {
   RECOMMENDED_JOIN,

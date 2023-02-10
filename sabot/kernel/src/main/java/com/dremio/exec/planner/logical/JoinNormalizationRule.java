@@ -37,8 +37,6 @@ import com.google.common.collect.Lists;
  * ready to be converted into a {@code com.dremio.exec.planner.physical.JoinPrel} instance.
  */
 public class JoinNormalizationRule extends RelOptRule {
-  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinNormalizationRule.class);
-
   public static final JoinNormalizationRule INSTANCE = new JoinNormalizationRule(DremioRelFactories.LOGICAL_BUILDER);
 
   private final RelBuilderFactory factory;

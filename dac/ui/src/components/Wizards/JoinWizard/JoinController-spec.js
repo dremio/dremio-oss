@@ -55,6 +55,7 @@ describe("JoinController", () => {
       changeFormType: sinon.spy(),
       location: { query: {}, pathname: "", state: {} },
       loadJoinDataset: sinon.spy(),
+      setJoinReference: sinon.spy(),
       setJoinStep: sinon.spy(),
       fields: {
         activeDataset: { value: ["dataset1"], onChange: sinon.spy() },
@@ -304,6 +305,7 @@ describe("JoinController", () => {
       const props = {
         joinTab: CUSTOM_JOIN,
         values: { activeDataset: ["path"] },
+        setJoinReference: sinon.spy(),
         loadJoinDataset: sinon.spy(),
       };
       instance.tryToLoadJoinDataset(props);

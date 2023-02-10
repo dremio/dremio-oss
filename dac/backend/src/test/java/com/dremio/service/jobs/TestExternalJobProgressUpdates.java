@@ -15,7 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.BaseTestQuery.getFile;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -76,7 +75,7 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
       .build();
     asyncStub = JobsServiceGrpc.newStub(channel);
 
-    query = getFile("tpch_quoted.sql");
+    query = readResourceAsString("tpch_quoted.sql");
   }
 
   @AfterClass

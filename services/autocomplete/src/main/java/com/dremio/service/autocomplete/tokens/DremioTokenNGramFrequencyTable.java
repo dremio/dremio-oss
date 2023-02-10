@@ -15,13 +15,14 @@
  */
 package com.dremio.service.autocomplete.tokens;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
@@ -129,7 +130,7 @@ public final class DremioTokenNGramFrequencyTable {
     String[] queries;
     try {
       queries = Resources
-        .toString(url, Charsets.UTF_8)
+        .toString(url, UTF_8)
         .split(System.lineSeparator());
     } catch (IOException e) {
       throw new RuntimeException(e);

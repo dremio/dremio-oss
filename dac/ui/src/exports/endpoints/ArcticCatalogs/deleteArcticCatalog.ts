@@ -15,7 +15,7 @@
  */
 
 import { APIV3Call } from "@app/core/APICall";
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
 export const deleteArcticCatalogUrl = (catalogId: string) =>
   new APIV3Call()
@@ -30,9 +30,8 @@ type DeleteArcticCatalogParams = {
 export const deleteArcticCatalog = (
   params: DeleteArcticCatalogParams
 ): Promise<void> =>
-  fetch(deleteArcticCatalogUrl(params.catalogId), {
-    headers: {
-      Authorization: localStorageUtils!.getAuthToken(),
-    },
-    method: "delete",
-  }).then(() => undefined);
+  getApiContext()
+    .fetch(deleteArcticCatalogUrl(params.catalogId), {
+      method: "delete",
+    })
+    .then(() => undefined);

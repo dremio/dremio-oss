@@ -43,6 +43,7 @@ import {
 import addAlwaysPresent, {
   LOOSE_ELEMENT_IGNORE_LIST,
 } from "@inject/utils/FormUtils/globalSourceConfigUtil";
+import { isVersionedSource } from "../sourceUtils";
 
 export default class SourceFormJsonPolicy {
   static deepCopyConfig(config) {
@@ -399,7 +400,9 @@ export default class SourceFormJsonPolicy {
       config.form.addTab(
         new FormTabConfig(ACCELERATION_TAB_JSON_TEMPLATE, functionalElements)
       );
+    }
 
+    if (!isVersionedSource(config.sourceType)) {
       // add Reflection Refresh tab based on config.metadataRefresh
       this.addReflectionRefreshTab(config, functionalElements);
     }

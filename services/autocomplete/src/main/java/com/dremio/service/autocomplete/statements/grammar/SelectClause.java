@@ -15,26 +15,32 @@
  */
 package com.dremio.service.autocomplete.statements.grammar;
 
+import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.ALL;
+import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.DISTINCT;
 import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.SELECT;
+import static com.dremio.exec.planner.sql.parser.impl.ParserImplConstants.STREAM;
 
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.TokenBuffer;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * SELECT [ hintComment ] [ STREAM ] [ ALL | DISTINCT ]
  *           { * | projectItem [, projectItem ]* }
  */
 public final class SelectClause extends Statement {
+  private static final ImmutableSet<Integer> ALL_DISTINCT = ImmutableSet.of(ALL, DISTINCT);
   private SelectClause(
     ImmutableList<DremioToken> tokens,
-    Expression expression) {
-    super(tokens, asListIgnoringNulls(expression));
+    SelectList selectList) {
+    super(tokens, asListIgnoringNulls(selectList));
   }
 
   public static SelectClause parse(TokenBuffer tokenBuffer, ImmutableList<TableReference> tableReferences) {
     Preconditions.checkNotNull(tokenBuffer);
+    Preconditions.checkNotNull(tableReferences);
     if (tokenBuffer.isEmpty()) {
       return null;
     }
@@ -43,8 +49,11 @@ public final class SelectClause extends Statement {
 
     tokenBuffer.readAndCheckKind(SELECT);
 
-    ImmutableList<DremioToken> expressionTokens = tokenBuffer.drainRemainingTokens();
-    Expression expression = Expression.parse(expressionTokens, tableReferences);
-    return new SelectClause(tokens, expression);
+    tokenBuffer.readIfKind(STREAM);
+
+    tokenBuffer.readIfKinds(ALL_DISTINCT);
+
+    SelectList selectList = SelectList.parse(tokenBuffer, tableReferences);
+    return new SelectClause(tokens, selectList);
   }
 }

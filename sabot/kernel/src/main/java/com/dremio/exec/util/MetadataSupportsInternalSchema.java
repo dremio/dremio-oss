@@ -92,7 +92,7 @@ public interface MetadataSupportsInternalSchema extends SupportsTypeCoercionsAnd
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(filePath);
       e.addDatasetPath(datasetPath);
-      throw UserException.unsupportedError().message(e.getMessage()).build();
+      throw UserException.unsupportedError(e).message(e.getMessage()).build();
     }
   }
 }

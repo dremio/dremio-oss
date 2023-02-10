@@ -20,7 +20,15 @@ import { mapDataset } from "apiMappers/datasetMapper";
 import { applyDecorators } from "utils/decorators";
 
 class SchemaUtils {
-  getSuccessActionTypeWithSchema(type, schema, meta, key, value, transform) {
+  getSuccessActionTypeWithSchema(
+    type,
+    schema,
+    meta,
+    key,
+    value,
+    transform,
+    schemaKey
+  ) {
     return {
       type,
       meta,
@@ -51,7 +59,9 @@ class SchemaUtils {
             );
             let newPayLoad = payload.set(
               "entities",
-              applyDecorators(payload.get("entities"))
+              payload.get("entities").size === 0 && schemaKey
+                ? Immutable.fromJS({ [schemaKey]: {} })
+                : applyDecorators(payload.get("entities"))
             );
 
             if (
@@ -69,6 +79,70 @@ class SchemaUtils {
               );
             }
             return newPayLoad;
+          });
+        }
+      },
+    };
+  }
+
+  // TODO: this can be trimmed down in a later patch since it's only used for the new query flow
+  newGetSuccessActionTypeWithSchema(
+    type,
+    schema,
+    meta,
+    datasetVersion,
+    jobId,
+    paginationUrl
+  ) {
+    return {
+      type,
+      meta,
+      payload: (action, state, res) => {
+        const contentType = res.headers.get("Content-Type");
+        if (contentType && contentType.indexOf("json") !== -1) {
+          return res.json().then((pureJson) => {
+            const finalJson = pureJson;
+
+            const hash = {
+              fullDataset: mapDataset,
+            };
+
+            const payload = Immutable.fromJS(
+              normalize(
+                (hash[schema._key] &&
+                  hash[schema._key](finalJson, undefined)) ||
+                  finalJson,
+                schema
+              )
+            );
+            let newPayLoad = payload.set(
+              "entities",
+              applyDecorators(payload.get("entities"))
+            );
+
+            if (
+              payload.getIn([
+                "entities",
+                "accessControlList",
+                finalJson.id,
+                "grants",
+              ]) !== undefined &&
+              type === "ACCESS_CONTROL_GET_SUCCESS"
+            ) {
+              newPayLoad = newPayLoad.setIn(
+                ["entities", "accessControlList", finalJson.id],
+                Immutable.fromJS(finalJson)
+              );
+            }
+            return newPayLoad
+              .setIn(
+                ["entities", "fullDataset", datasetVersion, "jobId", "id"],
+                jobId
+              )
+              .setIn(
+                ["entities", "fullDataset", datasetVersion, "paginationUrl"],
+                paginationUrl
+              );
           });
         }
       },

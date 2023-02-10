@@ -49,6 +49,7 @@ export class ConfirmCancelFooter extends Component {
     style: PropTypes.object,
     confirmButtonStyle: PropTypes.string,
     leftAlign: PropTypes.bool,
+    showSpinnerAndText: PropTypes.bool,
   };
 
   onCancel = (e) => {
@@ -78,6 +79,7 @@ export class ConfirmCancelFooter extends Component {
       hideCancel,
       footerChildren,
       leftAlign,
+      showSpinnerAndText,
     } = this.props;
     const conditionalRenderingButtonStyling =
       this.checkToRenderSaveAndCancelButtons();
@@ -103,6 +105,7 @@ export class ConfirmCancelFooter extends Component {
             })}
             disabled={!canCancel}
             // style={conditionalRenderingButtonStyling}  // Uncomment this line in the case you want conditional rendering of 'cancel' button based on canAlter permissions
+            style={styles.button}
             onClick={this.onCancel}
           >
             {this.checkCancelText(cancelText)}
@@ -117,8 +120,12 @@ export class ConfirmCancelFooter extends Component {
           })}
           submitting={submitting}
           disabled={!canSubmit}
-          style={conditionalRenderingButtonStyling}
+          style={{
+            ...(conditionalRenderingButtonStyling ?? {}),
+            ...styles.button,
+          }}
           onClick={this.onConfirm}
+          showSpinnerAndText={showSpinnerAndText}
         >
           {confirmText}
         </SimpleButton>
@@ -136,6 +143,9 @@ const styles = {
   nonModalFooter: {
     marginTop: 20,
     marginRight: 11,
+  },
+  button: {
+    fontSize: 14,
   },
 };
 export default ConfirmCancelFooterWithMixin(ConfirmCancelFooter);

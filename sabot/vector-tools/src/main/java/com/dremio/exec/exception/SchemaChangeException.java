@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.exception;
 
-public class SchemaChangeException extends RuntimeException{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SchemaChangeException.class);
+public class SchemaChangeException extends RuntimeException {
 
   public SchemaChangeException() {
     super();

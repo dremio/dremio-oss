@@ -27,9 +27,11 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.connector.metadata.extensions.SupportsDeltaMetadata;
+import com.dremio.exec.store.hive.deltalake.DeltaHiveInputFormat;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 
-public final class HiveDatasetMetadata implements DatasetMetadata {
+public final class HiveDatasetMetadata implements DatasetMetadata, SupportsDeltaMetadata {
 
   private final Schema schema;
   private final List<String> partitionColumns;
@@ -85,6 +87,11 @@ public final class HiveDatasetMetadata implements DatasetMetadata {
   @Override
   public BytesOutput getExtraInfo() {
     return extraInfo;
+  }
+
+  @Override
+  public String getDeltaLocation() {
+    return DeltaHiveInputFormat.class.isAssignableFrom(metadataAccumulator.getCurrentInputFormat()) ? metadataAccumulator.getTableLocation() : null;
   }
 
   @Override

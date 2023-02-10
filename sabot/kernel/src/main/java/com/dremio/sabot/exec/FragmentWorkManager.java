@@ -50,6 +50,7 @@ import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
+import com.dremio.sabot.exec.heap.SpillingOperatorHeapController;
 import com.dremio.sabot.exec.rpc.ExecProtocol;
 import com.dremio.sabot.exec.rpc.ExecTunnel;
 import com.dremio.sabot.exec.rpc.FabricExecTunnel;
@@ -106,6 +107,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
   private com.dremio.exec.service.executor.ExecutorService executorService;
   private HeapMonitorManager heapMonitorManager = null;
+  private SpillingOperatorHeapController heapLowMemController = null;
 
   public FragmentWorkManager(
     final BootStrapContext context,
@@ -232,7 +234,8 @@ public class FragmentWorkManager implements Service, SafeExit {
           startTime,
           fragmentExecutor.getBlockingStatus(),
           fragmentExecutor.getTaskDescriptor(),
-          dbContext.get().getEndpoint().getFabricPort());
+          dbContext.get().getEndpoint().getFabricPort(),
+          fragmentExecutor.getMemoryGrant());
       }
 
     }
@@ -324,6 +327,10 @@ public class FragmentWorkManager implements Service, SafeExit {
     final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)),
       bitContext.getOptionManager());
 
+    if (bitContext.isExecutor()) {
+      heapLowMemController = SpillingOperatorHeapController.create();
+    }
+
     final FragmentExecutorBuilder builder = new FragmentExecutorBuilder(
         clerk,
         fragmentExecutors,
@@ -348,7 +355,8 @@ public class FragmentWorkManager implements Service, SafeExit {
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
         jobResultsClientFactoryProvider,
         identity,
-        bitContext.getExpressionSplitCache());
+        bitContext.getExpressionSplitCache(),
+        heapLowMemController);
 
     executorService = new ExecutorServiceImpl(fragmentExecutors,
             bitContext, builder);
@@ -369,6 +377,7 @@ public class FragmentWorkManager implements Service, SafeExit {
       heapMonitorManager = new HeapMonitorManager(() -> bitContext.getOptionManager(),
                                                   heapClawBackStrategy,
                                                   ClusterCoordinator.Role.EXECUTOR);
+      heapMonitorManager.addLowMemListener(heapLowMemController.getLowMemListener());
       heapMonitorManager.start();
     }
 
@@ -403,7 +412,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(statusThread, statsCollectorThread, heapMonitorManager,
-      closeableExecutor, fragmentExecutors, maestroProxy, allocator);
+      closeableExecutor, fragmentExecutors, maestroProxy, allocator, heapLowMemController);
   }
 
 }

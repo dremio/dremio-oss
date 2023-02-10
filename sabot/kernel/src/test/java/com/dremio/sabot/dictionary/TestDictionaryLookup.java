@@ -18,10 +18,10 @@ package com.dremio.sabot.dictionary;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 
-import java.nio.charset.Charset;
 import java.util.Map;
 
 import org.apache.arrow.vector.BigIntVector;
@@ -55,8 +55,6 @@ import com.google.common.collect.Maps;
  */
 public class TestDictionaryLookup extends BaseTestOperator {
 
-  private static final Charset UTF8 = Charset.forName("UTF-8");
-
   @Test
   public void testDictionaryLookup() throws Throwable {
 
@@ -84,11 +82,11 @@ public class TestDictionaryLookup extends BaseTestOperator {
       final Field field2 = new Field(SchemaPath.getSimplePath("c1").getAsUnescapedPath(), new FieldType(true, new ArrowType.Binary(), null), null);
       final VarBinaryVector binaryVector = dict2.addOrGet(field2);
       binaryVector.allocateNew();
-      binaryVector.setSafe(0, "abc".getBytes(UTF8), 0, 3);
-      binaryVector.setSafe(1, "bcd".getBytes(UTF8), 0, 3);
-      binaryVector.setSafe(2, "cde".getBytes(UTF8), 0, 3);
-      binaryVector.setSafe(3, "def".getBytes(UTF8), 0, 3);
-      binaryVector.setSafe(4, "efg".getBytes(UTF8), 0, 3);
+      binaryVector.setSafe(0, "abc".getBytes(UTF_8), 0, 3);
+      binaryVector.setSafe(1, "bcd".getBytes(UTF_8), 0, 3);
+      binaryVector.setSafe(2, "cde".getBytes(UTF_8), 0, 3);
+      binaryVector.setSafe(3, "def".getBytes(UTF_8), 0, 3);
+      binaryVector.setSafe(4, "efg".getBytes(UTF_8), 0, 3);
       binaryVector.setValueCount(5);
       dict2.setRecordCount(5);
       dict2.buildSchema(BatchSchema.SelectionVectorMode.NONE);
@@ -135,9 +133,9 @@ public class TestDictionaryLookup extends BaseTestOperator {
 
       Table output = t(
         th("c0", "c1", "c2"),
-        tr(10L, "bcd".getBytes(UTF8), 300.3),
-        tr(20L, "cde".getBytes(UTF8), 100.1),
-        tr(30L, "abc".getBytes(UTF8), 200.2)
+        tr(10L, "bcd".getBytes(UTF_8), 300.3),
+        tr(20L, "cde".getBytes(UTF_8), 100.1),
+        tr(30L, "abc".getBytes(UTF_8), 200.2)
       );
 
       validateSingle(lookup, DictionaryLookupOperator.class, input, output);

@@ -20,7 +20,6 @@ import { FormattedMessage } from "react-intl";
 import { compose } from "redux";
 import { withRouter } from "react-router";
 
-import fileABug from "utils/fileABug";
 import { logoutUser } from "@inject/actions/account";
 import accountMenuConfig from "@inject/components/SideNav/accountMenuConfig";
 
@@ -57,11 +56,6 @@ const AccountMenu = (props) => {
     }
   };
 
-  const onFileABug = () => {
-    closeMenu();
-    fileABug();
-  };
-
   return (
     <Menu style={menuListStyle}>
       {config.shouldEnableBugFiling && (
@@ -69,11 +63,6 @@ const AccountMenu = (props) => {
           <span className={"menuInformation"}>
             <FormattedMessage id="HeaderMenu.InternalBuild" />
           </span>
-        </MenuItem>
-      )}
-      {config.shouldEnableBugFiling && (
-        <MenuItem onClick={onFileABug}>
-          <FormattedMessage id="HeaderMenu.FileABug" />
         </MenuItem>
       )}
       {config.shouldEnableBugFiling && <DividerHr />}

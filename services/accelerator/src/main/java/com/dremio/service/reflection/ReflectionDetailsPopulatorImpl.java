@@ -17,10 +17,12 @@ package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.ReflectionUtils.isPhysicalDataset;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
@@ -63,7 +65,6 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -79,8 +80,10 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   private final ReflectionService reflections;
   private final AccelerationDetails details = new AccelerationDetails();
   private final Map<String, ReflectionState> consideredReflections = new HashMap<>();
-
   private List<String> substitutionErrors = Collections.emptyList();
+  private final List<String> consideredReflectionIds = new ArrayList<>();
+  private final List<String> matchedReflectionIds = new ArrayList<>();
+  private final List<String> chosenReflectionIds = new ArrayList<>();
 
   ReflectionDetailsPopulatorImpl(NamespaceService namespace, ReflectionService reflections) {
     this.reflections = reflections;
@@ -235,6 +238,16 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
               .setHideHint(reflectionState.hideHint)
             );
           }
+          if (reflectionState.getSubstitutionState() == SubstitutionState.CONSIDERED) {
+            consideredReflectionIds.add(reflectionState.reflectionId);
+          } else if (reflectionState.getSubstitutionState() == SubstitutionState.MATCHED) {
+            consideredReflectionIds.add(reflectionState.reflectionId);
+            matchedReflectionIds.add(reflectionState.reflectionId);
+          } else if (reflectionState.getSubstitutionState() == SubstitutionState.CHOSEN) {
+            consideredReflectionIds.add(reflectionState.reflectionId);
+            matchedReflectionIds.add(reflectionState.reflectionId);
+            chosenReflectionIds.add(reflectionState.reflectionId);
+          }
         }
 
         details.setReflectionRelationshipsList(relationships);
@@ -248,6 +261,20 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
     return AccelerationDetailsUtils.serialize(details);
   }
 
+  @Override
+  public List<String> getConsideredReflectionIds() {
+    return consideredReflectionIds;
+  }
+
+  @Override
+  public List<String> getMatchedReflectionIds() {
+    return matchedReflectionIds;
+  }
+
+  @Override
+  public List<String> getChosenReflectionIds() {
+    return chosenReflectionIds;
+  }
 
   private static LayoutDescriptor toLayoutDescriptor(final ReflectionGoal layout) {
     final ReflectionDetails details = Preconditions.checkNotNull(layout.getDetails(), "layout details is required");

@@ -20,6 +20,12 @@ import io.netty.buffer.ByteBuf;
 public interface RpcOutcomeListener<V> {
 
   /**
+   * Called after data transferred to the wire.
+   */
+  default void dataOnWireCallback(){
+  }
+
+  /**
    * Called when an error occurred while waiting for the RPC outcome.
    * @param ex
    */

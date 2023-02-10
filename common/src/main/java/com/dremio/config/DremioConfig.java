@@ -133,6 +133,7 @@ public class DremioConfig extends NestedConfig {
   public static final String SCRATCH_PATH_STRING = "paths.scratch";
   public static final String SPILLING_PATH_STRING = "paths.spilling";
   public static final String METADATA_PATH_STRING = "paths.metadata";
+  public static final String GANDIVA_CACHE_PATH_STRING = "paths.gandiva";
 
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
@@ -184,6 +185,7 @@ public class DremioConfig extends NestedConfig {
   public static final String DEBUG_DOWNLOAD_ASYNC_ENABLED = "debug.download.async.enabled";
   public static final String DEBUG_METADATA_ASYNC_ENABLED = "debug.metadata.async.enabled";
   public static final String DEBUG_LOGS_ASYNC_ENABLED = "debug.logs.async.enabled";
+  public static final String DEBUG_GANDIVA_CACHE_ASYNC_ENABLED = "debug.gandiva_cache.async.enabled";
   public static final String DEBUG_DIST_S3_FILE_STATUS_CHECK = "debug.dist.s3_file_status_check.enabled";
 
   public static final String FABRIC_MEMORY_RESERVATION = "services.fabric.memory.reservation";
@@ -223,6 +225,9 @@ public class DremioConfig extends NestedConfig {
 
   // Coordinator Security Permissions
   public static final String PERMISSION_LOCAL_USERS_CREATE_ENABLED = "services.coordinator.security.permission.local-users.create.enabled";
+
+  // gRCP connection config
+  public static final String DREMIO_TUNING_GRPC_IDLE_TIMEOUT_SECONDS = "dremio.tuning.grpc.idle-timeout-seconds";
 
   private final Config unresolved;
   private final Config reference;

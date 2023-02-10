@@ -79,19 +79,19 @@
     completions:
      -
       kind: "Keyword"
+      label: "="
+     -
+      kind: "Keyword"
+      label: "<"
+     -
+      kind: "Keyword"
+      label: "AND"
+     -
+      kind: "Keyword"
       label: "FROM"
      -
       kind: "Keyword"
-      label: ","
-     -
-      kind: "Keyword"
-      label: "LIMIT"
-     -
-      kind: "Keyword"
-      label: "ORDER"
-     -
-      kind: "Keyword"
-      label: "OFFSET"
+      label: ">"
     functionContext: null
     hasMoreResults: true
  -
@@ -263,5 +263,27 @@
       insertText: "EMP.HIREDATE"
       kind: "Column"
       label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "SELECT *"
+  input: "SELECT * ^ FROM EMP"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "FROM"
+     -
+      kind: "Keyword"
+      label: ","
+     -
+      kind: "Keyword"
+      label: ";"
+     -
+      kind: "Keyword"
+      label: "AS"
+     -
+      kind: "Keyword"
+      label: "EXCEPT"
     functionContext: null
     hasMoreResults: true

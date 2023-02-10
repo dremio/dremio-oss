@@ -15,7 +15,7 @@
  */
 import { createRef, PureComponent } from "react";
 import PropTypes, { oneOfType } from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import { Tooltip } from "components/Tooltip";
 
 export default class TooltipEnabledLabel extends PureComponent {

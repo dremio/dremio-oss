@@ -92,6 +92,7 @@ public class MetadataStoragePluginConfig extends MayBeDistFileSystemConf<Metadat
 
     @Tag(17)
     public String sharedAccessKey = null;
+  //Tag has been deprecated please do not use.
 
     public MetadataStoragePluginConfig() {
       }
@@ -124,10 +125,6 @@ public class MetadataStoragePluginConfig extends MayBeDistFileSystemConf<Metadat
                 this.clientSecret = dataCredentials.getClientAccess().getClientSecret();
                 this.accountName = dataCredentials.getClientAccess().getAccountName();
                 this.accountKind = dataCredentials.getClientAccess().getAccountKind();
-            } else if (dataCredentials.hasSharedAccessKey()) {
-              this.sharedAccessKey = dataCredentials.getSharedAccessKey().getAccessKey();
-              this.accountName = dataCredentials.getSharedAccessKey().getAccountName();
-              this.accountKind = dataCredentials.getSharedAccessKey().getAccountKind();
             }
         }
     }
@@ -235,10 +232,6 @@ public class MetadataStoragePluginConfig extends MayBeDistFileSystemConf<Metadat
   @Override
   public String getAccountKind() {
     return accountKind;
-  }
-
-  public String getSharedAccessKey() {
-    return sharedAccessKey;
   }
 
   @Override

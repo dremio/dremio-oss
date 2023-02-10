@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -86,6 +86,11 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-serializer</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-elasticsearch-plugin</artifactId>
       <version>${project.version}</version>
@@ -99,7 +104,7 @@
       <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-pdfs-plugin</artifactId>
       <version>${project.version}</version>
-    </dependency>  
+    </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-protocol</artifactId>
@@ -143,7 +148,7 @@
     <dependency>
       <groupId>net.logstash.logback</groupId>
       <artifactId>logstash-logback-encoder</artifactId>
-    </dependency>    
+    </dependency>
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
@@ -286,7 +291,7 @@
               <rules>
                 <requireFilesSize>
                   <message>
-                    The file ${dremio.distribution.name}-${project.version}.tar.gz is outside the expected size range. 
+                    The file ${dremio.distribution.name}-${project.version}.tar.gz is outside the expected size range.
 
                     Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
@@ -533,7 +538,7 @@ exit 0
                   <rules>
                     <requireFilesSize>
                       <message>
-                        The file ${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm is outside the expected size range. 
+                        The file ${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm is outside the expected size range.
 
                         Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 

@@ -23,6 +23,7 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
@@ -56,9 +57,11 @@ public class SysFlightScanPrel extends ScanPrelBase {
                            SearchQuery query,
                            List<SchemaPath> projectedColumns,
                            double observedRowcountAdjustment,
+                           List<RelHint> hints,
                            SysFlightStoragePlugin plugin,
                            List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
+    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
+          hints, runtimeFilters);
 
     this.pluginId = dataset.getStoragePluginId();
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
@@ -75,10 +78,12 @@ public class SysFlightScanPrel extends ScanPrelBase {
                            SearchQuery query,
                            List<SchemaPath> projectedColumns,
                            double observedRowcountAdjustment,
+                           List<RelHint> hints,
                            RelDataType rowType,
                            SysFlightStoragePlugin plugin,
                            List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
+    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment,
+          hints, runtimeFilters);
     this.rowType = rowType;
     this.pluginId = dataset.getStoragePluginId();
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
@@ -138,11 +143,13 @@ public class SysFlightScanPrel extends ScanPrelBase {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     Preconditions.checkArgument(inputs == null || inputs.size() == 0);
-    return new SysFlightScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), query, getProjectedColumns(), getCostAdjustmentFactor(), plugin, getRuntimeFilters());
+    return new SysFlightScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), query, getProjectedColumns(),
+                                 getCostAdjustmentFactor(), getHints(), plugin, getRuntimeFilters());
   }
 
   @Override
   public SysFlightScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new SysFlightScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), query, projection, getCostAdjustmentFactor(), plugin, getRuntimeFilters());
+    return new SysFlightScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), query, projection,
+                                 getCostAdjustmentFactor(), getHints(), plugin, getRuntimeFilters());
   }
 }

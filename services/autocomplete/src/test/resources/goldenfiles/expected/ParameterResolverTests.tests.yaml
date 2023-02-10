@@ -27,7 +27,9 @@
       function:
         name: "ZERO_ARG_FUNCTION"
         signatures:
-         - "() -> DOUBLE"
+         -
+          parameters: []
+          returnType: "DOUBLE"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -43,7 +45,9 @@
       function:
         name: "ZERO_ARG_FUNCTION"
         signatures:
-         - "() -> DOUBLE"
+         -
+          parameters: []
+          returnType: "DOUBLE"
       missingTypes: []
       signaturesMatched: []
       suppliedParameterTypes:
@@ -61,11 +65,23 @@
       function:
         name: "ONE_ARG_BOOLEAN_FUNCTION"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: "<PARAMETER NAME>"
+            type: "BOOLEAN"
+          returnType: "BOOLEAN"
       missingTypes:
        - "BOOLEAN"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: "<PARAMETER NAME>"
+          type: "BOOLEAN"
+        returnType: "BOOLEAN"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -85,11 +101,23 @@
       function:
         name: "ONE_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -115,11 +143,23 @@
       function:
         name: "ONE_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -145,11 +185,23 @@
       function:
         name: "ONE_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -175,11 +227,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -205,11 +277,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -236,11 +328,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -267,11 +379,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -298,11 +430,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -329,11 +481,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -360,11 +532,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -388,11 +580,23 @@
       function:
         name: "ONE_ARG_BOOLEAN_FUNCTION"
         signatures:
-         - "(BOOLEAN) -> BOOLEAN"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: "<PARAMETER NAME>"
+            type: "BOOLEAN"
+          returnType: "BOOLEAN"
       missingTypes:
        - "BOOLEAN"
       signaturesMatched:
-       - "(BOOLEAN) -> BOOLEAN"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: "<PARAMETER NAME>"
+          type: "BOOLEAN"
+        returnType: "BOOLEAN"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -412,11 +616,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -443,11 +667,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -474,11 +718,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -505,11 +769,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -533,11 +817,31 @@
       function:
         name: "VARADIC_FUNCTION"
         signatures:
-         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "CHARACTERS"
+           -
+            kind: "VARARG"
+            name: ""
+            type: "CHARACTERS"
+          returnType: "DOUBLE"
       missingTypes:
        - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "CHARACTERS"
+         -
+          kind: "VARARG"
+          name: ""
+          type: "CHARACTERS"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -553,11 +857,31 @@
       function:
         name: "VARADIC_FUNCTION"
         signatures:
-         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "CHARACTERS"
+           -
+            kind: "VARARG"
+            name: ""
+            type: "CHARACTERS"
+          returnType: "DOUBLE"
       missingTypes:
        - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "CHARACTERS"
+         -
+          kind: "VARARG"
+          name: ""
+          type: "CHARACTERS"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -574,11 +898,31 @@
       function:
         name: "VARADIC_FUNCTION"
         signatures:
-         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "CHARACTERS"
+           -
+            kind: "VARARG"
+            name: ""
+            type: "CHARACTERS"
+          returnType: "DOUBLE"
       missingTypes:
        - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "CHARACTERS"
+         -
+          kind: "VARARG"
+          name: ""
+          type: "CHARACTERS"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -595,11 +939,31 @@
       function:
         name: "VARADIC_FUNCTION"
         signatures:
-         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "CHARACTERS"
+           -
+            kind: "VARARG"
+            name: ""
+            type: "CHARACTERS"
+          returnType: "DOUBLE"
       missingTypes:
        - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "CHARACTERS"
+         -
+          kind: "VARARG"
+          name: ""
+          type: "CHARACTERS"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -617,11 +981,31 @@
       function:
         name: "VARADIC_FUNCTION"
         signatures:
-         - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "CHARACTERS"
+           -
+            kind: "VARARG"
+            name: ""
+            type: "CHARACTERS"
+          returnType: "DOUBLE"
       missingTypes:
        - "CHARACTERS"
       signaturesMatched:
-       - "(CHARACTERS, CHARACTERS...) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "CHARACTERS"
+         -
+          kind: "VARARG"
+          name: ""
+          type: "CHARACTERS"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -642,19 +1026,115 @@
       function:
         name: "OVERLOADED_FUNCTION"
         signatures:
-         - "(BYTES, BOOLEAN) -> DOUBLE"
-         - "(DATE, BYTES) -> DOUBLE"
-         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
       missingTypes:
        - "BYTES"
        - "DATE"
        - "BOOLEAN"
       signaturesMatched:
-       - "(BYTES, BOOLEAN) -> DOUBLE"
-       - "(DATE, BYTES) -> DOUBLE"
-       - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-       - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+        returnType: "DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+        returnType: "DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+        returnType: "DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor: []
@@ -671,14 +1151,72 @@
       function:
         name: "OVERLOADED_FUNCTION"
         signatures:
-         - "(BYTES, BOOLEAN) -> DOUBLE"
-         - "(DATE, BYTES) -> DOUBLE"
-         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
       missingTypes:
        - "BOOLEAN"
       signaturesMatched:
-       - "(BYTES, BOOLEAN) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -696,14 +1234,72 @@
       function:
         name: "OVERLOADED_FUNCTION"
         signatures:
-         - "(BYTES, BOOLEAN) -> DOUBLE"
-         - "(DATE, BYTES) -> DOUBLE"
-         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
       missingTypes:
        - "BYTES"
       signaturesMatched:
-       - "(DATE, BYTES) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -721,16 +1317,92 @@
       function:
         name: "OVERLOADED_FUNCTION"
         signatures:
-         - "(BYTES, BOOLEAN) -> DOUBLE"
-         - "(DATE, BYTES) -> DOUBLE"
-         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
       missingTypes:
        - "BYTES"
        - "DATE"
       signaturesMatched:
-       - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-       - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+        returnType: "DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -750,11 +1422,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -781,11 +1473,31 @@
       function:
         name: "TWO_ARG_NUMERIC_FUNCTION"
         signatures:
-         - "(NUMERIC, NUMERIC) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "NUMERIC"
+          returnType: "DOUBLE"
       missingTypes:
        - "NUMERIC"
       signaturesMatched:
-       - "(NUMERIC, NUMERIC) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "NUMERIC"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:
@@ -809,14 +1521,76 @@
       function:
         name: "OVERLOADED_FUNCTION"
         signatures:
-         - "(BYTES, BOOLEAN) -> DOUBLE"
-         - "(DATE, BYTES) -> DOUBLE"
-         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
       missingTypes:
        - "DATE"
       signaturesMatched:
-       - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor:
          - "BYTES"
@@ -834,14 +1608,76 @@
       function:
         name: "OVERLOADED_FUNCTION"
         signatures:
-         - "(BYTES, BOOLEAN) -> DOUBLE"
-         - "(DATE, BYTES) -> DOUBLE"
-         - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
-         - "(BOOLEAN, DATE, BYTES) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "DATE"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
       missingTypes:
        - "BYTES"
       signaturesMatched:
-       - "(BOOLEAN, BYTES, DATE) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "DATE"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor:
          - "DATE"
@@ -859,13 +1695,65 @@
       function:
         name: "OPTIONAL_ARGUMENT_FUNCTION"
         signatures:
-         - "(BYTES, BOOLEAN?) -> DOUBLE"
-         - "(BOOLEAN, CHARACTERS, BYTES) -> DOUBLE"
-         - "(BYTES, BOOLEAN, CHARACTERS?) -> DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "OPTIONAL"
+            name: ""
+            type: "BOOLEAN"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "CHARACTERS"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+          returnType: "DOUBLE"
+         -
+          parameters:
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BYTES"
+           -
+            kind: "REGULAR"
+            name: ""
+            type: "BOOLEAN"
+           -
+            kind: "OPTIONAL"
+            name: ""
+            type: "CHARACTERS"
+          returnType: "DOUBLE"
       missingTypes:
        - "CHARACTERS"
       signaturesMatched:
-       - "(BYTES, BOOLEAN, CHARACTERS?) -> DOUBLE"
+       -
+        parameters:
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BYTES"
+         -
+          kind: "REGULAR"
+          name: ""
+          type: "BOOLEAN"
+         -
+          kind: "OPTIONAL"
+          name: ""
+          type: "CHARACTERS"
+        returnType: "DOUBLE"
       suppliedParameterTypes:
         afterCursor: []
         beforeCursor:

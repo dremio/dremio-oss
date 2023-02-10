@@ -188,7 +188,7 @@ const style = {
     padding: "0 0 8px",
     display: "flex",
     flexWrap: "nowrap",
-    fontFamily: "Inter var",
+    fontFamily: "var(--dremio--font-family)",
     height: "100%",
     width: "100%",
   },

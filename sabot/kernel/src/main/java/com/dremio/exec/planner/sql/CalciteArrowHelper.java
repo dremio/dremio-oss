@@ -119,6 +119,10 @@ public class CalciteArrowHelper {
   }
 
   public static Optional<Field> fieldFromCalciteRowType(final String name, final RelDataType relDataType) {
+    if (relDataType == null) {
+      return Optional.empty();
+    }
+
     MinorType minorType = TypeInferenceUtils.getMinorTypeFromCalciteType(relDataType);
     if (minorType != null) {
       final TypeProtos.MajorType majorType;
@@ -170,7 +174,10 @@ public class CalciteArrowHelper {
   private static Field getMapField(String name, RelDataType relDataType) {
     final List<Field> structChild = new ArrayList<>();
     if (relDataType != null) {
-      fieldFromCalciteRowType("key", relDataType.getKeyType()).ifPresent(structChild::add); // issues may be because of key field to be nullable from MajorTypeHelper
+      Optional<Field> keyField = fieldFromCalciteRowType("key", relDataType.getKeyType());
+      if (keyField.isPresent()) {
+        structChild.add(new Field("key", new FieldType(false, keyField.get().getType(), null), keyField.get().getChildren()));
+      }
       fieldFromCalciteRowType("value", relDataType.getValueType()).ifPresent(structChild::add);
     }
     Field entriesStruct = new Field("entries", new FieldType(false, MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.STRUCT)), null),

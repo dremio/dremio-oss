@@ -30,6 +30,7 @@ import static java.util.Arrays.asList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -115,7 +116,6 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
-import com.google.common.base.Optional;
 
 /**
  * Abstract class that actually applies a single transformation. Uses a visitor
@@ -174,6 +174,8 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     DatasetPath rightPath = new DatasetPath(join.getRightTableFullPathList());
     final String joinAlias = "join_" + rightPath.getLeaf().getName();
     m.nest();
+    //Sets the Reference for Right table. Need to override it for right table as the reference was copied from left table
+    m.setVirtualDatasetStateReference(join.getReferencesList());
     m.addJoin(new Join(preview ? JoinType.FullOuter : join.getJoinType(), rightPath.toPathString(), joinAlias)
         .setJoinConditionsList(join.getJoinConditionsList()));
     m.updateColumnTables();
@@ -181,7 +183,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     List<String> columns = new ArrayList<>();
     List<String> joinedColumns = new ArrayList<>();
     List<String> allJoinedColumns = new ArrayList<>();
-    columns.addAll(executor.getColumnList(username, rightPath));
+    columns.addAll(executor.getColumnList(username, rightPath, join.getReferencesList()));
 
     final int edge = m.columnCount();
     for (JoinCondition jc : join.getJoinConditionsList()) {

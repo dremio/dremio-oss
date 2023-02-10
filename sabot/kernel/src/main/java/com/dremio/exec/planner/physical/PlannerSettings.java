@@ -81,7 +81,7 @@ public class PlannerSettings implements Context{
       new LongValidator("planner.max_metadata_call_count", 10_000_000L);
 
   public static final DoubleValidator MUX_USE_THRESHOLD = new RangeDoubleValidator("planner.mux.use_threshold", 0, Double.MAX_VALUE, 1200.0d);
-  public static final LongValidator MUX_BUFFER_THRESHOLD = new RangeLongValidator("planner.mux.buffer_threshold", 0, Long.MAX_VALUE, 1_000_000);
+  public static final LongValidator MUX_BUFFER_THRESHOLD = new RangeLongValidator("planner.mux.buffer_threshold", 0, Long.MAX_VALUE, 250_000);
   public static final LongValidator MUX_FRAGS = new RangeLongValidator("planner.mux.fragments_per_node", 0, Long.MAX_VALUE, 0);
   public static final BooleanValidator FLATTEN_FILTER = new BooleanValidator("planner.enable_filter_flatten_pushdown", false /** disabled until DX-7987 is resolved **/);
   public static final BooleanValidator CONSTANT_FOLDING = new BooleanValidator("planner.enable_constant_folding", true);
@@ -120,6 +120,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown", true);
   public static final BooleanValidator TRANSITIVE_FILTER_NOT_NULL_EXPR_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown_not_null_expr", false); // Until DX-26452 is fixes
   public static final BooleanValidator ENABLE_RUNTIME_FILTER = new BooleanValidator("planner.filter.runtime_filter", true);
+
+  public static final BooleanValidator CSE_BEFORE_RF = new BooleanValidator("planner.cse_before_rf", true);
   public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", false);
   public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", false);
   public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.enable_cross_join", true);
@@ -132,7 +134,6 @@ public class PlannerSettings implements Context{
   public static final DoubleValidator UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_RATIO = new DoubleValidator("planner.input_round_robin_threshold_ratio", 0.5);
   public static final BooleanValidator UNIONALL_DISTRIBUTE_ALL_CHILDREN = new BooleanValidator("planner.unionall_distribute_all_children", false);
   public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
-  public static final BooleanValidator RELATIONAL_PLANNING = new BooleanValidator("planner.enable_relational_planning", true);
   public static final BooleanValidator NESTED_SCHEMA_PROJECT_PUSHDOWN = new BooleanValidator("planner.enable_nested_schema_project_pushdown", true);
   public static final BooleanValidator SPLIT_COMPLEX_FILTER_EXPRESSION = new BooleanValidator("planner.split_complex_filter_conditions", true);
   public static final BooleanValidator SORT_IN_JOIN_REMOVER = new BooleanValidator("planner.enable_sort_in_join_remover", true);
@@ -177,6 +178,7 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator VDS_AUTO_FIX = new BooleanValidator("validator.enable_vds_autofix", true);
 
+  public static final BooleanValidator CONVERT_FROM_JSON_PUSHDOWN = new BooleanValidator("planner.convert_from_json_pushdown", true);
   public static final BooleanValidator NLJ_PUSHDOWN = new BooleanValidator("planner.nlj.expression_pushdown", true);
   public static final BooleanValidator HASH_JOIN_PUSHDOWN = new BooleanValidator("planner.hash_join.expression_pushdown", true);
 
@@ -227,6 +229,10 @@ public class PlannerSettings implements Context{
   public static final TypeValidators.LongValidator ADJUST_RESERVED_WHEN_AGGRESSIVE =
     new TypeValidators.LongValidator("planner.memory.adjust_aggressive_by_mb", 1024);
   public static final BooleanValidator ENABLE_ACCURATE_MEMORY_ESTIMATION = new BooleanValidator("planner.memory.accurate.estimation", true);
+
+  public static final BooleanValidator ENABLE_JOB_COUNT_CONSIDERED = new BooleanValidator("reflection.job_count.considered.enabled", true);
+  public static final BooleanValidator ENABLE_JOB_COUNT_MATCHED = new BooleanValidator("reflection.job_count.matched.enabled", true);
+  public static final BooleanValidator ENABLE_JOB_COUNT_CHOSEN = new BooleanValidator("reflection.job_count.chosen.enabled", true);
 
   /**
    * Policy regarding storing query results
@@ -288,6 +294,9 @@ public class PlannerSettings implements Context{
    */
   public static final BooleanValidator REUSE_PREPARE_HANDLES = new BooleanValidator("planner.reuse_prepare_statement_handles", false);
 
+  public static final BooleanValidator PROJECT_PULLUP = new BooleanValidator("planner.project_pullup", false);
+
+  public static final BooleanValidator EXPAND_OPERATORS = new BooleanValidator("planner.expand_operators", false);
   public static final BooleanValidator VERBOSE_PROFILE = new BooleanValidator("planner.verbose_profile", false);
   public static final BooleanValidator USE_STATISTICS = new BooleanValidator("planner.use_statistics", false);
   public static final BooleanValidator USE_MIN_SELECTIVITY_ESTIMATE_FACTOR_FOR_STAT = new BooleanValidator("planner.use_selectivity_estimate_factor_for_stat", false);
@@ -296,6 +305,7 @@ public class PlannerSettings implements Context{
   public static final DoubleValidator STATISTICS_SAMPLING_RATE = new DoubleValidator("planner.statistics_sampling_rate", 5.0);
   public static final BooleanValidator USE_ROW_COUNT_STATISTICS = new BooleanValidator("planner.use_rowcount_statistics", false);
   public static final BooleanValidator VERBOSE_RULE_MATCH_LISTENER = new BooleanValidator("planner.verbose_rule_match_listener", false);
+  public static final BooleanValidator PRETTY_PLAN_SCRAPING = new BooleanValidator("planner.pretty_plan_scraping_enabled", false);
 
   public static final BooleanValidator INCLUDE_DATASET_PROFILE = new BooleanValidator("planner.include_dataset_profile", true);
 
@@ -355,6 +365,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator PLAN_SERIALIZATION = new BooleanValidator("planner.plan_serialization", true);
   public static final LongValidator PLAN_SERIALIZATION_LENGTH_LIMIT = new PositiveLongValidator("planner.plan_serialization_length_limit", Long.MAX_VALUE, 100000);
   public static final BooleanValidator EXTENDED_ALIAS = new BooleanValidator("planner.extended_alias", true);
+  public static final BooleanValidator USE_SQL_TO_REL_SUB_QUERY_EXPANSION = new BooleanValidator("planner.sql_to_rel_sub_query_expansion", true);
 
   private static final Set<String> SOURCES_WITH_MIN_COST = ImmutableSet.of(
     "adl",
@@ -541,12 +552,24 @@ public class PlannerSettings implements Context{
     return options.getOption(TRANSITIVE_FILTER_JOIN_PUSHDOWN);
   }
 
+  public boolean isProjectPullUpEnabled(){
+    return options.getOption(PROJECT_PULLUP);
+  }
+
+  public boolean isExpandOperatorsEnabled(){
+    return options.getOption(EXPAND_OPERATORS);
+  }
+
   public boolean isTransitiveFilterNotNullExprPushdownEnabled() {
     return options.getOption(TRANSITIVE_FILTER_NOT_NULL_EXPR_PUSHDOWN);
   }
 
   public boolean isComplexTypeFilterPushdownEnabled() {
     return options.getOption(COMPLEX_TYPE_FILTER_PUSHDOWN) && options.getOption(ExecConstants.ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS);
+  }
+
+  public boolean applyCseBeforeRuntimeFilter() {
+    return options.getOption(CSE_BEFORE_RF);
   }
 
   public boolean isRuntimeFilterEnabled() {
@@ -595,10 +618,6 @@ public class PlannerSettings implements Context{
 
   public void setUseDefaultCosting(boolean defcost) {
     this.useDefaultCosting = defcost;
-  }
-
-  public boolean isRelPlanningEnabled() {
-    return options.getOption(RELATIONAL_PLANNING);
   }
 
   public boolean isNestedSchemaProjectPushdownEnabled() {

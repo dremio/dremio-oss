@@ -22,10 +22,10 @@ import java.util.List;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.io.SeekableInputStream;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.io.ArrowBufFSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;

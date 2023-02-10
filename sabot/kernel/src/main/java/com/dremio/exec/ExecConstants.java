@@ -35,6 +35,7 @@ import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.sabot.op.common.hashtable.HashTable;
+import com.dremio.sabot.task.Observer;
 import com.dremio.service.spill.DefaultSpillServiceOptions;
 
 @Options
@@ -500,6 +501,8 @@ public interface ExecConstants {
 
   AdminBooleanValidator EXECUTOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("exec.heap.monitoring.enable", true);
   RangeLongValidator EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
+  RangeLongValidator EXECUTOR_HEAP_MONITORING_AGGRESSIVE_WIDTH_LOWER_BOUND = new RangeLongValidator("exec.heap.monitoring.aggressive.lower.bound", 1, 16 * 256, 256);
+  RangeLongValidator EXECUTOR_HEAP_MONITORING_LOW_MEM_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.low_mem.percentage", 40, 100, 75);
   RangeLongValidator EXECUTOR_HEAP_MONITOR_DELAY_MILLIS  = new RangeLongValidator("exec.heap.monitoring.delay.millis",0,  Long.MAX_VALUE, 2_000);
 
   AdminBooleanValidator COORDINATOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("coordinator.heap.monitoring.enable", true);
@@ -514,6 +517,8 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE = new BooleanValidator("dremio.iceberg.advanced_dml.joined_table.enabled", true);
   BooleanValidator ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR = new BooleanValidator("dremio.iceberg.advanced_dml.merge_star.enabled", true);
   BooleanValidator ENABLE_ICEBERG_DML = new BooleanValidator("dremio.iceberg.dml.enabled", true);
+  BooleanValidator ENABLE_COPY_INTO = new BooleanValidator("dremio.copy.into.enabled", true);
+  BooleanValidator ENABLE_DML_DISPLAY_RESULT_ONLY = new BooleanValidator("dremio.dml.display.result.only.enabled", false);
   BooleanValidator ENABLE_ICEBERG_MIN_MAX = new BooleanValidator("dremio.iceberg.min_max.enabled", true);
   BooleanValidator CTAS_CAN_USE_ICEBERG = new BooleanValidator("dremio.iceberg.ctas.enabled", true);
   BooleanValidator ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION = new BooleanValidator("dremio.iceberg.spec_evol_and_transformation.enabled", true);
@@ -527,15 +532,29 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES = new BooleanValidator("dremio.iceberg.dml.use_hash_distribution_for_writes.enabled", true);
   BooleanValidator ENABLE_ICEBERG_DML_WITH_NATIVE_ROW_COLUMN_POLICIES = new BooleanValidator("dremio.iceberg.dml.native_row_column_policies.enabled", false);
 
+  BooleanValidator ENABLE_ICEBERG_OPTIMIZE = new BooleanValidator("dremio.iceberg.optimize.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_ROLLBACK = new BooleanValidator("dremio.iceberg.rollback.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_VACUUM = new BooleanValidator("dremio.iceberg.vacuum.enabled", false);
   BooleanValidator ENABLE_HIVE_DATABASE_LOCATION = new BooleanValidator("dremio.hive.database.location", true);
+  BooleanValidator ENABLE_QUERY_LABEL = new BooleanValidator("dremio.query.label.enabled", true);
+
+  LongValidator OPTIMIZE_TARGET_FILE_SIZE_MB = new PositiveLongValidator("dremio.iceberg.optimize.target_file_size_mb", Long.MAX_VALUE, 256L);
+  DoubleValidator OPTIMIZE_MINIMUM_FILE_SIZE_DEFAULT_RATIO = new DoubleValidator("dremio.iceberg.optimize.min_file_size_ratio", 0.75);
+  DoubleValidator OPTIMIZE_MAXIMUM_FILE_SIZE_DEFAULT_RATIO = new DoubleValidator("dremio.iceberg.optimize.max_file_size_ratio", 1.8);
+  LongValidator OPTIMIZE_MINIMUM_INPUT_FILES = new LongValidator("dremio.iceberg.optimize.min_input_files", 5);
 
   BooleanValidator ENABLE_USE_VERSION_SYNTAX = new TypeValidators.BooleanValidator("dremio.sql.use_version.enabled", true);
   BooleanValidator VERSIONED_VIEW_ENABLED = new TypeValidators.BooleanValidator("plugins.dataplane.view", false);
+  BooleanValidator VERSIONED_INFOSCHEMA_ENABLED = new TypeValidators.BooleanValidator("arctic.infoschema.enabled", false);
+  BooleanValidator ENABLE_AZURE_SOURCE = new TypeValidators.BooleanValidator("dremio.enable_azure_source", false);
 
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
   BooleanValidator SLICING_THREAD_MONITOR = new BooleanValidator("dremio.sliced.enable_monitor", true);
   BooleanValidator SLICING_OFFLOAD_ENQUEUE = new BooleanValidator("dremio.sliced.offload_enqueue", true);
+  TypeValidators.EnumValidator<Observer.Type> SLICING_OBSERVER_TYPE =
+    new TypeValidators.EnumValidator<>("dremio.sliced.observer_type", Observer.Type.class, Observer.Type.BASIC);
+
   PositiveLongValidator SLICING_THREAD_MIGRATION_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.migration_multiple", Long.MAX_VALUE, 50);
   PositiveLongValidator SLICING_THREAD_SPINDOWN_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.spindown_multiple", Long.MAX_VALUE, 100);
 
@@ -591,6 +610,8 @@ public interface ExecConstants {
   String ICEBERG_NAMESPACE_KEY = "iceberg.namespace";
   BooleanValidator HADOOP_BLOCK_CACHE_ENABLED = new BooleanValidator("hadoop_block_affinity_cache.enabled", true);
 
+  BooleanValidator ENABLE_DELTALAKE_HIVE_SUPPORT = new BooleanValidator("store.deltalake.hive_support.enabled", true);
+
   /**
    * Controls the 'compression' factor for the TDigest algorithm.
    */
@@ -609,7 +630,7 @@ public interface ExecConstants {
   StringValidator NESSIE_METADATA_NAMESPACE = new StringValidator("metadata.nessie_iceberg_namespace", "dremio.internal");
 
   // option used to determine whether footer reader needs to read footer for accurate row counts or not
-  BooleanValidator STORE_ACCURATE_PARTITION_STATS = new BooleanValidator("store.accurate.partition_stats", false);
+  BooleanValidator STORE_ACCURATE_PARTITION_STATS = new BooleanValidator("store.accurate.partition_stats", true);
 
   // Option to enable SysFlight Storage Plugin
   BooleanValidator ENABLE_SYSFLIGHT_SOURCE = new BooleanValidator("sys.flight.enabled", true);
@@ -677,4 +698,6 @@ public interface ExecConstants {
   DoubleValidator EXPR_COMPLEXITY_NO_CACHE_THRESHOLD = new DoubleValidator("exec.expression.complexity.no_cache.threshold", 100.00);
 
   BooleanValidator ENABLE_MAP_DATA_TYPE = new BooleanValidator("dremio.data_types.map.enabled", true);
+
+  BooleanValidator EARLY_ACK_ENABLED = new BooleanValidator("dremio.jdbc_client.early_ack.enabled", true);
 }

@@ -46,10 +46,12 @@ public class DedicatedFragmentRunnable implements Runnable {
       // put try inside the run loop so we don't lose threads with uncaught exceptions.
       try {
         barrier.closeBarrier();
+        final String preRunName = task.getAsyncTask().preRunUpdate(1);
+        final long startTime = System.nanoTime();
         try {
           task.run();
         } finally {
-          task.getAsyncTask().postRunUpdate();
+          task.getAsyncTask().postRunUpdate(System.nanoTime() - startTime, preRunName);
         }
 
         switch(task.getState()){
@@ -90,6 +92,11 @@ public class DedicatedFragmentRunnable implements Runnable {
       @Override
       public int getThread() {
         return currentThread != null ? (int) currentThread.getId() : -1;
+      }
+
+      @Override
+      public int getCurrentTaskLoad() {
+        return 0;
       }
 
       @Override

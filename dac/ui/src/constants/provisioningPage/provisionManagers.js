@@ -61,7 +61,7 @@ const provisionManagersList = [
   {
     clusterType: "YARN",
     label: "YARN",
-    iconType: "Hadoop",
+    dremioIcon: "sources/HDFS",
     connected: true,
     propsAsFields: [
       {
@@ -83,37 +83,6 @@ const provisionManagersList = [
       },
     ],
   },
-  // , Temporary removed from the UI per DX-12716
-  // {
-  //   clusterType: 'MESOS',
-  //   label: 'Mesos',
-  //   iconType: 'Mesos',
-  //   connected: false
-  // },
-  // {
-  //   clusterType: 'KUBERNETES',
-  //   label: 'Kubernetes',
-  //   iconType: 'Kubernetes',
-  //   connected: false
-  // },
-  // {
-  //   clusterType: 'EC2',
-  //   label: 'AWS Engine',
-  //   iconType: 'Amazon',
-  //   connected: true
-  // }
-  // {
-  //   clusterType: 'GCE',
-  //   label: 'Google Cloud Platform',
-  //   iconType: 'GCE',
-  //   connected: false
-  // },
-  // {
-  //   clusterType: 'AZURE',
-  //   label: 'Microsoft Azure',
-  //   iconType: 'Azure',
-  //   connected: false
-  // }
 ];
 
 export const PROVISION_MANAGERS = provisionManagersList;

@@ -37,7 +37,7 @@ import {
   resetJoins,
   setJoinStep,
 } from "actions/explore/join";
-import { loadRecommendedJoin } from "actions/explore/join";
+import { loadRecommendedJoin, setJoinReference } from "actions/explore/join";
 
 import {
   getTableColumns,
@@ -85,11 +85,13 @@ export class JoinController extends Component {
     joinStep: PropTypes.oneOf([undefined, 1, 2]),
     leftColumns: PropTypes.object,
     rightColumns: PropTypes.object,
+    nessieRootState: PropTypes.object,
 
     // actions
     loadExploreEntities: PropTypes.func,
     loadJoinDataset: PropTypes.func,
     loadRecommendedJoin: PropTypes.func,
+    setJoinReference: PropTypes.func,
     setJoinTab: PropTypes.func,
     resetJoins: PropTypes.func,
     setJoinStep: PropTypes.func,
@@ -232,9 +234,27 @@ export class JoinController extends Component {
     const joinFullPath = constructFullPath(nextProps.values.activeDataset);
     const oldJoinFullPath = constructFullPath(this.props.values.activeDataset);
     if (joinFullPath && joinFullPath !== oldJoinFullPath) {
+      // take the parent folder/catalog/etc and check if it exists in Nessie state,
+      // if it exists then use the Nessie reference when loading the join information.
+      // note: sources with special chars are surrounded with double-quotes and need to be stripped
+      const catalogName = joinFullPath.split(".")[0].replace(/(^"|"$)/g, "");
+      const catalogReference =
+        nextProps.nessieRootState?.[catalogName]?.reference;
+      const referencePayload = catalogReference
+        ? {
+            [catalogName]: {
+              type: catalogReference.type,
+              value: catalogReference.name,
+            },
+          }
+        : null;
+
+      this.props.setJoinReference(referencePayload);
+
       nextProps.loadJoinDataset(
         nextProps.values.activeDataset,
-        JOIN_TABLE_VIEW_ID
+        JOIN_TABLE_VIEW_ID,
+        referencePayload
       );
     }
   }
@@ -361,6 +381,9 @@ function mapStateToProps(state, ownProps) {
       activeDataset: joinDatasetPathList,
       columns: [],
     },
+
+    // need Nessie state to get all catalogs' current references when checking their contents,
+    nessieRootState: state.nessie,
   };
 }
 
@@ -377,6 +400,7 @@ export default connectComplexForm(
   {
     loadExploreEntities,
     loadRecommendedJoin,
+    setJoinReference,
     loadJoinDataset,
     setJoinTab,
     resetJoins,

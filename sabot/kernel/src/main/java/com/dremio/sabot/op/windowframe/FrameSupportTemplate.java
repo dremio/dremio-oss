@@ -38,7 +38,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
  * This class will handle such functions even if the FRAME clause is not present.
  */
 public abstract class FrameSupportTemplate implements WindowFramer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NoFrameSupportTemplate.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FrameSupportTemplate.class);
 
   protected FunctionContext context;
   private VectorAccessible container;

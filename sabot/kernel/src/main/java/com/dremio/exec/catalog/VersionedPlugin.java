@@ -23,6 +23,7 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.catalog.Schema;
+import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.catalog.View;
@@ -92,21 +93,21 @@ public interface VersionedPlugin {
   /**
    * Gets Table object that is being used in INFORMATION_SCHEMA."TABLES"
    */
-  Stream<Table> getAllInformationSchemaTableInfo();
+  Stream<Table> getAllInformationSchemaTableInfo(SearchQuery searchQuery);
 
   /**
    * Gets View object that is being used in INFORMATION_SCHEMA.VIEWS
    */
-  Stream<View> getAllInformationSchemaViewInfo();
+  Stream<View> getAllInformationSchemaViewInfo(SearchQuery searchQuery);
 
   /**
    * Gets Schema object that is being used in INFORMATION_SCHEMA.SCHEMATA
    */
-  Stream<Schema> getAllInformationSchemaSchemataInfo();
+  Stream<Schema> getAllInformationSchemaSchemataInfo(SearchQuery searchQuery);
 
   /**
    * Gets TableSchema object that is being used in INFORMATION_SCHEMA.COLUMNS
    */
-  Stream<TableSchema> getAllInformationSchemaColumnInfo();
+  Stream<TableSchema> getAllInformationSchemaColumnInfo(SearchQuery searchQuery);
 
 }

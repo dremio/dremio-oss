@@ -18,15 +18,8 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.sabot.RecordSet.r;
 import static com.dremio.sabot.RecordSet.rb;
 import static com.dremio.sabot.RecordSet.rs;
-import static com.dremio.sabot.RecordSet.st;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Predicate;
@@ -34,65 +27,45 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileContent;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mock;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SystemSchemas;
-import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
-import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
-import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
+import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DeleteFileInfo;
 import com.dremio.exec.util.BloomFilter;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
-import com.dremio.sabot.BaseTestTableFunction;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.RecordBatchValidator;
 import com.dremio.sabot.RecordSet;
 import com.dremio.sabot.RecordSet.Record;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
-import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
-import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
-import com.dremio.service.namespace.file.proto.FileConfig;
-import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 
 import io.protostuff.ByteString;
-import io.protostuff.ByteStringUtil;
 
-public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestTableFunction {
+public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestParquetScanTableFunction {
 
   private static final List<SchemaPath> COLUMNS = ImmutableList.of(
       SchemaPath.getSimplePath("order_id"),
       SchemaPath.getSimplePath("order_year"));
   private static final BatchSchema OUTPUT_SCHEMA = IcebergTestTables.V2_ORDERS_SCHEMA.maskAndReorder(COLUMNS);
   private static final List<String> PARTITION_COLUMNS = ImmutableList.of("order_year");
-  private static final ByteString EXTENDED_PROPS = getExtendedProperties(COLUMNS);
+  private static final ByteString EXTENDED_PROPS = getExtendedProperties(OUTPUT_SCHEMA);
   private static final PartitionProtobuf.NormalizedPartitionInfo PARTITION_INFO_2019 =
       PartitionProtobuf.NormalizedPartitionInfo.newBuilder()
           .setId("1")
@@ -158,12 +131,6 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
 
   private static IcebergTestTables.Table table;
 
-  private FileSystem fs;
-  @Mock
-  private StoragePluginId pluginId;
-  @Mock(extraInterfaces = {SupportsIcebergRootPointer.class, SupportsInternalIcebergTable.class})
-  private MutablePlugin plugin;
-
   @BeforeClass
   public static void initTables() {
     table = IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get();
@@ -172,18 +139,6 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
   @AfterClass
   public static void closeTables() throws Exception {
     table.close();
-  }
-
-  @Before
-  public void prepareMocks() throws Exception {
-    fs = HadoopFileSystem.get(Path.of("/"), new Configuration());
-    when(fec.getStoragePlugin(pluginId)).thenReturn(plugin);
-    SupportsIcebergRootPointer sirp = (SupportsIcebergRootPointer) plugin;
-    when(sirp.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
-    SupportsInternalIcebergTable siit = (SupportsInternalIcebergTable) plugin;
-    when(siit.createScanTableFunction(any(), any(), any(), any())).thenAnswer(i ->
-        new ParquetScanTableFunction(i.getArgument(0), i.getArgument(1), i.getArgument(2), i.getArgument(3)));
-    when(pluginId.getName()).thenReturn("testplugin");
   }
 
   @Test
@@ -357,20 +312,16 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
   }
 
   private Record inputRow(String relativePath, long offset, long length, List<String> deleteFiles) throws Exception {
-    Path path = Path.of(table.getLocation() + "/data/" + relativePath);
-    long fileSize = fs.getFileAttributes(path).size();
-    if (length == -1) {
-      length = fileSize;
-    }
+    String fullPath = table.getLocation() + "/data/" + relativePath;
     PartitionProtobuf.NormalizedPartitionInfo partitionInfo = getPartitionInfoForDataFile(relativePath);
-    return r(
-        st(path.toString(), 0L, fileSize, fileSize),
-        createSplitInformation(path.toString(), offset, length, fileSize, 0, partitionInfo),
-        EXTENDED_PROPS.toByteArray(),
-        deleteFiles.stream()
-            .map(p -> table.getLocation() + "/data/" + p)
-            .map(p -> st(p, FileContent.POSITION_DELETES.id(), 0L, null))
-            .collect(Collectors.toList()));
+    List<DeleteFileInfo> deleteFilesWithFullPaths = deleteFiles.stream()
+        .map(p -> new DeleteFileInfo(
+            table.getLocation() + "/data/" + p,
+            FileContent.POSITION_DELETES,
+            0L,
+            null))
+        .collect(Collectors.toList());
+    return inputRow(fullPath, offset, length, partitionInfo, deleteFilesWithFullPaths, EXTENDED_PROPS);
   }
 
   private RecordSet outputRecordSet(Iterator<Integer> expectedOrderIds) {
@@ -385,7 +336,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
   }
 
   private void validate(RecordSet input, RecordSet output) throws Exception {
-    TableFunctionPOP pop = getPop(table, IcebergTestTables.V2_ORDERS_SCHEMA, COLUMNS, PARTITION_COLUMNS,
+    TableFunctionPOP pop = getPopForIceberg(table, IcebergTestTables.V2_ORDERS_SCHEMA, COLUMNS, PARTITION_COLUMNS,
         EXTENDED_PROPS);
     try (AutoCloseable closeable = with(ExecConstants.PARQUET_READER_VECTORIZE, false)) {
       validateSingle(pop, TableFunctionOperator.class, input, output, BATCH_SIZE);
@@ -395,7 +346,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
   private void validateWithRuntimeFilter(Generator.Creator input, RecordBatchValidator result, OutOfBandMessage msg,
       int sendMsgAtRecordCount) throws Exception {
     boolean msgSent = false;
-    TableFunctionPOP pop = getPop(table, IcebergTestTables.V2_ORDERS_SCHEMA, COLUMNS, PARTITION_COLUMNS,
+    TableFunctionPOP pop = getPopForIceberg(table, IcebergTestTables.V2_ORDERS_SCHEMA, COLUMNS, PARTITION_COLUMNS,
         EXTENDED_PROPS);
     int totalRecords = 0;
     final List<RecordBatchData> data = new ArrayList<>();
@@ -451,37 +402,6 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
     }
   }
 
-  private TableFunctionPOP getPop(
-      IcebergTestTables.Table table,
-      BatchSchema fullSchema,
-      List<SchemaPath> columns,
-      List<String> partitionColumns,
-      ByteString extendedProps) {
-    BatchSchema projectedSchema = fullSchema.maskAndReorder(columns);
-    return new TableFunctionPOP(
-        PROPS,
-        null,
-        new TableFunctionConfig(
-            TableFunctionConfig.FunctionType.DATA_FILE_SCAN,
-            false,
-            new TableFunctionContext(
-                getFileConfig(table),
-                fullSchema,
-                projectedSchema,
-                ImmutableList.of(Arrays.asList(table.getTableName().split("\\."))),
-                null,
-                pluginId,
-                null,
-                columns,
-                partitionColumns,
-                null,
-                extendedProps,
-                false,
-                false,
-                false,
-                null)));
-  }
-
   private PartitionProtobuf.NormalizedPartitionInfo getPartitionInfoForDataFile(String relativePath) {
     if (relativePath.startsWith("2019")) {
       return PARTITION_INFO_2019;
@@ -490,50 +410,6 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestT
     } else {
       return PARTITION_INFO_2021;
     }
-  }
-
-  private FileConfig getFileConfig(IcebergTestTables.Table table) {
-    FileConfig config = new FileConfig();
-    config.setLocation(table.getLocation());
-    config.setType(FileType.ICEBERG);
-    return config;
-  }
-
-  private static ByteString getExtendedProperties(List<SchemaPath> columns) {
-    IcebergProtobuf.IcebergDatasetXAttr.Builder builder = IcebergProtobuf.IcebergDatasetXAttr.newBuilder();
-    for (int i = 0; i < columns.size(); i++) {
-      builder.addColumnIds(IcebergProtobuf.IcebergSchemaField.newBuilder()
-          .setSchemaPath(columns.get(i).toDotString())
-          .setId(i + 1));
-    }
-    return toProtostuff(builder.build()::writeTo);
-  }
-
-  private static ByteString toProtostuff(BytesOutput out) {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    try {
-      out.writeTo(output);
-      return ByteStringUtil.wrap(output.toByteArray());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static byte[] createSplitInformation(String path, long offset, long length, long fileSize, long mtime,
-      PartitionProtobuf.NormalizedPartitionInfo partitionInfo) throws Exception {
-    ParquetProtobuf.ParquetBlockBasedSplitXAttr splitExtended = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
-        .setPath(path)
-        .setStart(offset)
-        .setLength(length)
-        .setFileLength(fileSize)
-        .setLastModificationTime(mtime)
-        .build();
-
-    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
-        .setPartitionId(partitionInfo.getId())
-        .setExtendedProperty(splitExtended.toByteString());
-
-    return IcebergSerDe.serializeToByteArray(new SplitAndPartitionInfo(partitionInfo, splitInfo.build()));
   }
 
   private OutOfBandMessage createRuntimeFilterForOrderYears(ImmutableList<Integer> orderYears) {

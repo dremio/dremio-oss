@@ -14,39 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-description-list {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  line-height: var(--dremio--description-list--line-height);
-  inline-size: 100%;
-  margin-block: calc(var(--dremio--description-list--padding-block) * -1);
-
-  &__term,
-  dt,
-  &__description,
-  dd {
-    padding-block: var(--dremio--description-list--padding-block);
-  }
-
-  &__term,
-  dt {
-    align-items: center;
-    color: var(--dremio--description-list--term--color);
-    display: inline-flex;
-    font-size: var(--dremio--description-list--term--font-size);
-    padding-inline-end: var(--dremio--description-list--term--gap);
-  }
-
-  &__description,
-  dd {
-    align-items: center;
-    color: var(--dremio--description-list--description--color);
-    display: inline-flex;
-    font-size: var(--dremio--description-list--description--font-size);
-    justify-content: end;
-    text-align: start;
-  }
-}
+@use "../../base/components/description-list";
 
 .dremio-description-list {
   --dremio--description-list--line-height: 20px;

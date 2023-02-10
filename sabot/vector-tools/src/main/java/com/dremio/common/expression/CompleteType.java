@@ -734,7 +734,7 @@ public class CompleteType {
     for (Field field : fields1) {
       Field matchingField = secondFieldMap.remove(field.getName().toLowerCase());
       if (matchingField != null) {
-        mergedList.add(fromField(field).merge(fromField(matchingField)).toField(field.getName()));
+        mergedList.add(fromField(field).merge(fromField(matchingField)).toField(field.getName(), field.isNullable()));
       } else {
         mergedList.add(field);
       }
@@ -946,21 +946,6 @@ public class CompleteType {
     return typeIds;
   }
 
-  private static Integer getPrecision(TimeUnit unit) {
-    switch (unit) {
-    case SECOND:
-      return 0;
-    case MILLISECOND:
-      return 3;
-    case MICROSECOND:
-      return 6;
-    case NANOSECOND:
-      return 9;
-    default:
-      throw new IllegalArgumentException("unknown unit: " + unit);
-    }
-  }
-
   public Integer getPrecision(){
     return type.accept(new AbstractArrowTypeVisitor<Integer>(){
 
@@ -981,12 +966,12 @@ public class CompleteType {
 
       @Override
       public Integer visit(Time type) {
-        return getPrecision(type.getUnit());
+        return MajorTypeHelper.getPrecisionFromTimeUnit(type.getUnit());
       }
 
       @Override
       public Integer visit(Timestamp type) {
-        return getPrecision(type.getUnit());
+        return MajorTypeHelper.getPrecisionFromTimeUnit(type.getUnit());
       }
 
       @Override
@@ -1238,10 +1223,13 @@ public class CompleteType {
     Field entryStruct = arrowField.getChildren().get(0);
     Field keyField = entryStruct.getChildren().get(0);
     Field valueField = entryStruct.getChildren().get(1);
+    if (keyField.getType().isComplex()) {
+      throw new UnsupportedOperationException("Cannot have complex key in map data type for field "+ arrowField.getName());
+    }
     List<Field> childFields = new ArrayList<>();
-    childFields.add(new Field(keyField.getName(), new FieldType(false, convertToSupportedArrowType(keyField.getType()), null), null));
-    childFields.add(new Field(valueField.getName(), new FieldType(true, convertToSupportedArrowType(valueField.getType()), null), null));
-    Field entries = new Field(entryStruct.getName(), new FieldType(false, convertToSupportedArrowType(entryStruct.getType()), null), childFields);
-    return  new Field(arrowField.getName(), new FieldType(arrowField.isNullable(), convertToSupportedArrowType(arrowField.getType()), null), Collections.singletonList(entries));
+    childFields.add(new Field(convertFieldName(keyField.getName()), new FieldType(false, convertToSupportedArrowType(keyField.getType()), null), null));
+    childFields.add(convertToDremioFields(Arrays.asList(valueField)).get(0));
+    Field entries = new Field(entryStruct.getName() == null ? MapVector.DATA_VECTOR_NAME : entryStruct.getName(), new FieldType(false, convertToSupportedArrowType(entryStruct.getType()), null), childFields);
+    return  new Field(convertFieldName(arrowField.getName()), new FieldType(arrowField.isNullable(), convertToSupportedArrowType(arrowField.getType()), null), Collections.singletonList(entries));
   }
 }

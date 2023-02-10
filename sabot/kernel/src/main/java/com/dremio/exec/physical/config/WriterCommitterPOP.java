@@ -25,6 +25,7 @@ import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginResolver;
@@ -53,6 +54,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   private final boolean readSignatureEnabled;
   private final StoragePluginId sourceTablePluginId;
   private final StoragePlugin sourceTablePlugin;
+  private final TableFormatWriterOptions tableFormatOptions;
 
   @JsonCreator
   public WriterCommitterPOP(
@@ -67,6 +69,7 @@ public class WriterCommitterPOP extends AbstractSingle {
       @JsonProperty("isPartialRefresh") boolean isPartialRefresh,
       @JsonProperty("isReadSignatureEnabled") boolean isReadSignatureEnabled,
       @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
+      @JsonProperty("tableFormatOptions") TableFormatWriterOptions tableFormatOptions,
       @JacksonInject StoragePluginResolver storagePluginResolver
   ) {
     super(props, child);
@@ -79,6 +82,7 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.datasetConfig = Optional.ofNullable(datasetConfig);
     this.readSignatureEnabled = isReadSignatureEnabled;
     this.sourceTablePluginId = sourceTablePluginId;
+    this.tableFormatOptions = tableFormatOptions;
     this.sourceTablePlugin = sourceTablePluginId != null ? storagePluginResolver.getSource(sourceTablePluginId) : null;
   }
 
@@ -94,6 +98,7 @@ public class WriterCommitterPOP extends AbstractSingle {
       StoragePlugin sourceTablePlugin,
       boolean isPartialRefresh,
       boolean isReadSignatureEnabled,
+      TableFormatWriterOptions tableFormatOptions,
       StoragePluginId sourceTablePluginId
   ) {
     super(props, child);
@@ -106,6 +111,7 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.sourceTablePlugin = sourceTablePlugin;
     this.partialRefresh = isPartialRefresh;
     this.readSignatureEnabled = isReadSignatureEnabled;
+    this.tableFormatOptions = tableFormatOptions;
     this.sourceTablePluginId = sourceTablePluginId;
   }
 
@@ -117,7 +123,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
     return new WriterCommitterPOP(props, tempLocation, finalLocation, icebergTableProps, datasetPath, datasetConfig,
-        child, plugin, sourceTablePlugin, partialRefresh, readSignatureEnabled, sourceTablePluginId);
+        child, plugin, sourceTablePlugin, partialRefresh, readSignatureEnabled, tableFormatOptions, sourceTablePluginId);
   }
 
   public String getTempLocation() {
@@ -180,5 +186,9 @@ public class WriterCommitterPOP extends AbstractSingle {
 
   public boolean isPartialRefresh() {
     return partialRefresh;
+  }
+
+  public TableFormatWriterOptions getTableFormatOptions() {
+    return tableFormatOptions;
   }
 }

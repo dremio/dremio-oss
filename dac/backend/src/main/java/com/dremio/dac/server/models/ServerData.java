@@ -44,6 +44,7 @@ public class ServerData {
   private final long downloadRecordsLimit;
   private final boolean showMetadataValidityCheckbox;
   private final boolean showNewJobsPage;
+  private final boolean showOldReflectionsListing;
   private final boolean allowAutoComplete;
   private final boolean allowFormatting;
 
@@ -70,6 +71,7 @@ public class ServerData {
     this.downloadRecordsLimit = builder.downloadRecordsLimit;
     this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
     this.showNewJobsPage = builder.showNewJobsPage;
+    this.showOldReflectionsListing = builder.showOldReflectionsListing;
     this.allowAutoComplete = builder.allowAutoComplete;
     this.allowFormatting = builder.allowFormatting;
   }
@@ -171,6 +173,10 @@ public class ServerData {
     return showNewJobsPage;
   }
 
+  public boolean isShowOldReflectionsListing() {
+    return showOldReflectionsListing;
+  }
+
   public boolean isAllowAutoComplete() {
     return allowAutoComplete;
   }
@@ -203,6 +209,7 @@ public class ServerData {
     private long downloadRecordsLimit;
     private boolean showMetadataValidityCheckbox;
     private boolean showNewJobsPage;
+    private boolean showOldReflectionsListing;
     private boolean allowAutoComplete;
     private boolean allowFormatting;
 
@@ -232,6 +239,7 @@ public class ServerData {
       this.downloadRecordsLimit = builder.downloadRecordsLimit;
       this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
       this.showNewJobsPage = builder.showNewJobsPage;
+      this.showOldReflectionsListing = builder.showOldReflectionsListing;
       this.allowAutoComplete = builder.allowAutoComplete;
       this.allowFormatting = builder.allowFormatting;
     }
@@ -343,6 +351,11 @@ public class ServerData {
 
     public Builder setShowNewJobsPage(boolean showNewJobsPage) {
       this.showNewJobsPage = showNewJobsPage;
+      return this;
+    }
+
+    public Builder setShowOldReflectionsListing(boolean showOldReflectionsListing) {
+      this.showOldReflectionsListing = showOldReflectionsListing;
       return this;
     }
 

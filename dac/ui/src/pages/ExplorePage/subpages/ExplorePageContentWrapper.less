@@ -62,7 +62,7 @@
   .dremioContent {
     display: grid;
     grid-template-rows: auto 1fr;
-    height: 100%;
+    width: 100%;
 
     &__header {
       border-left: 1px solid var(--dremio--color--neutral--150);
@@ -103,6 +103,7 @@
     &__content {
       border-left: 1px solid var(--dremio--color--neutral--150);
       height: 100%;
+      overflow: auto;
     }
 
     &__table {
@@ -129,7 +130,7 @@
     .dremioContent__table .left-controls {
       .btn.--outlined {
         min-width: 3.6rem !important;
-        text-indent: -99999px;
+        text-indent: -99999px; // stopped working for Safari 16
         width: 3.6rem !important;
 
         .btn__content {

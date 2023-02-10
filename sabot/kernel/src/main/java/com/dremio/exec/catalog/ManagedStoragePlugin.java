@@ -34,6 +34,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -92,6 +93,8 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 
+import io.opentelemetry.extension.annotations.WithSpan;
+
 /**
  * Manages the Dremio system state related to a StoragePlugin.
  *
@@ -138,6 +141,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private volatile Stopwatch startup = Stopwatch.createUnstarted();
   private volatile SourceState state = SourceState.badState("Source not yet started.");
   private final Thread fixFailedThread;
+  private final Predicate<String> influxSourcePred;
   private volatile boolean closed = false;
 
   /**
@@ -157,8 +161,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
     OptionManager options,
     ConnectionReader reader,
     CatalogServiceMonitor monitor,
-    Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
-  ) {
+    Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider,
+    Predicate<String> influxSourcePred) {
     this.rwlock = new ReentrantReadWriteLock(true);
     this.executor = executor;
     this.readLock = rwlock.readLock();
@@ -177,6 +181,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.permissionsCache = new PermissionCheckCache(this::getPlugin, getAuthTtlMsProvider(options, sourceConfig), 2500);
     this.reader = reader;
     this.monitor = monitor;
+    this.influxSourcePred = influxSourcePred;
 
     fixFailedThread = new FixFailedToStart();
     // leaks this so do last.
@@ -776,26 +781,31 @@ public class ManagedStoragePlugin implements AutoCloseable {
               .setInfiniteRetries(true)
               .build();
 
+      final String successMessage = String.format("Plugin %s started successfully!", name);
+      final String errorMessage = String.format("Error while starting plugin %s", name);
       try {
         retryer.run(() -> {
           // something started the plugin successfully.
           if (state.getStatus() != SourceState.SourceStatus.bad) {
+            logger.info(successMessage);
             return;
           }
 
           try {
             refreshState().get();
             if (state.getStatus() != SourceState.SourceStatus.bad) {
+              logger.info(successMessage);
               return;
             }
           } catch (Exception e) {
             // Failure to refresh state means that we should just reschedule the next fix.
           }
 
+          logger.error(errorMessage);
           throw new BadSourceStateException();
         });
       } catch (Retryer.OperationFailedAfterRetriesException e) {
-        logger.error("Error while starting plugin {}: ", name, e);
+        logger.error(errorMessage, e);
       }
     }
 
@@ -872,6 +882,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     SOURCE_METADATA
   }
 
+  @WithSpan("check-dataset-access")
   public void checkAccess(NamespaceKey key, DatasetConfig datasetConfig, String userName, final MetadataRequestOptions options) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
@@ -936,6 +947,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
+  @WithSpan("get-view")
   public ViewTable getView(NamespaceKey key, final MetadataRequestOptions options) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
@@ -944,6 +956,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
+  @WithSpan("get-dataset-handle")
   public Optional<DatasetHandle> getDatasetHandle(
       NamespaceKey key,
       DatasetConfig datasetConfig,
@@ -1068,7 +1081,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     final SourceConfig oldConfig = sourceConfig;
     final StoragePlugin oldPlugin = plugin;
     final ConnectionConf<?, ?> resolvedNewConnectionConf = resolveConnectionConf(newConnectionConf);
-    this.plugin = resolvedNewConnectionConf.newPlugin(context, sourceKey.getRoot(), this::getId);
+    this.plugin = resolvedNewConnectionConf.newPlugin(context, sourceKey.getRoot(), this::getId, influxSourcePred);
     try {
       logger.trace("Starting new plugin for [{}]", config.getName());
       startAsync(config, false).get(waitMillis, TimeUnit.MILLISECONDS);

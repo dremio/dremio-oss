@@ -35,7 +35,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.google.common.collect.ImmutableList;
 
 public interface DremioToRelContext {
-  org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioToRelContext.class);
+  final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioToRelContext.class);
 
   interface DremioQueryToRelContext extends ToRelContext{
     SqlValidatorAndToRelContext.Builder getSqlValidatorAndToRelContext();

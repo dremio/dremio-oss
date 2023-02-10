@@ -19,12 +19,22 @@ import { getUsersDetails } from "../Users/getUsersDetails";
 import { UserDetails } from "../Users/UserDetails.type";
 import { transformSonarProject } from "./transformSonarProject";
 
+import CLOUD_VENDORS from "@inject/constants/vendors";
+
 export const listSonarProjectsUrl = "/ui/projects";
 
-type SonarProject = {
+export type SonarProject = {
+  id: string;
   type: "DATA_PLANE" | "QUERY_ENGINE";
+  cloudType: typeof CLOUD_VENDORS.AWS | typeof CLOUD_VENDORS.AZURE;
   createdBy: string;
   createdByDetails?: UserDetails;
+  projectStore: string;
+  credentials: {
+    type: "IAM_ROLE" | "IAM_ROLE" | "CLIENT_ACCESS" | "SHARED_ACCESS";
+    accessKeyId: string;
+    secretAccessKey: null;
+  };
 };
 
 type ListSonarProjectsParams = {

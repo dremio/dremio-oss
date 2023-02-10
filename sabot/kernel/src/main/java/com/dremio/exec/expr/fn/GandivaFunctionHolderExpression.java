@@ -22,12 +22,10 @@ import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.fn.FunctionHolder;
-import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 
 public class GandivaFunctionHolderExpression extends FunctionHolderExpression implements
   Iterable<LogicalExpression> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionHolderExpr.class);
   private GandivaFunctionHolder holder;
   // was pushed in 3.0 have to retain this so that serde does not break.
   private final EvaluationType evaluationType;

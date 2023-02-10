@@ -689,17 +689,13 @@ export class AccelerationForm extends Component {
 
   render() {
     const { handleSubmit, onCancel, canSubmit, isModal = true } = this.props;
-    const { formIsDirty, waitingForRecommendations } = this.state;
+    const { formIsDirty } = this.state;
     const modalFormStyle = isModal ? {} : modalStyles.noModalForm;
     const confirmStyle = isModal ? {} : modalStyles.noModalConfirmCancel;
     const cancelText = isModal ? la("Cancel") : la("Revert");
     const onCancelClick = isModal ? onCancel : this.resetForm;
-    const updatedCanSubmit =
-      canSubmit && (isModal ? true : formIsDirty && !waitingForRecommendations);
-    const canCancel = isModal
-      ? true
-      : formIsDirty && !waitingForRecommendations;
-
+    const updatedCanSubmit = (canSubmit && isModal) || formIsDirty;
+    const canCancel = isModal || formIsDirty;
     return (
       <div className={"AccelerationForm"}>
         <ModalForm

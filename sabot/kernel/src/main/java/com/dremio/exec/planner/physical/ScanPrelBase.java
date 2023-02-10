@@ -28,6 +28,7 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -50,8 +51,9 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, Runt
   private List<Info> runtimeFilters = ImmutableList.of();
 
   public ScanPrelBase(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-      TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+                      TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                      List<RelHint> hints, List<Info> runtimeFilters) {
+    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints);
     this.runtimeFilters = runtimeFilters;
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) != Rel.LOGICAL;
   }

@@ -15,7 +15,7 @@
  */
 import { PureComponent } from "react";
 import { connect } from "react-redux";
-import classNames from "classnames";
+import classNames from "clsx";
 import PropTypes from "prop-types";
 
 import { stopPropagation } from "@app/utils/reactEventUtils";

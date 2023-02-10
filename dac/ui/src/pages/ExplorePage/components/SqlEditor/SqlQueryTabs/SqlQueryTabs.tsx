@@ -63,7 +63,8 @@ function SqlQueryTabs({
           onChange={handleChange}
           aria-label="sql-query-tabs"
           variant="scrollable"
-          scrollButtons="auto"
+          scrollButtons
+          allowScrollButtonsMobile
         >
           {renderTabs(
             queryStatuses,

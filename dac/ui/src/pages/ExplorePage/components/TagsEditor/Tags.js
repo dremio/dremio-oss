@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import ImmutablePropTypes from "react-immutable-proptypes";
-import classNames from "classnames";
+import classNames from "clsx";
 import keyCodes from "@app/constants/Keys.json";
 import {
   container,
@@ -24,8 +24,10 @@ import {
   tagElement as tagElementCls,
   tagWrapper,
   cursorPlaceholder,
+  uniqueTagsError,
 } from "./Tags.less";
 import { Tag } from "./Tag";
+import { intl } from "@app/utils/intl";
 
 // component consist of 2 main sections:
 // 1) Tags section. The section where tags are displayed
@@ -48,6 +50,7 @@ export class TagsView extends Component {
   state = {
     value: "", // value of input
     selectedTagIndex: -1, // a zero-base index of a selected tag. -1 means that cursor in an input.
+    hasError: false,
   };
 
   handleTextChange = (e) => {
@@ -58,15 +61,19 @@ export class TagsView extends Component {
   };
 
   addTag = (newTag) => {
-    const { onAddTag } = this.props;
+    const { onAddTag, tags } = this.props;
 
     if (!newTag.trim()) return;
 
-    onAddTag(newTag);
+    const isDuplicateTag = tags.find((tag) => tag === newTag);
+    if (!isDuplicateTag) {
+      onAddTag(newTag);
+      this.onChange();
+    }
     this.setState({
-      value: "", // string was transformed to a tags
+      value: "",
+      hasError: Boolean(isDuplicateTag),
     });
-    this.onChange();
   };
 
   showInputField = () => !!this.props.onAddTag;
@@ -258,28 +265,37 @@ export class TagsView extends Component {
     });
 
     return (
-      <div
-        className={classNames(container, className)}
-        tabIndex={0}
-        onKeyDown={this.onKeyDown}
-        ref={this.onTagsRef}
-        data-qa="tagsContainer"
-      >
-        {tagElements}
-        {this.showInputField() && (
-          <input
-            type="text"
-            tabIndex={0}
-            placeholder={placeholder || la("Add tag")}
-            ref={this.onInputRef}
-            className={inputCls}
-            value={value}
-            onChange={this.handleTextChange}
-            maxLength={128} // restriction according to spec
-            onFocus={this.focusInput}
-          />
+      <>
+        <div
+          className={classNames(container, className)}
+          tabIndex={0}
+          onKeyDown={this.onKeyDown}
+          ref={this.onTagsRef}
+          data-qa="tagsContainer"
+        >
+          {tagElements}
+          {this.showInputField() && (
+            <input
+              type="text"
+              tabIndex={0}
+              placeholder={
+                placeholder || intl.formatMessage({ id: "Common.AddTag" })
+              }
+              ref={this.onInputRef}
+              className={inputCls}
+              value={value}
+              onChange={this.handleTextChange}
+              maxLength={128} // restriction according to spec
+              onFocus={this.focusInput}
+            />
+          )}
+        </div>
+        {this.showInputField() && this.state.hasError && (
+          <p className={uniqueTagsError}>
+            {intl.formatMessage({ id: "Catalog.Tags.UniqueTags" })}
+          </p>
         )}
-      </div>
+      </>
     );
   }
 }

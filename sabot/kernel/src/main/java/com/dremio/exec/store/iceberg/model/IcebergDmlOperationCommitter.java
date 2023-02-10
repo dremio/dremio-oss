@@ -15,11 +15,12 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.COMMITTED;
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.NONE;
+
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.iceberg.DataFile;
@@ -39,6 +40,7 @@ import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
+import com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -53,7 +55,6 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
 
   private List<ManifestFile> manifestFileList = new ArrayList<>();
   private List<String> deletedDataFilePathList = new ArrayList<>();
-  private Set<Long> snapshotsToExpire = new HashSet<>();
 
   private final IcebergCommand icebergCommand;
   private final OperatorStats operatorStats;
@@ -72,13 +73,19 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
   @Override
   public Snapshot commit() {
     Stopwatch stopwatch = Stopwatch.createStarted();
+    SnapshotCommitStatus commitStatus = NONE;
     try {
       beginDmlOperationTransaction();
+      Snapshot currentSnapshot = icebergCommand.getCurrentSnapshot();
       performUpdates();
-      return endDmlOperationTransaction().currentSnapshot();
+      Snapshot snapshot = endDmlOperationTransaction().currentSnapshot();
+      commitStatus = (currentSnapshot != null) &&
+        (snapshot.snapshotId() == currentSnapshot.snapshotId()) ? NONE : COMMITTED;
+      return snapshot;
     } finally {
       long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
       operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
+      operatorStats.addLongStat(WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS, commitStatus.value());
     }
   }
 

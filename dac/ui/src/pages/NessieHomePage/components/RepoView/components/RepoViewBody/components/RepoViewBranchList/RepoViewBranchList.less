@@ -29,6 +29,10 @@
       cursor: pointer;
     }
 
+    &-no-results {
+      min-height: 82px;
+    }
+
     .view-state-wrapper {
       width: 100%;
       height: 100%;
@@ -48,7 +52,7 @@
     &-container {
       height: calc(100% - 36px);
       dremio-icon {
-        color: var(--dremio--color--neutral--600);
+        color: var(--dremio--color--icon--main);
       }
 
       & > div:nth-child(1) {
@@ -74,6 +78,11 @@
       }
       &-container {
         cursor: pointer;
+        &:last-child {
+          .MuiMenuItem-root {
+            border-bottom: none;
+          }
+        }
       }
 
       &-content {

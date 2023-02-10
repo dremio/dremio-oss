@@ -233,7 +233,7 @@ public class ExprCachePrewarmService implements Service {
     return new OperatorContextImpl(null, null, null, null, allocator, allocator, compiler, stats,
       null, null, null, functionLookupContext, null, optionManager,
       null, null, 0, null, null, null, null, null, null,
-      sabotContext.getExpressionSplitCache());
+      sabotContext.getExpressionSplitCache(), null);
   }
 
   @Override

@@ -264,7 +264,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
 
   private void uploadHomeFile() throws Exception {
     final FormDataMultiPart form = new FormDataMultiPart();
-    final FormDataBodyPart fileBody = new FormDataBodyPart("file", com.dremio.common.util.FileUtils.getResourceAsString("/testfiles/yelp_biz.json"), MediaType.MULTIPART_FORM_DATA_TYPE);
+    final FormDataBodyPart fileBody = new FormDataBodyPart("file", readResourceAsString("/testfiles/yelp_biz.json"), MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
     form.bodyPart(new FormDataBodyPart("fileName", "biz"));
 

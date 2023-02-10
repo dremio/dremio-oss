@@ -31,9 +31,6 @@ import com.dremio.service.namespace.NamespaceKey;
  * DropFunctionHandler
  */
 public class DropFunctionHandler extends SimpleDirectHandler {
-
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropFunctionHandler.class);
-
   private final QueryContext context;
 
   public DropFunctionHandler(QueryContext context) {

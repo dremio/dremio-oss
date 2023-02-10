@@ -588,6 +588,7 @@ public class ForemenWorkManager implements Service, SafeExit {
                   Executor executor) {
     commandPool.get().<Void>submit(CommandPool.Priority.HIGH,
       ExternalIdHelper.toString(externalId) + ":work-submission",
+      "work-submission",
       (waitInMillis) -> submitWorkCommand(externalId, session, responseHandler, request, registry, executor, waitInMillis),
       request.runInSameThread())
       .whenComplete((o, e)-> {

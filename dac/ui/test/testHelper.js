@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 /* eslint react/prop-types: 0 */
-
+import { additionalSetup } from "../src/additionalSetup";
 import { configure } from "@testing-library/dom";
 import "./commonGlobalVariables";
 import en from "dyn-load/locales/en.json";
 import mockCssModules from "mock-css-modules";
 import config from "../webpack.config";
+import "../src/additionalSetup";
 
 //data-testid = data-qa for get/queryByTestId in react-testing-library
 configure({ testIdAttribute: "data-qa" });
-
+additionalSetup();
 require("jsdom-global")(undefined, {
   url: "http://localhost/",
   pretendToBeVisual: true,
@@ -134,6 +135,12 @@ global.sessionStorage = (() => {
     removeItem,
   };
 })();
+
+global.MutationObserver = class {
+  constructor(callback) {}
+  disconnect() {}
+  observe(element, initObject) {}
+};
 
 global.SVGPathSeg = function () {};
 global.SVGPathSegClosePath = function () {};

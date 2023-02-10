@@ -15,6 +15,10 @@
  */
 package com.dremio.plugins.elastic.mapping;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
@@ -22,6 +26,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.UnionMode;
@@ -33,6 +39,8 @@ import org.junit.Test;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 public class TestSchemaMerger {
   private ElasticMappingSet.ElasticMapping mapping;
@@ -91,6 +99,18 @@ public class TestSchemaMerger {
       ElasticMappingSet.Type.TEXT,
       ElasticMappingSet.Indexing.ANALYZED,
       null,
+      null,
+      true,
+      Collections.emptyMap()
+    );
+  }
+
+  private ElasticMappingSet.ElasticField createElasticField(String name, ElasticMappingSet.Type type, boolean normalized) {
+    return new ElasticMappingSet.ElasticField(
+      name,
+      type,
+      ElasticMappingSet.Indexing.NOT_ANALYZED,
+      normalized ? "true" : null,
       null,
       true,
       Collections.emptyMap()
@@ -183,6 +203,227 @@ public class TestSchemaMerger {
   @Test
   public void mergeWithForceDouble() throws Exception {
     mergeTest(true);
+  }
+
+  @Test
+  public void mergeTestTypes() throws Exception {
+    for (ElasticMappingSet.Type type : ElasticMappingSet.Type.values()) {
+      if (ElasticMappingSet.Type.NESTED == type || ElasticMappingSet.Type.OBJECT == type) {
+        continue;
+      }
+
+      for (ElasticMappingSet.Type otherType : ElasticMappingSet.Type.values()) {
+        if (ElasticMappingSet.Type.NESTED == otherType || ElasticMappingSet.Type.OBJECT == otherType) {
+          continue;
+        }
+
+        final ElasticMappingSet.ElasticField field = createElasticField("field1", type, false);
+        final ElasticMappingSet.ElasticField otherField = createElasticField("field1", otherType, false);
+        final ElasticMappingSet.ElasticField mergedField = field.merge(null, otherField, null, null, null, null);
+
+        final TypePair typePair = new TypePair(type, otherType);
+        if (INVALID_MERGE_PAIRS.contains(typePair)) {
+          assertNull(String.format("Type1 = %s, Type2 = %s", type.name(), otherType.name()), mergedField);
+        } else {
+          assertNotNull(String.format("Type1 = %s, Type2 = %s", type.name(), otherType.name()), mergedField);
+          final ElasticMappingSet.Type expectedType;
+          if (MERGE_RESULTANT_TYPES.containsKey(typePair)) {
+            expectedType = MERGE_RESULTANT_TYPES.get(typePair);
+          } else {
+            expectedType = type;
+          }
+          assertEquals(String.format("Type1 = %s, Type2 = %s", type.name(), otherType.name()), expectedType, mergedField.getType());
+        }
+      }
+    }
+  }
+
+  @Test
+  public void mergeTestNormalizedMismatch() {
+    final ElasticMappingSet.ElasticField field = createElasticField("field1", ElasticMappingSet.Type.INTEGER, true);
+    final ElasticMappingSet.ElasticField otherField = createElasticField("field1", ElasticMappingSet.Type.LONG, false);
+
+    final ElasticMappingSet.ElasticField mergedField = field.merge(null, otherField, null, null, null, null);
+    assertTrue(mergedField.isNormalized());
+  }
+
+  private static class TypePair {
+    private final ElasticMappingSet.Type type1;
+    private final ElasticMappingSet.Type type2;
+
+    public TypePair(ElasticMappingSet.Type type1, ElasticMappingSet.Type type2) {
+      this.type1 = type1;
+      this.type2 = type2;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(type1, type2);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == null) {
+        return false;
+      }
+
+      if (!(obj instanceof TypePair)) {
+        return false;
+      }
+
+      final TypePair other = (TypePair) obj;
+      return Objects.equals(type1, other.type1) && Objects.equals(type2, other.type2);
+    }
+  }
+
+  private static final Set<TypePair> INVALID_MERGE_PAIRS;
+  private static final Map<TypePair, ElasticMappingSet.Type> MERGE_RESULTANT_TYPES;
+  static {
+    INVALID_MERGE_PAIRS = ImmutableSet.<TypePair>builder()
+      .add(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.LONG))
+      .add(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.LONG))
+      .add(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.LONG))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.HALF_FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.SCALED_FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.DOUBLE, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.LONG))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.HALF_FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.DOUBLE))
+      .add(new TypePair(ElasticMappingSet.Type.SCALED_FLOAT, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.BOOLEAN, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.BINARY, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.STRING, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.BYTE))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.SHORT))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.INTEGER))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.LONG))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.HALF_FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.DOUBLE))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.SCALED_FLOAT))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.BOOLEAN))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.BINARY))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.STRING))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.KEYWORD))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.DATE))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.IP))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.TIME))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.TIMESTAMP))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.GEO_POINT))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.GEO_SHAPE))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.ATTACHMENT))
+      .add(new TypePair(ElasticMappingSet.Type.TEXT, ElasticMappingSet.Type.UNKNOWN))
+      .add(new TypePair(ElasticMappingSet.Type.KEYWORD, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.IP, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.TIME, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.TIMESTAMP, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.GEO_POINT, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.GEO_SHAPE, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.ATTACHMENT, ElasticMappingSet.Type.TEXT))
+      .add(new TypePair(ElasticMappingSet.Type.UNKNOWN, ElasticMappingSet.Type.TEXT))
+      .build();
+
+    MERGE_RESULTANT_TYPES = ImmutableMap.<TypePair, ElasticMappingSet.Type>builder()
+      .put(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.LONG), ElasticMappingSet.Type.LONG)
+      .put(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.HALF_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.DOUBLE), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.BYTE, ElasticMappingSet.Type.SCALED_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.LONG), ElasticMappingSet.Type.LONG)
+      .put(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.HALF_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.DOUBLE), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.SHORT, ElasticMappingSet.Type.SCALED_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.LONG), ElasticMappingSet.Type.LONG)
+      .put(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.HALF_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.DOUBLE), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.INTEGER, ElasticMappingSet.Type.SCALED_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.HALF_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.DOUBLE), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.LONG, ElasticMappingSet.Type.SCALED_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.HALF_FLOAT), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.FLOAT), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.DOUBLE), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.SCALED_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.BOOLEAN), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.BINARY), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.STRING), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.KEYWORD), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.DATE), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.IP), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.TIME), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.TIMESTAMP), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.GEO_POINT), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.GEO_SHAPE), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.ATTACHMENT), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.HALF_FLOAT, ElasticMappingSet.Type.UNKNOWN), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.DOUBLE), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.SCALED_FLOAT), ElasticMappingSet.Type.DOUBLE)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.BOOLEAN), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.BINARY), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.STRING), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.KEYWORD), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.DATE), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.IP), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.TIME), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.TIMESTAMP), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.GEO_POINT), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.GEO_SHAPE), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.ATTACHMENT), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.FLOAT, ElasticMappingSet.Type.UNKNOWN), ElasticMappingSet.Type.FLOAT)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.BYTE), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.SHORT), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.INTEGER), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.LONG), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.HALF_FLOAT), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.FLOAT), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.DOUBLE), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.SCALED_FLOAT), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.BOOLEAN), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.BINARY), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.STRING), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.KEYWORD), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.DATE), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.IP), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.TIME), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.TIMESTAMP), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.GEO_POINT), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.GEO_SHAPE), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.ATTACHMENT), ElasticMappingSet.Type.TIMESTAMP)
+      .put(new TypePair(ElasticMappingSet.Type.DATE, ElasticMappingSet.Type.UNKNOWN), ElasticMappingSet.Type.TIMESTAMP)
+      .build();
   }
 
   private void mergeTest(boolean forceDoublePecision) throws Exception {

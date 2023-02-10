@@ -30,6 +30,7 @@ import Spinner from "components/Spinner";
 import CancelablePromise, { Cancel } from "utils/CancelablePromise";
 import { RECOMMENDED_JOINS_VIEW_ID } from "components/Wizards/DetailsWizard";
 import RecommendedJoinItem from "./RecommendedJoinItem";
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 export class RecommendedJoins extends Component {
   static propTypes = {
@@ -73,7 +74,7 @@ export class RecommendedJoins extends Component {
       recommendation &&
       recommendation.get &&
       recommendation.get("links") &&
-      recommendation.getIn(["links", "data"]);
+      wrapBackendLink(recommendation.getIn(["links", "data"]));
 
     if (this.loadTablePromise) {
       this.loadTablePromise.cancel();

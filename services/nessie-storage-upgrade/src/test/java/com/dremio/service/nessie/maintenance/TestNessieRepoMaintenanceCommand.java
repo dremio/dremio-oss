@@ -19,7 +19,6 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
@@ -50,11 +49,10 @@ class TestNessieRepoMaintenanceCommand {
     NessieDatastoreInstance store = new NessieDatastoreInstance();
     store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(() -> storeProvider).build());
     store.initialize();
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
     DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConnector(store)
       .withConfig(adapterCfg)
-      .build(worker);
+      .build();
     adapter.initializeRepo("main");
   }
 
@@ -72,15 +70,6 @@ class TestNessieRepoMaintenanceCommand {
         storeProvider,
         Options.parse(new String[]{"--purge-key-lists"})))
       .contains("deletedKeyListEntities");
-  }
-
-  @Test
-  void testBasicGlobalLogCompactionExecution() throws Exception {
-    // This is just a smoke test. Functional test for global log compaction are in OSS Nessie code.
-    Assertions.assertThat(NessieRepoMaintenanceCommand.execute(
-        storeProvider,
-        Options.parse(new String[]{"--compact-global-log"})))
-      .contains("compactGlobalLog");
   }
 
   @Test

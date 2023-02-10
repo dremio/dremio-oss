@@ -27,7 +27,6 @@ import java.util.Optional;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.compress.utils.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileFormat;
 import org.apache.parquet.arrow.schema.SchemaConverter;
@@ -213,7 +212,7 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
       try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, Path.of(path), fileSize, maxFooterLen, false, null, null, false);
            RecordReader reader = new AdditionalColumnsRecordReader(opContext, new ParquetRowiseReader(opContext, mutableParquetMetadata, 0,
              path, ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
-             fs, schemaHelper, streamProvider, codec, true), Lists.newArrayList(), sampleAllocator)) {
+             fs, schemaHelper, streamProvider, codec, true), new ArrayList<>(), sampleAllocator)) {
 
         reader.setup(mutator);
 

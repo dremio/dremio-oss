@@ -38,6 +38,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
@@ -78,7 +79,7 @@ public class ManifestFileRecordWriter implements RecordWriter {
     writerOptions = writer.getOptions();
     operatorStats = context.getStats();
     manifestWritesHelper = getManifestWritesHelper(writer, (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
-    readMetadataVector = !writer.getOptions().getIcebergTableProps().isMetadataRefresh();
+    readMetadataVector = !writer.getOptions().getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().isMetadataRefresh();
   }
 
   @VisibleForTesting
@@ -139,8 +140,9 @@ public class ManifestFileRecordWriter implements RecordWriter {
     manifestWritesHelper.processDeletedFiles((deleteDataFile, metaInfoBytes) -> {
       IcebergPartitionData partitionData = null;
       if (!readMetadataVector) { // metadata refresh
-        List<String> partitionColumns = writerOptions.getIcebergTableProps().getPartitionColumnNames();
-        BatchSchema batchSchema = writerOptions.getIcebergTableProps().getFullSchema();
+        IcebergTableProps tableProps = writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps();
+        List<String> partitionColumns = tableProps.getPartitionColumnNames();
+        BatchSchema batchSchema = tableProps.getFullSchema();
         PartitionSpec icebergPartitionSpec = IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns,
           SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema));
         partitionData = IcebergPartitionData.fromStructLike(icebergPartitionSpec, deleteDataFile.partition());

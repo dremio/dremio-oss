@@ -282,6 +282,7 @@ public class MaestroForwarderImpl implements MaestroForwarder {
   }
 
   @Override
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void resultsError(String queryId, Throwable exception) {
     StreamObserver<?> streamObserver = resultForwardingStreams.get(queryId);
     if (streamObserver != null) {

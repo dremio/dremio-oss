@@ -56,7 +56,7 @@ export const applyEntitiesToState = (state, action) => {
   const mergeEntities = get(action, "meta.mergeEntities", false);
   const applyMethod = mergeEntities ? "mergeIn" : "setIn";
   action.payload.get("entities").forEach((entitiesToAdd, entityType) => {
-    if (replaceEntities) {
+    if (replaceEntities || entitiesToAdd.size === 0) {
       result = result.set(entityType, entitiesToAdd);
     } else {
       entitiesToAdd.forEach((entity, entityId) => {

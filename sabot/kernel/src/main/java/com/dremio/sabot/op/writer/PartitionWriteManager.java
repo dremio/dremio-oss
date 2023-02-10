@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -93,7 +94,9 @@ class PartitionWriteManager {
 
     List<String> partitionColumns = null;
     boolean isIcebergPartitionSpecNull = true;
-    PartitionSpec partitionSpec = options.getDeserializedPartitionSpec();
+    PartitionSpec partitionSpec = Optional.ofNullable(options.getTableFormatOptions().getIcebergSpecificOptions()
+        .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+
     if (isIcebergWriter && partitionSpec != null) {
       icebergPartitionSpec = partitionSpec;
       partitionColumns = getPartitionSpecColumns(icebergPartitionSpec);

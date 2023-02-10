@@ -368,7 +368,7 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
         partitionColFilters.setBloomFilter(i, probeTargets.get(i), Optional.empty());
 
         checkArgument(fieldNames.size() == 1,
-          "VECTORIZED_BIGINT mode supports only a single field of type bigint. Found more - {}.", fieldNames);
+          "VECTORIZED_BIGINT mode supports only a single field of type bigint. Found more: %s", fieldNames);
 
         if (!fieldNames.get(0).equalsIgnoreCase(build.getName())) {
           logger.debug("The required field name {} is not available in the build pivot fields {}. Skipping the filter.", fieldNames.get(0), build.getName());

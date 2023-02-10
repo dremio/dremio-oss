@@ -22,7 +22,7 @@ import com.dremio.exec.catalog.VersionedPlugin;
 
 public interface VersionedDatasetHandle extends DatasetHandle {
   /**
-   * @return Type of entity - IcebegrView, IcebergTable etc
+   * @return Type of entity - IcebergView, IcebergTable etc
    */
   VersionedPlugin.EntityType getType();
 
@@ -31,5 +31,17 @@ public interface VersionedDatasetHandle extends DatasetHandle {
    * @param accessUserName UserName used to access the table
    */
   DremioTable translateToDremioTable(VersionedDatasetAdapter vda, String accessUserName);
+
+  /**
+   * A unique ID that represents a unique snapshot of a versioned table or view
+   * @return
+   */
+  String getUniqueInstanceId() ;
+
+  /**
+   * A stable entity id that remains constant for the lifetime of a versioned object (until it is dropped)
+   * @return
+   */
+  String getContentId();
 
 }

@@ -230,7 +230,7 @@ public class NamespaceTree {
 
   public void addFolder(SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat,
                         NameSpaceContainer.Type rootEntityType, boolean isQueryable, boolean isPromoted) throws NamespaceNotFoundException {
-    Folder folder = Folder.newInstance(folderPath, folderConfig, fileFormat, null, isQueryable, isFileSystemSource != null && isFileSystemSource);
+    Folder folder = Folder.newInstance(folderPath, folderConfig, fileFormat, null, isQueryable, isFileSystemSource != null && isFileSystemSource, 0);
     addFolder(folder);
   }
 

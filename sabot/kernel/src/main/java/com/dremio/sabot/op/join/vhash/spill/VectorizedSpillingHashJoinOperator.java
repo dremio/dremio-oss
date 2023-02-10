@@ -91,14 +91,19 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
 
   /*
    * The computation is as follows :
-   * 1. spillPagePool (9 pages) = 9*256K = 2.2M
-   * 2. 8 partitions (each use 2.5M) = 8*2.5M = 20M
-   *    2a. hash table 1M
-   *    2b. linked list & slicer (2 pages), 512K
-   *    2c. misc buffers 1M
-   * 3. ProbeBuffers = 1.25M
+   * 1. spillPagePool (9 pages) = 9*256K = 2.25M
+   * 2. pivotFixedBlock (1 page) = 256K
+   * 3. pivotVarBlock (1 page) = 256K
+   * 4. Probe buffers - 80K
+   * 5. 8/4 byte hash values - 48K
+   * 6. 8 partitions - 3.2MB
+   *    Control Blocks - 128K
+   *    Native HT KeyReader buffer - 256K (only with runtime filters present)
+   *    Ordinals buffer - 16K
+   *    sv2 bufffer - 8k
+   * 7. Runtime filters - 1MB+
    */
-  public static final int MIN_RESERVE = 28 * 1024 * 1024;
+  public static int MIN_RESERVE = 12 * 1024 * 1024;
   private final String OOM_SPILL = "OOM_SPILL";
   private final OperatorContext context;
   private final HashJoinPOP config;
@@ -307,7 +312,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
 
     final BufferAllocator allocator = context.getAllocator();
     try (AutoCloseables.RollbackCloseable rc = new AutoCloseables.RollbackCloseable()) {
-      int preAllocBufSz = PagePool.DEFAULT_PAGE_SIZE;
+      int preAllocBufSz = (int)context.getOptions().getOption(HashJoinOperator.PAGE_SIZE);
       int numBlocks = preAllocBufSz / buildKeyPivot.getBlockWidth();
       pivotFixedBlock = rc.add(new FixedBlockVector(allocator, buildKeyPivot.getBlockWidth(), numBlocks, false));
       if (buildKeyPivot.getVariableCount() > 0) {
@@ -329,7 +334,8 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       // - 3 pages required by the replayer
       // - 2 pages required if any partition spills while replay is in-progress.
       // - 4 pages required for merging
-      PagePool spillPool = rc.add(new PagePool(allocator, PagePool.DEFAULT_PAGE_SIZE, 9));
+      PagePool spillPool = rc.add(new PagePool(allocator,
+        (int)context.getOptions().getOption(HashJoinOperator.PAGE_SIZE), 9));
 
       final OOBInfo oobInfo = new OOBInfo(context.getAssignments(), context.getFragmentHandle().getQueryId(),
         context.getFragmentHandle().getMajorFragmentId(), config.getProps().getOperatorId(), context.getFragmentHandle().getMinorFragmentId(),
@@ -359,6 +365,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
         spillManager,
         spillPool,
         oobInfo,
+        config.getProps().getOperatorId(),
         runtimeFilterEnabled);
 
       partition = rc.add(new MultiPartition(joinSetupParams));
@@ -386,7 +393,8 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       rc.commit();
     }
 
-    Preconditions.checkState(allocator.getAllocatedMemory() <= MIN_RESERVE);
+    Preconditions.checkState(allocator.getAllocatedMemory() <= MIN_RESERVE,
+      "MIN_RESERVE(" + MIN_RESERVE + ") lower than actual usage(" + allocator.getAllocatedMemory() + ").");
     reservedPreallocation = allocator.getAllocatedMemory();
     computeExternalState(InternalState.BUILD);
     return outgoing;
@@ -466,7 +474,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
     }
 
     computeExternalState(InternalState.PROBE_IN);
-    if (DEBUG && joinSetupParams.getOptions().getOption(HashJoinOperator.TEST_SPILL_MODE).equals("buildAndReplay")) {
+    if (joinSetupParams.getOptions().getOption(HashJoinOperator.TEST_SPILL_MODE).equals("buildAndReplay")) {
       switchToSpilling(true);
       computeExternalState();
     }
@@ -683,14 +691,30 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
     return config.getProps().getLocalOperatorId();
   }
 
+  private boolean isShrinkable() {
+    return state == State.CAN_CONSUME_R || (state == State.CAN_PRODUCE
+      && !joinSetupParams.getMultiMemoryReleaser().isFinished());
+  }
+
   @Override
   public long shrinkableMemory() {
-    return context.getAllocator().getAllocatedMemory() - reservedPreallocation;
+    long shrinkableMemory = 0;
+    if (isShrinkable()) {
+      shrinkableMemory = context.getAllocator().getAllocatedMemory() - reservedPreallocation;
+    }
+    return shrinkableMemory;
   }
 
   @Override
   public boolean shrinkMemory(long size) throws Exception {
-    throw new UnsupportedOperationException();
+    Preconditions.checkState(isShrinkable());
+    if (state == State.CAN_CONSUME_R) {
+      switchToSpilling(false);
+    } else {
+      joinSetupParams.getMultiMemoryReleaser().run();
+    }
+    computeExternalState();
+    return joinSetupParams.getMultiMemoryReleaser().isFinished();
   }
 
   private void checkAndSwitchToReplayMode() {
@@ -816,6 +840,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
     SpillStats spillStats = joinSetupParams.getSpillStats();
     if (spillStats.getSpillCount() != 0) {
       stats.setLongStat(Metric.SPILL_COUNT, spillStats.getSpillCount());
+      stats.setLongStat(Metric.HEAP_SPILL_COUNT, spillStats.getHeapSpillCount());
       stats.setLongStat(Metric.SPILL_REPLAY_COUNT, spillStats.getReplayCount());
       stats.setLongStat(Metric.SPILL_WR_BUILD_BYTES, spillStats.getWriteBuildBytes());
       stats.setLongStat(Metric.SPILL_RD_BUILD_BYTES, spillStats.getReadBuildBytes());

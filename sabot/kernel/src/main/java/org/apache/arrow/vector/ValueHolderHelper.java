@@ -15,6 +15,8 @@
  */
 package org.apache.arrow.vector;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.math.BigDecimal;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -41,9 +43,6 @@ import org.apache.arrow.vector.holders.TimeMilliHolder;
 import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.DecimalUtility;
-
-import com.google.common.base.Charsets;
-
 
 public class ValueHolderHelper {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValueHolderHelper.class);
@@ -168,7 +167,7 @@ public class ValueHolderHelper {
   public static NullableVarCharHolder getNullableVarCharHolder(ArrowBuf buf, String s){
     NullableVarCharHolder vch = new NullableVarCharHolder();
 
-    byte[] b = s.getBytes(Charsets.UTF_8);
+    byte[] b = s.getBytes(UTF_8);
     vch.start = 0;
     vch.end = b.length;
     vch.buffer = buf.reallocIfNeeded(b.length);
@@ -180,7 +179,7 @@ public class ValueHolderHelper {
   public static VarCharHolder getVarCharHolder(ArrowBuf buf, String s){
     VarCharHolder vch = new VarCharHolder();
 
-    byte[] b = s.getBytes(Charsets.UTF_8);
+    byte[] b = s.getBytes(UTF_8);
     vch.start = 0;
     vch.end = b.length;
     vch.buffer = buf.reallocIfNeeded(b.length);
@@ -191,7 +190,7 @@ public class ValueHolderHelper {
   public static VarCharHolder getVarCharHolder(BufferAllocator a, String s){
     VarCharHolder vch = new VarCharHolder();
 
-    byte[] b = s.getBytes(Charsets.UTF_8);
+    byte[] b = s.getBytes(UTF_8);
     vch.start = 0;
     vch.end = b.length;
     vch.buffer = a.buffer(b.length); //

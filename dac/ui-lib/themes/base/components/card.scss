@@ -1,0 +1,98 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+%dremio-card-hover {
+  --dremio--card--background: var(--dremio--color--primary--100);
+}
+
+.dremio-card {
+  background: var(--dremio--card--background);
+  border: var(--dremio--card--border);
+  border-radius: var(--dremio--card--border-radius);
+  color: var(--dremio--card--color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  > * {
+    padding: var(--dremio--card--padding);
+  }
+
+  &__header {
+    align-items: center;
+    border-block-end: var(--dremio--card--header--border);
+    display: flex;
+    flex-direction: row;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  &__title {
+    align-items: center;
+    display: inline-flex;
+  }
+
+  &__title,
+  &__title > * {
+    font-size: var(--dremio--card--title--font-size);
+    font-weight: var(--dremio--card--title--font-weight);
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    text-overflow: ellipsis;
+  }
+
+  &__toolbar {
+    margin-inline-start: auto;
+    color: var(--dremio--color--icon--main);
+  }
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+  }
+}
+
+.dremio-card.hovered:not(.disabled) {
+  @extend %dremio-card-hover;
+}
+
+.dremio-card.disabled .dremio-card {
+  &__title,
+  &__body {
+    opacity: 0.5;
+  }
+}
+
+a,
+button {
+  // TODO: `:has()` is not yet supported by Chrome; we will need to globally disable link text decoration
+  // until it is if we don't want underlines to show.
+  &:has(.dremio-card) {
+    text-decoration: none !important;
+  }
+
+  &:hover,
+  &:focus-visible {
+    cursor: pointer;
+
+    .dremio-card {
+      @extend %dremio-card-hover;
+    }
+  }
+}

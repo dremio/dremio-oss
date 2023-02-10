@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.deltalake;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -53,6 +54,16 @@ public class TestDeltaSnapshotListProcessor {
     List<Long> actualSnapshotVersions = finalSnaphosts.stream().map(x -> x.getVersionId()).collect(Collectors.toList());
 
     assertEquals(actualSnapshotVersions, Arrays.asList(30L, 29L, 28L, 27L, 26L, 25L, 24L, 23L, 22L, 21L, 20L));
+  }
+
+  @Test
+  public void emptySnapshotList() {
+    List<DeltaLogSnapshot> list = Arrays.asList();
+    DeltaSnapshotListProcessor processor = new DeltaSnapshotListProcessor();
+
+    assertThatThrownBy(() -> processor.findValidSnapshots(list))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessage("Commit log is empty");
   }
 
   @Test

@@ -60,6 +60,7 @@ public class MaestroSoftwareClient implements MaestroClient {
     addCallback(responseObserver, future);
   }
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void addCallback(StreamObserver<Empty> responseObserver, RpcFuture<GeneralRPCProtos.Ack> future) {
     Futures.addCallback(
       future,

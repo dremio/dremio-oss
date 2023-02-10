@@ -36,13 +36,13 @@ import "./JobsFilters.less";
 
 const itemsForStateFilter = [
   // todo: `la` loc not building correctly here
-  { id: "SETUP", label: "Setup", icon: "PendingDiamond" },
-  { id: "QUEUED", label: "Queued", icon: "Queued" },
-  { id: "ENGINE_START", label: "Engine Start", icon: "EngineStart" },
-  { id: "RUNNING", label: "Running", icon: "Loader" },
-  { id: "COMPLETED", label: "Completed", icon: "OKSolid" },
-  { id: "CANCELED", label: "Canceled", icon: "Canceled" },
-  { id: "FAILED", label: "Failed", icon: "ErrorSolid" },
+  { id: "SETUP", label: "Setup", icon: "job-state/setup" },
+  { id: "QUEUED", label: "Queued", icon: "job-state/queued" },
+  { id: "ENGINE_START", label: "Engine Start", icon: "job-state/engine-start" },
+  { id: "RUNNING", label: "Running", icon: "job-state/running" },
+  { id: "COMPLETED", label: "Completed", icon: "job-state/completed" },
+  { id: "CANCELED", label: "Canceled", icon: "job-state/canceled" },
+  { id: "FAILED", label: "Failed", icon: "job-state/failed" },
 ];
 
 const itemsForQueryTypeFilter = [
@@ -178,6 +178,7 @@ export class JobsFilters extends Component {
             menuHeader={intl.formatMessage({ id: "Common.Status" })}
             name="jst"
             checkBoxClass="jobsFilters__checkBox"
+            isJobStatus={true}
           />
         ),
       },

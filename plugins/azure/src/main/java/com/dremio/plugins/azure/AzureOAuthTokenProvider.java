@@ -16,6 +16,7 @@
 package com.dremio.plugins.azure;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -23,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import org.asynchttpclient.Request;
 
 import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.common.exceptions.UserException;
+import com.google.common.annotations.VisibleForTesting;
 import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
@@ -34,6 +37,8 @@ public class AzureOAuthTokenProvider implements AzureAuthTokenProvider {
 
   // From: https://docs.microsoft.com/en-us/azure/storage/common/storage-auth-aad-app
   private static final String RESOURCE = "https://storage.azure.com/";
+  private static final String TOKEN_ENDPOINT = "/oauth2/token";
+  private static final String INVALID_OAUTH_URL_ERROR_MESSAGE = "Invalid OAuth 2.0 Token Endpoint. Expected format is https://<host>/<tenantId>/oauth2/token";
 
   private final AuthenticationContext authContext;
   private final ClientCredential credential;
@@ -43,6 +48,9 @@ public class AzureOAuthTokenProvider implements AzureAuthTokenProvider {
 
   public AzureOAuthTokenProvider(String oauthUrl, String clientId, String clientSecret) throws IOException {
     try {
+      // Microsoft's authentication expect tokenEndpoint to be in following format : https://<host>/<tenantId>/oauth2/token
+      // Hence, validating the format before validation
+      validateOAuthURL(oauthUrl);
       authContext = new AuthenticationContext(oauthUrl, true,
         Executors.newCachedThreadPool(new NamedThreadFactory("adls-oauth-request")));
       credential = new ClientCredential(clientId, clientSecret);
@@ -51,6 +59,27 @@ public class AzureOAuthTokenProvider implements AzureAuthTokenProvider {
       throw ioe;
     } catch (Exception e) {
       throw new IOException(e);
+    }
+  }
+
+  @VisibleForTesting
+  public static void validateOAuthURL(String oauthUrl) throws Exception{
+    if (oauthUrl == null || oauthUrl.isEmpty()) {
+      throw UserException.validationError().message("OAuth 2.0 Token Endpoint cannot be empty.").buildSilently();
+    }
+    URL authorityUrl = new URL(oauthUrl);
+    String host = authorityUrl.getAuthority().toLowerCase();
+    if (authorityUrl.getPath().length() < 2 || authorityUrl.getPath().charAt(0) != '/') {
+      throw UserException.validationError().message(INVALID_OAUTH_URL_ERROR_MESSAGE).buildSilently();
+    }
+    String path = authorityUrl.getPath().substring(1) .toLowerCase();
+    if (!path.contains("/")) {
+      throw UserException.validationError().message(INVALID_OAUTH_URL_ERROR_MESSAGE).buildSilently();
+    }
+    String tenantId = path.substring(0, path.indexOf("/")) .toLowerCase();
+    String tokenEndpoint = "https://" + host + "/" + tenantId + TOKEN_ENDPOINT;
+    if (!tokenEndpoint.equals(oauthUrl)) {
+      throw UserException.validationError().message(INVALID_OAUTH_URL_ERROR_MESSAGE).buildSilently();
     }
   }
 

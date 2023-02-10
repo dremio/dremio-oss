@@ -23,8 +23,12 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.exec.catalog.AlterTableOption;
+import com.dremio.exec.catalog.RollbackOption;
+import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
+import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -106,6 +110,27 @@ public interface IcebergModel {
    * @return Primary key update committer
    */
   IcebergOpCommitter getPrimaryKeyUpdateCommitter(IcebergTableIdentifier tableIdentifier, List<Field> columns);
+
+  /**
+   * Iceberg Op committer for OPTIMIZE TABLE command
+   */
+  IcebergOpCommitter getOptimizeCommitter(OperatorStats operatorStats, IcebergTableIdentifier tableIdentifier,
+                                          DatasetConfig datasetConfig, Long minInputFilesBeforeOptimize,
+                                          IcebergTableProps icebergTableProps, FileSystem fs);
+
+  /**
+   * Roll table back to the older snapshot.
+   * @param tableIdentifier table identifier
+   * @param rollbackOption rollback table option
+   */
+  void rollbackTable(IcebergTableIdentifier tableIdentifier, RollbackOption rollbackOption);
+
+  /**
+   * Vacuum a table to remove older snapshots or orphan files
+   * @param tableIdentifier table identifier
+   * @param vacuumOption vacuum table option
+   */
+  void vacuumTable(IcebergTableIdentifier tableIdentifier, VacuumOption vacuumOption);
 
     /**
      * Truncate a table

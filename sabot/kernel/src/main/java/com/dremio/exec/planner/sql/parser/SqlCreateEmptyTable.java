@@ -52,7 +52,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       }
 
       for (SqlNode sqlNode : ((SqlNodeList) operands[1]).getList()) { // check all columns have datatype declaration
-        if (!(sqlNode instanceof SqlColumnDeclaration)) {
+        if (!(sqlNode instanceof DremioSqlColumnDeclaration)) {
           throw UserException.parseError().message("Datatype not specified for some columns.").buildSilently();
         }
       }
@@ -202,7 +202,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       if (node instanceof SqlColumnPolicyPair) {
         columnNames.add(((SqlColumnPolicyPair) node).getName().toString());
       } else {
-        columnNames.add(((SqlColumnDeclaration) node).getName().toString());
+        columnNames.add(((DremioSqlColumnDeclaration) node).getName().toString());
       }
     }
     return columnNames;

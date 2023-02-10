@@ -32,6 +32,7 @@ import {
   removeDataset,
   removeFileFormat,
 } from "actions/resources/spaceDetails";
+import { loadSourceListData } from "actions/resources/sources";
 import { getDescendantsList } from "selectors/resources";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import { constructFullPath, splitFullPath } from "utils/pathUtils";
@@ -61,6 +62,7 @@ export class UpdateDataset extends PureComponent {
     pathname: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
     intl: PropTypes.object.isRequired,
+    loadSourceListData: PropTypes.func.isRequired,
   };
 
   constructor(props) {
@@ -213,6 +215,9 @@ export class UpdateDataset extends PureComponent {
     return ApiUtils.attachFormSubmitHandlers(this[keyAction](values)).then(
       (res) => {
         if (res && !res.error) {
+          if (keyAction === UpdateMode.removeFormat) {
+            this.props.loadSourceListData();
+          }
           this.props.hide();
         }
         return null;
@@ -280,4 +285,5 @@ export default connect(mapStateToProps, {
   removeFileFormat,
   convertDatasetToFolder,
   loadDependentDatasets,
+  loadSourceListData,
 })(UpdateDataset);

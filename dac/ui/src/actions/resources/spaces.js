@@ -47,7 +47,11 @@ function fetchSpaceListData(includeDatasetCount = false) {
         schemaUtils.getSuccessActionTypeWithSchema(
           SPACES_LIST_LOAD_SUCCESS,
           { data: arrayOf(spaceSchema) },
-          meta
+          meta,
+          undefined,
+          undefined,
+          undefined,
+          spaceSchema._key
         ),
         { type: SPACES_LIST_LOAD_FAILURE, meta },
       ],

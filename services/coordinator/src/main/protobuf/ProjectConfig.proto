@@ -51,7 +51,7 @@ message DataCredentials {
     AwsKeys keys = 1;
     AwsRole data_role = 2;
     AzureClientAccess client_access = 3;
-    AzureSharedAccessKey shared_access_key = 4;
+    AzureSharedAccessKey shared_access_key = 4 [deprecated = true];
   }
 }
 

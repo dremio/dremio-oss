@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { Cell } from "fixed-data-table-2";
 import Immutable from "immutable";
-import shallowEqual from "fbjs/lib/shallowEqual";
+import shallowEqual from "shallowequal";
 import { pick } from "lodash/object";
 import { LIST, MAP, TEXT, STRUCT } from "@app/constants/DataTypes";
 import { DATE_TYPES, NUMBER_TYPES } from "@app/constants/columnTypeGroups";

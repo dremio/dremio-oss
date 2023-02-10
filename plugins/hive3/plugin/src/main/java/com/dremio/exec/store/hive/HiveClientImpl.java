@@ -61,7 +61,7 @@ import com.google.common.collect.ImmutableList;
  * credentials and higher level APIs to get the metadata in form that Dremio needs directly.
  */
 class HiveClientImpl implements HiveClient, AutoCloseable {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveClient.class);
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveClientImpl.class);
   private static final ImmutableList<String> SYSTEM_DB = ImmutableList.of("sys", "information_schema");
 
   final HiveConf hiveConf;

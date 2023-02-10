@@ -80,28 +80,33 @@ public class PhysicalPlanCreator {
   public OpProps props(int operatorId, Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
     return props(operatorId, username, schema,
       reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
-      limitOption, Prel.DEFAULT_LOW_LIMIT, cost,
+      limitOption, Prel.DEFAULT_LOW_LIMIT, 0, cost,
       prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
   }
 
   public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
     return props(prel, username, schema,
       reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
-      limitOption, Prel.DEFAULT_LOW_LIMIT, cost);
+      limitOption, Prel.DEFAULT_LOW_LIMIT, 0, cost);
   }
 
   public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption) {
     return props(prel, username, schema,
       reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
-      limitOption, Prel.DEFAULT_LOW_LIMIT, prel.getCostForParallelization());
+      limitOption, Prel.DEFAULT_LOW_LIMIT);
   }
 
   public OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit) {
-    return props(prel, username, schema, reservation, limitOption, lowLimit, prel.getCostForParallelization());
+    return props(prel, username, schema, reservation, limitOption, lowLimit, 0);
   }
 
-  private OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit, double cost) {
-    return props(getId(prel), username, schema, reservation, limitOption, lowLimit, cost,
+  public OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit, long forcedMemLimit) {
+    return props(prel, username, schema, reservation, limitOption, lowLimit, forcedMemLimit,
+      prel.getCostForParallelization());
+  }
+
+  private OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit, long forcedMemLimit, double cost) {
+    return props(getId(prel), username, schema, reservation, limitOption, lowLimit, forcedMemLimit, cost,
       prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
   }
 
@@ -111,6 +116,7 @@ public class PhysicalPlanCreator {
                         long reservation,
                         LongValidator limitOption,
                         long lowLimit,
+                        long forcedMemLimit,
                         double cost,
                         boolean singleStream) {
     return new OpProps(
@@ -119,6 +125,7 @@ public class PhysicalPlanCreator {
       reservation,
       limitOption == null ? Prel.DEFAULT_LIMIT : context.getOptions().getOption(limitOption),
       lowLimit,
+      forcedMemLimit,
       cost,
       singleStream,
       calculateTargetRecordSize(schema),

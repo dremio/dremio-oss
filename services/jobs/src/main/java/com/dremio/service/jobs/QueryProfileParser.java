@@ -27,8 +27,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.IteratorUtils;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.proto.UserBitShared;
@@ -340,7 +338,7 @@ class QueryProfileParser {
         if (values.containsKey("\"table\"")) {
           // TODO (Amit H) remove this after we clean up code.
           final String tokens = ((String) values.get("\"table\"")).replaceAll("^\\[|\\]$", "");
-          final String tablePath = PathUtils.constructFullPath(IteratorUtils.toList(splitter.split(tokens).iterator()));
+          final String tablePath = PathUtils.constructFullPath(splitter.splitToList(tokens));
           operatorToTable.put(entry.getKey(), tablePath);
         }
       }
@@ -518,7 +516,8 @@ class QueryProfileParser {
               setOperationStats(OperationType.Flatten, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
             case TABLE_FUNCTION:
-              if(operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.DATA_FILE_SCAN.ordinal()) {
+              if(operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.DATA_FILE_SCAN.ordinal()
+              || operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.EASY_DATA_FILE_SCAN.ordinal()) {
                 setScanStats(operatorType, operatorProfile, majorFragment);
               }
               break;

@@ -98,12 +98,12 @@ public class FragmentWrapper {
     return String.format("fragment-%s", major.getMajorFragmentId());
   }
 
-  public static final String[] FRAGMENT_OVERVIEW_COLUMNS = {"Phase", "Thread Reporting", "First Start", "Last Start",
+  public static final String[] FRAGMENT_OVERVIEW_COLUMNS = {"Phase", "Weight", "Thread Reporting", "First Start", "Last Start",
     "First End", "Last End", "Min First-run", "Avg First-run", "Max First-run", "Min Wall-clock", "Avg Wall-clock", "Max Wall-clock",
     "Min Sleep", "Avg Sleep", "Max Sleep", "Min Blocked", "Avg Blocked", "Max Blocked", "Last Update", "Last Progress", "Max Peak Memory"};
 
   // Not including Major Fragment ID and Minor Fragments Reporting
-  public static final int NUM_NULLABLE_OVERVIEW_COLUMNS = FRAGMENT_OVERVIEW_COLUMNS.length - 2;
+  public static final int NUM_NULLABLE_OVERVIEW_COLUMNS = FRAGMENT_OVERVIEW_COLUMNS.length - 3;
 
   public void addSummary(TableBuilder tb) {
     try {
@@ -113,6 +113,7 @@ public class FragmentWrapper {
         Collections2.filter(major.getMinorFragmentProfileList(), Filters.hasOperatorsAndTimes));
 
       tb.appendCell(new OperatorPathBuilder().setMajor(major).build()); // Phase
+      tb.appendCell(major.hasPhaseWeight() ? String.valueOf(major.getPhaseWeight()) : "-1");
       tb.appendCell(complete.size() + " / " + major.getMinorFragmentProfileCount()); // Thread Reporting
 
       // If there are no stats to aggregate, create an empty row
@@ -183,18 +184,21 @@ public class FragmentWrapper {
   // same as above but with extra debug columns: "Diff w OPs"
   public static final String[] FRAGMENT_COLUMNS_DEBUG_NO_BLOCKED_SPLITS = {"Thread ID", "Host Name", "Start", "End",
     "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
-    "Blocked", "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
+    "Blocked", "Diff w OPs", "Num-runs", "Num Slices", "Num Long Slices", "Num Short Slices", "RunQ Load",
+    "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
 
   public static final String[] FRAGMENT_COLUMNS = {"Thread ID", "Host Name", "Start", "End",
     "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
     "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
-    "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
+    "Num-runs", "Num Slices", "Num Long Slices", "Num Short Slices", "RunQ Load", "Max Records", "Max Batches",
+    "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
 
   // same as above but with extra debug columns: "Diff w OPs"
   public static final String[] FRAGMENT_COLUMNS_DEBUG = {"Thread ID", "Host Name", "Start", "End",
     "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
     "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
-    "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
+    "Diff w OPs", "Num-runs", "Num Slices", "Num Long Slices", "Num Short Slices", "RunQ Load", "Max Records",
+    "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
 
   public static final String[] PHASE_METRICS_COLUMNS = {"Host Name", "Peak Memory", "Num Threads", "Total Max Records",
     "Total Process Time", "Record Processing Rate"};
@@ -314,6 +318,10 @@ public class FragmentWrapper {
       }
 
       builder.appendFormattedInteger((minor.hasNumRuns() ? minor.getNumRuns() : -1)); // Num-runs
+      builder.appendFormattedInteger((minor.hasNumSlices() ? minor.getNumSlices() : -1)); // Num Slices
+      builder.appendFormattedInteger((minor.hasNumLongSlices() ? minor.getNumLongSlices() : -1)); // Num long slices
+      builder.appendFormattedInteger((minor.hasNumShortSlices() ? minor.getNumShortSlices() : -1)); // Num short slices
+      builder.appendFormattedInteger((minor.hasRunQLoad() ? minor.getRunQLoad() : -1));
       builder.appendFormattedInteger(biggestIncomingRecords); // Max Records
       builder.appendFormattedInteger(biggestBatches); // Max Batches
 

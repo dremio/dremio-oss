@@ -45,7 +45,6 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.VersionContext;
-import com.dremio.exec.catalog.udf.SqlUserDefinedFunctionExpanderRule;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.DremioRexBuilder;
@@ -133,7 +132,6 @@ public class SqlConverter {
     this.convertletTable =
       new ChainedSqlRexConvertletTable(
         new ReflectionAllowedMonitoringConvertletTable(convertletTableNotes),
-        new SqlUserDefinedFunctionExpanderRule.UserDefinedFunctionSqlRexConvertletTable(this),
         new ConvertletTable(
           functionContext.getContextInformation(),
           settings.getOptions().getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));

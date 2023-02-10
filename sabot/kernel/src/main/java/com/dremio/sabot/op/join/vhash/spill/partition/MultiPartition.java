@@ -131,7 +131,15 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
       int recordsInsertedInIteration = 0;
       try {
         recordsInsertedInIteration = child.getPartition().buildPivoted(startIdx, recordsRequestedInIteration);
-      } catch (OutOfMemoryException ignore) {}
+      } catch (OutOfMemoryException ignore) {
+      } catch (HeapLowMemoryReachedException e) {
+        logger.debug("major fragment id {} minor fragment id {} switching partition total usage {} limit {}",
+          setupParams.getContext().getFragmentHandle().getMajorFragmentId(), setupParams.getContext().getFragmentHandle().getMinorFragmentId(),
+          setupParams.getOpAllocator().getAllocatedMemory(),
+          setupParams.getOpAllocator().getLimit());
+        child.switchToSpilling();
+        continue;
+      }
 
       recordsDone += recordsInsertedInIteration;
       if (recordsInsertedInIteration < recordsRequestedInIteration) {
@@ -544,7 +552,7 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     }
 
     private Partition createPartition() {
-      boolean useDiskPartition = DEBUG && setupParams.getOptions().getOption(HashJoinOperator.TEST_SPILL_MODE).equals("replay")
+      boolean useDiskPartition = setupParams.getOptions().getOption(HashJoinOperator.TEST_SPILL_MODE).equals("replay")
         && setupParams.getGeneration() == 1;
       partition = useDiskPartition ?
         new DiskPartition(setupParams, partitionIndex, sv2) :

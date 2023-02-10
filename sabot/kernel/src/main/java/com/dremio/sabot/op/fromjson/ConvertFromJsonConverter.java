@@ -201,7 +201,7 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
 
   private static CompleteType getLiteralSchema(QueryContext context, byte[] bytes) {
     try(
-        BufferAllocator allocator = context.getAllocator().newChildAllocator("convert-from-json-sampling", 0, 1024*1024);
+        BufferAllocator allocator = context.getAllocator().newChildAllocator("convert-from-json-sampling", 0, Long.MAX_VALUE);
         BufferManager bufferManager = new BufferManagerImpl(allocator);
         ArrowBuf data = allocator.buffer(bytes.length);
         VectorContainer container = new VectorContainer(allocator);

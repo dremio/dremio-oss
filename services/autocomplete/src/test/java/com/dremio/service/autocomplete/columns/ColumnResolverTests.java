@@ -15,8 +15,6 @@
  */
 package com.dremio.service.autocomplete.columns;
 
-import static com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog.createCatalog;
-
 import java.util.Set;
 
 import org.apache.calcite.sql.parser.SqlParserUtil;
@@ -27,7 +25,7 @@ import com.dremio.service.autocomplete.QueryParserFactory;
 import com.dremio.service.autocomplete.catalog.mock.MockAutocompleteSchemaProvider;
 import com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog;
 import com.dremio.service.autocomplete.parsing.SqlNodeParser;
-import com.dremio.service.autocomplete.statements.grammar.Expression;
+import com.dremio.service.autocomplete.statements.grammar.SelectItem;
 import com.dremio.service.autocomplete.statements.grammar.Statement;
 import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.test.GoldenFileTestBuilder;
@@ -180,12 +178,12 @@ public final class ColumnResolverTests {
 
   private static Set<ColumnAndTableAlias> executeTestWithHomeContext(String query) {
     ImmutableList<String> context = ImmutableList.of();
-    return executeTest(createCatalog(context), query);
+    return executeTest(MockMetadataCatalog.createCatalog(context), query);
   }
 
   private static Set<ColumnAndTableAlias> executeTestWithFolderContext(String query) {
     ImmutableList<String> context = ImmutableList.of("space", "folder");
-    return executeTest(createCatalog(context), query);
+    return executeTest(MockMetadataCatalog.createCatalog(context), query);
   }
 
   private static Set<ColumnAndTableAlias> executeTest(MockMetadataCatalog.CatalogData data, String query) {
@@ -197,12 +195,15 @@ public final class ColumnResolverTests {
       dremioQueryParser);
 
     StringAndPos stringAndPos = SqlParserUtil.findPos(query);
-    Expression expression = (Expression) Cursor.extractElementWithCursor(
+    SelectItem selectItem = (SelectItem) Cursor.extractElementWithCursor(
       Statement.parse(
         stringAndPos.sql,
         stringAndPos.cursor));
 
-    Set<ColumnAndTableAlias> columnAndTableAliases = columnResolver.resolve(expression.getTableReferences());
+    Set<ColumnAndTableAlias> columnAndTableAliases = columnResolver.resolve(
+      selectItem
+        .getExpression()
+        .getTableReferences());
     return columnAndTableAliases;
   }
 }

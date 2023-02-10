@@ -20,7 +20,6 @@ import {
   UserIsAuthenticated,
 } from "@app/components/Auth/authWrappers";
 
-import { ENTITY_TYPES } from "@app/constants/Constants";
 import {
   explorePageExit,
   explorePageLocationChanged,
@@ -42,6 +41,9 @@ import { AdminPageRouting } from "@inject/RouteMixin.js";
 import SSOConsent from "@inject/pages/AuthenticationPage/components/SSOConsent";
 import AuthenticationPage from "@inject/pages/AuthenticationPage/AuthenticationPage";
 import additionalRoutes from "@inject/additionalRoutes";
+import additionalRenderedRoutes from "@inject/additionalRequiredRoutes.tsx";
+import additionalRootRoutes from "@inject/additionalRootRoutes.tsx";
+
 import ReflectionJobsPage from "@inject/pages/JobPage/ReflectionJobsPage";
 import JobPage from "@inject/pages/QVJobPage/QVJobPage";
 import SingleJobPage from "@app/pages/JobDetailsPageNew/JobDetailsPage";
@@ -62,26 +64,17 @@ import ExploreModals from "./pages/ExplorePage/ExploreModals";
 
 import SignupPage from "./pages/SignupPage/SignupPage";
 import ServerStatusPage from "./pages/ServerStatusPage/ServerStatusPage";
-
 import JobModals from "./pages/JobPage/JobModals";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import * as jobPaths from "dremio-ui-common/paths/jobs.js";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 import Page, { MainMasterPage } from "./components/Page";
 import NessieRoutes, {
   arcticSourceRoutes,
   nessieSourceRoutes,
 } from "./pages/NessieHomePage/NessieRoutes";
-
-import { renderedRoutes as ossRoutes } from "./exports/routes";
-
-const resourceKeyName = "resourceId";
-export const getSourceRoute = (rootType, component) => {
-  const suffix = `/${rootType}/:${resourceKeyName}`;
-  return (
-    <Route path={suffix} component={component}>
-      <Route path={`${suffix}/folder/**`} />
-    </Route>
-  );
-};
+import SonarRouteComponent from "@inject/sonar/components/SonarRouteComponent";
 
 const ExplorePage = lazy(() =>
   import(
@@ -119,24 +112,30 @@ const JobsRouting = () => {
     return (
       <Route component={Page}>
         <Route
-          path="/jobs/reflection/:reflectionId"
+          path={jobPaths.reflection.fullRoute()}
           component={ReflectionJobsPage}
         />
-        <Route path="/jobs" component={JobPage}>
-          <Route path="job/:jobId" component={SingleJobPage}></Route>
+        <Route path={jobPaths.jobs.fullRoute()} component={JobPage}>
+          <Route
+            path={jobPaths.job.fullRoute()}
+            component={SingleJobPage}
+          ></Route>
         </Route>
       </Route>
     );
   } else {
     return (
       <>
-        <Redirect from="/job/:jobid" to={"/jobs"} />
+        <Redirect
+          from={jobPaths.jobOld.fullRoute()}
+          to={jobPaths.jobs.fullRoute()}
+        />
         <Route component={Page}>
           <Route
-            path="/jobs/reflection/:reflectionId"
+            path={jobPaths.reflection.fullRoute()}
             component={ReflectionJobsPage}
           />
-          <Route path="/jobs" component={JobPage} />
+          <Route path={jobPaths.jobs.fullRoute()} component={JobPage} />
         </Route>
       </>
     );
@@ -147,11 +146,16 @@ export default (dispatch, projectContext, isDataPlaneEnabled) => {
   const isDDPOnly = localStorageUtils
     ? localStorageUtils.isDataPlaneOnly(projectContext)
     : false;
+
+  const isUrlabilityDisabled = commonPaths.projectBase.fullRoute() === "/";
+
   return (
     <Route path="/" component={App}>
-      {/* TODO conflict with (/:resources), need to change resources for all components */}
-      <Redirect from="/home" to="/" />
-      <Redirect from="/*/**/" to="/*/**" />
+      {additionalRootRoutes()}
+      <Redirect
+        from={commonPaths.redirect.fullRoute()}
+        to={commonPaths.redirectTo.fullRoute()}
+      />
       <Route path="/reload" component={ReloadPage} />
       <Route path="/sso" component={SSOLandingPage} />
       <Route path="/oauth-consent" component={SSOConsent} />
@@ -168,62 +172,90 @@ export default (dispatch, projectContext, isDataPlaneEnabled) => {
           <Route path="/status" component={ServerStatusPage} />
         </Route>
       </Route>
-      {ossRoutes}
+      {additionalRenderedRoutes}
       {additionalRoutes}
-      <Route component={CheckUserAuthentication}>
-        <Route component={UserIsAuthenticated(JobModals)}>
-          {JobsRouting()}
-        </Route>
-        {AdminPageRouting()}
-        <Route component={UserIsAuthenticated(HomeModals)}>
-          {isDDPOnly ? (
-            NessieRoutes()
-          ) : (
-            <Route component={Page}>
-              <IndexRoute component={Home} /> {/* todo: is this valid?*/}
-              {/* a complicate route structure below is needed for correct work of Link component
-          from router package for case of onlyActiveOnIndex=false */}
-              {getSourceRoute(ENTITY_TYPES.source, Home)}
-              {getSourceRoute(ENTITY_TYPES.space, Home)}
-              <Route path="/home" component={Home}>
-                <Route path={`/home/:${resourceKeyName}/folder/**`} />
+      <Route
+        path={
+          isUrlabilityDisabled ? undefined : commonPaths.projectBase.fullRoute()
+        }
+        component={isUrlabilityDisabled ? undefined : SonarRouteComponent}
+      >
+        <Route component={CheckUserAuthentication}>
+          <Route component={UserIsAuthenticated(JobModals)}>
+            {JobsRouting()}
+          </Route>
+          {AdminPageRouting()}
+          <Route component={UserIsAuthenticated(HomeModals)}>
+            {isDDPOnly ? (
+              NessieRoutes()
+            ) : (
+              <Route component={Page}>
+                <IndexRoute component={Home} />
+                <Redirect
+                  from={commonPaths.home.fullRoute()}
+                  to={commonPaths.projectBase.fullRoute()}
+                />
+                <Route path={commonPaths.source.fullRoute()} component={Home}>
+                  <Route path={commonPaths.sourceFolder.fullRoute()} />
+                </Route>
+                <Route path={commonPaths.space.fullRoute()} component={Home}>
+                  <Route path={commonPaths.spaceFolder.fullRoute()} />
+                </Route>
+                <Route path={commonPaths.home.fullRoute()} component={Home}>
+                  <Route path={commonPaths.resource.fullRoute()} />
+                </Route>
+                <Route
+                  path={commonPaths.spacesList.fullRoute()}
+                  component={AllSpaces}
+                />
+                <Route
+                  path={commonPaths.allSourcesList.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.objectStorage.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.metastore.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.external.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.dataplane.fullRoute()}
+                  component={AllSources}
+                />
+                {isDataPlaneEnabled && nessieSourceRoutes()}
+                {isDataPlaneEnabled && arcticSourceRoutes()}
               </Route>
-              <Route path="/spaces/list" component={AllSpaces} />
-              <Route path="/sources/list" component={AllSources} />
-              <Route
-                path="/sources/objectStorage/list"
-                component={AllSources}
-              />
-              <Route path="/sources/metastore/list" component={AllSources} />
-              <Route path="/sources/external/list" component={AllSources} />
-              <Route path="/sources/dataplane/list" component={AllSources} />
-              {isDataPlaneEnabled && nessieSourceRoutes()}
-              {isDataPlaneEnabled && arcticSourceRoutes()}
+            )}
+          </Route>
+          {!isDDPOnly && (
+            <Route component={MainMasterPage}>
+              {getExploreRoute(
+                {
+                  component: UserIsAuthenticated(ExploreModals),
+                  children: [
+                    <Route
+                      key="new_query"
+                      path={sqlPaths.sqlEditor.fullRoute()}
+                      component={ExplorePage}
+                    />,
+                    <Route
+                      key="existing_dataset"
+                      path={sqlPaths.existingDataset.fullRoute()}
+                      component={ExplorePage}
+                    />,
+                  ],
+                },
+                dispatch
+              )}
             </Route>
           )}
         </Route>
-        {!isDDPOnly && (
-          <Route component={MainMasterPage}>
-            {getExploreRoute(
-              {
-                component: UserIsAuthenticated(ExploreModals),
-                children: [
-                  <Route
-                    key="new_query"
-                    path="/new_query"
-                    component={ExplorePage}
-                  />,
-                  <Route
-                    key="existing_dataset"
-                    path="/:resources(/:resourceId)/:tableId(/:pageType)"
-                    component={ExplorePage}
-                  />,
-                ],
-              },
-              dispatch
-            )}
-          </Route>
-        )}
       </Route>
       {notFoundRoute}
     </Route>

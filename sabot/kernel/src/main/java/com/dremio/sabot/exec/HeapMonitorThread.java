@@ -19,6 +19,8 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryNotificationInfo;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryType;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,27 +42,41 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
   // strategy to claw back heap.
   private final HeapClawBackStrategy strategy;
 
-  // threshold at which notifications should be received.
-  private final long thresholdPercentage;
+  // threshold at which clawbacks will start happening
+  private final long clawbackThresholdPercentage;
+
+  // threshold at low memory signalling will be done for registered participants. Typically lower than
+  // or equal to clawbackThresholdPercentage
+  private final long lowMemThresholdPercentage;
+
+  // whether low mem signalling is enabled
+  private final boolean lowMemSignallingEnabled;
 
   // delay after which the heap monitor acts on the threshold exceeded notification
   private final long heapMonitorDelayMillis;
 
   // map from pool name to collection-threshold-exceeded count.
-  private Map<String, Long> monitoredPools = new HashMap<>();
+  private final Map<String, PerPoolInfo> monitoredPools = new HashMap<>();
 
   // listener for heap notifications.
-  private LowMemListener listener = new LowMemListener();
+  private final LowMemListener listener = new LowMemListener();
+  private final Collection<HeapLowMemListener> lowMemListeners;
 
   private boolean shutdown = false;
 
-  public HeapMonitorThread(HeapClawBackStrategy strategy, long thresholdPercentage, long heapMonitorDelayMillis, Role role) {
+  public HeapMonitorThread(HeapClawBackStrategy strategy, long clawbackThreshold, long lowMemThreshold,
+                           long heapMonitorDelayMillis, Role role,
+                           Collection<HeapLowMemListener> lowMemListeners) {
     super();
     setDaemon(true);
     setName("heap-monitoring-thread-"+ role.name().toLowerCase());
     this.strategy = strategy;
-    this.thresholdPercentage = thresholdPercentage;
+    this.clawbackThresholdPercentage = clawbackThreshold;
+    this.lowMemSignallingEnabled = lowMemThreshold > 0;
+    this.lowMemThresholdPercentage = (lowMemThreshold > 0 && lowMemThreshold < clawbackThreshold) ?
+      lowMemThreshold : clawbackThreshold;
     this.heapMonitorDelayMillis = heapMonitorDelayMillis;
+    this.lowMemListeners = new ArrayList<>(lowMemListeners);
   }
 
   private class LowMemListener implements javax.management.NotificationListener {
@@ -71,6 +87,10 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
         synchronized (this) {
           this.notify();
         }
+      }
+      if (notification.getType().equals(MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
+        logger.info("Heap Memory Usage Threshold notification arrived");
+        signalUsageCrossed();
       }
     }
   }
@@ -109,15 +129,21 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
         pool.isUsageThresholdSupported() &&
         pool.isCollectionUsageThresholdSupported()) {
 
-        long threshold = (pool.getUsage().getMax() * thresholdPercentage) / 100;
-        logger.info("setting collection threshold for " + pool.getName() +
-          " with max " + pool.getUsage().getMax() +
-          " to " + threshold);
+        final long lowMemThreshold = (pool.getUsage().getMax() * lowMemThresholdPercentage) / 100;
+        final long clawbackThreshold = (pool.getUsage().getMax() * clawbackThresholdPercentage) / 100;
+        logger.info("Setting collection threshold for `{}` with max {} to {}", pool.getName(),
+          pool.getUsage().getMax(), lowMemThreshold);
+        if (lowMemSignallingEnabled) {
+          logger.info("Low memory signalling enabled. Usage Threshold set to {} and Clawback Threshold is {}",
+            lowMemThreshold, clawbackThreshold);
+          pool.setUsageThreshold(lowMemThreshold);
+          signalMem(false, pool);
+        }
 
-        pool.setCollectionUsageThreshold(threshold);
-        monitoredPools.put(pool.getName(), pool.getCollectionUsageThresholdCount());
+        pool.setCollectionUsageThreshold(lowMemThreshold);
+        monitoredPools.put(pool.getName(), new PerPoolInfo(pool.getCollectionUsageThresholdCount(), clawbackThreshold));
       } else {
-        logger.info("skip monitoring for pool " + pool.getName());
+        logger.info("Skipping monitoring for pool `{}` ", pool.getName());
       }
     }
   }
@@ -140,38 +166,81 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
         continue;
       }
 
-      long thresholdExceededCount = pool.getCollectionUsageThresholdCount();
-      if (monitoredPools.get(pool.getName()) < thresholdExceededCount) {
-        monitoredPools.put(pool.getName(), thresholdExceededCount);
+      final PerPoolInfo thisPool = monitoredPools.get(pool.getName());
+      if (thisPool.lowMemThresholdCrossed(pool)) {
+        logger.info("{} threshold {} for pool `{}` exceeded {} times",
+          lowMemSignallingEnabled ? "Low Memory" : "Clawback",
+          pool.getCollectionUsageThreshold(), pool.getName(), thisPool.lastExceededCount);
+        if (lowMemSignallingEnabled) {
+          signalMem(true, pool);
+        }
+        if (thisPool.clawbackThresholdCrossed(pool)) {
 
-        // Wait for specified time for a short GC to happen, if any
-        logger.info("Threshold exceeded notification. HeapMonitor paused for "+ heapMonitorDelayMillis+"ms");
-        Thread.sleep(heapMonitorDelayMillis);
+          // Wait for specified time for a short GC to happen, if any
+          logger.info("Threshold exceeded notification. HeapMonitor paused for {}ms", heapMonitorDelayMillis);
+          Thread.sleep(heapMonitorDelayMillis);
 
-        // Check actual usage
-        if (pool.getUsage().getUsed() >= pool.getCollectionUsageThreshold()) {
-          exceeded = true;
-          logger.info("heap usage " + pool.getUsage().getUsed() +
-            " in pool " + pool.getName() +
-            " exceeded threshold " + pool.getCollectionUsageThreshold() +
-            " threshold_cnt " + pool.getCollectionUsageThresholdCount());
-          break;
+          // Check actual usage has still crossed
+          if (thisPool.clawbackThresholdCrossed(pool)) {
+            exceeded = true;
+            logger.info("Heap usage {} in pool `{}` exceeded clawback threshold {}",
+              pool.getUsage().getUsed(),
+              pool.getName(), pool.getCollectionUsageThreshold());
+            break;
+          }
         }
       }
     }
     if (exceeded) {
       strategy.clawBack();
-    } else {
-      logger.info("spurious wakeup");
+      // block for a while to let the cancel do it's work.
+      Thread.sleep(1000);
     }
-
-    // block for a while to let the cancel do it's work.
-    Thread.sleep(1000);
   }
 
   @Override
   public void close() {
     shutdown = true;
     interrupt();
+  }
+
+  private void signalMem(boolean collectionUsageCrossed, MemoryPoolMXBean pool) {
+    if (lowMemSignallingEnabled) {
+      for (HeapLowMemListener l : lowMemListeners) {
+        l.handleMemNotification(collectionUsageCrossed, pool);
+      }
+    }
+  }
+
+  private void signalUsageCrossed() {
+    if (lowMemSignallingEnabled) {
+      for (HeapLowMemListener l : lowMemListeners) {
+        l.handleUsageCrossedNotification();
+      }
+    }
+  }
+
+  private static final class PerPoolInfo {
+    // Tracks number of times threshold was exceeded. Need not be thread safe as it is assumed
+    // to be read/updated by a single heap monitor thread.
+    private long lastExceededCount;
+    private final long clawbackThreshold;
+
+    private PerPoolInfo(long lastExceededCount, long clawbackThreshold) {
+      this.lastExceededCount = lastExceededCount;
+      this.clawbackThreshold = clawbackThreshold;
+    }
+
+    private boolean lowMemThresholdCrossed(MemoryPoolMXBean pool) {
+      if (pool.getCollectionUsageThresholdCount() > lastExceededCount) {
+        lastExceededCount = pool.getCollectionUsageThresholdCount();
+        return true;
+      }
+      return false;
+    }
+
+    private boolean clawbackThresholdCrossed(MemoryPoolMXBean pool) {
+      return pool.getUsage().getUsed() >= clawbackThreshold;
+    }
   }
 }

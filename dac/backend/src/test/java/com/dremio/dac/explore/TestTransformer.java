@@ -41,6 +41,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import javax.ws.rs.core.SecurityContext;
 
@@ -105,6 +106,7 @@ import com.dremio.dac.proto.model.dataset.OrderDirection;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.ReplaceSelectionType;
 import com.dremio.dac.proto.model.dataset.ReplaceType;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformAddCalculatedField;
 import com.dremio.dac.proto.model.dataset.TransformConvertCase;
@@ -135,6 +137,7 @@ import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
@@ -150,7 +153,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -170,7 +172,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   private TransformResult transform(TransformBase tb, Boolean preview) {
     QueryExecutor executor = new QueryExecutor(null, null, null){
       @Override
-      public List<String> getColumnList(String username, DatasetPath path) {
+      public List<String> getColumnList(String username, DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
         return asList("bar", "baz");
       }
     };
@@ -918,7 +920,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     Mockito.when(metadata.getSqlNode()).thenReturn(Optional.of(sqlNode));
     Mockito.when(metadata.getRowType()).thenReturn(rowType);
     Mockito.when(metadata.getQuerySql()).thenReturn(sql);
-    Mockito.when(metadata.getReferredTables()).thenReturn(Optional.absent());
+    Mockito.when(metadata.getReferredTables()).thenReturn(Optional.empty());
 
     TransformActor actor = new TransformActor(state, false, "test_user", null) {
       @Override
@@ -979,7 +981,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     Transformer testTransformer =
       new Transformer(l(SabotContext.class), l(JobsService.class), newNamespaceService(), newDatasetVersionMutator(),
-        null, l(SecurityContext.class));
+        null, l(SecurityContext.class), l(CatalogService.class));
 
     VirtualDatasetUI vdsui = DatasetsUtil.getHeadVersion(myDatasetPath, newNamespaceService(),
       newDatasetVersionMutator());
@@ -1035,7 +1037,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     final Transformer testTransformer =
       new Transformer(l(SabotContext.class), l(JobsService.class), namespaceService, datasetService,
-        executor, l(SecurityContext.class));
+        executor, l(SecurityContext.class), l(CatalogService.class));
 
     final TransformUpdateSQL transformUpdateSQL =
       new TransformUpdateSQL().setSql(updatedSQL).setSqlContextList(new ArrayList<>(Arrays.asList("cp")));

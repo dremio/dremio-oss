@@ -23,7 +23,6 @@ import java.time.ZoneId;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.iceberg.HistoryEntry;
 import org.apache.iceberg.Snapshot;
 import org.junit.Test;
 
@@ -40,7 +39,19 @@ public class TestIcebergHistoryFunction extends IcebergMetadataTestTable {
 
   @Test
   public void testTableHistory() throws Exception {
-    expectedHistoryResult("SELECT * FROM table(table_history('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    //match all the expected columns values.
+    expectedHistoryResult(String.format("SELECT * FROM table(table_history('\"%s\".\"%s\"'))", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME));
+  }
+
+  @Test
+  public void testTableHistoryCount() throws Exception {
+    testBuilder()
+      .sqlQuery(String.format("SELECT count(*) as history_count FROM table(table_history('\"%s\".\"%s\"'))", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME))
+      .unOrdered()
+      .baselineColumns("history_count")
+      .baselineValues(1L)
+      .build()
+      .run();
   }
 
   @Test
@@ -50,7 +61,7 @@ public class TestIcebergHistoryFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("snapshot_id"), Types.required(TypeProtos.MinorType.BIGINT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("parent_id"), Types.required(TypeProtos.MinorType.BIGINT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("is_current_ancestor"), Types.required(TypeProtos.MinorType.BIT)));
-    expectedSchema(expectedSchema,"SELECT * FROM table(table_history('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    expectedSchema(expectedSchema,String.format("SELECT * FROM table(table_history('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME));
   }
 
   @Test
@@ -60,7 +71,7 @@ public class TestIcebergHistoryFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("snapshot_id"), Types.required(TypeProtos.MinorType.BIGINT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("parent_id"), Types.required(TypeProtos.MinorType.BIGINT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("is_current_ancestor"), Types.required(TypeProtos.MinorType.VARCHAR))); //Invalid type , instead of BIT
-    assertThatThrownBy(() -> expectedSchema(expectedSchema,"SELECT * FROM table(table_history('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath()))
+    assertThatThrownBy(() -> expectedSchema(expectedSchema,String.format("SELECT * FROM table(table_history('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME)))
       .hasMessageContaining("Schema path or type mismatch for")
       .isInstanceOf(Exception.class);
   }
@@ -72,19 +83,14 @@ public class TestIcebergHistoryFunction extends IcebergMetadataTestTable {
       .hasMessageContaining("not found");
   }
 
-  @Test
-  public void testTableHistoryCount() throws Exception {
-    expectedHistoryCount("SELECT count(*) as k FROM table(table_history('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
-  }
-
-  private void expectedHistoryResult(String query, Object... args) throws Exception {
-    Iterable<Snapshot> snapshots = table.snapshots();
+  private void expectedHistoryResult(String query) throws Exception {
+    Iterable<Snapshot> snapshots = getSnapshots();
     Snapshot snapshot1 = snapshots.iterator().next();
     LocalDateTime dateTime = Instant.ofEpochMilli(snapshot1.timestampMillis())
       .atZone(ZoneId.systemDefault()) // default zone
       .toLocalDateTime();
     testBuilder()
-      .sqlQuery(query, args)
+      .sqlQuery(query)
       .unOrdered()
       .baselineColumns("made_current_at", "snapshot_id","parent_id","is_current_ancestor")
       .baselineValues(
@@ -92,17 +98,6 @@ public class TestIcebergHistoryFunction extends IcebergMetadataTestTable {
         snapshot1.snapshotId(),
         snapshot1.parentId(),
         true)
-      .build()
-      .run();
-  }
-
-  private void expectedHistoryCount(String query, Object... args) throws Exception {
-    List<HistoryEntry> historyEntries = table.history();
-    testBuilder()
-      .sqlQuery(query, args)
-      .unOrdered()
-      .baselineColumns("k")
-      .baselineValues((long) historyEntries.size())
       .build()
       .run();
   }

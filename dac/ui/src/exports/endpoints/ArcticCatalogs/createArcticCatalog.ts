@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import type {
   ArcticCatalog,
   ArcticCatalogResponse,
 } from "./ArcticCatalog.type";
 import { transformCatalog } from "./transformCatalog";
 import { APIV3Call } from "@app/core/APICall";
+import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
+import { BadRequestError } from "dremio-ui-common/errors/BadRequestError";
+import { InvalidParamsError } from "dremio-ui-common/errors/InvalidParamsError";
 
-export const createArcticCatalogUrl = new APIV3Call()
-  .projectScope(false)
-  .paths("arctic/catalogs")
-  .toString();
+export const createArcticCatalogUrl = () =>
+  new APIV3Call().projectScope(false).paths("arctic/catalogs").toString();
 
 type CreateArcticCatalogParams = {
   name: string;
@@ -34,15 +34,37 @@ type CreateArcticCatalogParams = {
 export const createArcticCatalog = (
   params: CreateArcticCatalogParams
 ): Promise<ArcticCatalog> =>
-  fetch(createArcticCatalogUrl, {
-    method: "post",
-    headers: {
-      Authorization: localStorageUtils!.getAuthToken(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
-  })
+  getApiContext()
+    .fetch(createArcticCatalogUrl(), {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    })
     .then((res) => res.json())
     .then((catalogResponse: ArcticCatalogResponse) =>
       transformCatalog(catalogResponse)
-    );
+    )
+    .catch((err) => {
+      if (
+        err instanceof BadRequestError &&
+        err.responseBody.errorMessage.includes("It already exists.")
+      ) {
+        throw new InvalidParamsError(err.res, {
+          type: "invalid_params",
+          errors: [
+            {
+              code: "key_exists",
+              source: {
+                pointer: "/name",
+              },
+              meta: {
+                provided: params.name,
+              },
+            },
+          ],
+        });
+      }
+      throw err;
+    });

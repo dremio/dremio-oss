@@ -26,4 +26,4 @@ dist-*
 example/manifest.json
 !.config
 !.npmrc
-!tsconfig.json
+!.storybook

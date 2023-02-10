@@ -12,5 +12,5 @@
     "no-descending-specificity": null,
     "no-duplicate-selectors": null
   },
-  "ignoreFiles": ["dist-themes/**/*"]
+  "ignoreFiles": ["dist-themes/**/*", "themes/**/*.woff2"]
 }

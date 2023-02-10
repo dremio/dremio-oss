@@ -26,6 +26,6 @@ export const transformCatalog = (
     ...catalogResponse,
     createdAt: new Date(catalogResponse.createdAt),
     modifiedAt: new Date(catalogResponse.modifiedAt),
-    owner: catalogResponse.owner || catalogResponse.createdBy,
+    ownerName: catalogResponse.ownerName || catalogResponse.createdBy,
   };
 };

@@ -34,6 +34,7 @@ export default class FilterSelectMenuWrapper extends PureComponent {
     popoverContentHeight: PropTypes.number,
     ellipsedTextClass: PropTypes.string,
     menuHeader: PropTypes.string,
+    disableReorderOnSelect: PropTypes.boolean,
   };
 
   getValues = () => {
@@ -74,6 +75,7 @@ export default class FilterSelectMenuWrapper extends PureComponent {
       popoverContentHeight,
       ellipsedTextClass,
       menuHeader,
+      disableReorderOnSelect = false,
     } = this.props;
     const selectedValues = Immutable.List(this.getValues());
     const items = filterItems[menuType];
@@ -95,6 +97,7 @@ export default class FilterSelectMenuWrapper extends PureComponent {
         popoverContentHeight={popoverContentHeight}
         ellipsedTextClass={ellipsedTextClass}
         menuHeader={menuHeader}
+        disableReorderOnSelect={disableReorderOnSelect}
       />
     );
   }

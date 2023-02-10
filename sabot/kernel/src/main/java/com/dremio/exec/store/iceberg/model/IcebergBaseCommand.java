@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
 import static org.apache.iceberg.Transactions.createTableTransaction;
 
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -34,7 +36,7 @@ import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFiles;
-import org.apache.iceberg.ExpireSnapshots;
+import org.apache.iceberg.ManageSnapshots;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.OverwriteFiles;
 import org.apache.iceberg.PartitionSpec;
@@ -57,6 +59,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
+import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
@@ -68,7 +71,9 @@ import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.io.file.FileSystem;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 /**
  * Base Iceberg catalog
@@ -158,6 +163,19 @@ public class IcebergBaseCommand implements IcebergCommand {
     }
 
     @Override
+    public Snapshot rewriteDataFiles(Set<DataFile> removedFiles, Set<DataFile> addedFiles) {
+      if (transaction == null) {
+        beginTransaction();
+      }
+      try {
+        transaction.newRewrite().rewriteFiles(removedFiles, addedFiles).commit();
+        return transaction.table().currentSnapshot();
+      } finally {
+        endTransaction();
+      }
+    }
+
+    @Override
     public void consumeDeleteDataFilesWithOverwriteByPaths(List<String> filePathsList) {
       Preconditions.checkState(transaction != null, "Transaction was not started");
       Preconditions.checkState(overwriteFiles != null, "OverwriteFiles was not started");
@@ -219,11 +237,97 @@ public class IcebergBaseCommand implements IcebergCommand {
     }
 
     @Override
-    public void expireSnapshots(Set<Long> snapshotIds) {
-      ExpireSnapshots expireSnapshots = transaction.expireSnapshots();
-      snapshotIds.forEach(snapshotId -> expireSnapshots.expireSnapshotId(snapshotId));
-      expireSnapshots.cleanExpiredFiles(true).commit();
-      transaction.table().refresh();
+    public Snapshot expireSnapshots(Long olderThanInMillis, int retainLast) {
+      Stopwatch stopwatch = Stopwatch.createStarted();
+      if (transaction == null) {
+        beginTransaction();
+      }
+      String olderThanTimestamp = getTimestampFromMillis(olderThanInMillis);
+      try {
+        logger.info("Trying to expire snapshots older than {}, and retain last {} snapshots.", olderThanTimestamp, retainLast);
+        transaction.expireSnapshots()
+          .expireOlderThan(olderThanInMillis)
+          .retainLast(retainLast)
+          .commit();
+        transaction.table().refresh();
+        return transaction.table().currentSnapshot();
+      } catch (Exception e) {
+        final String errorMsg =
+          String.format("Cannot expire snapshots older than %s and retain last %d snapshots.", olderThanTimestamp, retainLast);
+        logger.error(errorMsg, e);
+        throw UserException.unsupportedError(e)
+          .message(errorMsg)
+          .buildSilently();
+      } finally {
+        endTransaction();
+        long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+        logger.info("Iceberg ExpireSnapshots call takes {} milliseconds.", totalCommitTime);
+      }
+    }
+
+    @Override
+    public void rollback(RollbackOption rollbackOption) {
+      Stopwatch stopwatch = Stopwatch.createStarted();
+      Table table = loadTable();
+      ManageSnapshots manageSnapshots = table.manageSnapshots();
+      Preconditions.checkState(manageSnapshots != null, "ManageSnapshots was not started");
+      long rollbackValue = rollbackOption.getValue();
+      final boolean isSnapshot = RollbackOption.Type.SNAPSHOT == rollbackOption.getType();
+      Snapshot currentSnapshot = table.currentSnapshot();
+
+      // Cannot rollback table to the current snapshot
+      if ((isSnapshot && rollbackValue == currentSnapshot.snapshotId())
+        || (rollbackValue == currentSnapshot.timestampMillis())) {
+        throw UserException.unsupportedError()
+          .message("Cannot rollback table to current snapshot")
+          .buildSilently();
+      }
+
+      try {
+        if (isSnapshot) {
+          if (table.snapshot(rollbackValue) == null) {
+            // If rolling back to unknown snapshot id, we can make the error message clear and concise.
+            final String errorMsg = String.format("Cannot rollback table to unknown snapshot ID %s", rollbackOption.getLiteralValue());
+            logger.error(errorMsg);
+            throw UserException.unsupportedError()
+              .message(errorMsg)
+              .buildSilently();
+          }
+          logger.info("Trying to rollback iceberg table to snapshot ID {}", rollbackValue);
+          manageSnapshots.rollbackTo(rollbackValue);
+        } else {
+          final Snapshot firstSnapshot = Iterables.getFirst(table.snapshots(), null);
+          if (firstSnapshot != null && rollbackValue < firstSnapshot.timestampMillis()) {
+            // If rolling back to the timestamp that is older than the table's first snapshot,
+            // we can make the error message clear and concise.
+            final String errorMsg = String.format("Cannot rollback table, no valid snapshot older than: %s", rollbackOption.getLiteralValue());
+            logger.error(errorMsg);
+            throw UserException.unsupportedError()
+              .message(errorMsg)
+              .buildSilently();
+          }
+
+          logger.info("Trying to rollback iceberg table to snapshot before timestamp {}", rollbackValue);
+          // Increase 1 millisecond to the given value. When users put the timestamp that matches a snapshot, this can
+          // help to roll table back to that particular snapshot.
+          manageSnapshots.rollbackToTime(rollbackValue + 1);
+        }
+        manageSnapshots.commit();
+        table.refresh();
+      } catch (Exception e) {
+        String errorMsg = String.format("Cannot rollback table to snapshot ID " +
+          (isSnapshot ? "%s" : "before timestamp %s"), rollbackOption.getLiteralValue());
+
+        // Append the error message that is specifically reported by Iceberg.
+        errorMsg = errorMsg + ": " + e.getMessage();
+        logger.error(errorMsg, e);
+        throw UserException.unsupportedError(e)
+          .message(errorMsg)
+          .buildSilently();
+      } finally {
+        long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+        logger.info("Iceberg Rollback call takes {} milliseconds.", totalCommitTime);
+      }
     }
 
     @Override

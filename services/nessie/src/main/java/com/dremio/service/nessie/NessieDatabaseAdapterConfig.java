@@ -38,17 +38,11 @@ public class NessieDatabaseAdapterConfig implements NonTransactionalDatabaseAdap
   public static final PositiveLongValidator COMMIT_RETRIES = new PositiveLongValidator(
       "nessie.kvversionstore.commit_retries", Integer.MAX_VALUE, Integer.MAX_VALUE); // no retry limit by default
 
-  public static final PositiveLongValidator PARENTS_PER_GLOBAL_COMMIT = new PositiveLongValidator(
-      "nessie.kvversionstore.parents_per_global_commit", Integer.MAX_VALUE, DEFAULT_PARENTS_PER_GLOBAL_COMMIT);
-
   public static final PositiveLongValidator PARENTS_PER_COMMIT = new PositiveLongValidator(
     "nessie.kvversionstore.parents_per_commit", Integer.MAX_VALUE, DEFAULT_PARENTS_PER_COMMIT);
 
   public static final PositiveLongValidator PARENTS_PER_REFLOG_ENTRY = new PositiveLongValidator(
     "nessie.kvversionstore.parents_per_reflog_entry", Integer.MAX_VALUE, DEFAULT_PARENTS_PER_REFLOG_ENTRY);
-
-  public static final PositiveLongValidator GLOBAL_LOG_ENTRY_SIZE = new PositiveLongValidator(
-      "nessie.kvversionstore.global_log_entry_size", Integer.MAX_VALUE, DEFAULT_GLOBAL_LOG_ENTRY_SIZE);
 
   public static final PositiveLongValidator KEY_LIST_DISTANCE = new PositiveLongValidator(
       "nessie.kvversionstore.key_list_distance", Integer.MAX_VALUE, DEFAULT_KEY_LIST_DISTANCE);
@@ -82,16 +76,6 @@ public class NessieDatabaseAdapterConfig implements NonTransactionalDatabaseAdap
   @Override
   public long getCommitTimeout() {
     return optionManager.get().getOption(COMMIT_TIMEOUT_MS);
-  }
-
-  @Override
-  public int getParentsPerGlobalCommit() {
-    return (int) optionManager.get().getOption(PARENTS_PER_GLOBAL_COMMIT);
-  }
-
-  @Override
-  public int getGlobalLogEntrySize() {
-    return (int) optionManager.get().getOption(GLOBAL_LOG_ENTRY_SIZE);
   }
 
   @Override

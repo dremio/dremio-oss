@@ -23,6 +23,8 @@ import {
   getRouteParamsFromLocation,
   constructFullPathAndEncode,
 } from "utils/pathUtils";
+import { newQuery } from "@app/exports/paths";
+import { getJobList } from "./jobs";
 
 const emptyTable = Immutable.fromJS({
   columns: [],
@@ -102,7 +104,17 @@ export function getExploreJobId(state) {
   const location = getLocation(state);
   const version = getDatasetVersionFromLocation(location);
   const fullDataset = getFullDataset(state, version);
-  return fullDataset ? fullDataset.getIn(["jobId", "id"], "") : "";
+
+  // a dataset is not returned in the first response of the new_tmp_untitled_sql endpoints
+  // so we need to get jobId from the jobList where the last job is the most recently submitted
+  const jobListArray = getJobList(state).toArray();
+  const jobIdFromList = jobListArray?.[jobListArray.length - 1]?.get("id");
+
+  return fullDataset
+    ? fullDataset.getIn(["jobId", "id"], "")
+    : jobIdFromList
+    ? jobIdFromList
+    : "";
 }
 
 export function getPaginationJobId(state, datasetVersion) {
@@ -168,7 +180,6 @@ const makeNewDataset = (context) => {
     isNewQuery: true,
     fullPath: ["tmp", "UNTITLED"],
     displayFullPath: ["tmp", "New Query"],
-    //have to decode a context parameter. This should be consistent with NewQueryButton.getNewQueryHref
     context: context ? splitFullPath(context).map(decodeURIComponent) : [],
     sql: "",
     datasetType: "SCRIPT",
@@ -221,7 +232,7 @@ export const getIntialDatasetFromState = createSelector(
 
 export const getExplorePageDataset = (state, curDataset) => {
   const location = getLocation(state);
-  const isNewQuery = location.pathname === "/new_query";
+  const isNewQuery = location.pathname.includes(newQuery());
   const { query } = location || {};
   const curQuery = curDataset ? curDataset : query;
 

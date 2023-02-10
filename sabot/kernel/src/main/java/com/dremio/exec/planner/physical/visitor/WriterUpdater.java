@@ -17,7 +17,7 @@ package com.dremio.exec.planner.physical.visitor;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -45,6 +45,7 @@ import org.apache.iceberg.types.Types;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
@@ -52,6 +53,7 @@ import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.HashPrelUtil;
+import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
@@ -65,6 +67,7 @@ import com.dremio.exec.planner.sql.Checker;
 import com.dremio.exec.planner.sql.DynamicReturnType;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.google.common.base.Function;
@@ -92,10 +95,10 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     return prel.accept(INSTANCE, null);
   }
 
-  private Prel renameAsNecessary(RelDataType expectedRowType, Prel initialInput, WriterOptions.IcebergWriterOperation icebergWriterOperation) {
+  private Prel renameAsNecessary(RelDataType expectedRowType, Prel initialInput, TableFormatOperation icebergWriterOperation) {
     boolean typesAndNamesExactMatch = RelOptUtil.areRowTypesEqual(initialInput.getRowType(), expectedRowType, true);
     boolean compatibleTypes;
-    if (icebergWriterOperation == WriterOptions.IcebergWriterOperation.INSERT) {
+    if (icebergWriterOperation == TableFormatOperation.INSERT) {
       compatibleTypes = MoreRelOptUtil.areRowTypesCompatibleForInsert(initialInput.getRowType(), expectedRowType, false, true);
     } else {
       compatibleTypes = MoreRelOptUtil.areRowTypesCompatible(initialInput.getRowType(), expectedRowType, false, true);
@@ -120,14 +123,11 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     final WriterOptions options = initialPrel.getCreateTableEntry().getOptions();
     final Prel initialInput = ((Prel) initialPrel.getInput()).accept(this, null);
 
-    Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput, options.getIcebergWriterOperation());
+    Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput,
+      options.getTableFormatOptions().getOperation());
     final WriterPrel prel = initialPrel.copy(initialPrel.getTraitSet(), ImmutableList.<RelNode>of(input));
-    Boolean icebergWriter = Objects.nonNull(options.getIcebergWriterOperation()) &&
-            options.getIcebergWriterOperation() != WriterOptions.IcebergWriterOperation.NONE;
-
 
     if(options.hasDistributions()){
-
       // we need to add a new hash value field
       // TODO: make this happen in tandem with the distribution hashing as opposed to separate).
       DistributionTrait distribution = input.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
@@ -186,8 +186,9 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
 
       RelDataType inputRowType = input.getRowType();
       List<String> partitionColumns = options.getPartitionColumns();
-      PartitionSpec partitionSpec = options.getDeserializedPartitionSpec();
-      if (icebergWriter && partitionSpec != null) {
+      PartitionSpec partitionSpec = Optional.ofNullable(options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps())
+        .map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+      if (options.getTableFormatOptions().isTableFormatWriter() && partitionSpec != null) {
         partitionColumns = new ArrayList<>();
         input = getTableFunctionOnPartitionColumns(options, input, prel, partitionColumns, partitionSpec);
         inputRowType = input.getRowType();
@@ -391,15 +392,14 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
   }
 
   private Prel getTableFunctionOnPartitionColumns(WriterOptions options, Prel input, WriterPrel prel, List<String> partitionColumns, PartitionSpec partitionSpec) {
-    BatchSchema tableSchema = options.getIcebergTableProps().getPersistedFullSchema();
-    BatchSchema newBatchSchema = getNewBatchSchema(tableSchema, partitionSpec, partitionColumns);
+    IcebergTableProps tableProps = options.getTableFormatOptions().getIcebergSpecificOptions()
+      .getIcebergTableProps();
+    BatchSchema newBatchSchema = getNewBatchSchema(tableProps.getPersistedFullSchema(), partitionSpec, partitionColumns);
     RelDataType inputRowType = getNewProjectedRowType(newBatchSchema, prel.getCluster());
 
     List<SchemaPath> schemaPathList = getNewColumns(newBatchSchema);
     TableFunctionConfig icebergTransformTableFunctionConfig = TableFunctionUtil.
-            getIcebergPartitionTransformTableFunctionConfig(options.getIcebergTableProps(),
-                    newBatchSchema,
-                    schemaPathList);
+            getIcebergPartitionTransformTableFunctionConfig(tableProps, newBatchSchema, schemaPathList);
 
     TableFunctionPrel transformTableFunctionPrel = new TableFunctionPrel(
             prel.getCluster(),
@@ -408,8 +408,20 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
             input,
             null,
             icebergTransformTableFunctionConfig,
-            inputRowType);
+            inputRowType,
+            rm -> rm.getRowCount(input));
 
+    if (options.hasNonIdentityPartitionColumns(options.getPartitionSpec())) {
+      // add HashToRandomExchange to distribute values after partition transformation
+      return getHashToRandomExchangePrel(transformTableFunctionPrel, partitionColumns);
+    }
     return transformTableFunctionPrel;
+  }
+
+  private Prel getHashToRandomExchangePrel(Prel input, List<String> partitionColumns) {
+    DistributionTrait distributionTrait = WriterOptions.hashDistributedOn(partitionColumns, input.getRowType());
+    RelTraitSet relTraitSet = input.getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
+    return new HashToRandomExchangePrel(input.getCluster(), relTraitSet,
+      input, distributionTrait.getFields(), null);
   }
 }

@@ -30,11 +30,13 @@ PropertyItem.propTypes = {
   singleValue: PropTypes.bool,
 };
 
-function PropertyItem({ item, onRemove, singleValue }) {
+function PropertyItem({ item, onRemove, singleValue, prefix = "" }) {
   return (
     <div className="property-item" style={styles.item}>
       {!singleValue && <Property fields={item} onRemove={onRemove} />}
-      {singleValue && <ValueListItem field={item} onRemove={onRemove} />}
+      {singleValue && (
+        <ValueListItem field={item} onRemove={onRemove} prefix={prefix} />
+      )}
     </div>
   );
 }
@@ -181,7 +183,10 @@ export default class SourceProperties extends Component {
           emptyLabel={emptyLabel}
           propName={elementConfig.propName}
         >
-          <PropertyItem singleValue={singleValue} />
+          <PropertyItem
+            singleValue={singleValue}
+            prefix={elementConfig.prefix}
+          />
         </FieldList>
 
         <AddButton addItem={this.addItem} style={styles.addButton}>
@@ -200,9 +205,8 @@ const styles = {
   item: {
     display: "block",
     alignItems: "center",
-    paddingRight: 14,
-    marginRight: -14,
     marginBottom: 3,
+    width: "100%",
   },
   addButton: {
     marginLeft: -3,

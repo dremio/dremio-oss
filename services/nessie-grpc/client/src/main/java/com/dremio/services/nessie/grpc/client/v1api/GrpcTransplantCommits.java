@@ -15,6 +15,7 @@
  */
 package com.dremio.services.nessie.grpc.client.v1api;
 
+import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
@@ -24,6 +25,7 @@ import org.projectnessie.client.api.TransplantCommitsBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.ImmutableTransplant;
+import org.projectnessie.model.MergeResponse;
 
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
@@ -70,14 +72,34 @@ final class GrpcTransplantCommits implements TransplantCommitsBuilder {
   }
 
   @Override
+  public TransplantCommitsBuilder dryRun(boolean dryRun) {
+    transplant.isDryRun(dryRun);
+    return this;
+  }
+
+  @Override
+  public TransplantCommitsBuilder fetchAdditionalInfo(boolean fetchAdditionalInfo) {
+    transplant.isFetchAdditionalInfo(fetchAdditionalInfo);
+    return this;
+  }
+
+  @Override
+  public TransplantCommitsBuilder returnConflictAsResult(boolean returnConflictAsResult) {
+    transplant.isReturnConflictAsResult(returnConflictAsResult);
+    return this;
+  }
+
+  @Override
   public TransplantCommitsBuilder hashesToTransplant(List<String> hashesToTransplant) {
     transplant.hashesToTransplant(hashesToTransplant);
     return this;
   }
 
   @Override
-  public void transplant() throws NessieNotFoundException, NessieConflictException {
-    handle(
-      () -> stub.transplantCommitsIntoBranch(toProto(branchName, hash, message, transplant.build())));
+  public MergeResponse transplant() throws NessieNotFoundException, NessieConflictException {
+    return handle(
+      () -> fromProto(
+        stub.transplantCommitsIntoBranch(
+          toProto(branchName, hash, message, transplant.build()))));
   }
 }

@@ -33,7 +33,7 @@ import com.dremio.service.namespace.SourceState;
  * Handler for <code>SOURCE REFRESH STATUS</code> command.
  */
 public class RefreshSourceStatusHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshSourceStatusHandler.class);
 
   private final SourceCatalog sourceCatalog;
 

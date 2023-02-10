@@ -18,6 +18,7 @@ package com.dremio.service.reflection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
@@ -31,13 +32,11 @@ import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
-import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -58,8 +57,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
   Materialization getLastMaterialization(ReflectionId reflectionId);
 
   Iterable<Materialization> getMaterializations(ReflectionId reflectionId);
-
-  MaterializationMetrics getMetrics(Materialization materialization);
 
   /**
    * wakes up the reflection manager if it isn't already running.
@@ -91,11 +88,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public MaterializationMetrics getMetrics(Materialization materialization) {
-      return new MaterializationMetrics();
-    }
-
-    @Override
     public Iterable<ReflectionGoal> getReflectionsByDatasetPath(NamespaceKey path) {
       return Collections.emptyList();
     }
@@ -122,7 +114,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
     @Override
     public Optional<ExternalReflection> getExternalReflectionById(String id) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     @Override
@@ -145,26 +137,21 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public long getReflectionSize(ReflectionId reflectionId) {
-      return 0;
-    }
-
-    @Override
     public void remove(ReflectionGoal goal) { }
 
     @Override
     public Optional<ReflectionEntry> getEntry(ReflectionId reflectionId) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     @Override
     public Optional<ReflectionGoal> getGoal(ReflectionId reflectionId) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     @Override
     public Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     @Override
@@ -198,7 +185,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
     @Override
     public Optional<Materialization> getMaterialization(MaterializationId materializationId) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     @Override
@@ -235,11 +222,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     @Override
     public Provider<CacheViewer> getCacheViewerProvider() {
       return null;
-    }
-
-    @Override
-    public long getTotalReflectionSize(ReflectionId reflectionId) {
-      return 0;
     }
 
     @Override

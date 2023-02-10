@@ -75,7 +75,7 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
  * the BaseTestQuery class, and instance of the builder is accessible through the testBuilder() method.
  */
 public class DremioTestWrapper {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestQuery.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioTestWrapper.class);
 
   // TODO - when in JSON, read baseline in all text mode to avoid precision loss for decimal values
 

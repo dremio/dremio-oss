@@ -17,7 +17,6 @@ package com.dremio.exec.pop;
 
 import java.io.IOException;
 
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -27,8 +26,6 @@ import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.Fragment.ExchangeFragmentPair;
 import com.dremio.exec.planner.fragment.MakeFragmentsVisitor;
 import com.dremio.exec.work.foreman.ForemanSetupException;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public abstract class PopUnitTestBase extends ExecTest {
 
@@ -42,9 +39,8 @@ public abstract class PopUnitTestBase extends ExecTest {
 
   public static Fragment getRootFragment(PhysicalPlanReader reader, String file) throws FragmentSetupException,
       IOException, ForemanSetupException {
-    return getRootFragmentFromPlanString(reader, Files.toString(FileUtils.getResourceAsFile(file), Charsets.UTF_8));
+    return getRootFragmentFromPlanString(reader, readResourceAsString(file));
   }
-
 
   public static Fragment getRootFragmentFromPlanString(PhysicalPlanReader reader, String planString)
       throws FragmentSetupException, IOException, ForemanSetupException {

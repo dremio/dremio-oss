@@ -84,6 +84,33 @@ export function* transformThenNavigate(action, viewId, navigateOptions) {
   }
 }
 
+export function* fetchJobMetadata(action, viewId) {
+  const response = yield call(performWatchedTransform, action, viewId);
+
+  if (response && !response.error) {
+    return response;
+  }
+
+  yield put(failedExploreJobProgress());
+  throw new TransformFailedError(response);
+}
+
+export function* fetchDatasetMetadata(action, viewId) {
+  try {
+    yield put(startDatasetMetadataLoad());
+    const response = yield call(performWatchedTransform, action, viewId);
+
+    if (response && !response.error) {
+      return response;
+    }
+
+    yield put(failedExploreJobProgress());
+    throw new TransformFailedError(response);
+  } finally {
+    yield put(completeDatasetMetadataLoad());
+  }
+}
+
 //export for tests
 export function* performWatchedTransform(apiAction, viewId) {
   invariant(viewId, "viewId param is required for performWatchedTransform");

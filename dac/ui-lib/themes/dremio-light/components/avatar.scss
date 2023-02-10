@@ -14,34 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-avatar {
-  align-items: center;
-  box-sizing: content-box;
-  contain: strict;
-  display: inline-flex;
-  flex-shrink: 0;
-  /* stylelint-disable-next-line liberty/use-logical-spec */
-  float: left;
-  justify-content: center;
-  overflow: hidden;
-  text-transform: uppercase;
-  user-select: none;
-  background: var(--dremio--avatar--background);
-  block-size: var(--dremio--avatar--size);
-  border: var(--dremio--avatar--border);
-  border-radius: var(--dremio--avatar--border-radius);
-  color: var(--dremio--avatar--color);
-  font-size: var(--dremio--avatar--font-size);
-  font-weight: var(--dremio--avatar--font-weight);
-  inline-size: var(--dremio--avatar--size);
-  letter-spacing: var(--dremio--avatar--letter-spacing);
-
-  &--image > * {
-    block-size: 100%;
-    inline-size: 100%;
-    object-fit: contain;
-  }
-}
+@use "../../base/components/avatar";
 
 .dremio-avatar {
   --dremio--avatar--background: #333;

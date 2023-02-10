@@ -27,6 +27,7 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.common.expression.SchemaPath;
@@ -50,9 +51,10 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       TableMetadata metadata,
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
+      List<RelHint> hints,
       boolean isDirectNamespaceDescendent,
       boolean isSubstitutable) {
-    super(cluster, traitSet, new RelOptNamespaceTable(metadata, cluster), pluginId, metadata, projectedColumns, observedRowcountAdjustment);
+    super(cluster, traitSet, new RelOptNamespaceTable(metadata, cluster), pluginId, metadata, projectedColumns, observedRowcountAdjustment, hints);
     this.isDirectNamespaceDescendent = isDirectNamespaceDescendent;
     this.isSubstitutable = isSubstitutable;
   }
@@ -76,6 +78,7 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       getTableMetadata(),
       getProjectedColumns(),
       observedRowcountAdjustment,
+      hints,
       isDirectNamespaceDescendent,
       isSubstitutable
     );
@@ -83,7 +86,7 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
 
   public ScanCrel applyRowDiscount(double additionalAdjustment) {
     return new ScanCrel(getCluster(), traitSet, pluginId, getTableMetadata(), getProjectedColumns(),
-      observedRowcountAdjustment * additionalAdjustment, isDirectNamespaceDescendent, isSubstitutable);
+      observedRowcountAdjustment * additionalAdjustment, hints, isDirectNamespaceDescendent, isSubstitutable);
   }
 
   @Override
@@ -120,19 +123,19 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
     }).collect(Collectors.toList());
 
     return new ScanCrel(getCluster(), getTraitSet(), getPluginId(), getTableMetadata(), newProjection,
-      observedRowcountAdjustment, isDirectNamespaceDescendent, isSubstitutable);
+      observedRowcountAdjustment, hints, isDirectNamespaceDescendent, isSubstitutable);
   }
 
   @Override
   public ScanCrel cloneWithProject(List<SchemaPath> projection) {
     return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projection, observedRowcountAdjustment,
-      isDirectNamespaceDescendent, isSubstitutable);
+      hints, isDirectNamespaceDescendent, isSubstitutable);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, getProjectedColumns(),
-      observedRowcountAdjustment, isDirectNamespaceDescendent, isSubstitutable);
+      observedRowcountAdjustment, hints, isDirectNamespaceDescendent, isSubstitutable);
   }
 
   public boolean isDirectNamespaceDescendent() {
@@ -146,5 +149,9 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
    */
   public boolean isSubstitutable() {
     return isSubstitutable;
+  }
+
+  @Override public RelNode withHints(List<RelHint> hintList) {
+    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hintList, isDirectNamespaceDescendent, isSubstitutable);
   }
 }

@@ -32,36 +32,27 @@ import {
 } from "@app/utils/date";
 
 export const convertISOStringWithTooltip = (
-  ref: Reference,
-  commitTime?: string
+  commitTime: string,
+  options?: {
+    isRelative?: boolean;
+  }
 ): string | JSX.Element => {
-  if (
-    ref.metadata &&
-    ref.metadata.commitMetaOfHEAD &&
-    ref.metadata.commitMetaOfHEAD.commitTime
-  ) {
+  if (options?.isRelative) {
     const pastSevenDays = moment().subtract(6, "days").startOf("day");
-    const commitTime = moment(ref.metadata.commitMetaOfHEAD.commitTime);
+    const curCommitTime = moment(commitTime);
 
-    if (commitTime > pastSevenDays) {
+    if (curCommitTime > pastSevenDays) {
       return (
         <Tooltip
-          title={formatDate(
-            ref.metadata.commitMetaOfHEAD.commitTime.toString(),
-            "MMM DD, YYYY, h:mmA"
-          )}
+          title={formatDate(commitTime.toString(), "MMM DD, YYYY, h:mmA")}
         >
-          <span>
-            {formatDateRelative(
-              new Date(ref.metadata.commitMetaOfHEAD.commitTime).toString()
-            )}
-          </span>
+          <span>{formatDateRelative(new Date(commitTime).toString())}</span>
         </Tooltip>
       );
     }
 
     return formatDateSince(
-      new Date(ref.metadata.commitMetaOfHEAD.commitTime).toString(),
+      new Date(commitTime).toString(),
       "MMM DD, YYYY, h:mmA"
     );
   } else if (commitTime) {
@@ -170,6 +161,7 @@ export const renderIcons = (
   return isDefault && renderIcon ? (
     <>
       {renderGoToDataset()}
+      {renderMerge()}
       {renderCreateProject(isDefault)}
       {renderSettings()}
     </>

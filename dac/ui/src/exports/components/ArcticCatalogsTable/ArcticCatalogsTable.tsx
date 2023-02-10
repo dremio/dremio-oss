@@ -17,11 +17,16 @@
 import { Avatar } from "dremio-ui-lib/dist-esm";
 import { createTable, type Columns } from "leantable/core";
 import { useMemo } from "react";
+import { useIntl } from "react-intl";
 import { Link } from "react-router";
 import { type ArcticCatalog } from "../../endpoints/ArcticCatalogs/ArcticCatalog.type";
 import { nameToInitials } from "../../utilities/nameToInitials";
 import * as PATHS from "../../paths";
 import { formatFixedDateTimeLong } from "../../utilities/formatDate";
+import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+//@ts-ignore
+import { IconButton } from "dremio-ui-lib";
+import classes from "./ArcticCatalogsTable.less";
 
 const { render } = createTable({ plugins: [] });
 
@@ -38,6 +43,10 @@ const columns: Columns = [
     id: "createdAt",
     cell: "Created on",
   },
+  {
+    id: "settings",
+    cell: "",
+  },
 ];
 
 type ArcticCatalogsTableProps = {
@@ -48,6 +57,7 @@ export const ArcticCatalogsTable = (
   props: ArcticCatalogsTableProps
 ): JSX.Element => {
   const { catalogs } = props;
+  const { formatMessage } = useIntl();
   const rows = useMemo(() => {
     if (!catalogs) {
       return [];
@@ -61,16 +71,7 @@ export const ArcticCatalogsTable = (
               arcticCatalogId: catalog.id,
             })}
           >
-            <span
-              style={{
-                display: "inline-flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: "var(--dremio--spacing--05)",
-                fontWeight: "500",
-                marginLeft: "-3px",
-              }}
-            >
+            <span className={classes["arctic-catalog-row__name"]}>
               <dremio-icon
                 name="brand/arctic-catalog-source"
                 alt=""
@@ -80,18 +81,13 @@ export const ArcticCatalogsTable = (
           </Link>
         ),
         owner: (
-          <span
-            style={{
-              display: "inline-flex",
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
+          <span className={classes["arctic-catalog-row__owner"]}>
             <Avatar
-              initials={nameToInitials(catalog.owner)}
+              initials={nameToInitials(catalog.ownerName)}
+              //@ts-ignore
               style={{ marginRight: "var(--dremio--spacing--05)" }}
             />
-            {catalog.owner}
+            {catalog.ownerName}
           </span>
         ),
         createdAt: (
@@ -99,8 +95,21 @@ export const ArcticCatalogsTable = (
             {formatFixedDateTimeLong(catalog.createdAt)}
           </span>
         ),
+        settings: (
+          <IconButton
+            className="arctic-catalog-row__settings"
+            as={LinkWithRef}
+            to={PATHS.arcticCatalogSettings({ arcticCatalogId: catalog.id })}
+            tooltip="Settings.Catalog"
+          >
+            <dremio-icon
+              name="interface/settings"
+              alt={formatMessage({ id: "Settings.Catalog" })}
+            />
+          </IconButton>
+        ),
       },
     }));
-  }, [catalogs]);
+  }, [catalogs, formatMessage]);
   return render({ columns, rows });
 };

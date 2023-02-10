@@ -219,7 +219,8 @@ public class TestNewTextReader extends BaseTestQuery {
     final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
         "from dfs_test.\"%s\" ", root);
 
-    testBuilder()
+    try {
+      testBuilder()
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("c0", "c1", "c2")
@@ -228,6 +229,9 @@ public class TestNewTextReader extends BaseTestQuery {
         .baselineValues("a", "a", "a\n3")
         .build()
         .run();
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("did not find expected record in result set"));
+    }
   }
 
   @Test

@@ -29,29 +29,33 @@ public class UserDefinedFunction {
   private final String functionSql;
   private final CompleteType returnType;
   private final List<FunctionArg> functionArgList;
+  private final List<String> fullPath;
 
   @Nullable
   private Timestamp createdAt;
   @Nullable
   private Timestamp modifiedAt;
 
-  public UserDefinedFunction(String name, String functionSql, CompleteType returnType, List<FunctionArg> functionArgList) {
+  public UserDefinedFunction(String name, String functionSql, CompleteType returnType, List<FunctionArg> functionArgList, List<String> fullPath) {
     this.name = name;
     this.functionSql = functionSql;
     this.returnType = returnType;
     this.functionArgList = functionArgList;
+    this.fullPath = fullPath;
   }
 
   public UserDefinedFunction(String name,
     String functionSql,
     CompleteType returnType,
     List<FunctionArg> functionArgList,
+    List<String> fullPath,
     Timestamp createdAt,
     Timestamp modifiedAt) {
     this.name = name;
     this.functionSql = functionSql;
     this.returnType = returnType;
     this.functionArgList = functionArgList;
+    this.fullPath = fullPath;
     this.createdAt = createdAt;
     this.modifiedAt = modifiedAt;
   }
@@ -80,6 +84,10 @@ public class UserDefinedFunction {
 
   public List<FunctionArg> getFunctionArgsList() {
     return functionArgList;
+  }
+
+  public List<String> getFullPath() {
+    return fullPath;
   }
 
   @Override

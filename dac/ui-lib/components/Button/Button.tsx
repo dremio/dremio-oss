@@ -51,7 +51,12 @@ type ButtonProps = {
   /**
    * The visual style of the button
    */
-  variant: "primary" | "secondary" | "tertiary";
+  variant:
+    | "primary"
+    | "secondary"
+    | "tertiary"
+    | "primary-danger"
+    | "secondary-danger";
 
   className?: string;
 } & React.DetailedHTMLProps<
@@ -77,13 +82,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       prefix,
       suffix,
       variant,
+      pending,
       type = "button",
       ...rest
     } = props;
     const buttonProps =
       as === "button"
         ? {
-            "aria-busy": props.pending ? "true" : "false",
+            "aria-busy": pending ? "true" : "false",
             "aria-live": "assertive",
             disabled: isDisabled(props),
             type,

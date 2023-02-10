@@ -219,6 +219,7 @@ public class TestFragmentTracker {
         }
 
         @Override
+        @SuppressWarnings("DremioGRPCStreamObserverOnError")
         public void cancelFragments(CoordExecRPC.CancelFragments cancelFragments, StreamObserver<Empty> responseObserver) {
           if (errorCount == maxErrorCount) {
             responseObserver.onCompleted();

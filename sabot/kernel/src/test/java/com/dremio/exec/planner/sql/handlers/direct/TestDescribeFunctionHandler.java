@@ -50,7 +50,7 @@ public class TestDescribeFunctionHandler {
   private UserDefinedFunction udf1 = new UserDefinedFunction("test1" ,
     "SELECT 1",
     CompleteType.VARCHAR,
-    new ArrayList<>(),new Timestamp(System.currentTimeMillis()), new Timestamp(System.currentTimeMillis()));
+    new ArrayList<>(), new ArrayList<>(), new Timestamp(System.currentTimeMillis()), new Timestamp(System.currentTimeMillis()));
 
   @Before
   public void setup() throws IOException {

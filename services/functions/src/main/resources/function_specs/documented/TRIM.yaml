@@ -1,0 +1,64 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "TRIM"
+signatures:
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "expression"
+    description: "The expression to be trimmed."
+  description: "Returns the trimmed string."
+  sampleCodes:
+   -
+    call: "SELECT TRIM('    pancake    ')"
+    result: "pancake"
+ -
+   returnType: "CHARACTERS"
+   parameters:
+     -
+       kind: "REGULAR"
+       type: "CHARACTERS"
+       name: "expression"
+       description: "The expression to be trimmed."
+     -
+       kind: "REGULAR"
+       type: "CHARACTERS"
+       name: "trimCharacters"
+       description: "The characters to trim."
+   description: "Returns the trimmed string."
+   snippetOverride: "TRIM(${1|BOTH,LEADING,TRAILING|} ${2:characterSet} FROM ${3:stringToTrim})"
+   sampleCodes:
+     -
+       call: "SELECT TRIM(leading 'pan' from 'pancake')"
+       result: "cake"
+     -
+       call: "SELECT TRIM(trailing 'cake' from 'pancake')"
+       result: "pan"
+     -
+       call: "SELECT TRIM(both 'pan' from 'pancake pan')"
+       result: "cake"
+     -
+       call: "SELECT TRIM('pan' from 'pancake pan')"
+       result: "cake"
+dremioVersion: "1.0+"
+functionCategories:
+ - "CHARACTER"
+description: "Removes leading, trailing, or both spaces or characters from a string."

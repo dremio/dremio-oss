@@ -155,7 +155,7 @@ public class TestIcebergManifests extends BaseTestQuery {
       committer.commit();
 
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
-      Assert.assertEquals(1, table.currentSnapshot().allManifests().size());
+      Assert.assertEquals(1, table.currentSnapshot().allManifests(table.io()).size());
 
       table.updateProperties()
         .set(TableProperties.MANIFEST_TARGET_SIZE_BYTES, "20480")
@@ -169,7 +169,7 @@ public class TestIcebergManifests extends BaseTestQuery {
         committer.commit();
       }
       table = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
-      return table.currentSnapshot().allManifests().size();
+      return table.currentSnapshot().allManifests(table.io()).size();
     }
     finally {
       tableFolder.delete();

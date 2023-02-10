@@ -15,10 +15,15 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
+
 import java.util.List;
+
+import org.apache.iceberg.PartitionSpec;
 
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -34,16 +39,18 @@ public class IcebergTableProps {
   private BatchSchema fullSchema;
   private BatchSchema persistedFullSchema;
   private List<String> partitionColumnNames;
-  private IcebergCommandType icebergOpType;
   private String tableName;
   private String dataTableLocation;
-  private boolean detectSchema;
-  private boolean isMetadataRefresh;
   private List<String> partitionPaths;
   private ResolvedVersionContext version;
   private String databaseName;
   private ByteString partitionSpec;
   private String icebergSchema;
+
+  // TODO: Separate action specific props from "TableProperties"
+  private boolean detectSchema;
+  private boolean isMetadataRefresh;
+  private IcebergCommandType icebergOpType;
 
   @JsonCreator
   public IcebergTableProps(
@@ -198,6 +205,12 @@ public class IcebergTableProps {
 
   public void setIcebergSchema(String icebergSchema) {
     this.icebergSchema = icebergSchema;
+  }
+
+  @JsonIgnore
+  public PartitionSpec getDeserializedPartitionSpec() {
+    return (partitionSpec == null) ? null :
+      IcebergSerDe.deserializePartitionSpec(deserializedJsonAsSchema(icebergSchema), partitionSpec.toByteArray());
   }
 
   @Override

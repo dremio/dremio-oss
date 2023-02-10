@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import "./contexts/index";
+import { additionalSetup } from "@inject/additionalSetup";
 import { createRoot } from "react-dom/client";
 import $ from "jquery";
 import Immutable from "immutable";
@@ -25,7 +26,8 @@ import startup from "dyn-load/startup";
 import setupMetrics from "@inject/setupMetrics";
 
 import "@inject/vendor/segment";
-import "./vendor/chat";
+import "dremio-ui-lib/dist-themes/base/assets/fonts/inter-ui/inter.css";
+import "dremio-ui-lib/dist-themes/base/assets/fonts/FiraCode/FiraCode.css";
 import "dremio-ui-lib/dist-themes/dremio-light/index.css";
 import "dremio-ui-lib/dist/index.css";
 import "./main.less";
@@ -37,7 +39,6 @@ import { iconBasePath } from "@app/utils/getIconPath";
 // the reason why typography.css import is here because it conflicts with reset.less imported inside
 // of main.less file
 import "./uiTheme/css/typography.css";
-import "font-awesome/css/font-awesome.css";
 import Root from "./containers/Root";
 import configureStore from "./store/configureStore";
 import { configureDremioIcon } from "dremio-ui-lib/dist-esm/index";
@@ -75,6 +76,7 @@ const initApp = async () => {
 
   configureDremioIcon(iconBasePath);
   startup.run();
+  await additionalSetup();
 
   createRoot(document.getElementById("root")).render(<Root store={store} />);
 };

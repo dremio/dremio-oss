@@ -27,6 +27,7 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -86,9 +87,12 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
   private Function<RelMetadataQuery, Double> estimateRowCountFn;
 
   public DirListingInvocationPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                                  TableMetadata tableMetadata, double observedRowcountAdjustment, FileSystemPlugin<?> plugin, String uuid, boolean isPartialRefresh, UnlimitedSplitsMetadataProvider metadataProvider, List<String> partialRefreshPaths,
+                                  TableMetadata tableMetadata, double observedRowcountAdjustment, List<RelHint> hints,
+                                  FileSystemPlugin<?> plugin, String uuid, boolean isPartialRefresh,
+                                  UnlimitedSplitsMetadataProvider metadataProvider, List<String> partialRefreshPaths,
                                   final Function<RelMetadataQuery, Double> estimateRowCountFn, List<Info> runtimeFilters) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment, runtimeFilters);
+    super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment, hints,
+          runtimeFilters);
     this.metaStoragePlugin = plugin;
     this.tableUUID = uuid;
     this.isPartialRefresh = isPartialRefresh;
@@ -99,12 +103,18 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
 
   @Override
   public DirListingInvocationPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new DirListingInvocationPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, metaStoragePlugin, tableUUID, isPartialRefresh, metadataProvider, partialRefreshPaths, estimateRowCountFn, getRuntimeFilters());
+    return new DirListingInvocationPrel(getCluster(), traitSet, table, pluginId, tableMetadata,
+                                        observedRowcountAdjustment, getHints(), metaStoragePlugin, tableUUID,
+                                        isPartialRefresh, metadataProvider, partialRefreshPaths, estimateRowCountFn,
+                                        getRuntimeFilters());
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new DirListingInvocationPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, metaStoragePlugin, tableUUID, isPartialRefresh, metadataProvider, partialRefreshPaths, estimateRowCountFn, getRuntimeFilters());
+    return new DirListingInvocationPrel(getCluster(), traitSet, table, pluginId, tableMetadata,
+                                        observedRowcountAdjustment, getHints(), metaStoragePlugin, tableUUID,
+                                        isPartialRefresh, metadataProvider, partialRefreshPaths, estimateRowCountFn,
+                                        getRuntimeFilters());
   }
 
   @Override
@@ -154,7 +164,7 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
     Prel manifestReadPrel = generateManifestFileReadScanPrel(manifestListPrel, icebergScanTableMetadata);
 
     Prel dirListingScanPrel = new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata,
-      getObservedRowcountAdjustment(), !isPartialRefresh, estimateRowCountFn, getRuntimeFilters());
+      getObservedRowcountAdjustment(), getHints(), !isPartialRefresh, estimateRowCountFn, getRuntimeFilters());
 
     Prel hashJoinPrel = addHashJoin(dirListingScanPrel, manifestReadPrel);
     Prel filterAlreadyPresetFilesPrel = addFilterForAlreadyPresetFiles(hashJoinPrel);

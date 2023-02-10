@@ -58,11 +58,6 @@ public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> 
       props.add(new Property(FSConstants.AZURE_CLIENT_ID, getConfig().getClientId()));
       props.add(new Property(FSConstants.AZURE_CLIENT_SECRET, getConfig().getClientSecret()));
       props.add(new Property(FSConstants.AZURE_TOKEN_ENDPOINT, getConfig().getTokenEndpoint()));
-    } else if (!Strings.isNullOrEmpty(getConfig().getSharedAccessKey())) {
-      props.add(new Property(FSConstants.AZURE_ACCOUNT, getConfig().getAccountName()));
-      props.add(new Property(FSConstants.AZURE_SECURE, Boolean.toString(Boolean.TRUE)));
-      props.add(new Property(FSConstants.AZURE_MODE, getConfig().getAccountKind()));
-      props.add(new Property(FSConstants.AZURE_KEY, getConfig().getSharedAccessKey()));
     }
     props.add(new Property(FSConstants.MAXIMUM_CONNECTIONS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_CONNECTIONS)));
     props.add(new Property(FSConstants.MAX_THREADS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_THREADS)));
@@ -87,9 +82,6 @@ public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> 
     } else if (!Strings.isNullOrEmpty(getConfig().getClientSecret())) {
       getFsConf().set("fs.dremioAzureStorage.impl", "com.dremio.plugins.azure.AzureStorageFileSystem");
       getFsConf().set("dremio.azure.credentialsType", "AZURE_ACTIVE_DIRECTORY");
-    } else if (!Strings.isNullOrEmpty(getConfig().getSharedAccessKey())) {
-      getFsConf().set("fs.dremioAzureStorage.impl", "com.dremio.plugins.azure.AzureStorageFileSystem");
-      getFsConf().set("dremio.azure.credentialsType", "ACCESS_KEY");
     }
     return super.newFileSystem(userName, operatorContext);
   }

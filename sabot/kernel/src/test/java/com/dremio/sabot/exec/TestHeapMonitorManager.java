@@ -105,6 +105,8 @@ public class TestHeapMonitorManager {
     doReturn(true).when(som).getOption(enableHeapMonitoring);
     doReturn(85L).when(som).getOption(clawbackThreshPercentage);
     doReturn(2_000L).when(som).getOption(delayHeapMonitorMillis);
+    doReturn(75L).when(som).getOption(ExecConstants.EXECUTOR_HEAP_MONITORING_LOW_MEM_THRESH_PERCENTAGE);
+    doReturn(1024L).when(som).getOption(ExecConstants.EXECUTOR_HEAP_MONITORING_AGGRESSIVE_WIDTH_LOWER_BOUND);
     HeapMonitorManager heapMonitorManager = new HeapMonitorManager(() -> som,
                                                                    heapClawBackStrategy,
                                                                    role);

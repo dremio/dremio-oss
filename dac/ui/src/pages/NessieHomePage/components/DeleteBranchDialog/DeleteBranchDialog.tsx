@@ -15,24 +15,15 @@
  */
 
 import { useState } from "react";
-import { FormattedMessage } from "react-intl";
-import { Button } from "dremio-ui-lib/dist-esm";
-
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-} from "@mui/material";
-import { connect } from "react-redux";
-
-import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
+import { FormattedMessage, useIntl } from "react-intl";
+import { Button, ModalContainer, DialogContent } from "dremio-ui-lib/dist-esm";
+import { useDispatch } from "react-redux";
+import { setReference } from "@app/actions/nessie/nessie";
 import { Reference } from "@app/types/nessie";
-import { CustomDialogTitle } from "../NewBranchDialog/utils";
 import { useNessieContext } from "../../utils/context";
+import { ReferenceType } from "@app/services/nessie/client";
 
 import "./DeleteBranchDialog.less";
-import { ReferenceType } from "@app/services/nessie/client";
 
 type DeleteBranchDialogProps = {
   open: boolean;
@@ -43,10 +34,6 @@ type DeleteBranchDialogProps = {
   specialHandling?: () => void;
 };
 
-type ConnectedProps = {
-  setReference: typeof setReferenceAction;
-};
-
 function DeleteBranchDialog({
   open,
   referenceToDelete,
@@ -54,8 +41,9 @@ function DeleteBranchDialog({
   allRefs,
   setAllRefs,
   specialHandling,
-  setReference,
-}: DeleteBranchDialogProps & ConnectedProps): JSX.Element {
+}: DeleteBranchDialogProps): JSX.Element {
+  const intl = useIntl();
+  const dispatch = useDispatch();
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
   const {
@@ -90,7 +78,7 @@ function DeleteBranchDialog({
       setErrorText(null);
 
       if (reference && referenceToDelete.name === reference.name) {
-        setReference({ reference: defaultReference }, stateKey);
+        dispatch(setReference({ reference: defaultReference }, stateKey));
       }
 
       closeDialog();
@@ -104,45 +92,35 @@ function DeleteBranchDialog({
   };
 
   return (
-    <div>
-      <Dialog
-        open={open}
-        onClose={closeDialog}
+    <ModalContainer open={() => {}} isOpen={open} close={closeDialog}>
+      <DialogContent
         className="delete-branch-dialog"
+        title={intl.formatMessage(
+          { id: "RepoView.Dialog.DeleteBranch.DeleteBranch" },
+          { branchName: referenceToDelete.name }
+        )}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={closeDialog}
+              disabled={isSending}
+            >
+              <FormattedMessage id="Common.Cancel" />
+            </Button>
+            <Button variant="primary" onClick={onDelete} disabled={isSending}>
+              <FormattedMessage id="Common.Delete" />
+            </Button>
+          </>
+        }
       >
-        <CustomDialogTitle
-          onClose={closeDialog}
-          className="delete-branch-dialog-header"
-        >
-          <span className="delete-branch-dialog-header-title">
-            <FormattedMessage
-              id="RepoView.Dialog.DeleteBranch.DeleteBranch"
-              values={{ branchName: referenceToDelete.name }}
-            />
-          </span>
-        </CustomDialogTitle>
-        <DialogContent className="delete-branch-dialog-body">
-          <DialogContentText>
-            <FormattedMessage id="RepoView.Dialog.DeleteBranch.Confirmation" />
-          </DialogContentText>
+        <div className="delete-branch-dialog-body">
+          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Confirmation" />
           <div className="delete-branch-dialog-body-error">{errorText}</div>
-        </DialogContent>
-        <DialogActions className="delete-branch-dialog-actions">
-          <Button
-            variant="secondary"
-            onClick={closeDialog}
-            disabled={isSending}
-          >
-            <FormattedMessage id="Common.Cancel" />
-          </Button>
-          <Button variant="primary" onClick={onDelete} disabled={isSending}>
-            <FormattedMessage id="Common.Delete" />
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+        </div>
+      </DialogContent>
+    </ModalContainer>
   );
 }
 
-const mapDispatchToProps = { setReference: setReferenceAction };
-export default connect(null, mapDispatchToProps)(DeleteBranchDialog);
+export default DeleteBranchDialog;

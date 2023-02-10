@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -465,7 +466,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     final DremioConfig dremioConfig = sabotContext.get().getDremioConfig();
     this.statisticStore = new StatisticStore(storeProvider, dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_MAX_ENTRIES), dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_TIMEOUT_MINUTES));
     this.statisticEntriesStore = new StatisticEntriesStore(storeProvider);
-    this.entries = new HashMap<>();
+    this.entries = new ConcurrentHashMap<>();
     for (Map.Entry<String, JobId> entry : statisticEntriesStore.getAll()) {
       entries.put(entry.getKey(), entry.getValue());
     }

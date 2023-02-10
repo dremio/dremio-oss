@@ -58,6 +58,7 @@ public class SecurityHeadersFilter implements Filter {
     response.setHeader("x-content-type-options", "nosniff");
     response.setHeader("x-frame-options", "SAMEORIGIN");
     response.setHeader("x-xss-protection", "1; mode=block");
+    response.setHeader("Referrer-Policy", "origin");
     response.setHeader("Content-Security-Policy", System.getProperty("dremio.ui.csp-header", cspCache)
       + URLDecoder.decode(System.getProperty("dremio.ui.csp-header.opt-directives", ""), StandardCharsets.UTF_8.name()));
 

@@ -1,0 +1,165 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto3";
+package plan;
+
+option java_package = "com.dremio.plan.serialization";
+option optimize_for = SPEED;
+
+option java_multiple_files = true;
+
+enum PSqlTypeName {
+  UNKNOWN_SQL_TYPE_NAME = 0;
+  BOOLEAN = 1;
+  TINYINT = 2;
+  SMALLINT = 3;
+  INTEGER = 4;
+  BIGINT = 5;
+  DECIMAL = 6;
+  FLOAT = 7;
+  REAL = 8;
+  DOUBLE = 9;
+  DATE = 10;
+  TIME = 11;
+  TIME_WITH_LOCAL_TIME_ZONE = 12;
+  TIMESTAMP = 13;
+  TIMESTAMP_WITH_LOCAL_TIME_ZONE = 14;
+  INTERVAL_YEAR = 15;
+  INTERVAL_YEAR_MONTH = 16;
+  INTERVAL_MONTH = 17;
+  INTERVAL_DAY = 18;
+  INTERVAL_DAY_HOUR = 19;
+  INTERVAL_DAY_MINUTE = 20;
+  INTERVAL_DAY_SECOND = 21;
+  INTERVAL_HOUR = 22;
+  INTERVAL_HOUR_MINUTE = 23;
+  INTERVAL_HOUR_SECOND = 24;
+  INTERVAL_MINUTE = 25;
+  INTERVAL_MINUTE_SECOND = 26;
+  INTERVAL_SECOND = 27;
+  CHAR = 28;
+  VARCHAR = 29;
+  BINARY = 30;
+  VARBINARY = 31;
+  NULL = 32;
+  ANY = 33;
+  SYMBOL = 34;
+  MULTISET = 35;
+  ARRAY = 36;
+  MAP = 37;
+  DISTINCT = 38;
+  STRUCTURED = 39;
+  ROW = 40;
+  OTHER = 41;
+  CURSOR = 42;
+  COLUMN_LIST = 43;
+  DYNAMIC_STAR = 44;
+  GEOMETRY = 45;
+}
+
+message PRelDataType {
+  // related to abstract type.
+  bool nullable = 1;
+  PSqlTypeName type_name = 2;
+
+  // related to basic type.
+  int32 scale = 3;
+  int32 precision = 4;
+  PSqlCollation collation = 5;
+  string charset = 6;
+
+  // related to map type.
+  PRelDataType key_type = 7;
+  PRelDataType value_type = 8;
+
+  // related to struct type.
+  PStructKind struct_kind = 9;
+  repeated PRelDataTypeField children = 10;
+
+  // related to array type.
+  PRelDataType component_type = 11;
+}
+
+enum PStructKind {
+  UNKNOWN_STRUCT_KIND = 0;
+  NONE_STRUCT_KIND = 1;
+  FULLY_QUALIFIED = 2;
+  PEEK_FIELDS_DEFAULT = 3;
+  PEEK_FIELDS = 4;
+  PEEK_FIELDS_NO_EXPAND = 5;
+}
+
+message PRelDataTypeField {
+  string name = 1;
+  int32 index = 2;
+  PRelDataType type = 3;
+}
+
+/*
+enum PTimeUnitRange {
+  UNKNOWN_TIME_UNIT_RANGE = 0;
+  YEAR = 1;
+  YEAR_TO_MONTH = 2;
+  MONTH = 3;
+  DAY = 4;
+  DAY_TO_HOUR = 5;
+  DAY_TO_MINUTE = 6;
+  DAY_TO_SECOND = 7;
+  HOUR = 8;
+  HOUR_TO_MINUTE = 9;
+  HOUR_TO_SECOND = 10;
+  MINUTE = 11;
+  MINUTE_TO_SECOND = 12;
+  SECOND = 13;
+  QUARTER = 14;
+  WEEK = 15;
+  MILLISECOND = 16;
+  MICROSECOND = 17;
+  DOW = 18;
+  DOY = 19;
+  EPOCH = 20;
+  DECADE = 21;
+  CENTURY = 22;
+  MILLENNIUM = 23;
+}
+
+message PSqlIntervalQualifier {
+  int32 start_precision = 1;
+  PTimeUnitRange time_unit_range = 2;
+  int32 fractional_second_precision = 3;
+}
+*/
+
+message PSqlCollation {
+  enum Coercibility {
+    UNKNOWN_COERCIBILITY = 0;
+    EXPLICIT = 1;
+    IMPLICIT = 2;
+    COERCIBLE = 3;
+    NONE = 4;
+  }
+
+  string name = 1;
+  string charset = 2;
+  string locale = 3;
+  string strength = 4;
+  Coercibility coercibility = 5;
+}
+
+message PSymbol {
+  string clazz = 1;
+  string name = 2;
+}

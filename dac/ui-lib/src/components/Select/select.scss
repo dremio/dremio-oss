@@ -22,10 +22,10 @@
     .MuiSelect-select {
       @include input-size();
     }
-    height: 34px !important; //Was 34px before mui upgrade
+    height: 32px !important; //Was 34px before mui upgrade
     border: none !important; //Fieldset controls border now.
     letter-spacing: normal !important;
-    font-family: "Inter var", sans-serif !important;
+    font-family: var(--dremio--font-family) !important;
 
     //There was no hover style prior to mui upgrade
     fieldset {
@@ -33,7 +33,7 @@
     }
     &:hover {
       fieldset {
-        border-color: var(--dremio--color--neutral--200) !important;
+        border-color: var(--dremio--color--neutral--300) !important;
       }
     }
     &:focus,
@@ -97,6 +97,10 @@
     &.--selected {
       background-color: $iceberg !important;
     }
+  }
+
+  &__label {
+    padding-top: 4px;
   }
 
   [role="breadcrumb"] {

@@ -307,14 +307,20 @@ public class CreateViewHandler extends SimpleDirectHandler {
     return getViewSql(sql, asTokenPos, identifiers);
   }
 
-  protected RelNode getViewRelNode(SqlCreateView createView, boolean allowRenaming) throws ValidationException {
+  protected RelNode getViewRelNode(SqlCreateView createView, boolean allowRenaming) throws UserException, ValidationException {
     ConvertedRelNode convertedRelNode;
     try {
       convertedRelNode = PrelTransformer.validateAndConvert(config, createView.getQuery());
+    } catch (ValidationException | RelConversionException e) {
+      // Calcite exception could wrap exceptions in layers.  Find the root cause to get the original error message.
+      Throwable rootCause = e;
+      while (rootCause.getCause() != null) {
+        rootCause = rootCause.getCause();
+      }
+      throw UserException.validationError().message(rootCause.getMessage()).buildSilently();
     } catch (Exception e) {
-      throw UserException.resourceError().message("Cannot find table to create view from").buildSilently();
+      throw UserException.validationError().message("Cannot find table to create view from").buildSilently();
     }
-
     final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
     final RelNode queryRelNode = convertedRelNode.getConvertedNode();
     return SqlHandlerUtil.resolveNewTableRel(true, allowRenaming ? createView.getFieldNames() : createView.getFieldNamesWithoutColumnMasking(), validatedRowType, queryRelNode);

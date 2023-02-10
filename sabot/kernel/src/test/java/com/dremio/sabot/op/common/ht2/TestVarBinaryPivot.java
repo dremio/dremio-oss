@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -28,7 +29,6 @@ import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestWithAllocator;
-import com.google.common.base.Charsets;
 
 public class TestVarBinaryPivot extends BaseTestWithAllocator {
 
@@ -37,7 +37,7 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
       if (input == null) {
         return null;
       }
-      return input.getBytes(Charsets.UTF_8);
+      return input.getBytes(UTF_8);
     }).toArray(byte[][]::new));
   }
 
@@ -131,12 +131,12 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
       if (input == null) {
         return null;
       }
-      return new String(input, Charsets.UTF_8);
+      return new String(input, UTF_8);
     }).toArray(String[]::new);
   }
 
   private static byte[] b(String s){
-    return s.getBytes(Charsets.UTF_8);
+    return s.getBytes(UTF_8);
   }
 
   @Test

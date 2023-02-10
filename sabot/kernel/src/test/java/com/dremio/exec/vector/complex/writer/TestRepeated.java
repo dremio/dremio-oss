@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.vector.complex.writer;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.ByteArrayOutputStream;
 
 import org.apache.arrow.vector.complex.NonNullableStructVector;
@@ -32,7 +34,6 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.base.Charsets;
 
 public class TestRepeated extends ExecTest {
 
@@ -222,7 +223,7 @@ public class TestRepeated extends ExecTest {
     reader.setPosition(1);
     jsonWriter.write(reader);
     System.out.print("Json Read: ");
-    System.out.println(new String(stream.toByteArray(), Charsets.UTF_8));
+    System.out.println(new String(stream.toByteArray(), UTF_8));
 
     writer.close();
   }

@@ -43,14 +43,14 @@
   description: "SELECT STAR"
   input: "SELECT * "
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "FROM"
      - ","
      - ";"
+     - "AS"
      - "EXCEPT"
-     - "FETCH"
  -
   description: "SELECT STAR FROM"
   input: "SELECT * FROM "
@@ -66,14 +66,14 @@
   description: "SELECT STAR FROM IDENTIFIER"
   input: "SELECT * FROM emp "
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - "WHERE"
+     - "."
+     - "MATCH_RECOGNIZE"
      - "JOIN"
      - "ORDER"
-     - ","
-     - "NATURAL"
  -
   description: "SELECT STAR FROM IDENTIFIER WHERE"
   input: "SELECT * FROM emp WHERE "

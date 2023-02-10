@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -100,12 +99,7 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
 
   private void submitRandomQuery() {
     final String filename = queryFile[random.nextInt(queryFile.length)];
-    final String query;
-    try {
-      query = QueryTestUtil.normalizeQuery(getFile(filename)).replace(';', ' ');
-    } catch(IOException e) {
-      throw new RuntimeException("Caught exception", e);
-    }
+    final String query = QueryTestUtil.normalizeQuery(getFile(filename)).replace(';', ' ');
     final UserResultsListener listener = new ChainingSilentListener(query);
     client.runQuery(UserBitShared.QueryType.SQL, query, listener);
     synchronized(this) {

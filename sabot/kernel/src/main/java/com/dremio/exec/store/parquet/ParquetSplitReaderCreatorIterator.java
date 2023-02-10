@@ -36,9 +36,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
@@ -587,7 +587,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       try {
         if (rowGroupNums.isEmpty()) { // make sure rowGroupNums is populated only once
           rowGroupNums.addAll(ParquetReaderUtility.getRowGroupNumbersFromFileSplit(blockSplit.getStart(), blockSplit.getLength(), f));
-          trimRowGroupsFromFooter(f, blockSplit.getPath(), 0);
+          trimRowGroupsFromFooter(f, blockSplit.getPath(), rowGroupNums.stream().min(Integer::compareTo).orElse(0));
         }
       } catch (IOException e) {
         throw UserException.ioExceptionError(e)

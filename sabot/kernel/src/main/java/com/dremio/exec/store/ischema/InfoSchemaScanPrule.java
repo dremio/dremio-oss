@@ -44,6 +44,7 @@ public class InfoSchemaScanPrule extends RelOptRule {
         null,
         logicalScan.getProjectedColumns(),
         logicalScan.getObservedRowcountAdjustment(),
+        logicalScan.getHints(),
         ImmutableList.of()
         );
 

@@ -30,10 +30,8 @@ import {
   SET_QUERY_TAB_NUMBER,
   RESET_QUERY_STATE,
   SET_PREVIOUS_AND_CURRENT_SQL,
+  SET_UPDATE_SQL_FROM_HISTORY,
 } from "actions/explore/view";
-import { RUN_TABLE_TRANSFORM_SUCCESS } from "actions/explore/dataset/common";
-import { LOAD_EXPLORE_ENTITIES_SUCCESS } from "actions/explore/dataset/get";
-import { RUN_DATASET_SUCCESS } from "actions/explore/dataset/run";
 import { isLoaded } from "@app/reducers/reducerFactories";
 import { combineReducers } from "redux";
 import {
@@ -84,6 +82,15 @@ const selectedSql = (state = null, { type, sql }) => {
   }
 };
 
+const updateSqlFromHistory = (state = false, { type, updateSql }) => {
+  switch (type) {
+    case SET_UPDATE_SQL_FROM_HISTORY:
+      return updateSql;
+    default:
+      return state;
+  }
+};
+
 const isMultiQueryRunning = (state = null, { type, running }) => {
   switch (type) {
     case SET_IS_MULTI_QUERY_RUNNING:
@@ -97,6 +104,9 @@ const queryContext = (state = Immutable.List(), { type, context }) => {
   switch (type) {
     case SET_QUERY_CONTEXT: {
       return context;
+    }
+    case RESET_QUERY_STATE: {
+      return new Immutable.List();
     }
     default:
       return state;
@@ -146,18 +156,6 @@ const queryFilter = (state = "", { type, term }) => {
   }
 };
 
-const isPreviewMode = (state = true, { type }) => {
-  switch (type) {
-    case RUN_DATASET_SUCCESS:
-      return false;
-    case LOAD_EXPLORE_ENTITIES_SUCCESS:
-    case RUN_TABLE_TRANSFORM_SUCCESS:
-      return true;
-    default:
-      return state;
-  }
-};
-
 const sqlEditorFocusKey = (state = 0, { type }) => {
   switch (type) {
     case FOCUS_EDITOR:
@@ -185,8 +183,8 @@ export default combineReducers({
   currentSql,
   previousMultiSql,
   selectedSql,
+  updateSqlFromHistory,
   isMultiQueryRunning,
-  isPreviewMode,
   sqlEditorFocusKey,
   queryStatuses,
   queryTabNumber,

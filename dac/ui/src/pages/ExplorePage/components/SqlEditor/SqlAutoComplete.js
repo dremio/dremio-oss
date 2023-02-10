@@ -19,7 +19,7 @@ import { FormattedMessage } from "react-intl";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import deepEqual from "deep-equal";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import { connect } from "react-redux";
 import exploreUtils from "utils/explore/exploreUtils";
@@ -522,6 +522,7 @@ export class SqlAutoComplete extends Component {
           comment: "⌘/",
           find: "⌘F",
           autocomplete: "⌃ Space",
+          ...(config.allowFormatting ? { format: "⌘⇧F" } : {}),
         },
       });
     }
@@ -656,6 +657,14 @@ export class SqlAutoComplete extends Component {
                     <FormattedMessage id="KeyboardShortcuts.Autocomplete" />
                     <span>{this.state.keyboardShortcuts.autocomplete}</span>
                   </li>
+                  {config.allowFormatting ? (
+                    <li>
+                      <FormattedMessage id="SQL.Format" />
+                      <span>{this.state.keyboardShortcuts.format}</span>
+                    </li>
+                  ) : (
+                    <></>
+                  )}
                 </ul>
               </Tooltip>
             </span>

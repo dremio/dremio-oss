@@ -35,7 +35,7 @@ const AccountPage = (props) => {
         <SonarSideNav />
         <UserNavigation
           title={formatMessage({ id: "SideNav.AccountSettings" })}
-          sections={[accountSection]}
+          sections={[accountSection()]}
         />
         <div className="main-content">{children}</div>
       </div>

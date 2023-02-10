@@ -17,7 +17,7 @@ import { createRef, PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import $ from "jquery";
-import classNames from "classnames";
+import classNames from "clsx";
 import result from "lodash/result";
 
 import JSONTree from "react-json-tree";

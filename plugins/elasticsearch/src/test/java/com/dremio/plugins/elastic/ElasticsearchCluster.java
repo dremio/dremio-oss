@@ -23,6 +23,7 @@ import static com.dremio.plugins.elastic.ElasticsearchConf.AuthenticationType.NO
 import static com.dremio.plugins.elastic.ElasticsearchConstants.DEFAULT_READ_TIMEOUT_MILLIS;
 import static com.dremio.plugins.elastic.ElasticsearchConstants.DEFAULT_SCROLL_TIMEOUT_MILLIS;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
@@ -95,7 +96,6 @@ import com.dremio.plugins.elastic.ElasticTestActions.CreateIndex;
 import com.dremio.plugins.elastic.ElasticTestActions.DeleteIndex;
 import com.dremio.plugins.elastic.ElasticTestActions.PutMapping;
 import com.dremio.plugins.elastic.util.ProxyServerFactory;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteSource;
 import com.google.gson.JsonObject;
@@ -1122,7 +1122,7 @@ public class ElasticsearchCluster implements Closeable {
   }
 
   public static JsonObject asJsonObject(byte[] bytes) throws IOException {
-    return PARSER.parse(ByteSource.wrap(bytes).asCharSource(Charsets.UTF_8).openStream()).getAsJsonObject();
+    return PARSER.parse(ByteSource.wrap(bytes).asCharSource(UTF_8).openStream()).getAsJsonObject();
   }
 
   public SearchResults search(String schema, String table) throws IOException {

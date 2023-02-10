@@ -29,13 +29,11 @@ import useLoadLocale from "utils/locale/useLoadLocale";
 import { add } from "utils/storageUtils/localStorageListener";
 import { setUserState } from "@app/actions/account";
 import { intl } from "@app/utils/intl";
-import intercomUtils from "utils/intercomUtils";
+import { MantineProvider } from "@mantine/core";
+import { mantineTheme } from "dremio-ui-lib/dist-esm/mantineTheme";
 
 function Root({ store }) {
   const history = syncHistoryWithStore(browserHistory, store);
-  history.listen(() => {
-    intercomUtils.update();
-  });
   const projectContext = useProjectContext();
   //Re-render routes when project context changes
   const renderKey = projectContext?.id || "root";
@@ -56,15 +54,15 @@ function Root({ store }) {
   if (localeLoading) return null;
 
   return (
-    <RawIntlProvider value={intl}>
-      <Provider store={store}>
-        <div style={{ height: "100%" }}>
+    <MantineProvider theme={mantineTheme}>
+      <RawIntlProvider value={intl}>
+        <Provider store={store}>
           <Router key={renderKey} history={history}>
             {routes(store.dispatch, projectContext, isDataPlaneEnabled)}
           </Router>
-        </div>
-      </Provider>
-    </RawIntlProvider>
+        </Provider>
+      </RawIntlProvider>
+    </MantineProvider>
   );
 }
 Root.propTypes = {

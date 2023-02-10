@@ -15,7 +15,7 @@
  */
 
 import { Page } from "dremio-ui-lib/dist-esm";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { withRouter, type WithRouterProps } from "react-router";
 import * as PATHS from "../../paths";
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
@@ -41,6 +41,8 @@ import {
   SET_REF_REQUEST,
 } from "@app/actions/nessie/nessie";
 import { NotFound } from "@app/exports/components/ErrorViews/NotFound";
+import { ArcticCatalogProvider } from "@app/exports/providers/ArcticCatalogProvider";
+import { getTracingContext } from "dremio-ui-common/contexts/TracingContext.js";
 
 export type ArcticCatalogTabsType =
   | "data"
@@ -69,7 +71,7 @@ type ArcticCatalogProps = {
 export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
   const {
     location: { pathname },
-    params: { splat, branchName },
+    params: { splat, branchName, arcticCatalogId },
     router,
     children,
   } = props;
@@ -78,11 +80,20 @@ export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
     baseUrl,
   } = useNessieContext();
   const intl = useIntl();
-  const reservedNamespace = useRef(splat ?? "");
+  const [reservedNamespace, setReservedNamespace] = useState(splat ?? "");
   const isCatalog = useMemo(
     () => baseUrl.startsWith(PATHS.arcticCatalogs()),
     [baseUrl]
   );
+
+  useEffect(() => {
+    if (arcticCatalogId === sessionStorage.getItem("newCatalogId")) {
+      setTimeout(() => {
+        getTracingContext().appEvent("arctic-catalog-creation");
+      }, 2000);
+    }
+    sessionStorage.removeItem("newCatalogId");
+  }, [arcticCatalogId]);
 
   // useEffect will reroute if the url doesn't have branch/namespace
   useEffect(() => {
@@ -103,59 +114,62 @@ export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
 
   const activeTab = useMemo(() => {
     const tab = getArcticTabFromPathname(pathname);
-    if ((tab === "data" || tab === "commits") && branchName) {
-      reservedNamespace.current = `${branchName}${splat ? `/${splat}` : ""}`;
-    }
-
     if ((tab === "data" || tab === "settings") && !isCatalog) return;
     else return tab;
-  }, [pathname, splat, branchName, isCatalog]);
+  }, [pathname, isCatalog]);
 
-  const hasErrors =
+  useEffect(() => {
+    if ((activeTab === "data" || activeTab === "commits") && branchName) {
+      setReservedNamespace(`${branchName}${splat ? `/${splat}` : ""}`);
+    }
+  }, [activeTab, splat, branchName]);
+
+  const isContentNotFound =
     errors[DEFAULT_REF_REQUEST] || errors[SET_REF_REQUEST] || !activeTab;
 
-  const ArcticContent = hasErrors ? (
-    <div className={classes["arcticCatalog__notFound"]}>
-      <NotFound />
-    </div>
-  ) : (
-    <div className={classes["arcticCatalog"]}>
-      {notInTabView.includes(activeTab) ? (
-        <>{children}</>
-      ) : (
-        <ArcticCatalogTabs>{children}</ArcticCatalogTabs>
-      )}
-    </div>
+  const errorMessage = intl.formatMessage(
+    { id: "Support.error.section" },
+    {
+      section: intl.formatMessage({
+        id: `SectionLabel.arctic.${isCatalog ? "catalog" : "source"}`,
+      }),
+    }
+  );
+
+  const arcticContext = useMemo(
+    () => ({
+      reservedNamespace: reservedNamespace,
+      activeTab: activeTab ?? arcticCatalogTabs[0],
+      isCatalog: isCatalog, // TODO: better way to do this?
+    }),
+    [activeTab, isCatalog, reservedNamespace]
   );
 
   const ArcticContentWithErrorWrapper = (
-    <ErrorBoundary
-      title={intl.formatMessage(
-        { id: "Support.error.section" },
-        {
-          section: intl.formatMessage({
-            id: `SectionLabel.arctic.${isCatalog ? "catalog" : "source"}`,
-          }),
-        }
-      )}
-    >
+    <ErrorBoundary title={errorMessage}>
       <Page
         className={!isCatalog ? classes["arcticSource__page"] : ""}
         header={isCatalog ? <NavCrumbs /> : <ArcticSourceBreadcrumbs />}
       >
-        {ArcticContent}
+        {isContentNotFound ? (
+          <div className={classes["arcticCatalog__notFound"]}>
+            <NotFound />
+          </div>
+        ) : (
+          <div className={classes["arcticCatalog"]}>
+            {notInTabView.includes(activeTab) ? (
+              children
+            ) : (
+              <ArcticCatalogTabs>{children}</ArcticCatalogTabs>
+            )}
+          </div>
+        )}
       </Page>
     </ErrorBoundary>
   );
 
   return (
-    <ArcticCatalogContext.Provider
-      value={{
-        reservedNamespace: reservedNamespace.current,
-        activeTab: activeTab ?? arcticCatalogTabs[0],
-        isCatalog: isCatalog, // TODO: better way to do this?
-      }}
-    >
+    <ArcticCatalogContext.Provider value={arcticContext}>
       {isCatalog ? (
         <div className="page-content">
           <ArcticSideNav />
@@ -170,15 +184,21 @@ export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
 
 const ArcticCatalogWithRoute = withRouter(ArcticCatalog);
 const ArcticCatalogWithNessie = ({ children, ...props }: any) => (
-  <ArcticCatalogHomePage
-    arcticCatalogId={props?.params?.arcticCatalogId}
-    initialRef={{
-      name: props?.params?.branchName,
-      hash: props?.location?.query?.hash,
-    }}
-  >
-    <ArcticCatalogWithRoute>{children}</ArcticCatalogWithRoute>
-  </ArcticCatalogHomePage>
+  <ArcticCatalogProvider>
+    {(providerProps) => (
+      <ArcticCatalogHomePage
+        arcticCatalogId={props?.params?.arcticCatalogId}
+        initialRef={{
+          name: props?.params?.branchName,
+          hash: props?.location?.query?.hash,
+        }}
+        pathname={props.location.pathname}
+        {...providerProps}
+      >
+        <ArcticCatalogWithRoute>{children}</ArcticCatalogWithRoute>
+      </ArcticCatalogHomePage>
+    )}
+  </ArcticCatalogProvider>
 );
 
 export default ArcticCatalogWithNessie;

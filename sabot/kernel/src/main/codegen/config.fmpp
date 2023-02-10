@@ -34,13 +34,13 @@ data: {
     covarTypes:               tdd(../data/CovarTypes.tdd),
     corrTypes:                tdd(../data/CorrelationTypes.tdd),
     logicalTypes:             tdd(../data/AggrBitwiseLogicalTypes.tdd),
-    parser:                   tdd(../data/Parser.tdd),
     dateIntervalFunc:         tdd(../data/DateIntervalFunc.tdd),
     intervalNumericTypes:     tdd(../data/IntervalNumericTypes.tdd),
     numericTypes:             tdd(../data/NumericTypes.tdd),
     sumzero:                  tdd(../data/SumZero.tdd),
     countAggrTypes:           tdd(../data/CountAggrTypes.tdd)
     alltypes:                 tdd(../data/AllTypes.tdd)
+    MapFunctions:             tdd(../data/MapFunctions.tdd)
 }
 freemarkerLinks: {
     includes: includes/

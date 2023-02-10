@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Supplier;
 
@@ -73,7 +74,6 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 
 /**
@@ -251,7 +251,7 @@ class ScanWithHiveReader {
           partitionStorageHandlerName = HiveReaderProtoUtil.getPartitionStorageHandler(tableXattr, partitionXattr);
         }
 
-        jobConf.setInputFormat(getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName));
+        jobConf.setInputFormat(getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName, context.getOptions()));
         partitionOI = getStructOI(partitionSerDe);
         updateFileFormatStat(context.getStats(), partitionInputFormat);
 
@@ -263,7 +263,7 @@ class ScanWithHiveReader {
       } else {
         partitionSerDe = null;
         partitionOI = null;
-        jobConf.setInputFormat(getInputFormatClass(jobConf, tableInputFormat, HiveReaderProtoUtil.getTableStorageHandler(tableXattr)));
+        jobConf.setInputFormat(getInputFormatClass(jobConf, tableInputFormat, HiveReaderProtoUtil.getTableStorageHandler(tableXattr), context.getOptions()));
         updateFileFormatStat(context.getStats(), tableInputFormat);
       }
 

@@ -36,8 +36,6 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestSimpleFragmentRun extends PopUnitTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSimpleFragmentRun.class);
@@ -55,7 +53,7 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
     }});
     final String path = "/physical_test2.json";
 //      String path = "/filter/test1.json";
-    final List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL, Files.toString(FileUtils.getResourceAsFile(path), Charsets.UTF_8));
+    final List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL, readResourceAsString(path));
 
     // look at records
     final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
@@ -116,7 +114,7 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
       bit.run();
       client.connect();
       final List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL,
-          Files.toString(FileUtils.getResourceAsFile("/physical_json_scan_test1.json"), Charsets.UTF_8)
+          readResourceAsString("/physical_json_scan_test1.json")
               .replace("#{TEST_FILE}", FileUtils.getResourceAsFile("/scan_json_test_1.json").toURI().toString())
       );
 

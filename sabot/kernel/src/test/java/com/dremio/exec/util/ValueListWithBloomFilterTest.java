@@ -26,13 +26,13 @@ import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.types.Types;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.test.AllocatorRule;
 
 public class ValueListWithBloomFilterTest {

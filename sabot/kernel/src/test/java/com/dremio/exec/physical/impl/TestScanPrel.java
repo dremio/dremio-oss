@@ -26,6 +26,7 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
@@ -100,8 +101,11 @@ public class TestScanPrel {
         new RuntimeFilterId(1234L, false), null, "test", "test"));
 
     final double observedRowCountAdjustment = 0.5d;
+    final List<RelHint> hints = ImmutableList.of();
     final double delta = 0.1;
-    ParquetScanPrel scanPrel = new ParquetScanPrel(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowCountAdjustment, parquetScanFilter, arrowCachingEnabled, runtimeFilters);
+    ParquetScanPrel scanPrel = new ParquetScanPrel(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns,
+                                                   observedRowCountAdjustment, hints, parquetScanFilter,
+                                                   arrowCachingEnabled, runtimeFilters);
 
     // test copy
     final ParquetScanPrel copiedScanPrel = (ParquetScanPrel) scanPrel.copy(traitSet, null);

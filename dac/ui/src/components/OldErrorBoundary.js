@@ -19,7 +19,6 @@ import PropTypes from "prop-types";
 import { showAppError } from "actions/prodError";
 import sentryUtil from "@app/utils/sentryUtil";
 
-const isProd = process.env.NODE_ENV === "production";
 const mapDispatchToProps = {
   showAppError,
 };
@@ -41,9 +40,6 @@ export class ErrorBoundary extends PureComponent {
   }
 
   componentDidCatch(error) {
-    if (!isProd) {
-      debugger; // eslint-disable-line no-debugger
-    }
     // This line must be here as in case DREMIO_RELEASE=true Sentry does not not catch a error
     sentryUtil.logException(error);
     this.props.showAppError(error);

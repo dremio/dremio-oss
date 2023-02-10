@@ -17,6 +17,7 @@ package com.dremio.service.reflection;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
@@ -26,7 +27,6 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshRequest;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.RefreshRequestsStore;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 /**
@@ -81,7 +81,7 @@ public class DependencyResolutionContextFactory {
     {
       ReflectionEntry entry = entriesStore.get(id);
       if (entry != null) {
-        return Optional.fromNullable(entry.getLastSuccessfulRefresh());
+        return Optional.ofNullable(entry.getLastSuccessfulRefresh());
       } else {
         return null;
       }
@@ -120,7 +120,7 @@ public class DependencyResolutionContextFactory {
     public DependencyResolutionContextCached(final boolean hasAccelerationSettingsChanged) {
       entriesMap = new HashMap<>();
       entriesStore.find().forEach(reflectionEntry -> entriesMap.put(reflectionEntry.getId(),
-        Optional.fromNullable(reflectionEntry.getLastSuccessfulRefresh())));
+        Optional.ofNullable(reflectionEntry.getLastSuccessfulRefresh())));
       requestMap = new HashMap<>();
       this.hasAccelerationSettingsChanged = hasAccelerationSettingsChanged;
       entriesCacheRequests = 0;
@@ -148,10 +148,10 @@ public class DependencyResolutionContextFactory {
       Optional<RefreshRequest> request = requestMap.get(datasetId);
       if (request == null) {
         requestCacheMisses++;
-        request = Optional.fromNullable(requestsStore.get(datasetId));
+        request = Optional.ofNullable(requestsStore.get(datasetId));
         requestMap.put(datasetId, request);
       }
-      return request.orNull();
+      return request.orElse(null);
     }
 
     @Override

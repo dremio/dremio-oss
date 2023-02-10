@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
+import com.dremio.common.exceptions.UserException;
+
 /* Base class for producing output record batches while dealing with
  * Text files.
  */
@@ -89,5 +91,13 @@ abstract class TextOutput {
 
   public void close() {
     // no op
+  }
+
+  public int getFieldCurrentDataPointer() {
+    throw UserException.unsupportedError().message("Unsupported operation \"getCurrentDataPointer\"").buildSilently();
+  }
+
+  public void setFieldCurrentDataPointer(int currentDataPointer) {
+    throw UserException.unsupportedError().message("Unsupported operation \"setCurrentDataPointer\"").buildSilently();
   }
 }

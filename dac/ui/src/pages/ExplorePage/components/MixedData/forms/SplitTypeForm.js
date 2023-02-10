@@ -28,7 +28,7 @@ import {
 } from "uiTheme/radium/flexStyle";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import NewFieldSection from "components/Forms/NewFieldSection";
-import classNames from "classnames";
+import classNames from "clsx";
 import {
   title,
   columnsContainer,

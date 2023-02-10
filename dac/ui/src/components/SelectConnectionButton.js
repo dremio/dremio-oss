@@ -15,11 +15,8 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import SourceIcon from "components/Icon/SourceIcon";
-import sendEventToIntercom from "@inject/sagas/utils/sendEventToIntercom";
-import INTERCOM_EVENTS from "@inject/constants/intercomEvents";
-import * as VersionUtils from "@app/utils/versionUtils";
 import {
   buttonBase,
   buttonDisabled,
@@ -30,13 +27,12 @@ import {
   pillCommunity,
   iconContainer,
 } from "./SelectConnectionButton.less";
-
+import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
 export default class SelectConnectionButton extends Component {
   static propTypes = {
     sampleSource: PropTypes.bool,
     label: PropTypes.string.isRequired,
-    iconType: PropTypes.string.isRequired,
-    icon: PropTypes.string,
+    dremioIcon: PropTypes.string,
     pillText: PropTypes.string,
     isCommunity: PropTypes.bool,
     disabled: PropTypes.bool,
@@ -50,21 +46,14 @@ export default class SelectConnectionButton extends Component {
   render() {
     const {
       label,
-      iconType,
-      icon,
+      dremioIcon,
       pillText,
       disabled,
       isCommunity,
       onClick,
       sampleSource = false,
     } = this.props;
-    const edition = VersionUtils.getEditionFromConfig();
-    // if icon is provided, use it, otherwise use iconType as an icon file name
-    let src = icon;
-    if (!src) {
-      src =
-        iconType === "sources/NETEZZA" ? `${iconType}.png` : `${iconType}.svg`;
-    }
+
     const buttonClass = classNames({
       [buttonBase]: true,
       [buttonDisabled]: disabled,
@@ -78,17 +67,16 @@ export default class SelectConnectionButton extends Component {
           !disabled
             ? () => {
                 onClick();
-                // sends intercom event for sample source since it doesnt have a form like the rest.
-                if (sampleSource && edition === "DCS")
-                  sendEventToIntercom(INTERCOM_EVENTS.SOURCE_ADD_COMPLETE);
+                if (sampleSource) {
+                  sonarEvents.sourceAddComplete();
+                }
               }
             : undefined
         }
-        data-qa={iconType}
-        key={iconType}
+        data-qa={dremioIcon}
       >
         <div className={iconContainer}>
-          <SourceIcon src={src} alt="" style={styles.iconStyle} />
+          <SourceIcon dremioIcon={dremioIcon} style={styles.iconStyle} />
         </div>
         <h3 className={connectionLabel}>{label}</h3>
         {pillText && (

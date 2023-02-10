@@ -196,38 +196,14 @@
      - "CASE"
      - "("
  -
-  description: "UNIQUE"
-  input: "SELECT Name FROM Production.Product WHERE UNIQUE "
-  output:
-    hasIdentifier: true
-    hasMoreResults: true
-    tokens:
-     - "("
-     - "+"
-     - "-"
-     - "?"
-     - "ARRAY"
- -
-  description: "UNIQUE("
-  input: "SELECT Name FROM Production.Product WHERE UNIQUE("
-  output:
-    hasIdentifier: true
-    hasMoreResults: true
-    tokens:
-     - "CASE"
-     - "("
-     - "MULTISET"
-     - "INTERVAL"
-     - "NULL"
- -
   description: "ALIAS"
   input: "SELECT Name, ListPrice, (SELECT AVG(ListPrice) FROM Production.Product) "
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
+     - "AS"
      - ","
      - "FROM"
+     - ">"
      - "ORDER"
-     - ";"
-     - "EXCEPT"

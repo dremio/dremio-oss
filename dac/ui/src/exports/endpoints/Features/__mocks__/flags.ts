@@ -15,6 +15,8 @@
  */
 
 import { FeatureFlagResponse } from "../FeatureFlagResponse.type";
+import { SONAR_URLABILITY_UI } from "@app/exports/flags/SONAR_URLABILITY_UI";
+import { SQL_JOB_STATUS } from "@app/exports/flags/SQL_JOB_STATUS";
 
 export const flags: Record<string, FeatureFlagResponse["entitlement"]> = {
   arctic_catalog_creation: "ENABLED",
@@ -22,4 +24,7 @@ export const flags: Record<string, FeatureFlagResponse["entitlement"]> = {
   arctic_catalog_ui: "ENABLED",
   organization_landing_ui: "ENABLED",
   data_plane_project_creation_ui: "ENABLED",
+  disable_data_plane_project_creation_ui: "DISABLED",
+  [SONAR_URLABILITY_UI as string]: "ENABLED",
+  [SQL_JOB_STATUS as string]: "ENABLED",
 };

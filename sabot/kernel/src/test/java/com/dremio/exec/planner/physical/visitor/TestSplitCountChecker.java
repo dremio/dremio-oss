@@ -198,7 +198,8 @@ public class TestSplitCountChecker {
     final RelOptTable relOptTable = Mockito.mock(RelOptTable.class);
     when(relOptTable.getRowCount()).thenReturn(rowCount);
     when(relOptTable.getQualifiedName()).thenReturn(ImmutableList.of("sys", "version"));
-    return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, rowType, ImmutableList.of());
+    return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, ImmutableList.of(), rowType,
+                              ImmutableList.of());
   }
 
   private RelDataType rowType() {

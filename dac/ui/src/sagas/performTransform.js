@@ -50,6 +50,7 @@ import {
   loadTableData,
   cancelDataLoad,
   loadDataset,
+  listenToJobProgress,
 } from "@app/sagas/performLoadDataset";
 import { transformHistoryCheck } from "sagas/transformHistoryCheck";
 import { getExploreState, getExplorePageDataset } from "selectors/explore";
@@ -85,9 +86,15 @@ import {
 import { getNessieReferences } from "./nessie";
 import {
   fetchFilteredJobsList,
+  JOB_PAGE_NEW_VIEW_ID,
   resetFilteredJobsList,
 } from "@app/actions/joblist/jobList";
 import { extractSql, toQueryRange } from "@app/utils/statements/statement";
+import {
+  handlePostNewQueryJobSuccess,
+  postNewQueryJob,
+} from "./performTransformNew";
+import { getFeatureFlag } from "@app/selectors/featureFlagsSelector";
 
 export default function* watchPerformTransform() {
   yield all([
@@ -124,6 +131,7 @@ export function* performTransform(payload) {
       indexToModify,
       isSaveViewAs,
       isRun,
+      viewId,
     } = payload;
     yield put(setIsMultiQueryRunning({ running: true }));
 
@@ -169,8 +177,108 @@ export function* performTransform(payload) {
         continue;
       }
 
-      // handle API call (Temp solution, waiting on backend to provide a fix)
       const isLastQuery = i === queryStatuses.length - 1;
+
+      let willProceed = true;
+
+      const isNotDataset =
+        !dataset.get("datasetVersion") ||
+        (!dataset.get("datasetType") && !dataset.get("sql"));
+
+      const useNewQueryFlow = yield select(
+        getFeatureFlag,
+        "job_status_in_sql_runner"
+      );
+
+      // the process for running/previewing a new query is handled differently
+      // submit job request -> listen to job progress -> fetch dataset data
+      // if job fails -> call jobs API to fetch error details
+      if (isNotDataset && useNewQueryFlow !== "DISABLED") {
+        const [response] = yield call(postNewQueryJob, {
+          ...payload,
+          sessionId,
+          sqlStatement: queryStatuses[i].sqlStatement,
+        });
+
+        // TODO: this can be cleaned up by being put in a saga since we fetch queryStatuses in multiple places
+        exploreState = yield select(getExploreState);
+
+        if (!exploreState) {
+          shouldBreak = true;
+          break;
+        }
+
+        // fetch queryStatuses from Redux
+        const updatedQueryStatuses = cloneDeep(
+          exploreState?.view?.queryStatuses
+        );
+
+        // if queryStatuses does not exist, use the manually generated statuses
+        const mostRecentStatuses = updatedQueryStatuses.length
+          ? updatedQueryStatuses
+          : cloneDeep(queryStatuses);
+
+        // handle successful job submission
+        if (response?.payload) {
+          let datasetPath = "";
+          let datasetVersion = "";
+          let jobId = "";
+          let paginationUrl = "";
+
+          // destructure response and update the queryStatuses object in Redux
+          [datasetPath, datasetVersion, jobId, paginationUrl, sessionId] =
+            yield call(handlePostNewQueryJobSuccess, {
+              response,
+              queryStatuses: mostRecentStatuses,
+              curIndex: i,
+              indexToModify,
+              callback,
+            });
+
+          if (!isSaveViewAs) {
+            // add job definition to jobs table
+            yield put(fetchFilteredJobsList(jobId, JOB_PAGE_NEW_VIEW_ID));
+          }
+
+          // start the job listener and track job progress in Redux
+          willProceed = yield call(
+            listenToJobProgress,
+            datasetVersion,
+            jobId,
+            paginationUrl,
+            isRun,
+            datasetPath,
+            callback,
+            i,
+            sessionId,
+            viewId
+          );
+        }
+
+        if (!callback && (!willProceed || (isLastQuery && !response.payload))) {
+          exploreState = yield select(getExploreState);
+
+          // fetch queryStatuses from Redux
+          const updatedQueryStatuses = cloneDeep(
+            exploreState?.view?.queryStatuses
+          );
+
+          // if queryStatuses does not exist, use the manually generated statuses
+          const mostRecentStatuses = updatedQueryStatuses.length
+            ? updatedQueryStatuses
+            : cloneDeep(queryStatuses);
+
+          for (let idx = i + 1; idx < mostRecentStatuses.length; idx++) {
+            mostRecentStatuses[idx].cancelled = true;
+          }
+
+          yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
+          break;
+        }
+
+        continue;
+      }
+
       const [response, newVersion] = yield call(
         performTransformSingle,
         { ...payload, sessionId },
@@ -208,7 +316,7 @@ export function* performTransform(payload) {
         if (!isSaveViewAs) {
           // add job definition to jobs table
           yield put(
-            fetchFilteredJobsList(jobId, "JOB_PAGE_NEW_VIEW_ID", indexToModify)
+            fetchFilteredJobsList(jobId, JOB_PAGE_NEW_VIEW_ID, indexToModify)
           );
           // we successfully loaded a dataset metadata. We need load table data for it
           yield call(loadTableData, resultDataset.get("datasetVersion"), isRun);
@@ -216,7 +324,6 @@ export function* performTransform(payload) {
       }
 
       // handle failure
-      let willProceed = true;
       if (response && (!response.payload || response.error)) {
         willProceed = yield call(handlePerformTransformFailure, {
           response,
@@ -307,6 +414,7 @@ export function* performTransformSingle(payload, query) {
           "transformThenNavigate must return not empty response without error"
         );
       }
+
       resultDataset = apiUtils.getEntityFromResponse("datasetUI", response);
     }
 
@@ -363,6 +471,8 @@ export function* handlePerformTransformSuccess({
   return [sessionId];
 }
 
+const PARSE_FAILURE = "Failure parsing the query.";
+
 export function* handlePerformTransformFailure({
   response,
   queryStatuses,
@@ -373,13 +483,17 @@ export function* handlePerformTransformFailure({
   const mostRecentStatuses = queryStatuses;
 
   const error = response?.response?.payload?.response ?? {};
+  const statusCode = response?.response?.payload?.status;
+  const isGenericFailure = statusCode === 400;
   const isLastQuery = mostRecentStatuses.length - 1 === curIndex;
   let willProceed = true;
-  if (error.code === "INVALID_QUERY" && !isSaveViewAs && !isLastQuery) {
+  if (isGenericFailure && !isSaveViewAs && !isLastQuery) {
+    const isParseError = error?.errorMessage === PARSE_FAILURE;
     willProceed = yield call(
       showFailedJobDialog,
       curIndex,
-      mostRecentStatuses[curIndex].sqlStatement
+      mostRecentStatuses[curIndex].sqlStatement,
+      isParseError ? undefined : error?.errorMessage
     );
   } else if (handlePerformTransformError(response) || isSaveViewAs) {
     willProceed = false;
@@ -661,7 +775,7 @@ export function* proceedWithDataLoad(dataset, queryContext, currentSql) {
   return true;
 }
 
-export function* showFailedJobDialog(i, sql) {
+export function* showFailedJobDialog(i, sql, errorMessage) {
   const options = {
     selectOnLineNumbers: false,
     disableLayerHinting: true,
@@ -680,6 +794,26 @@ export function* showFailedJobDialog(i, sql) {
   let action;
   const isContrast = localStorageUtils.getSqlThemeContrast();
 
+  const mainMessage = errorMessage ? (
+    <>
+      {errorMessage} -{" "}
+      <b>{`${intl.formatMessage({
+        id: "NewQuery.LowercaseQuery",
+      })} ${i + 1}`}</b>
+    </>
+  ) : (
+    intl.formatMessage(
+      { id: "NewQuery.FailedMessageState" },
+      {
+        queryIndex: (
+          <b>{`${intl.formatMessage({
+            id: "NewQuery.LowercaseQuery",
+          })} ${i + 1}`}</b>
+        ),
+      }
+    )
+  );
+
   const confirmPromise = new Promise((resolve) => {
     action = showConfirmationDialog({
       title: intl.formatMessage({ id: "NewQuery.FailedTitle" }),
@@ -687,18 +821,7 @@ export function* showFailedJobDialog(i, sql) {
       cancelText: intl.formatMessage({ id: "NewQuery.StopExecution" }),
       text: (
         <div className="failedJobDialog__body">
-          <div className="failedJobDialog__message">
-            {intl.formatMessage(
-              { id: "NewQuery.FailedMessageState" },
-              {
-                queryIndex: (
-                  <b>{`${intl.formatMessage({
-                    id: "NewQuery.LowercaseQuery",
-                  })} ${i + 1}`}</b>
-                ),
-              }
-            )}
-          </div>
+          <div className="failedJobDialog__message">{mainMessage}</div>
           <div className="failedJobDialog__editor">
             <SQLEditor
               readOnly

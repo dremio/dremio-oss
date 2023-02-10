@@ -15,7 +15,7 @@
  */
 import { PureComponent, Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import Immutable from "immutable";
 import { withRouter } from "react-router";
 import { connect } from "react-redux";
@@ -32,6 +32,9 @@ import {
   icon as iconClass,
   iconActive,
 } from "./PageTypeButtons.less";
+import * as classes from "./PageTypeButtons.less";
+import { getSortedSources } from "@app/selectors/home";
+import { getSourceByName } from "@app/utils/nessieUtils";
 
 export class SinglePageTypeButton extends Component {
   static propTypes = {
@@ -41,6 +44,7 @@ export class SinglePageTypeButton extends Component {
     onClick: PropTypes.func,
     dataQa: PropTypes.string,
     classname: PropTypes.string,
+    disabled: PropTypes.bool,
   };
 
   render() {
@@ -48,7 +52,9 @@ export class SinglePageTypeButton extends Component {
 
     return (
       <span
-        className={classNames(button, isSelected && buttonActive, classname)}
+        className={classNames(button, isSelected && buttonActive, classname, {
+          [classes["disabled"]]: this.props.disabled,
+        })}
         onClick={onClick}
         data-qa={dataQa}
       >
@@ -72,6 +78,7 @@ class ButtonController extends PureComponent {
     text: PropTypes.string,
     icon: PropTypes.string,
     dataQa: PropTypes.string,
+    disabled: PropTypes.bool,
 
     //withRouter props
     location: PropTypes.object.isRequired,
@@ -86,9 +93,16 @@ class ButtonController extends PureComponent {
       router,
     } = this.props;
 
+    if (this.props.disabled) return;
+
     if (selectedPageType !== pageType) {
       const pathname = changePageTypeInUrl(location.pathname, pageType);
-      router.push({ ...location, pathname });
+
+      //Type is used for sub-pags like join,group by. Remove when navigating
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { type: omit, ...query } = location.query || {};
+
+      router.push({ ...location, pathname, query });
     }
   };
 
@@ -102,6 +116,7 @@ class ButtonController extends PureComponent {
         icon={icon}
         onClick={this.setPageType}
         dataQa={dataQa}
+        disabled={this.props.disabled}
       />
     );
   }
@@ -137,9 +152,14 @@ const buttonsConfigs = {
   },
 };
 
-const mapStateToProps = (state, { location }) => ({
-  showWiki: isWikAvailable(state, location),
-});
+const mapStateToProps = (state, { location, dataset }) => {
+  const sources = getSortedSources(state);
+  const sourceName = dataset?.get("displayFullPath").get(0);
+  return {
+    showWiki: isWikAvailable(state, location),
+    versionedSource: getSourceByName(sourceName, sources.toJS()),
+  };
+};
 
 @PageTypeButtonsMixin
 export class PageTypeButtonsView extends PureComponent {
@@ -152,14 +172,7 @@ export class PageTypeButtonsView extends PureComponent {
   };
 
   getAvailablePageTypes() {
-    const { showWiki } = this.props;
-    const pageTypeList = [PageTypes.default];
-
-    if (showWiki) {
-      pageTypeList.push(PageTypes.wiki);
-    }
-
-    return pageTypeList;
+    return [PageTypes.default];
   }
 
   render() {
@@ -181,6 +194,8 @@ export class PageTypeButtonsView extends PureComponent {
                 selectedPageType={selectedPageType}
                 text={formatMessage(intlId)}
                 pageType={pageType}
+                //Disable for join,groupBy, etc which use "type" param
+                disabled={!!location.query?.type}
                 {...rest}
               />
             );

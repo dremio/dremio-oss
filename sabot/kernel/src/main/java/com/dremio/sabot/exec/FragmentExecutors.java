@@ -401,6 +401,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     }
 
     @Override
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void buildAndStartQuery(final QueryTicket queryTicket) {
       QueryId queryId = queryTicket.getQueryId();
 
@@ -460,6 +461,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     }
 
     @Override
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void unableToBuildQuery(Exception e) {
       if (e instanceof UserRpcException) {
         sender.onError((UserRpcException) e);

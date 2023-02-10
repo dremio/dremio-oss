@@ -62,7 +62,9 @@ export class ClusterListView extends Component {
   };
 
   state = {
-    filterState: { filters: DEFAULT_ENGINE_FILTER_SELECTIONS },
+    filterState: {
+      filters: JSON.parse(JSON.stringify(DEFAULT_ENGINE_FILTER_SELECTIONS)),
+    },
   };
 
   onUpdateFilterState = (filterState) => {
@@ -80,7 +82,10 @@ export class ClusterListView extends Component {
             />
           ),
         },
-        engine: { node: () => this.getEngineName(engine) },
+        engine: {
+          node: () => this.getEngineName(engine),
+          clickValue: engine.get("id"),
+        },
         size: { node: () => this.getEngineSize(engine) },
         cores: { node: () => this.getClusterCPUCores(engine) },
         memory: { node: () => this.getClusterRAM(engine) },
@@ -149,18 +154,6 @@ export class ClusterListView extends Component {
     return engines.map((engine) => this.getEngineData(engine, engines.size));
   };
 
-  onRowClick = (rowId) => {
-    const engines = this.getEngines();
-    let eng = {};
-    engines.map((engine, index) => {
-      if (rowId === index + 1) {
-        eng = engine;
-      }
-    });
-    const engineId = eng.get("id");
-    this.props.selectEngine(engineId);
-  };
-
   render() {
     // provisions are sorted in selectors/provision
     const { viewState } = this.props;
@@ -185,7 +178,8 @@ export class ClusterListView extends Component {
             scrollableTable
             fixedColumnCount={2}
             defaultSortDirection="ASC"
-            onClick={this.onRowClick?.bind(this)}
+            onClick={this.props.selectEngine}
+            onClickId={"engine"}
           />
         </div>
       </div>

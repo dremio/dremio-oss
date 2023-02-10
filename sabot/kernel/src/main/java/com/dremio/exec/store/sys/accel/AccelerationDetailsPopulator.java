@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.sys.accel;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
@@ -57,6 +58,10 @@ public interface AccelerationDetailsPopulator {
 
   byte[] computeAcceleration();
 
+  List<String> getConsideredReflectionIds();
+  List<String> getMatchedReflectionIds();
+  List<String> getChosenReflectionIds();
+
   AccelerationDetailsPopulator NO_OP = new AccelerationDetailsPopulator() {
     @Override
     public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
@@ -81,6 +86,21 @@ public interface AccelerationDetailsPopulator {
     @Override
     public byte[] computeAcceleration() {
       return new byte[0];
+    }
+
+    @Override
+    public List<String> getConsideredReflectionIds() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public List<String> getMatchedReflectionIds() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public List<String> getChosenReflectionIds() {
+      return Collections.emptyList();
     }
   };
 }

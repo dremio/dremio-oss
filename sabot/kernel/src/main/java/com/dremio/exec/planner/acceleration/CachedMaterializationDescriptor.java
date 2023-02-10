@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import java.util.List;
+import java.util.Set;
+
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
@@ -25,6 +28,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
 import com.dremio.exec.planner.RoutingShuttle;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.store.CatalogService;
 import com.google.common.base.Preconditions;
@@ -92,5 +96,17 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
 
   public DremioMaterialization getMaterialization() {
     return materialization;
+  }
+
+  /**
+   * Returns true only if there is overlap between this materialization and the input tables, views and external queries.
+   * @param queryTablesUsed
+   * @param queryVdsUsed
+   * @param externalQueries
+   * @return
+   */
+  @Override
+  public boolean isApplicable(Set<List<String>> queryTablesUsed, Set<List<String>> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
+    return SubstitutionUtils.usesTableOrVds(queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel());
   }
 }

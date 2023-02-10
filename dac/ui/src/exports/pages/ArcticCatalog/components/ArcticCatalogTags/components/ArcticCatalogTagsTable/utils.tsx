@@ -15,15 +15,16 @@
  */
 
 import { FormattedMessage } from "react-intl";
-import TagsActionsMenu from "./components/TagsActionsMenu/TagsActionsMenu";
 import SettingsBtn from "@app/components/Buttons/SettingsBtn";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
 import { Avatar } from "dremio-ui-lib/dist-esm";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
-import { DEFAULT_FORMAT_WITH_TIME_SECONDS, formatDate } from "@app/utils/date";
 import { Tag } from "@app/services/nessie/client";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import ArcticGitActionsMenu from "../../../ArcticGitActionsMenu/ArcticGitActionsMenu";
+import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import { getShortHash } from "@app/utils/nessieUtils";
 
 export const getTagsTableColumns = () => {
   return [
@@ -56,11 +57,8 @@ export const getTagsTableColumns = () => {
 
 export const generateTableRows = (
   data: ({ type: "TAG" } & Tag)[],
-  handleTabNavigation: (
-    tag: { type: "TAG" } & Tag,
-    tab: ArcticCatalogTabsType
-  ) => void,
-  setDialogState: React.Dispatch<React.SetStateAction<any>>
+  goToDataTab: (tab: ArcticCatalogTabsType, tag: { type: "TAG" } & Tag) => void,
+  handleOpenDialog: (dialogType: "TAG" | "BRANCH", dialogState: any) => void
 ) => {
   const tableData: any[] = [];
 
@@ -68,22 +66,26 @@ export const generateTableRows = (
     const commitData = tag?.metadata?.commitMetaOfHEAD;
 
     tableData.push({
-      id: commitData?.hash,
-      rowClassName: commitData?.hash,
+      id: tag.hash,
+      rowClassName: tag.hash,
       data: {
         tagName: {
           node: () => (
             <div className="tag-name">
               <dremio-icon name="vcs/tag" class="tag-name__icon" />
-              <span className="tag-name__name">{tag?.name}</span>
+              <span className="tag-name__name">{tag.name}</span>
             </div>
           ),
         },
         author: {
           node: () => (
             <div className="author">
-              <Avatar initials={nameToInitials(commitData?.author ?? "")} />
-              <span className="author__name">{commitData?.author}</span>
+              {commitData?.author && (
+                <>
+                  <Avatar initials={nameToInitials(commitData?.author ?? "")} />
+                  <span className="author__name">{commitData?.author}</span>
+                </>
+              )}
             </div>
           ),
         },
@@ -92,7 +94,7 @@ export const generateTableRows = (
             <div className="commit-id">
               <dremio-icon name="vcs/commit" class="commit-id__icon" />
               <span className="commit-id__id">
-                {commitData?.hash?.slice(-6)}
+                {getShortHash(tag.hash || "")}
               </span>
             </div>
           ),
@@ -106,16 +108,18 @@ export const generateTableRows = (
           node: () => (
             <div className="commit-time">
               <span className="commit-time__time">
-                {formatDate(
-                  commitData?.commitTime + "",
-                  DEFAULT_FORMAT_WITH_TIME_SECONDS
-                )}
+                {commitData?.commitTime
+                  ? convertISOStringWithTooltip(
+                      commitData.commitTime.toString(),
+                      { isRelative: true }
+                    )
+                  : ""}
               </span>
               <span className="commit-time__buttons">
                 <IconButton
                   tooltip="ArcticCatalog.Commits.GoToData"
                   onClick={() => {
-                    handleTabNavigation(tag, "data");
+                    goToDataTab("data", tag);
                   }}
                   className="commit-time__buttons--data"
                 >
@@ -124,9 +128,9 @@ export const generateTableRows = (
                 <SettingsBtn
                   classStr="commit-time__buttons--more"
                   menu={
-                    <TagsActionsMenu
-                      tag={tag}
-                      setDialogState={setDialogState}
+                    <ArcticGitActionsMenu
+                      fromItem={tag}
+                      handleOpenDialog={handleOpenDialog}
                     />
                   }
                   tooltip="Common.More"

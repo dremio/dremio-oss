@@ -49,7 +49,6 @@ describe("ExplorePageController", () => {
         isNewQuery: true,
         fullPath: ["tmp", "UNTITLED"],
         displayFullPath: ["tmp", "New Query"],
-        //have to decode a context parameter. This should be consistent with NewQueryButton.getNewQueryHref
         context: ["@dremio"],
         sql: "",
         datasetType: "VIRTUAL_DATASET",

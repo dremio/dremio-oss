@@ -16,8 +16,11 @@
 package com.dremio.dac.service.reflection;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Inject;
+
+import org.apache.calcite.util.Pair;
 
 import com.dremio.dac.api.Reflection;
 import com.dremio.dac.service.errors.ReflectionNotFound;
@@ -26,9 +29,10 @@ import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionStatus;
 import com.dremio.service.reflection.ReflectionStatusService;
+import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
-import com.google.common.base.Optional;
 
 /**
  * Reflection service helper
@@ -107,16 +111,20 @@ public class ReflectionServiceHelper {
     getReflectionAdministrationService().clearAll();
   }
 
-  public long getCurrentSize(String id) {
-    long size = 0;
-
+  /**
+   * If reflection has a done materialization, returns the current size in bytes and output records
+   * @param id
+   * @return
+  */
+  public Pair<Long, Long> getCurrentSize(String id) {
     final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
-    if (reflectionAdministrationService.getLastDoneMaterialization(reflectionId).isPresent()) {
-      size = reflectionAdministrationService.getReflectionSize(reflectionId);
+    Optional<Materialization> materialization = reflectionAdministrationService.getLastDoneMaterialization(reflectionId);
+    if (materialization.isPresent()) {
+      Pair<MaterializationMetrics, Long> metrics = getReflectionStatusService().getReflectionSize(materialization.get());
+      return Pair.of(metrics.left.getFootprint(), metrics.right);
     }
-
-    return size;
+    return Pair.of(0L ,0L);
   }
 
   public long getTotalSize(String id) {
@@ -125,7 +133,7 @@ public class ReflectionServiceHelper {
     final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
     if (reflectionAdministrationService.getLastDoneMaterialization(reflectionId).isPresent()) {
-      total = reflectionAdministrationService.getTotalReflectionSize(reflectionId);
+      total = getReflectionStatusService().getTotalReflectionSize(reflectionId);
     }
 
     return total;
@@ -158,6 +166,7 @@ public class ReflectionServiceHelper {
 
   public Reflection newReflection(ReflectionGoal goal) {
     final String goalId = goal.getId().getId();
-    return new Reflection(goal, getStatusForReflection(goalId), getCurrentSize(goalId), getTotalSize(goalId));
+    Pair<Long, Long> currentSize = getCurrentSize(goalId);
+    return new Reflection(goal, getStatusForReflection(goalId), currentSize.left, getTotalSize(goalId));
   }
 }

@@ -1,0 +1,13 @@
+{
+  "include": ["src/**/*"],
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "jsx": "react-jsx",
+    "lib": ["DOM", "ES2019"],
+    "moduleResolution": "nodenext",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2019"
+  }
+}

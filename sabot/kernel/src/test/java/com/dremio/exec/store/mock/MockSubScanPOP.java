@@ -38,8 +38,6 @@ import com.google.common.collect.Lists;
 
 @JsonTypeName("mock-sub-scan")
 public class MockSubScanPOP extends AbstractBase implements SubScan {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MockGroupScanPOP.class);
-
   private final String url;
   protected final List<MockGroupScanPOP.MockScanEntry> readEntries;
 

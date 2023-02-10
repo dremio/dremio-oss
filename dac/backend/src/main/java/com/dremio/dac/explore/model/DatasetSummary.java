@@ -49,6 +49,7 @@ public class DatasetSummary {
   private final DatasetType datasetType;
   private final DatasetVersion datasetVersion;
   private final Map<String, VersionContextReq> references;
+  private final List<String> tags;
 
   public DatasetSummary(@JsonProperty("fullPath") List<String> fullPath,
                         @JsonProperty("jobCount") int jobCount,
@@ -56,6 +57,7 @@ public class DatasetSummary {
                         @JsonProperty("fields") List<Field> fields,
                         @JsonProperty("datasetType") DatasetType datasetType,
                         @JsonProperty("datasetVersion") DatasetVersion datasetVersion,
+                        @JsonProperty("tags") List<String> tags,
                         @JsonProperty("references") Map<String, VersionContextReq> references) {
     this.fullPath = fullPath;
     this.jobCount = jobCount;
@@ -63,10 +65,11 @@ public class DatasetSummary {
     this.fields = fields;
     this.datasetType = datasetType;
     this.datasetVersion = datasetVersion;
+    this.tags = tags;
     this.references = references;
   }
 
-  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants, Map<String, VersionContextReq> references) {
+  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants, Map<String, VersionContextReq> references, List<String> tags) {
     List<String> fullPath = datasetConfig.getFullPathList();
 
     DatasetType datasetType = datasetConfig.getType();
@@ -96,7 +99,7 @@ public class DatasetSummary {
       datasetVersion = null;
     }
 
-    return new DatasetSummary(fullPath, jobCount, descendants, fields, datasetType, datasetVersion, references);
+    return new DatasetSummary(fullPath, jobCount, descendants, fields, datasetType, datasetVersion, tags, references);
   }
 
   public DatasetVersion getDatasetVersion() {
@@ -121,6 +124,10 @@ public class DatasetSummary {
 
   public List<Field> getFields() {
     return fields;
+  }
+
+  public List<String> getTags() {
+    return tags;
   }
 
   public Map<String, VersionContextReq> getReferences() {

@@ -48,8 +48,8 @@ public class DatastoreTestConnectionProviderSource
   private LocalKVStoreProvider localKVStoreProvider;
 
   @Override
-  public boolean isCompatibleWith(
-      DatabaseAdapterConfig adapterConfig, DatabaseAdapterFactory<?, ?, ?> databaseAdapterFactory) {
+  public boolean isCompatibleWith(DatabaseAdapterConfig adapterConfig,
+                                  DatabaseAdapterFactory<?, ?, ?, ?> databaseAdapterFactory) {
     return adapterConfig instanceof NessieDatabaseAdapterConfig;
   }
 

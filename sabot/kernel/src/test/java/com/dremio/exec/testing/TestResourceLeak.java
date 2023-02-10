@@ -18,8 +18,6 @@ package com.dremio.exec.testing;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
-import java.net.URL;
 import java.util.Properties;
 
 import javax.inject.Inject;
@@ -46,8 +44,6 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.test.DremioTest;
-import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
 
 /*
  * TODO(DRILL-3170)
@@ -88,7 +84,7 @@ public class TestResourceLeak extends DremioTest {
 
   @Test
   public void tpch01() throws Exception {
-    final String query = getFile("memory/tpch01_memory_leak.sql");
+    final String query = readResourceAsString("memory/tpch01_memory_leak.sql");
     try {
       QueryTestUtil.test(client, "alter session set \"planner.slice_target\" = 10; " + query);
     } catch (UserRemoteException e) {
@@ -98,14 +94,6 @@ public class TestResourceLeak extends DremioTest {
       throw e;
     }
     fail("Expected UserRemoteException indicating memory leak");
-  }
-
-  private static String getFile(String resource) throws IOException {
-    final URL url = Resources.getResource(resource);
-    if (url == null) {
-      throw new IOException(String.format("Unable to find path %s.", resource));
-    }
-    return Resources.toString(url, Charsets.UTF_8);
   }
 
   @AfterClass

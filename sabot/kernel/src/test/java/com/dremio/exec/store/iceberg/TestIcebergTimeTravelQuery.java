@@ -26,7 +26,6 @@ import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.HistoryEntry;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.ArrowDsUtil;
@@ -90,7 +89,6 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
       .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION);
   }
 
-  @Ignore("DX-51980")
   @Test
   public void atFirstTimestamp() throws Exception {
     expectFirstSnapshot("SELECT * FROM dfs_hadoop.\"%s\" AT TIMESTAMP '%s'", tableFolder.toPath(), firstTimestamp);
@@ -98,7 +96,6 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
       TimestampString.fromMillisSinceEpoch(secondTimestampMs - 2));
   }
 
-  @Ignore("DX-51980")
   @Test
   public void atSecondTimestamp() throws Exception {
     expectSecondSnapshot("SELECT * FROM dfs_hadoop.\"%s\" AT TIMESTAMP '%s'", tableFolder.toPath(), secondTimestamp);
@@ -106,7 +103,6 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
       TimestampString.fromMillisSinceEpoch(secondTimestampMs + 2));
   }
 
-  @Ignore("DX-51980")
   @Test
   public void atIncorrectTimestamp1() {
     UserExceptionAssert.assertThatThrownBy(() -> test("SELECT * FROM dfs_hadoop.\"%s\" AT TIMESTAMP '%s'",
@@ -115,7 +111,6 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
       .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION);
   }
 
-  @Ignore("DX-51980")
   @Test
   public void atIncorrectTimestamp2() {
     UserExceptionAssert.assertThatThrownBy(() -> test("SELECT * FROM dfs_hadoop.\"%s\" AT TIMESTAMP '%s'",

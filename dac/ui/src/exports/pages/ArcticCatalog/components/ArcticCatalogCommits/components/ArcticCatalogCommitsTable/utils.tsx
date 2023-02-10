@@ -17,8 +17,14 @@
 import { FormattedMessage } from "react-intl";
 import { Avatar } from "dremio-ui-lib/dist-esm";
 import { LogEntry } from "@app/services/nessie/client";
-import { DEFAULT_FORMAT_WITH_TIME_SECONDS, formatDate } from "@app/utils/date";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+// @ts-ignore
+import { IconButton } from "dremio-ui-lib";
+import SettingsBtn from "@app/components/Buttons/SettingsBtn";
+import ArcticGitActionsMenu from "../../../ArcticGitActionsMenu/ArcticGitActionsMenu";
+import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
+import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import { getShortHash } from "@app/utils/nessieUtils";
 
 export const getCommitsTableColumns = () => {
   return [
@@ -44,11 +50,17 @@ export const getCommitsTableColumns = () => {
   ];
 };
 
-export const generateTableRows = (data: LogEntry[]) => {
+export const generateTableRows = (
+  data: LogEntry[],
+  goToDataTab: (tab: ArcticCatalogTabsType, item: LogEntry) => void,
+  handleOpenDialog: (type: "TAG" | "BRANCH", dialogState: any) => void,
+  reference: any
+) => {
   const tableData: any[] = [];
 
   data.forEach((entry) => {
     const commitData = entry?.commitMeta;
+    if (!commitData) return;
 
     tableData.push({
       id: commitData?.hash,
@@ -67,7 +79,7 @@ export const generateTableRows = (data: LogEntry[]) => {
             <div className="commit-id">
               <dremio-icon name="vcs/commit" class="commit-id__icon" />
               <span className="commit-id__id">
-                {commitData?.hash?.substring(0, 6)}
+                {getShortHash(commitData.hash || "")}
               </span>
             </div>
           ),
@@ -80,10 +92,42 @@ export const generateTableRows = (data: LogEntry[]) => {
         commitTime: {
           node: () => (
             <div className="commit-time">
-              {formatDate(
-                commitData?.commitTime + "",
-                DEFAULT_FORMAT_WITH_TIME_SECONDS
-              )}
+              <span className="commit-time__time">
+                {convertISOStringWithTooltip(
+                  commitData?.commitTime?.toString() ?? "",
+                  { isRelative: true }
+                )}
+              </span>
+              <span className="commit-time__buttons">
+                <IconButton
+                  tooltip="ArcticCatalog.Commits.GoToData"
+                  onClick={(e: any) => {
+                    e.stopPropagation();
+                    goToDataTab("data", entry);
+                  }}
+                  className="commit-time__buttons--data"
+                >
+                  <dremio-icon name="interface/goto-dataset" />
+                </IconButton>
+                <SettingsBtn
+                  classStr="commit-time__buttons--more"
+                  menu={
+                    <ArcticGitActionsMenu
+                      fromItem={{
+                        type: "BRANCH",
+                        name: reference?.name,
+                        hash: commitData?.hash,
+                      }}
+                      handleOpenDialog={handleOpenDialog}
+                    />
+                  }
+                  tooltip="Common.More"
+                  hideArrowIcon
+                  stopPropagation
+                >
+                  <dremio-icon name="interface/more" class="more-icon" />
+                </SettingsBtn>
+              </span>
             </div>
           ),
         },

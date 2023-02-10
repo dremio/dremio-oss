@@ -80,9 +80,7 @@ class AccelerationGridSubCell extends Component {
             }`}
           >
             {subValue}
-            {onValueClick && (
-              <FontIcon type="fa-caret-down" theme={theme.caretTheme} />
-            )}
+            {onValueClick && <dremio-icon name="interface/caret-down" />}
           </div>
         )}
       </div>

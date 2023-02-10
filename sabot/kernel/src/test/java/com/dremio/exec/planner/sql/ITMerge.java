@@ -108,6 +108,11 @@ public class ITMerge extends ITDmlQueryBase {
   }
 
   @Test
+  public void testMergeUpdateInsertWithReversedColumnSelectInSource() throws Exception {
+    MergeTests.testMergeUpdateInsertWithReversedColumnSelectInSource(allocator, SOURCE);
+  }
+
+  @Test
   public void testMergeInsertWithScalar() throws Exception {
     MergeTests.testMergeInsertWithScalar(allocator, SOURCE);
   }
@@ -180,5 +185,10 @@ public class ITMerge extends ITDmlQueryBase {
   @Test
   public void testMergeWithContextWithPathTable() throws Exception {
     MergeTests.testMergeWithContextWithPathTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeWithStockIcebergTargetTable() throws Exception {
+    MergeTests.testMergeWithStockIcebergTargetTable(allocator, SOURCE);
   }
 }

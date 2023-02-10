@@ -15,4 +15,7 @@
  */
 export const NESSIE_REF_PREFIX = "ref/";
 
+//Prefix for Arctic UI state, keep it separated from Arctic Source State
+export const ARCTIC_STATE_PREFIX = "__ARCTIC/";
+
 export const COMMIT_TYPE = "COMMIT";

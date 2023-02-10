@@ -35,7 +35,7 @@ import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.service.flight.FlightRpcUtils;
+import com.dremio.service.flightcommon.FlightRpcUtils;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Throwables;

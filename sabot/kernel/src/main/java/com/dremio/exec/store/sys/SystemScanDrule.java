@@ -30,7 +30,9 @@ public class SystemScanDrule extends SourceLogicalConverter {
   }
   @Override
   public Rel convertScan(ScanCrel scan) {
-    return new SystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(), scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment());
+    return new SystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(),
+                              scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(),
+                              scan.getObservedRowcountAdjustment(), scan.getHints());
   }
   @Override
   public boolean matches(RelOptRuleCall call) {

@@ -15,7 +15,7 @@
  */
 import { useState, useRef } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import { Tooltip } from "components/Tooltip";
 

@@ -194,6 +194,9 @@ public class TestNewDateFunctions extends BaseTestQuery {
             ", to_time(683) c21" +
             ", to_time(1477440000) c22" +
             ", to_time(1477440683) c23" +
+            ", to_time(1477440683.34) c24" +
+            ", to_time(1477440683000) c25" +
+            ", to_time(1477440683000.999) c26" +
             ", to_timestamp(683) c31" +
             ", to_timestamp(1477440000) c32" +
             ", to_timestamp(1477440683) c33" +
@@ -206,6 +209,9 @@ public class TestNewDateFunctions extends BaseTestQuery {
             "c21",
             "c22",
             "c23",
+            "c24",
+            "c25",
+            "c26",
             "c31",
             "c32",
             "c33"
@@ -216,6 +222,9 @@ public class TestNewDateFunctions extends BaseTestQuery {
             newDateTime(683000), // c21
             newDateTime(0), // c22
             newDateTime(683000), // c23
+            newDateTime(683340), // c24
+            newDateTime(78200000), // c25
+            newDateTime(78200999), // c26
             newDateTime(683000), // c31
             newDateTime(1477440000000L), // c32
             newDateTime(1477440683000L) // c33
@@ -317,16 +326,22 @@ public class TestNewDateFunctions extends BaseTestQuery {
     testBuilder()
       .sqlQuery("SELECT " +
         " to_time('13:44:33', 'hh24:mi:ss', 1) b1," +
-        " to_time('13a:44:33', 'hh24:mi:ss', 1) b2," +
-        " to_date('2016-10-26', 'YYYY-MM-DD', 1) b3," +
-        " to_date('2016-10-26a', 'YYYY-MM-DD', 1) b4," +
-        " to_timestamp('1970-01-01 21:44:33', 'YYYY-MM-DD hh24:mi:ss', 1) b5," +
-        " to_timestamp('1970-a01-01 21:44:33', 'YYYY-MM-DD hh24:mi:ss', 1) b6" +
+        " to_time('13:44:33.078', 'hh24:mi:ss.fff', 1) b2," +
+        " to_time('13:44:33.07', 'hh24:mi:ss.fff', 1) b3," +
+        " to_time('13:44:33.078', 'hh24:mi:ss.ff', 1) b4," +
+        " to_time('13a:44:33', 'hh24:mi:ss', 1) b5," +
+        " to_date('2016-10-26', 'YYYY-MM-DD', 1) b6," +
+        " to_date('2016-10-26a', 'YYYY-MM-DD', 1) b7," +
+        " to_timestamp('1970-01-01 21:44:33', 'YYYY-MM-DD hh24:mi:ss', 1) b8," +
+        " to_timestamp('1970-a01-01 21:44:33', 'YYYY-MM-DD hh24:mi:ss', 1) b9" +
         " FROM INFORMATION_SCHEMA.CATALOGS"
       ).ordered()
-      .baselineColumns("b1", "b2", "b3", "b4", "b5", "b6")
+      .baselineColumns("b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9")
       .baselineValues(
         newDateTime(49473000),
+        newDateTime(49473078),
+        newDateTime(49473070),
+        null,
         null,
         newDateTime(1477440000000L),
         null,

@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -49,6 +50,7 @@ import com.dremio.dac.explore.model.History;
 import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
+import com.dremio.dac.explore.model.InitialUntitledRunResponse;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.model.job.JobData;
@@ -104,12 +106,13 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
@@ -172,7 +175,7 @@ public class DatasetTool {
   // s - falsee -> true
   // s - truee -> true
   // s - xyz -> true
-  private boolean shouldTriggerJob(String s) {
+  public static boolean shouldTriggerJob(String s) {
     return (s == null) || !"false".equalsIgnoreCase(s);
   }
 
@@ -332,6 +335,11 @@ public class DatasetTool {
     throws DatasetVersionNotFoundException, NamespaceException {
     final History history = getHistory(new DatasetPath(datasetUI.getFullPathList()), datasetUI.getVersion(), tipVersion);
     return new InitialRunResponse(newDataset(datasetUI, null), JobResource.getPaginationURL(jobId), jobId, sessionId, history);
+  }
+
+  InitialUntitledRunResponse createUntitledRunResponse(List<String> datasetPath, DatasetVersion tipVersion, JobId jobId, SessionId sessionId)
+    throws DatasetVersionNotFoundException {
+    return new InitialUntitledRunResponse(datasetPath, tipVersion.getVersion(), JobResource.getPaginationURL(jobId), jobId, sessionId);
   }
 
   InitialPreviewResponse createPreviewResponse(DatasetPath path, Transformer.DatasetAndData datasetAndData, BufferAllocator allocator, int maxRecords, boolean catchExecutionError)
@@ -579,14 +587,7 @@ public class DatasetTool {
       jobId = jobData.getJobId();
       jobDataSessionId = jobData.getSessionId();
       final QueryMetadata queryMetadata = listener.getMetadata();
-      // get the job's info after the query metadata is available to make sure the schema has already been populated
-      final JobDetails jobDetails = jobsService.getJobDetails(
-        JobDetailsRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(jobId))
-          .setUserName(query.getUsername())
-          .build());
-      final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
-      applyQueryMetaToDatasetAndSave(jobInfo, queryMetadata, newDataset, query, from);
+      applyQueryMetaToDatasetAndSave(jobId, queryMetadata, newDataset, from);
       if(prepare) {
         limit = 0;
       }
@@ -605,6 +606,56 @@ public class DatasetTool {
       // make sure we pass the parentSummary so that the UI can render edit original sql
       throw new NewDatasetQueryException(new NewDatasetQueryException.ExplorePageInfo(
         parentDataset, query.getSql(), context, newDataset(newDataset, null).getDatasetType(), parentSummary), ex);
+    }
+  }
+
+  /**
+   * Create a new untitled dataset, and load preview data.
+   *
+   * @param from Source from where the dataset is created (can be a query or other dataset)
+   * @param version Initial version of the new dataset
+   * @param context Dataset context or current schema
+   * @return
+   * @throws DatasetNotFoundException
+   * @throws DatasetVersionNotFoundException
+   * @throws NamespaceException
+   * @throws NewDatasetQueryException
+   */
+  public InitialUntitledRunResponse newTmpUntitled(
+    FromBase from,
+    DatasetVersion version,
+    List<String> context,
+    String engineName,
+    String sessionId,
+    Map<String, VersionContextReq> references,
+    Integer limit)
+    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
+
+    final VirtualDatasetUI vds = createNewUntitledMetadataOnly(from, version, context,
+      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
+    final SqlQuery query = new SqlQuery(vds.getSql(), vds.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
+
+    MetadataJobStatusListener listener = new MetadataJobStatusListener(this, vds, from);
+    listener.waitToApplyMetadataAndSaveDataset();
+
+    JobId jobId = null;
+    SessionId jobDataSessionId = null;
+    try {
+      final JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, TMP_DATASET_PATH, vds.getVersion(), listener, false, true);
+      jobId = jobData.getJobId();
+      jobDataSessionId = jobData.getSessionId();
+      listener.setJobId(jobId);
+
+      return createUntitledRunResponse(vds.getFullPathList(), vds.getVersion(), jobId, jobDataSessionId);
+    } catch (Exception ex) {
+      if (ex instanceof UserException) {
+        throw toInvalidQueryException((UserException) ex, query.getSql(), context, jobId, jobDataSessionId);
+      }
+
+      // make sure we pass the parentSummary so that the UI can render edit original sql
+      throw new NewDatasetQueryException(new NewDatasetQueryException.ExplorePageInfo(
+        getParentDataset(from), query.getSql(), context, newDataset(vds, null).getDatasetType(), null), ex);
     }
   }
 
@@ -629,6 +680,7 @@ public class DatasetTool {
     final VirtualDatasetUI newDataset = newDatasetBeforeQueryMetadata(datasetPath, version, from.wrap(), context, username());
     newDataset.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
     newDataset.setReferencesList(sourceVersionReferences);
+    newDataset.getState().setReferenceList(sourceVersionReferences);
     return newDataset;
   }
 
@@ -655,14 +707,7 @@ public class DatasetTool {
       jobId = jobData.getJobId();
       jobDataSessionId = jobData.getSessionId();
       final QueryMetadata queryMetadata = listener.getMetadata();
-      // get the job's info after the query metadata is available to make sure the schema has already been populated
-      final JobDetails jobDetails = jobsService.getJobDetails(
-        JobDetailsRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(jobId))
-          .setUserName(username())
-          .build());
-      final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
-      applyQueryMetaToDatasetAndSave(jobInfo, queryMetadata, newDataset, query, from);
+      applyQueryMetaToDatasetAndSave(jobId, queryMetadata, newDataset, from);
       return createRunResponse(newDataset, jobId, jobDataSessionId, newDataset.getVersion());
     } catch(UserException e) {
       String failureMessage = e.getOriginalMessage();
@@ -677,6 +722,58 @@ public class DatasetTool {
       // should never be thrown
       UserException uex = UserException.systemError(e).buildSilently();
       throw toInvalidQueryException(uex, query.getSql(), context, jobId, jobDataSessionId);
+    }
+  }
+
+  /**
+   * Create a new untitled dataset, and load preview data.
+   *
+   * @param from Source from where the dataset is created (can be a query or other dataset)
+   * @param version Initial version of the new dataset
+   * @param context Dataset context or current schema
+   * @param engineName Engine to runt the query
+   * @param sessionId Session Id
+   * @param references References
+   * @return {@link InitialUntitledRunResponse)}
+   * @throws DatasetNotFoundException
+   * @throws DatasetVersionNotFoundException
+   */
+  InitialUntitledRunResponse newTmpUntitledAndRun(FromBase from,
+                                                  DatasetVersion version,
+                                                  List<String> context,
+                                                  String engineName,
+                                                  String sessionId,
+                                                  Map<String, VersionContextReq> references)
+    throws DatasetNotFoundException, DatasetVersionNotFoundException {
+
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context,
+      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
+    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
+
+    newDataset.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
+    MetadataJobStatusListener listener = new MetadataJobStatusListener(this, newDataset, from);
+    // Call non-blocking method to apply metadata and save dataset when the metadata is collected.
+    listener.waitToApplyMetadataAndSaveDataset();
+
+    JobId jobId = null;
+    SessionId jobDataSessionId = null;
+    try {
+      final JobData jobData = executor.runQueryWithListener(query, QueryType.UI_RUN, TMP_DATASET_PATH, version, listener);
+      jobId = jobData.getJobId();
+      jobDataSessionId = jobData.getSessionId();
+      listener.setJobId(jobId);
+
+      return createUntitledRunResponse(newDataset.getFullPathList(), newDataset.getVersion(), jobId, jobDataSessionId);
+    } catch(UserException e) {
+      String failureMessage = e.getOriginalMessage();
+      if (failureMessage.startsWith("ResourceAllocationException")) {
+        throw UserException.dataReadError()
+          .message(failureMessage)
+          .build(logger);
+      } else {
+        throw toInvalidQueryException(e, query.getSql(), context, jobId, jobDataSessionId);
+      }
     }
   }
 
@@ -705,13 +802,25 @@ public class DatasetTool {
     return newUntitledAndRun(from, version, context, null, null, null);
   }
 
-  private void applyQueryMetaToDatasetAndSave(JobInfo jobInfo, QueryMetadata queryMetadata,
-      VirtualDatasetUI newDataset, SqlQuery query, FromBase from) throws DatasetNotFoundException, NamespaceException {
+  public void applyQueryMetaToDatasetAndSave(JobId jobId,
+                                             QueryMetadata queryMetadata,
+                                             VirtualDatasetUI newDataset,
+                                             FromBase from)
+    throws DatasetNotFoundException, NamespaceException, JobNotFoundException {
+    // get the job's info after the query metadata is available to make sure the schema has already been populated
+    final JobDetails jobDetails = jobsService.getJobDetails(
+      JobDetailsRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setUserName(username())
+        .build());
+    final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
+
     QuerySemantics.populateSemanticFields(JobsProtoUtil.toStuff(queryMetadata.getFieldTypeList()), newDataset.getState());
     applyQueryMetadata(newDataset, jobInfo, queryMetadata);
     if (from.wrap().getType() == FromType.SQL) {
       newDataset.setState(QuerySemantics.extract(queryMetadata));
     }
+
     datasetService.putVersion(newDataset);
   }
 
@@ -931,10 +1040,10 @@ public class DatasetTool {
 
   public static void applyQueryMetadata(VirtualDatasetUI dataset, JobInfo jobInfo, QueryMetadata metadata) {
     applyQueryMetadata(dataset,
-      Optional.fromNullable(jobInfo.getParentsList()),
-      Optional.fromNullable(jobInfo.getBatchSchema()).transform((b) -> BatchSchema.deserialize(b)),
-      Optional.fromNullable(jobInfo.getFieldOriginsList()),
-      Optional.fromNullable(jobInfo.getGrandParentsList()),
+      Optional.ofNullable(jobInfo.getParentsList()),
+      Optional.ofNullable(jobInfo.getBatchSchema()).map((b) -> BatchSchema.deserialize(b)),
+      Optional.ofNullable(jobInfo.getFieldOriginsList()),
+      Optional.ofNullable(jobInfo.getGrandParentsList()),
       metadata);
   }
 
@@ -1005,5 +1114,36 @@ public class DatasetTool {
 
   protected boolean canViewJobResult(JobInfo jobInfo) {
     return true;
+  }
+
+  /**
+   * Helper method to create {@link InitialPreviewResponse} for physical dataset without running a query job.
+   * @param from
+   * @param newVersion
+   * @param context
+   * @param parentSummary
+   * @param references
+   * @return
+   * @throws NamespaceException
+   */
+  protected InitialPreviewResponse createPreviewResponseForPhysicalDataset(FromBase from, DatasetVersion newVersion, List<String> context,
+                                                                           DatasetSummary parentSummary, Map<String, VersionContextReq> references)
+    throws NamespaceException {
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, newVersion, context,
+      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    List<ParentDataset> parents = new ArrayList<>();
+    final DatasetType parentType = parentSummary.getDatasetType();
+    ParentDataset parent = new ParentDataset().setDatasetPathList(parentSummary.getFullPath()).setType(parentType);
+    parents.add(parent);
+    newDataset.setParentsList(parents);
+    if (NamespaceUtils.isPhysicalDataset(parentType)) {
+      newDataset.setDerivation(Derivation.DERIVED_PHYSICAL);
+    } else if (parentType == DatasetType.VIRTUAL_DATASET) {
+      newDataset.setDerivation(Derivation.DERIVED_VIRTUAL);
+    } else {
+      newDataset.setDerivation(Derivation.DERIVED_UNKNOWN);
+    }
+
+    return InitialPreviewResponse.of(newDataset(newDataset, null), true, null, null);
   }
 }

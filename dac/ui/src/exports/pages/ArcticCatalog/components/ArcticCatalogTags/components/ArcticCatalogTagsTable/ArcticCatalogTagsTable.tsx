@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import StatefulTableViewer from "@app/components/StatefulTableViewer";
 import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
+import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 import { Tag } from "@app/services/nessie/client";
 import { Reference } from "@app/types/nessie";
@@ -24,35 +25,49 @@ import { generateTableRows, getTagsTableColumns } from "./utils";
 
 import "./ArcticCatalogTagsTable.less";
 
-const INITIAL_STATE_VALUE = {
+const INITIAL_BRANCH_STATE_VALUE = {
   openDialog: false,
-  newRefType: undefined,
+  fromRef: { type: "BRANCH" } as Reference,
+};
+
+const INITIAL_TAG_STATE_VALUE = {
+  openDialog: false,
   fromRef: { type: "TAG" } as Reference,
 };
 
 type ArcticCatalogTagsProps = {
   references: any[];
   refetch: () => void;
-  handlePush: (tag: { type: "TAG" } & Tag, tab: ArcticCatalogTabsType) => void;
+  goToDataTab: (tab: ArcticCatalogTabsType, tag: { type: "TAG" } & Tag) => void;
 };
 
 function ArcticCatalogTagsTable({
   references,
   refetch,
-  handlePush,
+  goToDataTab,
 }: ArcticCatalogTagsProps) {
-  const [dialogState, setDialogState] = useState(INITIAL_STATE_VALUE);
+  const [branchDialogState, setBranchDialogState] = useState(
+    INITIAL_BRANCH_STATE_VALUE
+  );
+  const [tagDialogState, setTagDialogState] = useState(INITIAL_TAG_STATE_VALUE);
 
   const closeDialog = () => {
-    setDialogState(INITIAL_STATE_VALUE);
+    setBranchDialogState(INITIAL_BRANCH_STATE_VALUE);
+    setTagDialogState(INITIAL_TAG_STATE_VALUE);
+  };
+
+  const handleOpenDialog = (type: "TAG" | "BRANCH", dialogState: any) => {
+    type === "TAG"
+      ? setTagDialogState(dialogState)
+      : setBranchDialogState(dialogState);
   };
 
   const tableData = useMemo(() => {
     // We can assume Tag type here since we are filtering
     const tags: ({ type: "TAG" } & Tag)[] = references;
 
-    return generateTableRows(tags, handlePush, setDialogState);
-  }, [references, handlePush]);
+    return generateTableRows(tags, goToDataTab, handleOpenDialog);
+  }, [references, goToDataTab]);
 
   return (
     <div className="arctic-tags__content">
@@ -65,21 +80,16 @@ function ArcticCatalogTagsTable({
         className="arctic-tags-table"
       />
       <NewBranchDialog
-        open={dialogState.openDialog}
-        forkFrom={dialogState.fromRef}
-        newRefType={dialogState.newRefType}
-        customHeader={
-          dialogState.newRefType === "TAG"
-            ? "ArcticCatalog.Tags.Dialog.AddTag"
-            : undefined
-        }
-        customContentText={
-          dialogState.newRefType === "TAG"
-            ? "ArcticCatalog.Tags.Dialog.TagName"
-            : undefined
-        }
+        open={branchDialogState.openDialog}
+        forkFrom={branchDialogState.fromRef}
         closeDialog={closeDialog}
-        refetch={dialogState.newRefType === "TAG" ? refetch : undefined}
+        fromType="TAG"
+      />
+      <NewTagDialog
+        open={tagDialogState.openDialog}
+        forkFrom={tagDialogState.fromRef}
+        closeDialog={closeDialog}
+        refetch={refetch}
       />
     </div>
   );

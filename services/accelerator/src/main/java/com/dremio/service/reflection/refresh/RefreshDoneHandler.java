@@ -19,6 +19,7 @@ import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -66,7 +67,6 @@ import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshDecision;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
@@ -143,7 +143,7 @@ public class RefreshDoneHandler {
     failIfNotEnoughRefreshesAvailable(decision);
 
     final JobDetails details = ReflectionUtils.computeJobDetails(lastAttempt);
-    final boolean dataWritten = Optional.fromNullable(details.getOutputRecords()).or(0L) > 0;
+    final boolean dataWritten = Optional.ofNullable(details.getOutputRecords()).orElse(0L) > 0;
     if (dataWritten) {
       createAndSaveRefresh(details, decision);
     } else {
@@ -175,12 +175,12 @@ public class RefreshDoneHandler {
     } else {
       final Optional<Long> oldestDependentMaterialization = dependencyManager.getOldestDependentMaterialization(reflection.getId());
       long currentTime = System.currentTimeMillis();
-      long lastRefreshTime = oldestDependentMaterialization.or(materialization.getInitRefreshSubmit());
+      long lastRefreshTime = oldestDependentMaterialization.orElse(materialization.getInitRefreshSubmit());
       materialization.setExpiration(computeExpiration())
         .setInitRefreshExecution(details.getJobStart())
         .setLastRefreshFromPds(lastRefreshTime)
         .setLastRefreshFinished(currentTime)
-        .setLastRefreshDurationMillis(currentTime - lastRefreshTime)
+        .setLastRefreshDurationMillis(currentTime - materialization.getInitRefreshSubmit())
         .setLogicalPlan(planBytes)
         .setLogicalPlanStrippedHash(decision.getLogicalPlanStrippedHash())
         .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION)

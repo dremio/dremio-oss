@@ -581,11 +581,11 @@ public class TestData extends DremioTest {
       @Override
       public void verify(DataPOJO output) {
         int index = startIndexInCurrentOutput;
-        assertEquals("06:30:23", output.extractValue("colTime", index++));
-        assertEquals("23:56:05", output.extractValue("colTime", index++));
-        assertEquals("09:35:34", output.extractValue("colTime", index++));
+        assertEquals("06:30:23.234", output.extractValue("colTime", index++));
+        assertEquals("23:56:05.777", output.extractValue("colTime", index++));
+        assertEquals("09:35:34.345", output.extractValue("colTime", index++));
         assertNull(output.extractValue("colTime", index++));
-        assertEquals("00:00:23", output.extractValue("colTime", index++));
+        assertEquals("00:00:23.434", output.extractValue("colTime", index++));
       }
     };
 

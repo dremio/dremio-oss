@@ -121,7 +121,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
 
   private Supplier<Object> getFieldValueSupplier(String fieldName, DataFile currentDataFile) {
     switch (fieldName){
-      case "content": return () -> currentDataFile.content().id();
+      case "content": return () -> currentDataFile.content().name();
       case "file_path":
       case "datafilePath":
         return () -> getStringValue(currentDataFile.path());
@@ -145,6 +145,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
       case "split_offsets": return currentDataFile::splitOffsets;
       case "equality_ids": return currentDataFile::equalityFieldIds;
       case "sort_order_id": return currentDataFile::sortOrderId;
+      case "spec_id": return currentDataFile::specId;
       default:
         throw new UnsupportedOperationException("Invalid fieldName for table files query " + fieldName);
     }

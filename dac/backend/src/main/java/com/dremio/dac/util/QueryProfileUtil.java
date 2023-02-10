@@ -20,6 +20,7 @@ import static com.dremio.dac.util.QueryProfileConstant.MINIMUM_THREADS_TO_CHECK_
 import static com.dremio.dac.util.QueryProfileConstant.ONE_SEC;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -159,5 +160,17 @@ public class QueryProfileUtil {
         jpOperatorHealth.setOperatorInformationPerThreadList(threadLevelMetrics);
       }
     }
+  }
+
+  private static String getRelNodeInfoMapKey(int phaseId, int operatorId) {
+    return phaseId + ":*:" + operatorId;
+  }
+  public static UserBitShared.RelNodeInfo getOperatorAttributes(UserBitShared.QueryProfile profile, int phaseId, int operatorId) {
+    UserBitShared.RelNodeInfo relNodeInfo = null;
+    Map<String, UserBitShared.RelNodeInfo> relNodeInfoMap = profile.getRelInfoMapMap();
+    if(relNodeInfoMap !=null && !relNodeInfoMap.isEmpty()){
+      relNodeInfo = relNodeInfoMap.get(getRelNodeInfoMapKey(phaseId, operatorId));
+    }
+    return relNodeInfo;
   }
 }

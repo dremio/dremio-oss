@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import SampleDataMessage from "pages/ExplorePage/components/SampleDataMessage";
-import classNames from "classnames";
+import classNames from "clsx";
 import { base, warning, buttons } from "./WizardFooter.less";
 import { connect } from "react-redux";
 import { getApproximate } from "@app/selectors/explore";

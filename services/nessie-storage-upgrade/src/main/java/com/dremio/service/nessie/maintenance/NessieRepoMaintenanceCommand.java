@@ -17,13 +17,13 @@ package com.dremio.service.nessie.maintenance;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
-import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.GlobalLogCompactionParams;
 import org.projectnessie.versioned.persist.adapter.KeyFilterPredicate;
+import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 
@@ -132,11 +132,10 @@ public class NessieRepoMaintenanceCommand {
     NessieDatastoreInstance store = new NessieDatastoreInstance();
     store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(() -> kvStore).build());
     store.initialize();
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
     DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConnector(store)
       .withConfig(adapterCfg)
-      .build(worker);
+      .build();
 
     if (options.listKeys) {
       listKeys(adapter);
@@ -150,8 +149,6 @@ public class NessieRepoMaintenanceCommand {
 
   private static String executeMaintenance(DatabaseAdapter adapter, Options options) throws Exception {
     ImmutableEmbeddedRepoMaintenanceParams.Builder params = EmbeddedRepoMaintenanceParams.builder();
-    params.setGlobalLogCompactionParams(
-      GlobalLogCompactionParams.builder().isEnabled(options.compactGlobalLog).build());
 
     if (options.purgeKeyLists) {
       params.setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder()
@@ -172,8 +169,8 @@ public class NessieRepoMaintenanceCommand {
 
   private static void listKeys(DatabaseAdapter adapter) throws Exception {
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
-    adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL).forEach(keyWithType -> {
-      AdminLogger.log("{}", keyWithType.getKey());
-    });
+    try (Stream<KeyListEntry> keys = adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL)) {
+      keys.forEach(keyWithType -> AdminLogger.log("{}", keyWithType.getKey()));
+    }
   }
 }

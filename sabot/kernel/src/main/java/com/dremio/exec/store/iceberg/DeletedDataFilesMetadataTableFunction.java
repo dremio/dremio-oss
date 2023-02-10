@@ -15,34 +15,46 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import java.util.Optional;
+
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.dfs.AbstractTableFunction;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.exec.util.VectorUtil;
+import com.dremio.exec.vector.OptionalVarBinaryVectorHolder;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * A table function that handles updating of the metadata for deleted data files.
  */
 public class DeletedDataFilesMetadataTableFunction extends AbstractTableFunction {
+  private static final Logger LOGGER = LoggerFactory.getLogger(DeletedDataFilesMetadataTableFunction.class);
 
   private IntVector outputOperationTypeVector;
   private VarCharVector inputFilePathVector;
   private VarCharVector outputPathVector;
   private BigIntVector inputRowCountVector;
   private BigIntVector outputRowCountVector;
+
+  private OptionalVarBinaryVectorHolder inputIcebergMetadataVector;
+  private OptionalVarBinaryVectorHolder outputIcebergMetadataVector;
+
   private long currentRowCount;
 
   private Text inputFilePath;
   private boolean doneWithRow;
+  private Optional<byte[]> icebergMetadataBytes;
 
   public DeletedDataFilesMetadataTableFunction(OperatorContext context, TableFunctionConfig functionConfig) {
     super(context, functionConfig);
@@ -60,6 +72,9 @@ public class DeletedDataFilesMetadataTableFunction extends AbstractTableFunction
     inputRowCountVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, ColumnUtils.ROW_COUNT_COLUMN_NAME);
     outputRowCountVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordWriter.RECORDS_COLUMN);
 
+    inputIcebergMetadataVector = new OptionalVarBinaryVectorHolder(incoming, SystemSchemas.ICEBERG_METADATA);
+    outputIcebergMetadataVector = new OptionalVarBinaryVectorHolder(outgoing, RecordWriter.ICEBERG_METADATA_COLUMN);
+
     return outgoing;
   }
 
@@ -73,6 +88,8 @@ public class DeletedDataFilesMetadataTableFunction extends AbstractTableFunction
     inputFilePath = inputFilePathVector.getObject(row);
     doneWithRow = false;
     currentRowCount = inputRowCountVector.get(row);
+
+    icebergMetadataBytes = inputIcebergMetadataVector.get(row);
   }
 
   @Override
@@ -87,6 +104,7 @@ public class DeletedDataFilesMetadataTableFunction extends AbstractTableFunction
         outputPathVector.setSafe(startOutIndex, inputFilePath);
       }
       outputRowCountVector.setSafe(startOutIndex, currentRowCount);
+      icebergMetadataBytes.ifPresent(bytes -> outputIcebergMetadataVector.setSafe(startOutIndex, () -> bytes));
 
       outgoing.setAllCount(startOutIndex + 1);
       doneWithRow = true;

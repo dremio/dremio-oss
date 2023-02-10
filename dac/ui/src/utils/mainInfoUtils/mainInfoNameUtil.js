@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 export function checkIfUserShouldGetDeadLink() {
   return false;
@@ -22,7 +23,7 @@ export function getHref(entity, context) {
   const fileType = entity.get("fileType");
   if (entity.get("fileType") === "file") {
     if (entity.get("queryable")) {
-      return entity.getIn(["links", "query"]);
+      return wrapBackendLink(entity.getIn(["links", "query"]));
     }
     return {
       ...context.location,
@@ -39,12 +40,12 @@ export function getHref(entity, context) {
   }
   if (fileType === "folder") {
     if (entity.get("queryable")) {
-      return entity.getIn(["links", "query"]);
+      return wrapBackendLink(entity.getIn(["links", "query"]));
     }
-    return entity.getIn(["links", "self"]);
+    return wrapBackendLink(entity.getIn(["links", "self"]));
   }
 
   // OSS doesn't have permissions, should always open with edit
   const editLink = entity.getIn(["links", "edit"]);
-  return editLink ?? entity.getIn(["links", "query"]);
+  return wrapBackendLink(editLink || entity.getIn(["links", "query"]));
 }

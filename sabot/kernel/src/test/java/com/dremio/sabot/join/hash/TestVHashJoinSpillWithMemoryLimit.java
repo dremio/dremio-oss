@@ -42,17 +42,20 @@ import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 
 public class TestVHashJoinSpillWithMemoryLimit extends BaseTestOperator {
   private final OptionManager options = testContext.getOptions();
+  private final int minReserve = VectorizedSpillingHashJoinOperator.MIN_RESERVE;
 
   @Before
   public void before() {
     options.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
     options.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
+    VectorizedSpillingHashJoinOperator.MIN_RESERVE = 9 * 1024 * 1024;
   }
 
   @After
   public void after() {
     options.setOption(HashJoinOperator.ENABLE_SPILL.getDefault());
     options.setOption(ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault());
+    VectorizedSpillingHashJoinOperator.MIN_RESERVE = minReserve;
   }
 
   @Test

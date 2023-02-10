@@ -31,7 +31,7 @@ export const restoreMockData = () => {
 };
 
 export const listArcticCatalogsHandler = rest.get(
-  listArcticCatalogsUrl.replace(`//${window.location.host}`, ""),
+  listArcticCatalogsUrl.toString(),
   (_req, res, ctx) => {
     return res(ctx.delay(750), ctx.json(mockData));
   }

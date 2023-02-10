@@ -23,6 +23,9 @@ import { compose } from "redux";
 import { removeSpace } from "actions/resources/spaces";
 import AllSpacesMenuMixin from "dyn-load/components/Menus/HomePage/AllSpacesMenuMixin";
 import { getSpaceVersion, getSpaceName } from "@app/selectors/home";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 const mapStateToProps = (state, { spaceId }) => {
   return {
@@ -35,6 +38,11 @@ const mapDispatchToProps = {
   removeItem: removeSpace,
   showDialog: showConfirmationDialog,
 };
+
+export const getSettingsLocation = (location, spaceId) => ({
+  ...location,
+  state: { modal: "SpaceModal", entityId: spaceId },
+});
 
 @AllSpacesMenuMixin
 export class AllSpacesMenu extends PureComponent {
@@ -73,8 +81,12 @@ export class AllSpacesMenu extends PureComponent {
       confirmText: la("Remove"),
       confirm: () => {
         removeItem(spaceId, spaceVersion);
-        if (decodeURIComponent(location.pathname).split("/")[2] === spaceName) {
-          router.push("/");
+        if (
+          decodeURIComponent(rmProjectBase(location.pathname)).split("/")[2] ===
+          spaceName
+        ) {
+          const projectId = getSonarContext()?.getSelectedProjectId?.();
+          router.push(commonPaths.projectBase.link({ projectId }));
         }
       },
     });

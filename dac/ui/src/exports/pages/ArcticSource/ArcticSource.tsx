@@ -23,6 +23,10 @@ import { useMemo } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { ArcticCatalog } from "../ArcticCatalog/ArcticCatalog";
+import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import { fromJS } from "immutable";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 function ArcticSourceHomePage(props: any) {
   const sourceInfo = useMemo(() => {
@@ -47,7 +51,10 @@ function ArcticSourceHomePage(props: any) {
           <HomePageContent
             key={JSON.stringify(sourceInfo)}
             source={sourceInfo}
-            baseUrl={`/sources/arctic/${sourceInfo?.name}`}
+            baseUrl={commonPaths.arcticSource.link({
+              sourceName: sourceInfo?.name,
+              projectId: getSonarContext().getSelectedProjectId?.(),
+            })}
             viewState={undefined}
             isBareMinimumNessie
             initialRef={{
@@ -59,7 +66,13 @@ function ArcticSourceHomePage(props: any) {
           </HomePageContent>
         </div>
       ) : (
-        <NotFound />
+        <ViewStateWrapper
+          viewState={fromJS({ isInProgress: props.isInProgress })}
+          hideChildrenWhenInProgress
+          style={{ width: "100%", display: "flex" }}
+        >
+          <NotFound />
+        </ViewStateWrapper>
       )}
     </HomePage>
   );
@@ -68,6 +81,7 @@ function ArcticSourceHomePage(props: any) {
 const mapStateToProps = (state: any) => {
   return {
     sources: getSortedSources(state),
+    isInProgress: state?.resources?.sourceList?.get("isInProgress"),
   };
 };
 const ConnectedArcticSourceHomePage = connect(

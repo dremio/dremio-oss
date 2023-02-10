@@ -26,10 +26,12 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.collect.Iterables.isEmpty;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -89,6 +91,7 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.DependencyEntry;
 import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
+import com.dremio.service.reflection.DependencyUtils;
 import com.dremio.service.reflection.ReflectionMonitor;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionService;
@@ -106,7 +109,6 @@ import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.users.SystemUser;
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -399,6 +401,22 @@ public class BaseTestReflection extends BaseTestServer {
     return true;
   }
 
+  protected void assertDependsOn(ReflectionId rId, final DependencyEntry... entries) {
+    assertTrue(String.format("Unexpected state %s", DependencyUtils.describeDependencies(rId,
+      getReflectionService().getDependencies(rId))), dependsOn(rId, entries));
+  }
+
+  protected void assertNotDependsOn(ReflectionId rId, final DependencyEntry... entries) {
+    assertFalse(String.format("Unexpected state %s", DependencyUtils.describeDependencies(rId,
+      getReflectionService().getDependencies(rId))), dependsOn(rId, entries));
+  }
+
+  protected String dumpState(final Materialization m) {
+      return String.format("%s %s", m,
+        DependencyUtils.describeDependencies(m.getReflectionId(),
+          getReflectionService().getDependencies(m.getReflectionId())));
+  }
+
   protected void createSpace(String name) {
     expectSuccess(getBuilder(getAPIv2().path("space/" + name)).buildPut(Entity.json(new Space(null, name, null, null, null, 0, null))), Space.class);
   }
@@ -464,7 +482,7 @@ public class BaseTestReflection extends BaseTestServer {
    */
   protected void checkReflectionDependency(Materialization parent, Materialization child) throws Exception {
     // child reflection should depend on its parent
-    assertTrue("child reflection doesn't depend on its parent", dependsOn(child.getReflectionId(), dependency(parent.getReflectionId())));
+    assertDependsOn(child.getReflectionId(), dependency(parent.getReflectionId()));
 
     JobDetailsRequest parentRefreshReflectionRequest = JobDetailsRequest.newBuilder()
       .setJobId(JobProtobuf.JobId.newBuilder().setId(parent.getInitRefreshJobId()).build())

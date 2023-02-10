@@ -359,6 +359,7 @@ message VirtualDatasetState {
   repeated Column groupBys = 6;
   repeated string context = 7;
   repeated string referredTables = 8;
+  repeated SourceVersionReference reference = 9;
 }
 
 // Transform
@@ -375,6 +376,7 @@ message TransformJoin {
   required JoinType joinType = 1;
   repeated string rightTableFullPath = 2;
   repeated JoinCondition joinConditions = 3;
+  repeated SourceVersionReference references = 4;
 }
 message JoinCondition {
 // todo: repeated

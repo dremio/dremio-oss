@@ -25,6 +25,17 @@ import { compose } from "redux";
 import { removeSource } from "actions/resources/sources";
 import AllSourcesMenuMixin from "dyn-load/components/Menus/HomePage/AllSourcesMenuMixin";
 
+export const getSettingsLocation = (location, item) => ({
+  ...location,
+  state: {
+    modal: "EditSourceModal",
+    query: {
+      name: item.get("name"),
+      type: item.get("type"),
+    },
+  },
+});
+
 @AllSourcesMenuMixin
 export class AllSourcesMenu extends PureComponent {
   static propTypes = {

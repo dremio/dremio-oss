@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.util;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -23,7 +24,6 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +69,6 @@ public class TestGlobalDictionaryBuilder extends DremioTest {
   private static Path partitionDirPath;
   private static Configuration conf;
   private static FileSystem fs;
-  private static final Charset UTF8 = Charset.forName("UTF-8");
 
   private static String [] kinds = { "landline", "mobile", "cell", "work", "home"};
 
@@ -199,10 +198,10 @@ public class TestGlobalDictionaryBuilder extends DremioTest {
       try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
         assertEquals(4, dict.getRecordCount());
         final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
-        assertEquals("cell", new String(dictValues.get(0), UTF8));
-        assertEquals("landline", new String(dictValues.get(1), UTF8));
-        assertEquals("mobile", new String(dictValues.get(2), UTF8));
-        assertEquals("work", new String(dictValues.get(3), UTF8));
+        assertEquals("cell", new String(dictValues.get(0), UTF_8));
+        assertEquals("landline", new String(dictValues.get(1), UTF_8));
+        assertEquals("mobile", new String(dictValues.get(2), UTF_8));
+        assertEquals("work", new String(dictValues.get(3), UTF_8));
       }
       assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());
 
@@ -217,11 +216,11 @@ public class TestGlobalDictionaryBuilder extends DremioTest {
       try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
         assertEquals(5, dict.getRecordCount());
         final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
-        assertEquals("cell", new String(dictValues.get(0), UTF8));
-        assertEquals("home", new String(dictValues.get(1), UTF8));
-        assertEquals("landline", new String(dictValues.get(2), UTF8));
-        assertEquals("mobile", new String(dictValues.get(3), UTF8));
-        assertEquals("work", new String(dictValues.get(4), UTF8));
+        assertEquals("cell", new String(dictValues.get(0), UTF_8));
+        assertEquals("home", new String(dictValues.get(1), UTF_8));
+        assertEquals("landline", new String(dictValues.get(2), UTF_8));
+        assertEquals("mobile", new String(dictValues.get(3), UTF_8));
+        assertEquals("work", new String(dictValues.get(4), UTF_8));
       }
 
       assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());

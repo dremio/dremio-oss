@@ -31,7 +31,6 @@ export default {
   edition: "OSS",
   intercomAppId: null,
   shouldEnableBugFiling: !isProductionBuild,
-  shouldEnableRSOD: !isProductionBuild,
   supportEmailTo: "noreply@dremio.com",
   supportEmailSubjectForJobs: "",
   outsideCommunicationDisabled: false,
@@ -62,6 +61,7 @@ export default {
   ...((window && window.dremioConfig) || {}),
   displayTutorialsLink: false,
   showNewJobsPage: true,
+  showOldReflectionsListing: false,
   showMetadataValidityCheckbox: false,
   ...((window && window.dremioConfig) || {}),
 };

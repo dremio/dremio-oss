@@ -69,7 +69,7 @@ public class TestReflectionStatusService {
 
   private final COMBINED_STATUS expected;
 
-  private static class ConstantCacheViewer implements CacheViewer {
+  static class ConstantCacheViewer implements CacheViewer {
     private final boolean isCached;
     ConstantCacheViewer(boolean isCached) {
       this.isCached = isCached;
@@ -179,7 +179,7 @@ public class TestReflectionStatusService {
     }
 
     Materialization materialization = new Materialization()
-      .setLastRefreshFromPds(0L);
+      .setLastRefreshFromPds(0L).setLastRefreshDurationMillis(0L);
 
     if ("null materialization expiration".equals(name)) {
       materialization.setExpiration(null);

@@ -72,6 +72,7 @@ import com.dremio.common.SentinelSecure;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
@@ -99,6 +100,7 @@ import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
@@ -399,7 +401,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
       newDatasetVersionMutator(),
       l(UserService.class),
       newNamespaceService(),
-      DEFAULT_USERNAME
+      DEFAULT_USERNAME,
+      l(CollaborationHelper.class)
     ));
 
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
@@ -458,6 +461,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/accelerator").toPath());
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/scratch").toPath());
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/metadata").toPath());
+      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/gandiva").toPath());
 
       // Get a random port
       int port;
@@ -545,6 +549,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .writePath(folder1.getRoot().getAbsolutePath())
               .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
               .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
+              .with(DremioConfig.GANDIVA_CACHE_PATH_STRING, distpath + "/gandiva")
               .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
               .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
               .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
@@ -1177,5 +1182,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
         // ignore
       }
     };
+  }
+
+  protected static String readResourceAsString(String fileName) {
+    return TestTools.readTestResourceAsString(fileName);
   }
 }

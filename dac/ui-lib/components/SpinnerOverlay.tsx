@@ -27,9 +27,11 @@ type SpinnerOverlayProps = {
 export const SpinnerOverlay = (props: SpinnerOverlayProps): JSX.Element => {
   return (
     <CSSTransition
-      addEndListener={(node, done) => {
-        node.addEventListener("transitionend", done, false);
-      }}
+      addEndListener={
+        ((node: any, done: any) => {
+          node.addEventListener("transitionend", done, false);
+        }) as any
+      }
       appear
       classNames="dremio-spinner-overlay"
       in={props.in}

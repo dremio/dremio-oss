@@ -15,7 +15,7 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import Immutable from "immutable";
 import jobsUtils from "@app/utils/jobsUtils";

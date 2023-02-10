@@ -19,9 +19,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-
-import javax.annotation.Nullable;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -30,8 +29,8 @@ import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
-import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -43,7 +42,6 @@ import com.dremio.service.job.proto.JoinTable;
 import com.dremio.service.job.proto.JoinType;
 import com.dremio.service.jobs.JoinPreAnalyzer.JoinPreAnalysisInfo;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -159,41 +157,30 @@ public final class JoinAnalyzer {
     return totalCount;
   }
 
+  @SuppressForbidden // guava Optional
   private static MajorFragmentProfile findFragmentProfileWithId(QueryProfile profile, final int id) {
-    return FluentIterable.from(profile.getFragmentProfileList()).firstMatch(new Predicate<MajorFragmentProfile>() {
-      @Override
-      public boolean apply(@Nullable MajorFragmentProfile input) {
-        return input.getMajorFragmentId() == id;
-      }
-    }).get();
+    return FluentIterable.from(profile.getFragmentProfileList()).firstMatch(input -> input.getMajorFragmentId() == id).get();
   }
 
+  @SuppressForbidden // guava Optional
   private static OperatorProfile findOperatorProfileWithId(MinorFragmentProfile minorFragmentProfile, final int id) {
-    return FluentIterable.from(minorFragmentProfile.getOperatorProfileList()).firstMatch(new Predicate<OperatorProfile>() {
-      @Override
-      public boolean apply(OperatorProfile input) {
-        return input.getOperatorId() == id;
-      }
-    }).get();
+    return FluentIterable.from(minorFragmentProfile.getOperatorProfileList()).firstMatch(input -> input.getOperatorId() == id).get();
   }
+
+  @SuppressForbidden // guava Optional
   private static long findMetric(OperatorProfile operatorProfile, final int id) {
-    return FluentIterable.from(operatorProfile.getMetricList()).firstMatch(new Predicate<MetricValue>() {
-      @Override
-      public boolean apply(@Nullable MetricValue input) {
-        return input.getMetricId() == id;
-      }
-    }).get().getLongValue();
+    return FluentIterable.from(operatorProfile.getMetricList()).firstMatch(input -> input.getMetricId() == id).get().getLongValue();
   }
 
   public static JoinAnalysis merge(JoinAnalysis left, JoinAnalysis right, final RelNode rightPlan, final String materializationId) {
     try {
       int leftMax = Integer.MIN_VALUE;
-      for (JoinTable table : Optional.fromNullable(left.getJoinTablesList()).or(Collections.<JoinTable>emptyList())) {
+      for (JoinTable table : Optional.ofNullable(left.getJoinTablesList()).orElse(Collections.emptyList())) {
         leftMax = Math.max(leftMax, table.getTableId());
       }
 
       int rightMin = Integer.MAX_VALUE;
-      for (JoinTable table : Optional.fromNullable(right.getJoinTablesList()).or(Collections.<JoinTable>emptyList())) {
+      for (JoinTable table : Optional.ofNullable(right.getJoinTablesList()).orElse(Collections.emptyList())) {
         rightMin = Math.min(rightMin, table.getTableId());
       }
 
@@ -208,13 +195,13 @@ public final class JoinAnalyzer {
         });
 
       List<JoinTable> combinedJoinTableList = ImmutableList.<JoinTable>builder()
-        .addAll(Optional.fromNullable(left.getJoinTablesList()).or(Collections.<JoinTable>emptyList()))
-        .addAll(Optional.fromNullable(newRight.getJoinTablesList()).or(Collections.<JoinTable>emptyList()))
+        .addAll(Optional.ofNullable(left.getJoinTablesList()).orElse(Collections.emptyList()))
+        .addAll(Optional.ofNullable(newRight.getJoinTablesList()).orElse(Collections.emptyList()))
         .build();
 
       List<JoinStats> combinedJoinStatsList = ImmutableList.<JoinStats>builder()
-        .addAll(Optional.fromNullable(left.getJoinStatsList()).or(Collections.<JoinStats>emptyList()))
-        .addAll(Optional.fromNullable(newRight.getJoinStatsList()).or(Collections.<JoinStats>emptyList()))
+        .addAll(Optional.ofNullable(left.getJoinStatsList()).orElse(Collections.emptyList()))
+        .addAll(Optional.ofNullable(newRight.getJoinStatsList()).orElse(Collections.emptyList()))
         .build();
 
       final Set<Integer> materializationTableIds = FluentIterable.from(combinedJoinTableList)
@@ -238,7 +225,7 @@ public final class JoinAnalyzer {
         .transform(new Function<JoinStats, JoinStats>() {
           @Override
           public JoinStats apply(JoinStats joinStats) {
-            List<JoinCondition> newConditions = FluentIterable.from(Optional.fromNullable(joinStats.getJoinConditionsList()).or(Collections.emptyList()))
+            List<JoinCondition> newConditions = FluentIterable.from(Optional.ofNullable(joinStats.getJoinConditionsList()).orElse(Collections.emptyList()))
               .transform(new Function<JoinCondition, JoinCondition>() {
                 @Override
                 public JoinCondition apply(JoinCondition condition) {

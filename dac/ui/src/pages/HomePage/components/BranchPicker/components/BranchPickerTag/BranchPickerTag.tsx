@@ -15,7 +15,7 @@
  */
 import { Reference } from "@app/types/nessie";
 import { getFullPathByType, getShortHash } from "@app/utils/nessieUtils";
-import classNames from "classnames";
+import classNames from "clsx";
 import RefIcon from "../RefIcon/RefIcon";
 
 import "./BranchPickerTag.less";

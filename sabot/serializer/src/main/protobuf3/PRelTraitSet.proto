@@ -1,0 +1,74 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto3";
+package plan;
+
+option java_package = "com.dremio.plan.serialization";
+option optimize_for = SPEED;
+option java_multiple_files = true;
+option java_outer_classname = "PRelTraitSetTypes";
+
+message PRelTraitSet {
+  enum PConvention {
+    UNKNOWN_CONVENTION = 0;
+    NONE_CONVENTION = 1;
+    LOGICAL = 2;
+    PHYSICAL = 3;
+  }
+
+  PConvention legacy_convention = 1;
+  repeated PRelFieldCollation legacy_collation = 2;
+  repeated PRelTrait traits = 3;
+}
+
+message PRelTrait {
+  oneof implementation {
+    PRelCollation collation = 1;
+  }
+}
+
+message PRelCollation {
+  oneof implementation {
+    PRelCollationImpl impl = 1;
+  }
+}
+
+message PRelCollationImpl {
+  repeated PRelFieldCollation field_collations = 1;
+}
+
+message PRelFieldCollation {
+  enum PDirection {
+    UNKNOWN_DIRECTION = 0;
+    ASCENDING = 1;
+    STRICTLY_ASCENDING = 2;
+    DESCENDING = 3;
+    STRICTLY_DESCENDING = 4;
+    CLUSTERED = 5;
+    UNSPECIFIED = 6;
+  }
+
+  enum PNullDirection {
+    UNKNOWN_NULL_DIRECTION = 0;
+    UNSPECIFIED_NULL_DIRECTION = 1;
+    FIRST = 2;
+    LAST = 3;
+  }
+
+  int32 fieldIndex = 1;
+  PDirection direction = 2;
+  PNullDirection null_direction = 3;
+}

@@ -20,6 +20,7 @@ import sonarPreviewImg from "./images/sonar-preview.png";
 import { ServiceCard } from "./ServiceCard";
 import { Tooltip } from "dremio-ui-lib";
 import { ExternalLink } from "dremio-ui-lib/dist-esm";
+import * as PATHS from "@app/exports/paths";
 
 type Props = {
   action: JSX.Element;
@@ -29,6 +30,7 @@ export const SonarServiceCard = (props: Props): JSX.Element => {
   return (
     <ServiceCard
       action={props.action}
+      href={PATHS.sonarProjects()}
       showcaseImage={<img src={sonarPreviewImg} alt="" />}
       serviceName={intl.formatMessage({ id: "Brand.Sonar" })}
       serviceIconName="corporate/sonar"
@@ -50,27 +52,37 @@ export const SonarServiceCard = (props: Props): JSX.Element => {
                   <strong>Sonar</strong>
                 </p>
                 <p>
-                  Sonar is a lakehouse query engine, enables analysts to explore
-                  data with sub-second query response times, and enables data
-                  engineers to ingest and transform data with DML operations. In
-                  addition, Sonar connects to external databases so that you
-                  don’t have to move all your data into object storage up front
-                  in order to query it.
+                  Sonar is a lakehouse query engine that lets analysts explore
+                  data with sub-second query response times and allows data
+                  engineers to ingest and transform data with DML operations.
+                  Additionally, Sonar connects to external databases so you
+                  don’t have to move all your data into object storage in order
+                  to query it.
                 </p>
 
                 <div style={{ marginTop: "1em" }}>
                   <p>
                     <strong>Read more on docs…</strong>
                   </p>
-                  <ul>
+                  <ul
+                    onClick={(e: any) => {
+                      e.stopPropagation();
+                    }}
+                  >
                     <li>
-                      <ExternalLink href="#" variant="list">
-                        Get started with Dremio Sonar
+                      <ExternalLink
+                        href="https://docs.dremio.com/cloud/getting-started/"
+                        variant="list"
+                      >
+                        Get Started with Dremio
                       </ExternalLink>
                     </li>
                     <li>
-                      <ExternalLink href="#" variant="list">
-                        Manage security
+                      <ExternalLink
+                        href="https://docs.dremio.com/cloud/sources/"
+                        variant="list"
+                      >
+                        Connecting to Your Data
                       </ExternalLink>
                     </li>
                   </ul>

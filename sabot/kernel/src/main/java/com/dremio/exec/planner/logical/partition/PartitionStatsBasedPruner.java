@@ -95,6 +95,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
+import io.opentelemetry.extension.annotations.WithSpan;
+
 /**
  * Implementation of {@link RecordPruner} which prunes based on Iceberg partition stats
  */
@@ -116,6 +118,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     this.fileLocation = fileLocation;
   }
 
+  @WithSpan("partitions-stats-prune")
   @Override
   public Pair<Long, Long> prune(
     Map<Integer, String> inUseColIdToNameMap,

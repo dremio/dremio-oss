@@ -31,11 +31,13 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemConf;
+import com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
@@ -60,7 +62,7 @@ import com.google.common.annotations.VisibleForTesting;
 public class SystemStoragePluginInitializer implements Initializer<Void> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemStoragePluginInitializer.class);
 
-  private static final String LOCAL_TASK_LEADER_NAME = "plugininitv2";
+  private static final String LOCAL_TASK_LEADER_NAME = "plugininitv3";
   private static final int MAX_CACHE_SPACE_PERCENT = 100;
 
   @Override
@@ -126,6 +128,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final ProjectConfig.DistPathConfig accelerationPathConfig = projectConfig.getAcceleratorConfig();
     final ProjectConfig.DistPathConfig scratchPathConfig = projectConfig.getScratchConfig();
     final ProjectConfig.DistPathConfig metadataPathConfig = projectConfig.getMetadataConfig();
+    final ProjectConfig.DistPathConfig gandivaCachePathConfig = projectConfig.getGandivaPersistentCacheConfig();
     final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
     final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
     // Do not construct URI simply by concatenating, as it might not be encoded properly
@@ -177,6 +180,11 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
                     enableCachingForMetadata, maxCacheSpacePercent, enableS3FileStatusCheckForMetadata,
                     metadataPathConfig.getDataCredentials()), deferred);
 
+    if (sabotContext.getOptionManager().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE)) {
+      final boolean enableAsyncForGandivaCache = enable(config, DremioConfig.DEBUG_GANDIVA_CACHE_ASYNC_ENABLED);
+      createSafe(catalogService, ns, GandivaPersistentCachePluginConfig.create(gandivaCachePathConfig.getUri(), enableAsyncForGandivaCache,
+        isEnableS3FileStatusCheck(config, metadataPathConfig), gandivaCachePathConfig.getDataCredentials()), deferred);
+    }
 
     final boolean enableAsyncForLogs = enable(config, DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
     createSafe(catalogService, ns,

@@ -30,10 +30,10 @@ import {
 } from "@app/selectors/explore";
 import { getCurrentSessionJobList, getJobList } from "selectors/jobs";
 import { intl } from "@app/utils/intl";
-import * as PATHS from "@app/exports/paths";
-
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
+import * as jobPaths from "dremio-ui-common/paths/jobs.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 import "./ExploreTableJobStatus.less";
 
@@ -119,7 +119,7 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
     haveRows,
     runStatus,
   } = props;
-
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
   const isComplete = jobProgress?.status === JOB_STATUS.completed;
   const jobProgressStatus = runStatus
     ? formatMessage({ id: "Explore.Run" })
@@ -175,7 +175,7 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
             <Tooltip title={`Jobs Detail Page for #${jobId}`}>
               <LinkWithRef
                 to={{
-                  pathname: PATHS.job({ jobId }),
+                  pathname: jobPaths.job.link({ jobId, projectId }),
                   query: {
                     attempts: jobAttempts,
                   },

@@ -16,6 +16,8 @@
 
 package com.dremio.exec.store.ischema.writers;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.function.Function;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -24,7 +26,6 @@ import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Charsets;
 
 /**
  * Writes "string" field types.
@@ -72,7 +73,7 @@ final class StringFieldWriter<V> implements FieldWriter<V> {
       return;
     }
 
-    final byte[] bytes = string.getBytes(Charsets.UTF_8);
+    final byte[] bytes = string.getBytes(UTF_8);
     managedBuffer = managedBuffer.reallocIfNeeded(bytes.length);
     managedBuffer.clear();
     managedBuffer.writeBytes(bytes);

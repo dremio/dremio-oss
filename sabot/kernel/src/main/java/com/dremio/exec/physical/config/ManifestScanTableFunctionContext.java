@@ -39,14 +39,13 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
     private final ByteString partitionSpecMap;
     private final ByteString jsonPartitionSpecMap;
     private String icebergSchema;
-    private final byte[] icebergAnyColExpression;
     private final ManifestContent manifestContent;
+    private final ManifestScanFilters manifestScanFilters;
 
     public ManifestScanTableFunctionContext(
         @JsonProperty("partitionSpecMap") ByteString partitionSpecMap,
         @JsonProperty("jsonPartitionSpecMap") ByteString jsonPartitionSpecMap,
         @JsonProperty("icebergSchema") String icebergSchema,
-        @JsonProperty("icebergAnyColExpression") byte[] icebergAnyColExpression,
         @JsonProperty("formatSettings") FileConfig formatSettings,
         @JsonProperty("schema") BatchSchema fullSchema,
         @JsonProperty("tableschema") BatchSchema tableSchema,
@@ -62,12 +61,13 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
         @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
         @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
         @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings,
-        @JsonProperty("manifestContent") ManifestContent manifestContent) {
+        @JsonProperty("manifestContent") ManifestContent manifestContent,
+        @JsonProperty("metadataFilters") ManifestScanFilters manifestScanFilters) {
         super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
         this.partitionSpecMap = partitionSpecMap;
         this.icebergSchema = icebergSchema;
         this.jsonPartitionSpecMap = jsonPartitionSpecMap;
-        this.icebergAnyColExpression = icebergAnyColExpression;
+        this.manifestScanFilters = manifestScanFilters;
         this.manifestContent = manifestContent;
     }
 
@@ -83,8 +83,8 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
       return icebergSchema;
     }
 
-    public byte[] getIcebergAnyColExpression() {
-        return icebergAnyColExpression;
+    public ManifestScanFilters getManifestScanFilters() {
+        return manifestScanFilters;
     }
 
     public ManifestContent getManifestContent() {

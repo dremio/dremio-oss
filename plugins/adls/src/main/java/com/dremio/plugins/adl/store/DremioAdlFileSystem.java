@@ -18,6 +18,7 @@ package com.dremio.plugins.adl.store;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -30,7 +31,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
-import com.google.common.base.Preconditions;
 import com.microsoft.azure.datalake.store.ADLSClient;
 import com.microsoft.azure.datalake.store.AdlsListPathResponse;
 import com.microsoft.azure.datalake.store.DirectoryEntry;
@@ -82,28 +82,14 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
   class AdlsListIterator implements RemoteIterator<LocatedFileStatus> {
     private AdlsListPathResponse currBatchResponse;
     private int currIndex;
-    private Path path;
-    private UserGroupRepresentation oidOrUpn;
+    private final String path;
+    private final UserGroupRepresentation oidOrUpn;
 
-    public AdlsListIterator(Path path, AdlsListPathResponse response) {
-      currBatchResponse = response;
-      currIndex = 0;
-      this.path = path;
-    }
-
-    public AdlsListIterator(Path path, UserGroupRepresentation oidOrUpn, AdlsListPathResponse response) {
-      currBatchResponse = response;
-      currIndex = 0;
+    public AdlsListIterator(String path, UserGroupRepresentation oidOrUpn) throws IOException {
+      this.currBatchResponse = getAdlClient().enumerateDirectories(path, oidOrUpn, null);
+      this.currIndex = 0;
       this.path = path;
       this.oidOrUpn = oidOrUpn;
-    }
-
-    public Path getPath() {
-      return path;
-    }
-
-    public void setPath(Path path) {
-      this.path = path;
     }
 
     @Override
@@ -113,11 +99,13 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
 
     @Override
     public LocatedFileStatus next() throws IOException {
-      Preconditions.checkArgument(hasNext(), "No next found");
+      if (!hasNext()) {
+        throw new NoSuchElementException("Iterator has no more elements!");
+      }
       DirectoryEntry currentFile = currBatchResponse.getEntries().get(currIndex);
       currIndex = currIndex + 1;
       if (currBatchResponse.shouldLoadNextBatch(currIndex)) {
-        currBatchResponse = getAdlClient().enumerateDirectories(currBatchResponse.getPath(), oidOrUpn, currBatchResponse.getContinuation());
+        currBatchResponse = getAdlClient().enumerateDirectories(path, oidOrUpn, currBatchResponse.getContinuationToken());
         currIndex = 0;
       }
       return new LocatedFileStatus(toFileStatus(currentFile, new Path(currentFile.fullName)), null);
@@ -130,7 +118,7 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
     statistics.incrementReadOps(1);
     boolean enableUPN = getConf().getBoolean("adl.feature.ownerandgroup.enableupn", false);
     UserGroupRepresentation oidOrUpn = enableUPN ? UserGroupRepresentation.UPN : UserGroupRepresentation.OID;
-    return new AdlsListIterator(f, oidOrUpn, getAdlClient().enumerateDirectories(f.toString(), oidOrUpn, null));
+    return new AdlsListIterator(f.toString(), oidOrUpn);
   }
 
   private volatile AsyncHttpClientManager asyncHttpClientManager;

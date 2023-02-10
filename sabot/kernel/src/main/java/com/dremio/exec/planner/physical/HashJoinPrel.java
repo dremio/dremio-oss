@@ -67,6 +67,7 @@ public class HashJoinPrel extends JoinPrel {
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.hashjoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.hashjoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator FORCEDMEMLIMIT = new PositiveLongValidator("planner.op.hashjoin.forced_limit_bytes", Long.MAX_VALUE, 2L * 1024 * 1024 * 1024);
   public static final LongValidator LOW_LIMIT = new PositiveLongValidator("planner.op.hashjoin.low_limit_bytes", Long.MAX_VALUE, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
 
   public static final DoubleValidator FACTOR = new RangeDoubleValidator("planner.op.hashjoin.factor", 0.0, 1000.0, 1.0d);
@@ -172,15 +173,17 @@ public class HashJoinPrel extends JoinPrel {
 
     long lowLimit = options.getOption(LOW_LIMIT);
     long reservation = options.getOption(RESERVE);
+    long forcedMemoryLimit = 0;
     if (canSpill) {
       // safety code in case users set very low values via support option. Cannot use PostiveRangeValidator since the
       // min values are different for spilling & non-spilling variants.
       lowLimit = Long.max(lowLimit, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
       reservation = Long.max(reservation, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
+      forcedMemoryLimit = Long.max(lowLimit, options.getOption(FORCEDMEMLIMIT));
     }
     return new HashJoinPOP(
       creator
-        .props(this, null, schema, reservation, LIMIT, lowLimit)
+        .props(this, null, schema, reservation, LIMIT, lowLimit, forcedMemoryLimit)
         .cloneWithBound(creator.getOptionManager().getOption(BOUNDED) && canSpill)
         .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
         .cloneWithMemoryExpensive(true),

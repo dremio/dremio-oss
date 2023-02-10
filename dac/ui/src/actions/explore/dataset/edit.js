@@ -17,7 +17,7 @@ import exploreUtils from "utils/explore/exploreUtils";
 
 import { datasetWithoutData } from "schemas/v2/fullDataset";
 
-import { loadExploreEntities } from "./get";
+import { loadExploreEntities, newLoadExploreEntities } from "./get";
 
 // this is used only in performLoadDataset saga. We do not expect data in initial response. The data should be
 // loaded in a separate call using 'loadNextRows' action. See code of performLoadDataset saga for details
@@ -39,6 +39,27 @@ export const loadExistingDataset =
         href,
         viewId,
         schema: datasetWithoutData,
+      })
+    );
+  };
+
+export const loadNewDataset =
+  (datasetPath, sessionId, version, jobId, paginationUrl, viewId) =>
+  (dispatch) => {
+    const href = exploreUtils.getDatasetMetadataLink(
+      datasetPath,
+      sessionId,
+      version
+    );
+
+    return dispatch(
+      newLoadExploreEntities({
+        href,
+        viewId,
+        schema: datasetWithoutData,
+        datasetVersion: version,
+        jobId,
+        paginationUrl,
       })
     );
   };

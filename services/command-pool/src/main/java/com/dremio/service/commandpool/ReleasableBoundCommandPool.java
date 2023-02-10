@@ -45,6 +45,8 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
   // Set of threads holding the slots. These are threads that currently have a slot in the CommandPool
   private final Set<Long> threadsHoldingSlots = Sets.newConcurrentHashSet();
 
+  private final Tracer tracer;
+
   // Thread pool to submit the tasks that have acquired a slot
   private final ContextMigratingExecutorService<ThreadPoolExecutor> executorService;
 
@@ -69,6 +71,7 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
 
   ReleasableBoundCommandPool(final int poolSize, Tracer tracer) {
     this.maxPoolSize = poolSize;
+    this.tracer = tracer;
     this.executorService = new ContextMigratingExecutorService<>(new ThreadPoolExecutor(
       poolSize,
       // the max pool size is unbounded. Consider all tasks submitting another task of low priority. In the worst
@@ -157,15 +160,17 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
   }
 
   @Override
-  public <V> CompletableFuture<V> submit(Priority priority, String descriptor, Command<V> command, boolean runInSameThread) {
+  public <V> CompletableFuture<V> submit(Priority priority, String descriptor, String spanName, Command<V> command, boolean runInSameThread) {
     final long submittedTime = System.currentTimeMillis();
     final CommandWrapper<V> wrapper = new CommandWrapper<V>(
-      priority, descriptor, submittedTime, getWrappedCommand(command, runInSameThread)
+      priority, descriptor, spanName, submittedTime, getWrappedCommand(command, runInSameThread)
     );
 
     if (runInSameThread) {
-      wrapper.run();
-      return wrapper.getFuture();
+      try(Closeable childSpan = ContextMigratingExecutorService.getCloseableSpan(tracer, tracer.activeSpan(), spanName)) {
+        wrapper.run();
+        return wrapper.getFuture();
+      }
     }
 
     // schedule the next command once this command is done

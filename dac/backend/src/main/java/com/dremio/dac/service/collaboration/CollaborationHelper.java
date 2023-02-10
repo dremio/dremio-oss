@@ -20,6 +20,7 @@ import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,7 +44,6 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 /**
@@ -75,7 +75,7 @@ public class CollaborationHelper {
 
     final Optional<CollaborationTag> tags = tagsStore.getTagsForEntityId(entityId);
 
-    return tags.transform(Tags::fromCollaborationTag);
+    return tags.map(Tags::fromCollaborationTag);
   }
 
   public void setTags(String entityId, Tags tags) throws NamespaceException {
@@ -90,7 +90,7 @@ public class CollaborationHelper {
     final Optional<CollaborationTag> existingTag = tagsStore.getTagsForEntityId(entityId);
 
     // if it is a update, copy over the id so we overwrite the existing entry
-    collaborationTag.setId(existingTag.transform(CollaborationTag::getId).or(UUID.randomUUID().toString()));
+    collaborationTag.setId(existingTag.map(CollaborationTag::getId).orElse(UUID.randomUUID().toString()));
 
     tagsStore.save(collaborationTag);
     searchService.wakeupManager("Tags changed");
@@ -111,7 +111,7 @@ public class CollaborationHelper {
       }
     }
 
-    return wiki.transform(Wiki::fromCollaborationWiki);
+    return wiki.map(Wiki::fromCollaborationWiki);
   }
 
   private final String getDescription(NameSpaceContainer container) {
@@ -165,7 +165,7 @@ public class CollaborationHelper {
 
     final Optional<CollaborationWiki> existingWiki = wikiStore.getLatestWikiForEntityId(entityId);
 
-    collaborationWiki.setVersion(existingWiki.transform(l -> {
+    collaborationWiki.setVersion(existingWiki.map(l -> {
       // check if versions match
       Long existingVersion = l.getVersion();
       Long newVersion = wiki.getVersion();
@@ -177,7 +177,7 @@ public class CollaborationHelper {
       // We create a new entry for each update but keep incrementing the version (for sorting).  Because we do this we can't
       // rely on the store to do the version incrementing and therefore do it manually.
       return existingVersion + 1L;
-    }).or(0L));
+    }).orElse(0L));
 
     collaborationWiki.setEntityId(entityId);
 

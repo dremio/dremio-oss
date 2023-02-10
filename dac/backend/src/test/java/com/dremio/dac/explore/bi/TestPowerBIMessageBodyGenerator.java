@@ -182,13 +182,13 @@ public class TestPowerBIMessageBodyGenerator {
 
     assertEquals(expectedSchema, address.getSchema());
     assertEquals(expectedTable, address.getTable());
-    assertEquals(serverPort(server, port), address.getServer());
 
     verifyExtraDSRFileAttributes(address, details);
   }
 
   protected void verifyExtraDSRFileAttributes(PowerBIMessageBodyGenerator.DSRConnectionInfo address, PowerBIMessageBodyGenerator.DataSourceReference details) {
     assertEquals("dremio", details.getProtocol());
+    assertEquals(serverPort(server, port), address.getServer());
     verifyEncryptionMethod(address, details);
   }
 

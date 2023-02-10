@@ -16,6 +16,7 @@
 package com.dremio.dac.api;
 
 import static com.dremio.dac.server.UIOptions.ALLOW_HIVE_SOURCE;
+import static com.dremio.exec.store.jdbc.JdbcPluginOptions.JDBC_DB2_ENABLED;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
@@ -119,7 +120,7 @@ public class SourceResource {
     for (SourceConfig sourceConfig : sourceConfigs) {
       Source source = fromSourceConfig(sourceConfig);
 
-      if (sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType())) {
+      if (sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType(), sabotContext.getSystemOptionManager())) {
         sources.add(source);
       }
     }
@@ -131,7 +132,7 @@ public class SourceResource {
   @RolesAllowed({"admin"})
   public SourceDeprecated addSource(SourceDeprecated source) {
     try {
-      if (!sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType())) {
+      if (!sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType(), sabotContext.getSystemOptionManager())) {
         throw new IllegalArgumentException(source.getType() + " source type is not supported.");
       }
 
@@ -158,14 +159,14 @@ public class SourceResource {
   public SourceDeprecated updateSource(@PathParam("id") String id, SourceDeprecated source) {
     SourceConfig sourceConfig;
     try {
-      if (!sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType())) {
+      if (!sabotContext.getSourceVerifierProvider().get().isSourceSupported(source.getType(), sabotContext.getSystemOptionManager())) {
         throw new IllegalArgumentException(source.getType() + " source type is not supported.");
       }
 
       sourceConfig = sourceService.updateSource(id, source.toSourceConfig());
 
       return fromSourceConfig(sourceConfig);
-    } catch (NamespaceException | ExecutionSetupException e) {
+    } catch (NamespaceException e) {
       throw new ServerErrorException(e);
     }
   }
@@ -188,16 +189,18 @@ public class SourceResource {
     final ResponseList<SourceTypeTemplate> types = new ResponseList<>();
 
     final boolean showHive = sabotContext.getOptionManager().getOption(ALLOW_HIVE_SOURCE);
+    final boolean showDb2 = sabotContext.getOptionManager().getOption(JDBC_DB2_ENABLED);
 
     for(Class<? extends ConnectionConf<?, ?>> input : connectionReader.getAllConnectionConfs().values()) {
-      // we can't use isInternal as its not a static method, instead we only show listable sources
+      // We can't use isInternal as it's not a static method, instead we only show listable sources.
       if (isListable(input)) {
         String sourceType = input.getAnnotation(SourceType.class).value();
-        if (!showHive && "HIVE".equals(sourceType)) {
+        if ((!showHive && "HIVE".equals(sourceType)) ||
+          (!showDb2 && "DB2".equals(sourceType))) {
           continue;
         }
 
-        if (sabotContext.getSourceVerifierProvider().get().isSourceSupported(sourceType)) {
+        if (sabotContext.getSourceVerifierProvider().get().isSourceSupported(sourceType, sabotContext.getSystemOptionManager())) {
           types.add(SourceTypeTemplate.fromSourceClass(input, false));
         }
       }

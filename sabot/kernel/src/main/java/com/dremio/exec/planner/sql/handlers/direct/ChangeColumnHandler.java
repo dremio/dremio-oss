@@ -35,8 +35,9 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
+import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
-import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Throwables;
@@ -45,9 +46,6 @@ import com.google.common.base.Throwables;
  * Changes column name, type specified by {@link SqlAlterTableChangeColumn}
  */
 public class ChangeColumnHandler extends SimpleDirectHandler {
-
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ChangeColumnHandler.class);
-
   private final Catalog catalog;
   private final SqlHandlerConfig config;
 
@@ -60,7 +58,7 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlAlterTableChangeColumn sqlChangeColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableChangeColumn.class);
 
-    NamespaceKey path = catalog.resolveSingle(sqlChangeColumn.getTable());
+    NamespaceKey path = DmlUtils.getTablePath(catalog, sqlChangeColumn.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     DremioTable table = catalog.getTableNoResolve(path);
@@ -71,7 +69,7 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
     }
 
     String currentColumnName = sqlChangeColumn.getColumnToChange();
-    SqlColumnDeclaration newColumnSpec = sqlChangeColumn.getNewColumnSpec();
+    DremioSqlColumnDeclaration newColumnSpec = sqlChangeColumn.getNewColumnSpec();
     String columnNewName = newColumnSpec.getName().getSimple();
 
     if (!table.getSchema().findFieldIgnoreCase(currentColumnName).isPresent()) {

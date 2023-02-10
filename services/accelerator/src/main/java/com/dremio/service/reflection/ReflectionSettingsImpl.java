@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
@@ -27,7 +28,6 @@ import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.store.ReflectionSettingsStore;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 /**
@@ -48,7 +48,7 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
   // only returns a AccelerationSettings if one is specifically defined for the specified key
   @Override
   public Optional<AccelerationSettings> getStoredReflectionSettings(NamespaceKey key) {
-    return Optional.fromNullable(store.get(key));
+    return Optional.ofNullable(store.get(key));
   }
 
   @Override

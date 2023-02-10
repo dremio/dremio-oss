@@ -27,5 +27,8 @@ public enum IcebergCommandType {
   TRUNCATE, // truncate a table
   METADATA, // alter table - add / drop column, change name or type of a column
   FULL_METADATA_REFRESH, // creates table, inserts data, updates KV store
-  INCREMENTAL_METADATA_REFRESH // delete then insert into a table
+  INCREMENTAL_METADATA_REFRESH, // delete then insert into a table
+  OPTIMIZE, // Optimize Iceberg Table
+  ROLLBACK, // Rollback a table
+  VACUUM    // Vacuum a table
 }

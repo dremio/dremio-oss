@@ -81,7 +81,7 @@ public class MapGroupConverter extends ParquetGroupConverter {
       entrySchema,
       columns,
       options,
-      arrowSchema,
+      arrowSchema != null && !arrowSchema.isEmpty() ? arrowSchema.get(0).getChildren() : arrowSchema,
       schemaHelper));
   }
 

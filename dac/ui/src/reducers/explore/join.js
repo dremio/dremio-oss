@@ -33,6 +33,8 @@ const initialState = Immutable.fromJS({
     recommendedJoins: [],
     activeRecommendedJoin: {},
   },
+
+  joinReference: null,
 });
 
 export default function join(oldState, action) {
@@ -121,6 +123,10 @@ export default function join(oldState, action) {
         ["recommended", "activeRecommendedJoin"],
         Immutable.Map()
       );
+    }
+
+    case ActionTypes.SET_JOIN_REFERENCE: {
+      return state.set("joinReference", action.joinReference);
     }
 
     default:

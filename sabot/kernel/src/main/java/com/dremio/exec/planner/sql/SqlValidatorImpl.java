@@ -86,9 +86,11 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
+import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.planner.sql.parser.SqlPartitionTransform;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
@@ -143,8 +145,34 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       SqlMergeIntoTable merge = (SqlMergeIntoTable) node;
       rewriteMerge(merge);
       return node;
+    }  else if (node instanceof SqlOptimize) {
+      SqlOptimize sqlOptimize = (SqlOptimize) node;
+      SqlSelect select = createSourceSelectForOptimize(sqlOptimize);
+      sqlOptimize.setSourceSelect(select);
+      return node;
+    } else if (node instanceof SqlCopyIntoTable) {
+      SqlCopyIntoTable sqlCopyIntoTable = (SqlCopyIntoTable) node;
+      SqlSelect select = createSourceSelectForCopyIntoTable(sqlCopyIntoTable);
+      sqlCopyIntoTable.setSourceSelect(select);
+      return node;
     }
     return super.performUnconditionalRewrites(node, underFrom);
+  }
+
+  private SqlSelect createSourceSelectForOptimize(SqlOptimize call) {
+    final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
+    selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
+    SqlNode sourceTable = call.getTable();
+    return new SqlSelect(SqlParserPos.ZERO, null, selectList, sourceTable,
+      call.getCondition(), null, null, null, null, null, null, null, null);
+  }
+
+  private SqlSelect createSourceSelectForCopyIntoTable(SqlCopyIntoTable call) {
+    final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
+    selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
+    SqlNode table = call.getTargetTable();
+    return new SqlSelect(SqlParserPos.ZERO, null, selectList, table,
+      null, null, null, null, null, null, null, null, null);
   }
 
   @Override

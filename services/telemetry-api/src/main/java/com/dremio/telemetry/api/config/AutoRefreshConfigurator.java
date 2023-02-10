@@ -15,10 +15,17 @@
  */
 package com.dremio.telemetry.api.config;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import javax.inject.Provider;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.dremio.common.concurrent.NamedThreadFactory;
 
 /**
  * Template for creating auto refreshing configs. Users listen to config changes by implementing
@@ -28,7 +35,7 @@ import javax.inject.Provider;
  * @param <T> The type of the root level config that sits beside refreshConfigurator.
  */
 public class AutoRefreshConfigurator<T> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AutoRefreshConfigurator.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AutoRefreshConfigurator.class);
   private static final long DEFAULT_MINIMUM_REFRESH_FREQUENCY = TimeUnit.SECONDS.toMillis(90);
 
   private final Provider<CompleteRefreshConfig<T>> getter;
@@ -36,9 +43,8 @@ public class AutoRefreshConfigurator<T> {
 
   private volatile boolean refreshEnabled = true;
   private volatile long refreshIntervalMS;
-  private volatile ValueChangeDetector<T> trigger;
-  private volatile Thread refreshThread;
-
+  private final ValueChangeDetector<T> trigger;
+  private final ScheduledExecutorService refreshScheduler;
 
   public AutoRefreshConfigurator(Provider<CompleteRefreshConfig<T>> getter, Consumer<T> listener) {
     this(getter, listener, DEFAULT_MINIMUM_REFRESH_FREQUENCY);
@@ -49,51 +55,45 @@ public class AutoRefreshConfigurator<T> {
     this.minRefreshIntervalMS = minRefreshIntervalMS;
     // In case the first read is bad.
     this.refreshIntervalMS = this.minRefreshIntervalMS;
-    trigger = new ValueChangeDetector<>(listener::accept);
-
-    refreshOnce();
-
-    refreshThread = new Thread(this::refreshContinually, "config-refresh");
-    refreshThread.setDaemon(true);
-    refreshThread.start();
+    trigger = new ValueChangeDetector<>(listener);
+    refreshScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory("config-refresh"));
+    refreshScheduler.submit(()->refresh(true));
   }
 
-  private void refreshContinually() {
-    try {
-      while(refreshEnabled) {
-        Thread.sleep(refreshIntervalMS);
-        refreshOnce();
-      }
-    } catch (InterruptedException ex) {
-      logger.info("Refresh thread interrupted, exiting.", ex);
-      return;
-    }
-  }
-
-  private void refreshOnce() {
+  private void refresh(boolean initialLoad) {
     CompleteRefreshConfig<T> newState = getter.get();
 
-    // There could've been an error reading the file. Do nothing.
-    if (newState == null) {
-      return;
-    }
+    if (newState != null) {
+      final RefreshConfiguration refreshConf = newState.getRefreshConfiguration();
+      if (refreshConf != null) {
+        refreshEnabled = refreshConf.isEnabled();
+        final long proposedRefreshMs = refreshConf.getIntervalMS();
 
-    final RefreshConfiguration refreshConf = newState.getRefreshConfiguration();
-    if (refreshConf != null) {
-      refreshEnabled = refreshConf.isEnabled();
-      final long proposedRefreshMs = refreshConf.getIntervalMS();
-
-      if(proposedRefreshMs < minRefreshIntervalMS) {
-        logger.warn("Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.", proposedRefreshMs, minRefreshIntervalMS);
-        refreshIntervalMS = minRefreshIntervalMS;
+        if (proposedRefreshMs < minRefreshIntervalMS) {
+          if (initialLoad) {
+            //Warn only once during initial load. Subsequent logs should be debug level to avoid noise.
+            LOGGER.warn("Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.", proposedRefreshMs, minRefreshIntervalMS);
+          } else {
+            LOGGER.debug("Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.", proposedRefreshMs, minRefreshIntervalMS);
+          }
+          refreshIntervalMS = minRefreshIntervalMS;
+        } else {
+          refreshIntervalMS = proposedRefreshMs;
+        }
       } else {
-        refreshIntervalMS = proposedRefreshMs;
+        if (initialLoad) {
+          //Warn only once during initial load. Subsequent logs should be debug level to avoid noise.
+          LOGGER.warn("Could not detect refresh settings. Continuing to refresh at {}s intervals.", TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
+        } else {
+          LOGGER.debug("Could not detect refresh settings. Continuing to refresh at {}s intervals.", TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
+        }
       }
-    } else {
-      logger.warn("Could not detect refresh settings. Continuing to refresh at {}s intervals.", TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
+      trigger.checkNewValue(newState.getUserConfig());
     }
 
-    trigger.checkNewValue(newState.getUserConfig());
+    if (refreshEnabled) {
+      refreshScheduler.schedule(() -> refresh(false), this.refreshIntervalMS, TimeUnit.MILLISECONDS);
+    }
   }
 
   /**

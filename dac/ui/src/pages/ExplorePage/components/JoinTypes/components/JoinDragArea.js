@@ -82,6 +82,7 @@ class JoinDragArea extends PureComponent {
     const isEmpty = !this.props.items.size;
     return (
       <ExploreDragArea
+        canDropOnChild
         dragType={this.props.dragType}
         onDrop={this.handleDrop}
         isDragged={

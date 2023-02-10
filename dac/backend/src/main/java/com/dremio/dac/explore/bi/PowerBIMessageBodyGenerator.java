@@ -127,8 +127,8 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     private final String schema;
     private final String table;
 
-    DSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig) {
-      this.server = String.format("%s:%d",hostname, port);
+    DSRConnectionInfo(String hostname, DatasetConfig datasetConfig) {
+      this.server = hostname;
       final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
       // PBI doesn't work right when there are quotes embedded in the schema name, which happens
       // when calling DatasetPath.toParentPath(). Instead manually join each element of the path
@@ -161,8 +161,8 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
     private final String encryption;
 
-    SoftwareDSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig, DremioConfig dremioConfig) {
-      super(hostname, port, datasetConfig);
+    SoftwareDSRConnectionInfo(String hostname, DatasetConfig datasetConfig, DremioConfig dremioConfig) {
+      super(hostname, datasetConfig);
       if (dremioConfig.hasPath(USER_SSL_ENABLED) && dremioConfig.getBoolean(USER_SSL_ENABLED)) {
         encryption = ENABLED;
       } else {
@@ -220,6 +220,7 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   }
 
   DSRConnectionInfo createDSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig) {
-    return new SoftwareDSRConnectionInfo(hostname, port, datasetConfig, dremioConfig);
+    final String server = String.format("%s:%d",hostname, port);
+    return new SoftwareDSRConnectionInfo(server, datasetConfig, dremioConfig);
   }
 }

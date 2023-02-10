@@ -23,11 +23,11 @@ import java.nio.charset.StandardCharsets;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.common.ht2.Copier;
 import com.google.common.base.Preconditions;
 

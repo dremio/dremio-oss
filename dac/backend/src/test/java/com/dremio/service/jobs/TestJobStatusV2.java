@@ -15,7 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.BaseTestQuery.getFile;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -96,7 +95,7 @@ public class TestJobStatusV2 extends BaseTestServer {
     asyncStub = JobsServiceGrpc.newStub(channel);
     chronicleStub = ChronicleGrpc.newBlockingStub(channel);
 
-    query = getFile("tpch_quoted.sql");
+    query = readResourceAsString("tpch_quoted.sql");
     LocalJobsService localJobsService = l(LocalJobsService.class);
     localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
   }

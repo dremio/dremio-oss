@@ -15,7 +15,7 @@
  */
 import { Component, createRef } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import MenuItemMaterial from "@mui/material/MenuItem";
 import Popper from "@mui/material/Popper";

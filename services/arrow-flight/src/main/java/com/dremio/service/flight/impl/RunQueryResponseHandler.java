@@ -15,7 +15,6 @@
  */
 package com.dremio.service.flight.impl;
 
-import static org.apache.arrow.flight.BackpressureStrategy.CallbackBackpressureStrategy;
 import static org.apache.arrow.flight.BackpressureStrategy.WaitResult;
 
 import java.util.List;
@@ -25,6 +24,7 @@ import java.util.stream.StreamSupport;
 import javax.inject.Provider;
 
 import org.apache.arrow.flight.CallStatus;
+import org.apache.arrow.flight.DremioBackpressureStrategy;
 import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -357,7 +357,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     }
   }
 
-  private static final class RunQueryBackpressureStrategy extends CallbackBackpressureStrategy {
+  private static final class RunQueryBackpressureStrategy extends DremioBackpressureStrategy {
     private final Runnable onCancelHandler;
 
     private RunQueryBackpressureStrategy(Runnable onCancelHandler) {

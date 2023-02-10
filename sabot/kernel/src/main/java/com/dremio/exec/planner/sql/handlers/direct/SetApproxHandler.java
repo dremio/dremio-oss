@@ -35,7 +35,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
  * Handler for <code>ALTER TABLE ... ENABLE|DISABLE APPROXIMATE STATS</code> command.
  */
 public class SetApproxHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SetApproxHandler.class);
 
   private final Catalog catalog;
 

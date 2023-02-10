@@ -25,7 +25,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.record.RecordBatchLoader;
@@ -33,8 +32,6 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestSimpleTopN extends PopUnitTestBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSimpleTopN.class);
@@ -51,8 +48,7 @@ public class TestSimpleTopN extends PopUnitTestBase {
       bit2.run();
       client.connect();
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-              Files.toString(FileUtils.getResourceAsFile("/topN/one_key_sort.json"),
-                      Charsets.UTF_8));
+        readResourceAsString("/topN/one_key_sort.json"));
       int count = 0;
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {

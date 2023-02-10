@@ -48,7 +48,7 @@ public class TestIcebergManifestsFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("existing_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("deleted_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("partition_summaries"), Types.required(TypeProtos.MinorType.LIST)));
-    expectedSchema(expectedSchema,"SELECT * FROM table(table_manifests('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    expectedSchema(expectedSchema,String.format("SELECT * FROM table(table_manifests('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME));
   }
 
   @Test
@@ -65,18 +65,26 @@ public class TestIcebergManifestsFunction extends IcebergMetadataTestTable {
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("added_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("existing_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("deleted_delete_files_count"), Types.required(TypeProtos.MinorType.INT)));
-    assertThatThrownBy(() -> expectedSchema(expectedSchema,"SELECT * FROM table(table_manifests('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath()))
+    assertThatThrownBy(() -> expectedSchema(expectedSchema,String.format("SELECT * FROM table(table_manifests('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME)))
       .hasMessageContaining("Expected and actual numbers of columns do not match.");
   }
 
   @Test
   public void testTableManifests() throws Exception {
-    expectedManifestsResult("SELECT path,length,partition_spec_id,added_snapshot_id FROM table(table_manifests('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    insertOneRecord();
+
+    //match manifests results after one insert.
+    List<ManifestFile> manifestFiles = getManifests();
+    ManifestFile manifestFile1 = manifestFiles.get(0);
+    String[] expectedColumns = {"path","length","partition_spec_id","added_snapshot_id"};
+    Object[] expectedValues = {manifestFile1.path(), manifestFile1.length(), manifestFile1.partitionSpecId(), manifestFile1.snapshotId()};
+    queryAndMatchResults(String.format("SELECT path,length,partition_spec_id,added_snapshot_id FROM table(table_manifests('\"%s\".\"%s\"')) limit 1", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME), expectedColumns, expectedValues);
   }
 
   @Test
   public void testTableManifestsCount() throws Exception {
-    expectedManifestsCount("SELECT count(*) as k FROM table(table_manifests('dfs_hadoop.\"%s\"')) limit 1", tableFolder.toPath());
+    queryAndMatchResults(String.format("SELECT count(*) as manifest_count FROM table(table_manifests('\"%s\".\"%s\"'))", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME),
+      new String[]{"manifest_count"}, new Object[]{(long) getManifests().size()});
   }
 
   @Test
@@ -87,31 +95,16 @@ public class TestIcebergManifestsFunction extends IcebergMetadataTestTable {
   }
 
   private void expectedManifestsResult(String query, Object... args) throws Exception {
-    List<ManifestFile> manifestFiles = table.currentSnapshot().allManifests();
+    List<ManifestFile> manifestFiles = getManifests();
     ManifestFile manifestFile1 = manifestFiles.get(0);
     testBuilder()
       .sqlQuery(query, args)
       .unOrdered()
       .baselineColumns("path","length","partition_spec_id","added_snapshot_id")
       .baselineValues(
-        manifestFile1.path(),
-        manifestFile1.length(),
-        manifestFile1.partitionSpecId(),
-        manifestFile1.snapshotId())
+        )
       .build()
       .run();
   }
-
-  private void expectedManifestsCount(String query, Object... args) throws Exception {
-    List<ManifestFile> manifestFiles = table.currentSnapshot().allManifests();
-    testBuilder()
-      .sqlQuery(query, args)
-      .unOrdered()
-      .baselineColumns("k")
-      .baselineValues((long) manifestFiles.size())
-      .build()
-      .run();
-  }
-
 
 }

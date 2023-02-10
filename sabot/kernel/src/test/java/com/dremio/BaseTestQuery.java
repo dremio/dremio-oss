@@ -103,6 +103,7 @@ import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
+import com.dremio.hadoop.security.alias.DremioCredentialProviderFactory;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -122,7 +123,7 @@ import com.dremio.service.BindingProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.users.SystemUser;
-import com.google.common.base.Charsets;
+import com.dremio.services.credentials.CredentialsService;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -240,7 +241,7 @@ public class BaseTestQuery extends ExecTest {
 
   private static AbstractModule getDefaultModule() {
 
-    SimpleJobRunner internalRefreshQueryRunner = (query, userName, queryType) -> {
+    SimpleJobRunner internalRefreshQueryRunner = (query, userName, queryType, queryLabel) -> {
       try {
         runSQL(query); // queries we get here are inner 'refresh dataset' queries
       } catch (Exception e) {
@@ -264,6 +265,9 @@ public class BaseTestQuery extends ExecTest {
       .map(m -> Modules.combine(m, getDefaultModule())).orElse(getDefaultModule());
 
     SABOT_NODE_RULE.register(module);
+
+    DremioCredentialProviderFactory.configure(() ->
+      CredentialsService.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT));
 
     openClient();
     localFs = HadoopFileSystem.getLocal(new Configuration());
@@ -329,7 +333,7 @@ public class BaseTestQuery extends ExecTest {
     return props;
   }
 
-  protected static String getDfsTestTmpSchemaLocation() {
+  public static String getDfsTestTmpSchemaLocation() {
     return dfsTestTmpSchemaLocation;
   }
 
@@ -455,7 +459,7 @@ public class BaseTestQuery extends ExecTest {
     nodeCount = 1;
   }
 
-  protected static void runSQL(String sql) throws Exception {
+  public static void runSQL(String sql) throws Exception {
     final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(new SilentListener());
     testWithListener(QueryType.SQL, sql, listener);
     listener.await();
@@ -638,12 +642,8 @@ public class BaseTestQuery extends ExecTest {
       .contains(expectedErrorMsg);
   }
 
-  public static String getFile(String resource) throws IOException{
-    final URL url = Resources.getResource(resource);
-    if (url == null) {
-      throw new IOException(String.format("Unable to find path %s.", resource));
-    }
-    return Resources.toString(url, Charsets.UTF_8);
+  protected static String getFile(String resource) {
+    return readResourceAsString(resource);
   }
 
   public void writeDir(java.nio.file.Path baseDir, java.nio.file.Path dest, String srcDirName) {

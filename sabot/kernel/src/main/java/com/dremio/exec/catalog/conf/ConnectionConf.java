@@ -242,6 +242,11 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
 
   public abstract P newPlugin(final SabotContext context, final String name, Provider<StoragePluginId> pluginIdProvider);
 
+  // Use this if newPlugin logic need to know that if source is created or modified, which is identified using influxSourcePred.
+  public P newPlugin(final SabotContext context, final String name, Provider<StoragePluginId> pluginIdProvider, java.util.function.Predicate<String> influxSourcePred) {
+    return newPlugin(context, name, pluginIdProvider);
+  }
+
   public boolean isInternal() {
     return false;
   }

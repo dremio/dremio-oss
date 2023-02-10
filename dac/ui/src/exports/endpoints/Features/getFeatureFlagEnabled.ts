@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import moize from "moize";
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { type FeatureFlagResponse } from "./FeatureFlagResponse.type";
 
 export const getFeatureFlagEnabledUrl = (flagId: string) =>
@@ -22,11 +22,8 @@ export const getFeatureFlagEnabledUrl = (flagId: string) =>
 
 export const getFeatureFlagEnabled = moize(
   (flagId: string): Promise<boolean> => {
-    return fetch(getFeatureFlagEnabledUrl(flagId), {
-      headers: {
-        Authorization: localStorageUtils!.getAuthToken(),
-      },
-    })
+    return getApiContext()
+      .fetch(getFeatureFlagEnabledUrl(flagId))
       .then((res) => res.json() as unknown as FeatureFlagResponse)
       .then((res) => res.entitlement === "ENABLED");
   },

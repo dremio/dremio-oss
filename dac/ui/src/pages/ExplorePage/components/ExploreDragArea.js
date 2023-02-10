@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Children, Component } from "react";
-import classNames from "classnames";
+import classNames from "clsx";
 
 import PropTypes from "prop-types";
 
@@ -38,6 +38,7 @@ class ExploreDragArea extends Component {
     dataQa: PropTypes.string,
     className: PropTypes.string,
     dragContentCls: PropTypes.string,
+    canDropOnChild: PropTypes.bool,
   };
 
   componentDidUpdate(prevProps) {
@@ -73,6 +74,7 @@ class ExploreDragArea extends Component {
       dataQa,
       className,
       dragContentCls,
+      canDropOnChild,
     } = this.props;
 
     const isEmpty = Children.count(children) === 0;
@@ -85,7 +87,11 @@ class ExploreDragArea extends Component {
         data-qa={dataQa}
         style={areaWrap}
       >
-        <DragTarget dragType={dragType} canDropOnChild onDrop={onDrop}>
+        <DragTarget
+          dragType={dragType}
+          canDropOnChild={canDropOnChild}
+          onDrop={onDrop}
+        >
           <div
             ref={(wrapper) => {
               this.wrapper = wrapper;

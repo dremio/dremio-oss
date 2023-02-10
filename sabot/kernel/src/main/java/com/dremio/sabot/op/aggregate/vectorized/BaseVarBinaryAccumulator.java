@@ -108,7 +108,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   @Override
   public void verifyBatchCount(final int batches) {
     Preconditions.checkArgument(this.batches == batches,
-      "Error: Detected incorrect batch count ({}: expected:{}, found:{}) in accumulator",
+      "Error: Detected incorrect batch count (%s - expected: %s, found: %s) in accumulator",
       this, batches, this.batches);
   }
 

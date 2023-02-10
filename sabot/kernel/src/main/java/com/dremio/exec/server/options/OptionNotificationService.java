@@ -37,6 +37,7 @@ public class OptionNotificationService extends OptionNotificationServiceGrpc.Opt
   }
 
   @Override
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void systemOptionFetch(OptionChangeNotification request, StreamObserver<Empty> responseObserver) {
     logger.debug("SystemOptionChangeNotificationRequest received: {}", request);
     try {

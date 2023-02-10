@@ -42,6 +42,7 @@ import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.spill.SpillService;
@@ -133,6 +134,11 @@ public class DelegatingOperatorContext extends OperatorContext {
   @Override
   public int getTargetBatchSize() {
     return delegate.getTargetBatchSize();
+  }
+
+  @Override
+  public HeapLowMemController getHeapLowMemController() {
+    return delegate.getHeapLowMemController();
   }
 
   @Override

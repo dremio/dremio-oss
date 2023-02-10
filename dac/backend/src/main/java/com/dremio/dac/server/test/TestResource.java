@@ -129,7 +129,7 @@ public class TestResource {
     // Closing sdp means remove the temporary directory
     @SuppressWarnings("resource")
     SampleDataPopulator sdp = new SampleDataPopulator(context, newSourceService(nsWithAuth, ds), ds,
-        userService, nsWithAuth, DEFAULT_USER_NAME);
+        userService, nsWithAuth, DEFAULT_USER_NAME, collaborationService);
     sdp.populateInitialData();
   }
 
@@ -138,7 +138,7 @@ public class TestResource {
   }
 
   private SourceService newSourceService(NamespaceService nsWithAuth, DatasetVersionMutator ds) {
-    return new SourceService(nsWithAuth, ds, catalogService, reflectionHelper, collaborationService, connectionReader, security);
+    return new SourceService(context, nsWithAuth, ds, catalogService, reflectionHelper, collaborationService, connectionReader, security);
   }
 
   public void refreshNow(String...sources) throws NamespaceException {

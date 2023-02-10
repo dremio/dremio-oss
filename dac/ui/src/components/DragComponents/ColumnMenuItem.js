@@ -16,7 +16,7 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 import { injectIntl } from "react-intl";
 
 import EllipsedText from "components/EllipsedText";

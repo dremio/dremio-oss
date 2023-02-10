@@ -100,18 +100,6 @@
      - "?"
      - "ALL"
  -
-  description: "Whether two values are equal, treating null values as the same"
-  input: "SELECT * FROM EMP WHERE EMP.age <=> "
-  output:
-    hasIdentifier: true
-    hasMoreResults: true
-    tokens:
-     - "("
-     - "+"
-     - "-"
-     - "?"
-     - "ALL"
- -
   description: "IS"
   input: "SELECT * FROM EMP WHERE EMP.age IS "
   output:
@@ -264,7 +252,7 @@
      - "+"
      - "-"
      - "?"
-     - "ARRAY"
+     - "ALL"
  -
   description: "LIKE string 2"
   input: "SELECT * FROM EMP WHERE EMP.name LIKE 'asdf*'"
@@ -288,7 +276,7 @@
      - "+"
      - "-"
      - "?"
-     - "ARRAY"
+     - "ALL"
  -
   description: "NOT LIKE string 2"
   input: "SELECT * FROM EMP WHERE EMP.name NOT LIKE 'asdf*'"

@@ -69,8 +69,8 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      in.start = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-      java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+      long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+      java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
       String istr = bd.toString();
       out.start = 0;
       out.end = Math.min((int)len.value, istr.length()); // truncate if target type has length smaller than that of input's string
@@ -95,8 +95,8 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
-      in.start = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-      java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+      long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+      java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
       out.value = bd.doubleValue();
     }
   }
@@ -467,8 +467,8 @@ public class DecimalFunctions {
     }
     public void add() {
       if (in.isSet != 0) {
-        in.start = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
         sum.value += bd.doubleValue();
         nonNullCount.value++;
       }
@@ -502,8 +502,8 @@ public class DecimalFunctions {
     }
     public void add() {
       if (in.isSet == 1) {
-        in.start = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), in.scale,org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in.scale,org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
         sum.value += bd.doubleValue();
       }
     }
@@ -535,8 +535,8 @@ public class DecimalFunctions {
     public void add() {
       if (in.isSet != 0) {
         nonNullCount.value = 1;
-        in.start = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
         double val = bd.doubleValue();
         if (val < minVal.value) {
           minVal.value = val;
@@ -577,8 +577,8 @@ public class DecimalFunctions {
     public void add() {
       if (in.isSet != 0) {
         nonNullCount.value = 1;
-        in.start = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
-        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+        long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
         double val = bd.doubleValue();
         if (val > maxVal.value) {
           maxVal.value = val;
@@ -1656,4 +1656,48 @@ public class DecimalFunctions {
     }
   }
 
+  @FunctionTemplate(name = "single_value", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE, derivation = OutputDerivation.DecimalSingleValue.class)
+  public static class DecimalSingleValueFunction implements AggrFunction {
+
+    @Param NullableDecimalHolder in;
+    @Workspace NullableDecimalHolder value;
+    @Workspace IntHolder isSet;
+    @Output NullableDecimalHolder out;
+    @Inject FunctionErrorContext errCtx;
+
+    @Override
+    public void setup() {
+      isSet.value = 0;
+      value = new NullableDecimalHolder();
+    }
+
+    @Override
+    public void add() {
+      if (isSet.value == 1) {
+        throw errCtx.error()
+          .message("Subqueries used in expressions must be scalar (must return a single value).")
+          .build();
+      }
+      isSet.value = 1;
+      value.isSet = in.isSet;
+      value.start = in.start;
+      value.scale = in.scale;
+      value.precision = in.precision;
+      value.buffer = in.buffer;
+    }
+
+    @Override
+    public void output() {
+      out.isSet = value.isSet;
+      out.start = value.start;
+      out.scale = value.scale;
+      out.precision = value.precision;
+      out.buffer = value.buffer;
+    }
+
+    @Override
+    public void reset() {
+      isSet.value = 0;
+    }
+  }
 }

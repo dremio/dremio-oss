@@ -17,9 +17,9 @@ package com.dremio.sabot.op.join.nlje;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.AutoCloseables;
-import org.apache.arrow.util.AutoCloseables.RollbackCloseable;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.util.Closeable;
 import com.google.common.base.Preconditions;
 

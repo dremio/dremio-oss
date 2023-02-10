@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
 
   <artifactId>dremio-distribution-resources</artifactId>
@@ -86,6 +86,8 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
+        <!-- later plugin versions are hitting https://stackoverflow.com/q/65673111 -->
+        <version>3.1.0</version>
       </plugin>
     </plugins>
   </build>

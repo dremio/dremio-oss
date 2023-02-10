@@ -49,19 +49,19 @@ public class Cast${type.from}${type.to} implements SimpleFunction{
 
   public void eval() {
     <#if type.to == "Float4" || type.to == "Float8">
-      
+
       byte[] buf = new byte[in.end - in.start];
       in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
-    
+
       try{
-        out.value = ${type.javaType}.parse${type.parse}(new String(buf, com.google.common.base.Charsets.UTF_8));
+        out.value = ${type.javaType}.parse${type.parse}(new String(buf, java.nio.charset.StandardCharsets.UTF_8));
       } catch (RuntimeException e) {
         throw errCtx.error(e)
           .build();
       }
     <#elseif type.to=="Int" >
       out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToInt(in.start, in.end, in.buffer, errCtx);
-    
+
     <#elseif type.to == "BigInt">
       out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToLong(in.start, in.end, in.buffer, errCtx);
     </#if>

@@ -20,7 +20,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.ExecConstants;
 
 public class TestCoalesceMixedHive extends PlanTestBase {
@@ -160,7 +159,7 @@ public class TestCoalesceMixedHive extends PlanTestBase {
         "     ON TRUE " +
         "     AND s.actual_flag = t.actual_flag " +
         "     ) columns where col_diff like '%budget_version_id%'; ";
-    final String largeCaseAsArg = FileUtils.getResourceAsString("/case-coalesce-s1.txt");
+    final String largeCaseAsArg = readResourceAsString("/case-coalesce-s1.txt");
     String finalSql = sql.replaceAll(PLACEHOLDER, largeCaseAsArg);
     testBuilder().sqlQuery(finalSql).unOrdered().baselineColumns("cnt").baselineValues(25L).go();
   }

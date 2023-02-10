@@ -38,10 +38,10 @@ Refer to Table in `ClusterListView.js` for implementation and `provisioningConst
 
 To be updated as new use cases come up...
 */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { AutoSizer, InfiniteLoader, MultiGrid } from "react-virtualized";
 import Draggable from "react-draggable";
-import classNames from "classnames";
+import classNames from "clsx";
 import { List } from "immutable";
 import clsx from "clsx";
 // @ts-ignore
@@ -77,6 +77,7 @@ export type ScrollableTableProps = {
   router: any;
   defaultSortBy: string;
   defaultSortDirection: string;
+  onClickId: string | undefined;
   onClick: (opts: any) => void | undefined;
   sortRecords: () => void;
   loadNextRecords: (index: number) => any;
@@ -94,6 +95,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
     fixedColumnCount,
     showIconHeaders,
     disableTooltip,
+    onClickId,
     ...tableProps
   } = props;
   const [tableColumns, setTableColumns] = useState([]);
@@ -106,6 +108,8 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
   const [showAction, setShowAction] = useState<boolean[]>([]);
   const [showTooltip, setShowTooltip] = useState<{ [key: string]: string }>({});
   const [fixedTableShadow, setFixedTableShadow] = useState("");
+  const [overflow, setOverflow] = useState<boolean>(false)
+  const [widthFactor, setWidthFactor] = useState<number | undefined>(undefined)
   // const [scrollToRow, setScrollToRow] = useState<number | undefined>(undefined);
   const [dragging, setDragging] = useState<boolean>(false);
   const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
@@ -144,6 +148,13 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columns]);
+
+  const sortedTable = useMemo(() => {
+    if (!onClickId) return;
+    let sortedTableData = getSortedTableData(props.tableData, sortBy, sortDirection);
+    sortedTableData = List.isList(sortedTableData) ? sortedTableData.toArray() : sortedTableData;
+    return sortedTableData;
+  }, [sortBy, sortDirection, props.tableData])
 
   useEffect(() => {
     gridState && gridState.recomputeGridSize();
@@ -243,6 +254,21 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
   //   // eslint-disable-next-line react-hooks/exhaustive-deps
   // }, [fixedColCount]);
 
+  // Checks if the list overflows
+  const handleOverflow = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      const offset = 0;
+      const bottom = node.getBoundingClientRect().bottom;
+      // The below if else statement will set the factor to multiply 55 with because the list gets cut off only after the second element overflows
+      if (window.innerHeight + ROW_HEIGHT * 2 > bottom && window.innerHeight + ROW_HEIGHT < bottom) {
+        setWidthFactor(1);
+      } else {
+        setWidthFactor(2)
+      }
+      setOverflow(!((bottom + offset) >= 0 && (bottom - offset) <= window.innerHeight + ROW_HEIGHT))
+    }
+  }, [tableSize])
+
   const renderCell = (rowData: any) => {
     // not reliable, throwing more issues than it is helping :p commenting out for now
     // fix for scroll issue in react-virtualised where fixed and scrollable grid are not in sync. ref-https://github.com/bvaughn/react-virtualized/issues/1473
@@ -321,7 +347,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
           className={clsx(
             "cell text-ellipsis",
             tableClasses[
-              showActionCondition ? "cellWithAction" : "cellWithoutAction"
+            showActionCondition ? "cellWithAction" : "cellWithoutAction"
             ],
             tableClasses["tableCell"],
             {
@@ -341,8 +367,8 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
           {showActionCondition !== undefined
             ? showActionCondition && cellVal
             : type === "action"
-            ? ""
-            : cellVal}
+              ? ""
+              : cellVal}
         </span>
       );
     };
@@ -476,7 +502,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
                     ? { cursor: "pointer" }
                     : { display: "block" }
                 }
-                onClick={() => onClick && onClick(opts.rowIndex)}
+                onClick={() => onClick && onClick(onClickId ? sortedTable[opts.rowIndex - 1]?.data[onClickId].clickValue : opts.rowIndex)}
               >
                 {tableColumns.length > 0 ? renderCell(opts) : null}
               </div>
@@ -484,7 +510,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
           }}
           columnWidth={getColumnWidth}
           columnCount={tableColumns.length}
-          height={height}
+          height={onClickId === "engine" && overflow ? height - (widthFactor ? widthFactor * 55 : 0) : height}
           rowHeight={ROW_HEIGHT}
           rowCount={tableSize + 1}
           width={width}
@@ -529,7 +555,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
   const tempTableHeight = tableSize * 40 + 55;
   const tableHeight =
     tempTableHeight >
-    document.getElementsByClassName("accelerations-table")[0]?.clientHeight
+      document.getElementsByClassName("accelerations-table")[0]?.clientHeight
       ? document.getElementsByClassName("accelerations-table")[0]?.clientHeight
       : tempTableHeight;
   return (
@@ -541,6 +567,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
         height: tableHeight,
         flexGrow: 0,
       }}
+      ref={(node) => handleOverflow(node)}
       data-qa="scrollable-table-test"
       onMouseLeave={() => hideActions()}
     >

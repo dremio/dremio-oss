@@ -30,6 +30,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 
 /**
  * Record writer interface for writing a record batch to persistent storage.
@@ -106,6 +108,14 @@ public interface RecordWriter extends AutoCloseable {
    * @throws IOException
    */
   void abort() throws IOException;
+
+  default FileSystem getFs(){
+    throw new UnsupportedOperationException("Unable to get filesystem");
+  }
+
+  default Path getLocation(){
+    throw new UnsupportedOperationException("Unable to get location");
+  }
 
   /**
    * Listener that is informed of any output entries that have been returned.

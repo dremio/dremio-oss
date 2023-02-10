@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
@@ -35,11 +36,14 @@ import com.dremio.dac.model.common.DACRuntimeException;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataWrapper;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.util.JobRequestUtil;
+import com.dremio.dac.util.QueryExecutorUtils;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -215,10 +219,10 @@ public class QueryExecutor {
     return data;
   }
 
-  public List<String> getColumnList(final String username, DatasetPath path) {
+  public List<String> getColumnList(final String username, DatasetPath path, List<SourceVersionReference> referenceList) {
+    Map<String, VersionContext> sourceVersionMapping = QueryExecutorUtils.createSourceVersionMapping(referenceList);
     EntityExplorer entityExplorer = catalogService.getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(CatalogUser.from(context.getUserPrincipal().getName()))
-            .build()));
+        SchemaConfig.newBuilder(CatalogUser.from(context.getUserPrincipal().getName())).build(), sourceVersionMapping));
     DremioTable table = entityExplorer.getTable(path.toNamespaceKey());
     return table.getRowType(SqlTypeFactoryImpl.INSTANCE).getFieldNames();
   }

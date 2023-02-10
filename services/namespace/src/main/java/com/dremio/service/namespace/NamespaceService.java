@@ -190,7 +190,7 @@ public interface NamespaceService {
 
   }
   /**
-   * Delete all of a sources children but leave the source intact and takes callback as parameter.
+   * Delete a source and all of its children.
    * @param sourcePath
    * @param version
    * @throws NamespaceException

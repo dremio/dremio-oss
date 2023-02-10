@@ -38,6 +38,9 @@ public final class SelectStatementCompletionTests extends AutocompleteEngineTest
       .add(
         "ESCAPES IN PATH",
         GoldenFileTestBuilder.MultiLineString.create("SELECT \"EMP\".\"ENAME\", ^ FROM EMP"))
+      .add(
+        "SELECT *",
+        GoldenFileTestBuilder.MultiLineString.create("SELECT * ^ FROM EMP"))
       .runTests();
   }
 

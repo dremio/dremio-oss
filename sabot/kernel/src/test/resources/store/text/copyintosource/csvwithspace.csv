@@ -1,0 +1,6 @@
+col1,col2,col3
+10,  "20,30"  ,40
+50,  "  twospace  "  ,60
+70, onespace ,80
+90,   this one has significant spaces in between but no quotes   ,100
+110,     "this one has significant spaces in between quotes"     ,120

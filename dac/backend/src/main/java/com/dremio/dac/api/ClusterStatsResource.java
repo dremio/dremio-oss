@@ -170,7 +170,7 @@ public class ClusterStatsResource {
     for (ReflectionGoal reflection : reflections) {
       String id = reflection.getId().getId();
 
-      latestReflectionsSizeBytes += reflectionServiceHelper.getCurrentSize(id);
+      latestReflectionsSizeBytes += reflectionServiceHelper.getCurrentSize(id).left;
       totalReflectionSizeBytes += reflectionServiceHelper.getTotalSize(id);
 
       ReflectionStatusUI status = reflectionServiceHelper.getStatusForReflection(id);

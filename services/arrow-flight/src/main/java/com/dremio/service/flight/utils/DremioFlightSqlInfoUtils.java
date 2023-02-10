@@ -209,6 +209,8 @@ public final class DremioFlightSqlInfoUtils {
         return Types.STRUCT;
       case NULL:
         return Types.NULL;
+      case MAP:
+        return Types.OTHER;
       case LATE:
       case UNION:
       case INTERVAL:

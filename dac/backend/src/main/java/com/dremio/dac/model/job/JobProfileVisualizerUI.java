@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.common.utils.PathUtils;
@@ -232,7 +231,7 @@ public class JobProfileVisualizerUI {
         final Map<String, Object> values = (Map)operatorInfo.get("\"values\"");
         if (values.containsKey("\"table\"")) {
           final String tokens = ((String) values.get("\"table\"")).replaceAll("^\\[|\\]$", "");
-          final String tablePath = PathUtils.constructFullPath(IteratorUtils.toList(splitter.split(tokens).iterator())).replaceAll("\"", "");
+          final String tablePath = PathUtils.constructFullPath(splitter.splitToList(tokens)).replaceAll("\"", "");
           operatorToTable.put(entry.getKey().replaceAll("\"", ""), tablePath);
         }
       }

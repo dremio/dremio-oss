@@ -17,11 +17,14 @@ package com.dremio.services.nessie.grpc.client.v1api;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.projectnessie.api.params.FetchOption;
 import org.projectnessie.api.params.ReferencesParams;
 import org.projectnessie.api.params.ReferencesParamsBuilder;
+import org.projectnessie.client.StreamingUtil;
 import org.projectnessie.client.api.GetAllReferencesBuilder;
+import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferencesResponse;
 
@@ -62,11 +65,22 @@ final class GrpcGetAllReferences implements GetAllReferencesBuilder {
 
   @Override
   public ReferencesResponse get() {
-    List<Reference> result = stub.getAllReferences(ProtoUtil.toProto(params.build()))
+    return get(params.build());
+  }
+
+  private ReferencesResponse get(ReferencesParams p) {
+    List<Reference> result = stub.getAllReferences(ProtoUtil.toProto(p))
       .getReferenceList()
       .stream()
       .map(ProtoUtil::refFromProto)
       .collect(Collectors.toList());
     return ReferencesResponse.builder().addAllReferences(result).build();
+  }
+
+  @Override
+  public Stream<Reference> stream() throws NessieNotFoundException {
+    ReferencesParams p = params.build();
+    return StreamingUtil.generateStream(
+      ReferencesResponse::getReferences, pageToken -> get(p.forNextPage(pageToken)));
   }
 }

@@ -48,6 +48,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo.Substi
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.proto.UserBitShared;
@@ -81,6 +82,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   private final ImmutableList.Builder<UserBitShared.DatasetProfile> datasetProfileBuilder = ImmutableList.builder();
   private final RelSerializerFactory relSerializerFactory;
 
+  private Prel finalPrel;
   private String text;
   private String json;
   private BatchSchema schema;
@@ -178,6 +180,15 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void planJsonPlan(String text) {
     this.json = text;
+  }
+
+  @Override
+  public void finalPrel(Prel plan) {
+    this.finalPrel = plan;
+  }
+
+  public Prel getFinalPrel(){
+    return finalPrel;
   }
 
   @Override

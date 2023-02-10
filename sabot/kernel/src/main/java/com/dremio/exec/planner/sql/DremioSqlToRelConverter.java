@@ -22,11 +22,15 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
+import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableModify;
 import org.apache.calcite.rel.logical.LogicalUnion;
@@ -40,9 +44,11 @@ import org.apache.calcite.schema.ExtensibleTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlInsert;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlMerge;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlUpdate;
+import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -52,8 +58,11 @@ import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.Util;
+import org.apache.commons.collections.CollectionUtils;
 
+import com.dremio.exec.calcite.logical.CopyIntoTableCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
+import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioCatalogReader;
@@ -61,10 +70,15 @@ import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.ViewExpansionContext.ViewExpansionToken;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
+import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
+import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
+import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
+import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -92,7 +106,11 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
 
   @Override
   public RelNode toRel(RelOptTable table, @Nonnull List<RelHint> hints) {
-    return table.toRel(createToRelContext());
+    final RelNode rel = table.toRel(createToRelContext());
+    final RelNode scan = rel instanceof Hintable && CollectionUtils.isNotEmpty(hints)
+      ? SqlUtil.attachRelHint(hintStrategies, hints, (Hintable) rel)
+      : rel;
+    return scan;
   }
 
   public ToRelContext createToRelContext() {
@@ -169,6 +187,15 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     return typeFlattener.rewrite(rootRel);
   }
 
+  /**
+   * TODO: need to find a better way to fix validations for Optimize command.
+   * @param query           Query to convert
+   * @param top             Whether the query is top-level, say if its result
+   *                        will become a JDBC result set; <code>false</code> if
+   *                        the query will be part of a view.
+   * @return
+   */
+
   @Override
   protected RelRoot convertQueryRecursive(SqlNode query, boolean top, RelDataType targetRowType) {
     boolean hasSource = query instanceof SqlDmlOperator && ((SqlDmlOperator)query).getSourceTableRef() != null;
@@ -186,8 +213,30 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
         return RelRoot.of(TableModifyCrel.create(getTargetTable(query),  catalogReader, logicalTableModify.getInput(),
           LogicalTableModify.Operation.UPDATE, logicalTableModify.getUpdateColumnList(),
           logicalTableModify.getSourceExpressionList(), false, null, hasSource), query.getKind());
+      case OTHER:
+        return convertOther(query, top, targetRowType);
       default:
         return super.convertQueryRecursive(query, top, targetRowType);
+    }
+  }
+
+  /**
+   * RelNode for OTHER sql kind
+   * @param query
+   * @return
+   */
+  private RelRoot convertOther(SqlNode query, boolean top, RelDataType targetRowType) {
+    if (query instanceof SqlOptimize) {
+      NamespaceKey path = ((SqlOptimize)query).getPath();
+      Prepare.PreparingTable nsTable = catalogReader.getTable(path.getPathComponents());
+      return RelRoot.of(new TableOptimizeCrel(cluster, cluster.traitSetOf(Convention.NONE), nsTable.toRel(createToRelContext()), nsTable, null, OptimizeOptions.DEFAULT), SqlKind.OTHER);
+    } else if (query instanceof SqlCopyIntoTable) {
+      NamespaceKey path = ((SqlCopyIntoTable)query).getPath();
+      Prepare.PreparingTable nsTable = catalogReader.getTable(path.getPathComponents());
+      CopyIntoTableContext  copyIntoTableContext= new CopyIntoTableContext((SqlCopyIntoTable)query);
+      return RelRoot.of(new CopyIntoTableCrel(cluster, cluster.traitSetOf(Convention.NONE), nsTable,  copyIntoTableContext), SqlKind.OTHER);
+    } else  {
+      return super.convertQueryRecursive(query, top, targetRowType);
     }
   }
 
@@ -201,6 +250,51 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       return 0;
     }
     return dremioTable.getSchema().getFieldCount() - ((ExtensibleTable)dremioTable).getExtendedColumnOffset();
+  }
+
+  public static class ConsecutiveProjectsCounterForJoin extends StatelessRelShuttleImpl {
+    private Integer consecutiveProjectsCount = null;
+
+    public static int getCount(RelNode root) {
+      ConsecutiveProjectsCounterForJoin counter = new ConsecutiveProjectsCounterForJoin();
+      root.accept(counter);
+      return counter.consecutiveProjectsCount == null ? 0 : counter.consecutiveProjectsCount;
+    }
+
+    @Override
+    public RelNode visit(LogicalJoin join) {
+      // only check the first join
+      if (consecutiveProjectsCount == null) {
+        consecutiveProjectsCount = getConsecutiveProjectsCountFromRoot(join.getInput(0));
+      }
+      return join;
+    }
+  }
+
+  private static int getConsecutiveProjectsCountFromRoot(RelNode root) {
+    Preconditions.checkNotNull(root);
+    int projectCount = 0;
+    RelNode node = root;
+    while(node instanceof LogicalProject) {
+      projectCount++;
+      if (node.getInputs().size() != 1)  {
+        break;
+      }
+      node = node.getInput(0);
+    }
+
+    return projectCount;
+  }
+
+  /***
+   * the left side of the join in rewritten merge is the source
+   * the insertRel converted from insertCall is based on the source, plus one or two extra projects, depends on Insert clause.
+   * to determine how many extra projected are added, we use: consecutive Projects from converted insert node substracts the consecutive Projects from the source node
+   */
+  private int getProjectLevelsOnTopOfInsertSource(RelNode insertRel, RelNode mergeSourceRel) {
+    int consecutiveProjectsCountFromSourceNode = ConsecutiveProjectsCounterForJoin.getCount(mergeSourceRel);
+    int consecutiveProjectsCountFromInsertNode = getConsecutiveProjectsCountFromRoot(insertRel);
+    return consecutiveProjectsCountFromInsertNode - consecutiveProjectsCountFromSourceNode;
   }
 
   /**
@@ -234,6 +328,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     // first, convert the merge's source select to construct the columns
     // from the target table and the set expressions in the update call
     RelNode mergeSourceRel = convertSelect(call.getSourceSelect(), false);
+    RelNode sourceInputRel = mergeSourceRel.getInput(0);
 
     // then, convert the insert statement so we can get the insert
     // values expressions
@@ -254,7 +349,9 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       // table
       level1InsertExprs =
         ((LogicalProject) insertRel.getInput(0)).getProjects();
-      if (insertRel.getInput(0).getInput(0) instanceof LogicalProject) {
+
+      if (getProjectLevelsOnTopOfInsertSource(insertRel.getInput(0), sourceInputRel) > 1
+        && insertRel.getInput(0).getInput(0) instanceof LogicalProject) {
         level2InsertExprs =
           ((LogicalProject) insertRel.getInput(0).getInput(0))
             .getProjects();
@@ -263,7 +360,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       nLevel1Exprs = level1InsertExprs.size();
     }
 
-    RelNode sourceInputRel = mergeSourceRel.getInput(0);
+
     final List<RexNode> projects = new ArrayList<>();
     for (int level1Idx = 0; level1Idx < nLevel1Exprs; level1Idx++) {
       if ((level2InsertExprs != null)
@@ -316,8 +413,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     for (RelNode input: ImmutableList.of(left, right)) {
       if (input != consistentType) {
         convertedInputs.add(MoreRelOptUtil.createCastRel(input, consistentType));
-      }
-      else {
+      } else {
         convertedInputs.add(input);
       }
     }
@@ -337,10 +433,18 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     if(viewOwner != null) {
       builder = builder.withUser(viewOwner);
     }
-    if (sqlConverter.viewExpansionVersionContext != null && sqlConverter.viewExpansionVersionContext.isSpecified()) {
-      builder = builder.withVersionContext(path.getRoot(), sqlConverter.viewExpansionVersionContext);
-    } else if (versionContext != null && versionContext.isSpecified()) {
+    // versionContext is the version specified within the View Definition itself
+    // (i.e for a  view whose SQL is : select * from <inner view> AT <ref> ver1
+    // versionContext would be ver1
+    // viewExpansionVersionContext is the "outer" version specified at the parent level where this view is  being expanded.
+    // For example :
+    //   SELECT * FROM V2 AT TAG tag1 ==> tag1 is the viewExpansionVersionContext
+    //   Definition of V2 : SELECT * FROM V1 AT tag0 ==> tag0 is the versionContext
+    // The version specified in the view definition (versionContex) should always override the outer version(viewExpansionVersionContext).
+    if (versionContext != null && versionContext.isSpecified()) {
       builder = builder.withVersionContext(path.getRoot(), versionContext);
+    } else if (sqlConverter.viewExpansionVersionContext != null && sqlConverter.viewExpansionVersionContext.isSpecified()) {
+      builder = builder.withVersionContext(path.getRoot(), sqlConverter.viewExpansionVersionContext);
     }
     SqlValidatorAndToRelContext newConverter = builder.build();
     final SqlNode parsedNode = newConverter.getSqlConverter().parse(queryString);

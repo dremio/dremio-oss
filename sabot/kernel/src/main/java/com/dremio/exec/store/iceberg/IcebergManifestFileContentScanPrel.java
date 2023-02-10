@@ -31,6 +31,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.iceberg.ManifestContent;
 
@@ -58,20 +59,20 @@ import com.google.common.collect.ImmutableList;
 public class IcebergManifestFileContentScanPrel extends ScanPrelBase implements PrelFinalizable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergManifestFileContentScanPrel.class);
 
-  public IcebergManifestFileContentScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, ImmutableList.of());
+  public IcebergManifestFileContentScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<RelHint> hints) {
+    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, hints, ImmutableList.of());
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new IcebergManifestFileContentScanPrel(getCluster(), traitSet, getTable(), tableMetadata, getProjectedColumns(),
-      observedRowcountAdjustment);
+      observedRowcountAdjustment, hints);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
     return new IcebergManifestFileContentScanPrel(getCluster(), getTraitSet(), table, tableMetadata, projection,
-      observedRowcountAdjustment);
+      observedRowcountAdjustment, hints);
   }
 
   @Override

@@ -26,6 +26,7 @@ import org.apache.parquet.format.converter.ParquetMetadataConverter.MetadataFilt
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -48,9 +49,15 @@ public class SingletonParquetFooterCache {
 
   public ParquetMetadata getFooter(BulkInputStream is, String path, long fileLength, FileSystem fs, long maxFooterLen) {
     if (footer == null || !lastFile.equals(path)) {
+      String non_Parquet_Error_Message = "not a parquet file";
       try {
         footer = readFooter(is, path, fileLength, fs, maxFooterLen);
       } catch (IOException ioe) {
+        if(ioe.getMessage() != null && ioe.getMessage().toLowerCase().contains(non_Parquet_Error_Message)){
+          throw UserException.dataReadError()
+            .message("The file %s is not in Parquet format. Please check the size and format of the files you are promoting and select the format from the dropdown box accordingly.", path)
+            .build(logger);
+        }
         throw new RuntimeException("Failed to read parquet footer for file " + path, ioe);
       }
       lastFile = path;

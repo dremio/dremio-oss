@@ -18,7 +18,7 @@ import { connect } from "react-redux";
 import { intl } from "@app/utils/intl";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 import FontIcon from "components/Icon/FontIcon";
 import TextHighlight from "components/TextHighlight";
 import EllipsedText from "components/EllipsedText";
@@ -160,7 +160,7 @@ export class DatasetItemLabel extends PureComponent {
       starNode,
       unstarNode,
       isStarredLimitReached,
-      showSummaryOverlay,
+      showSummaryOverlay = true,
     } = this.props;
 
     const { isOpenOverlay } = this.state;
@@ -223,9 +223,10 @@ export class DatasetItemLabel extends PureComponent {
       <div style={{ ...styles.base, ...(style || {}) }} className={className}>
         <div style={styles.list} className="datasetItemLabel">
           <div className="datasetItemLabel-item">
-            {labelTypeIcon !== "Script" && labelTypeIcon !== "FileEmpty" ? (
+            {showSummaryOverlay &&
+            labelTypeIcon !== "Script" &&
+            labelTypeIcon !== "FileEmpty" ? (
               <Tooltip
-                open={showSummaryOverlay}
                 type="richTooltip"
                 enterDelay={1000}
                 title={

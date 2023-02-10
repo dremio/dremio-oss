@@ -32,6 +32,7 @@ import org.apache.iceberg.ManifestContent;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
@@ -41,6 +42,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
+import com.dremio.exec.store.iceberg.model.ImmutableManifestScanOptions;
+import com.dremio.exec.store.iceberg.model.ManifestScanOptions;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.google.common.collect.ImmutableList;
@@ -50,28 +53,31 @@ public class IcebergScanPlanBuilder {
   private final IcebergScanPrel icebergScanPrel;
 
   public IcebergScanPlanBuilder(
-      RelOptCluster cluster,
-      RelTraitSet traitSet,
-      RelOptTable table,
-      TableMetadata tableMetadata,
-      List<SchemaPath> projectedColumns,
-      OptimizerRulesContext context) {
+    RelOptCluster cluster,
+    RelTraitSet traitSet,
+    RelOptTable table,
+    TableMetadata tableMetadata,
+    List<SchemaPath> projectedColumns,
+    OptimizerRulesContext context,
+    ManifestScanFilters manifestScanFilters) {
     this.icebergScanPrel = new IcebergScanPrel(
-        cluster,
-        traitSet,
-        table,
-        tableMetadata.getStoragePluginId(),
-        tableMetadata,
-        projectedColumns,
-        1.0,
-        null,
-        false,
-        null,
-        context,
-        false,
-        null,
-        null,
-        false);
+      cluster,
+      traitSet,
+      table,
+      tableMetadata.getStoragePluginId(),
+      tableMetadata,
+      projectedColumns,
+      1.0,
+      ImmutableList.of(),
+      null,
+      false,
+      null,
+      context,
+      false,
+      null,
+      null,
+      false,
+      manifestScanFilters);
   }
 
   private IcebergScanPlanBuilder(
@@ -88,21 +94,23 @@ public class IcebergScanPlanBuilder {
       TableMetadata tableMetadata, boolean isArrowCachingEnabled, boolean isConvertedIcebergDataset, boolean canUsePartitionStats) {
     FilterableScan filterableScan = (FilterableScan) drel;
     IcebergScanPrel prel = new IcebergScanPrel(
-        drel.getCluster(),
-        drel.getTraitSet().plus(Prel.PHYSICAL),
-        drel.getTable(),
-        drel.getPluginId(),
-        tableMetadata,
-        drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(),
-        filterableScan.getFilter(),
-        isArrowCachingEnabled,
-        filterableScan.getPartitionFilter(),
-        context,
-        isConvertedIcebergDataset,
-        filterableScan.getSurvivingRowCount(),
-        filterableScan.getSurvivingFileCount(),
-        canUsePartitionStats);
+      drel.getCluster(),
+      drel.getTraitSet().plus(Prel.PHYSICAL),
+      drel.getTable(),
+      drel.getPluginId(),
+      tableMetadata,
+      drel.getProjectedColumns(),
+      drel.getObservedRowcountAdjustment(),
+      drel.getHints(),
+      filterableScan.getFilter(),
+      isArrowCachingEnabled,
+      filterableScan.getPartitionFilter(),
+      context,
+      isConvertedIcebergDataset,
+      filterableScan.getSurvivingRowCount(),
+      filterableScan.getSurvivingFileCount(),
+      canUsePartitionStats,
+      ManifestScanFilters.empty());
     return new IcebergScanPlanBuilder(prel);
   }
 
@@ -144,8 +152,10 @@ public class IcebergScanPlanBuilder {
   public RelNode build() {
     RelNode output;
     if (hasDeleteFiles()) {
-      RelNode data = icebergScanPrel.buildManifestScan(ManifestContent.DATA, getDataManifestRecordCount(), false);
-      RelNode deletes = icebergScanPrel.buildManifestScan(ManifestContent.DELETES, getDeleteManifestRecordCount(), false);
+      RelNode data = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
+        new ImmutableManifestScanOptions.Builder().setManifestContent(ManifestContent.DATA).build());
+      RelNode deletes = icebergScanPrel.buildManifestScan(getDeleteManifestRecordCount(),
+        new ImmutableManifestScanOptions.Builder().setManifestContent(ManifestContent.DELETES).build());
 
       output = buildDataAndDeleteFileJoinAndAggregate(data, deletes);
       output = buildSplitGen(output);
@@ -158,15 +168,36 @@ public class IcebergScanPlanBuilder {
     return output;
   }
 
+  /**
+   * This builds manifest scan plans both with and without delete files.
+   */
+  public RelNode buildManifestRel(ManifestScanOptions manifestScanOptions) {
+
+    RelNode output = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
+      new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DATA).build());
+
+    if (hasDeleteFiles()) {
+      RelNode deletes = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
+        new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DELETES).build());
+      output = buildDataAndDeleteFileJoinAndAggregate(output, deletes);
+    }
+
+    return output;
+  }
+
   public RelNode buildWithDmlDataFileFiltering(RelNode dataFileFilterList) {
-    RelNode output = icebergScanPrel.buildManifestScan(ManifestContent.DATA, getDataManifestRecordCount(), false);
+    ManifestScanOptions manifestScanOptions =  new ImmutableManifestScanOptions.Builder()
+      .setManifestContent(ManifestContent.DATA).setIncludesSplitGen(false).build();
+    RelNode output = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(), manifestScanOptions);
     // join with the unique data files to filter
     output = buildDataFileFilteringSemiJoin(output, dataFileFilterList);
 
     if (hasDeleteFiles()) {
       // if the table has delete files, add a delete manifest scan and join/aggregate applicable delete files to
       // data files
-      RelNode deletes = icebergScanPrel.buildManifestScan(ManifestContent.DELETES, getDeleteManifestRecordCount(), false);
+      manifestScanOptions = new ImmutableManifestScanOptions.Builder().from(manifestScanOptions)
+        .setManifestContent(ManifestContent.DELETES).build();
+      RelNode deletes = icebergScanPrel.buildManifestScan(getDeleteManifestRecordCount(), manifestScanOptions);
       output = buildDataAndDeleteFileJoinAndAggregate(output, deletes);
     }
 

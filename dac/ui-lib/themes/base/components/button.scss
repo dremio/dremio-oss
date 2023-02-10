@@ -1,0 +1,74 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Base button CSS
+.dremio-button {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-direction: row;
+  max-inline-size: 100%;
+  overflow: hidden;
+  user-select: none;
+  vertical-align: middle;
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  &__content {
+    align-items: center;
+    display: inline-flex;
+    flex: 1;
+    flex-direction: row;
+    justify-content: center;
+    overflow: hidden;
+    white-space: nowrap;
+
+    > * {
+      flex-shrink: 0;
+      max-block-size: 100%;
+    }
+  }
+
+  background: var(--dremio--button--background);
+  block-size: var(--dremio--button--height);
+  border: var(--dremio--button--border-size) var(--dremio--button--border-style)
+    var(--dremio--button--border-color);
+  border-radius: var(--dremio--button--border-radius);
+  color: var(--dremio--button--color);
+  font-size: var(
+    --dremio--button--font-size,
+    var(--dremio--font-size--default)
+  );
+  font-weight: var(--dremio--button--font-weight);
+  min-inline-size: var(--dremio--button--min-width);
+  transition: var(--dremio--button--transition);
+
+  &__content {
+    gap: var(--dremio--button--icon-gap);
+    padding-inline: var(--dremio--button--padding-inline);
+  }
+}
+
+a.dremio-button {
+  text-decoration: none !important;
+}
+
+button.dremio-button {
+  padding: 0;
+}

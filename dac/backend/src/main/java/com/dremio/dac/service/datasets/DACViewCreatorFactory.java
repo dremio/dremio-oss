@@ -128,7 +128,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
         DatasetPath datasetPath = new DatasetPath(path);
         final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
 
-        Transformer transformer = new Transformer(contextService.get().get(), jobsService, namespaceService, datasetService, executor, securityContext);
+        Transformer transformer = new Transformer(contextService.get().get(), jobsService, namespaceService, datasetService, executor, securityContext, catalogService.get());
         TransformUpdateSQL transformUpdateSQL = new TransformUpdateSQL();
         transformUpdateSQL.setSql(sql);
         transformUpdateSQL.setSqlContextList(sqlContext);
@@ -180,7 +180,8 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
 
     protected DatasetVersionResource newDatasetVersionResource(SecurityContext securityContext, DatasetTool tool,
         DatasetVersion version, DatasetPath tmpPath, BufferAllocator allocator) {
-      return new DatasetVersionResource(null, datasetService, jobsService, null, null, null, tool, null, securityContext, tmpPath, version, allocator);
+      return new DatasetVersionResource(null, datasetService, jobsService, null, null, null,
+        tool, null, securityContext, tmpPath, version, allocator, catalogService.get());
     }
 
     @Override

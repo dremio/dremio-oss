@@ -113,6 +113,15 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       List<SchemaPath> columns) throws ExecutionSetupException;
 
   public RecordReader getRecordReader(
+          OperatorContext context,
+          FileSystem dfs,
+          EasyDatasetSplitXAttr splitAttributes,
+          List<SchemaPath> columns,
+          ExtendedEasyReaderProperties properties) throws ExecutionSetupException {
+    return getRecordReader(context, dfs, splitAttributes, columns);
+  }
+
+  public RecordReader getRecordReader(
     OperatorContext context,
     FileSystem dfs,
     SplitAndPartitionInfo split,

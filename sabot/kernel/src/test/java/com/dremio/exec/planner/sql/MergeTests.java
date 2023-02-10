@@ -23,6 +23,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartit
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithFloats;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createRandomId;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createStockIcebergTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createView;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.setContext;
@@ -380,6 +381,16 @@ public class MergeTests {
     }
   }
 
+  public static void testMergeUpdateInsertWithReversedColumnSelectInSource(BufferAllocator allocator, String source) throws Exception {
+    try (Table sourceTable = createBasicTable(source, 2, 5);
+         Table targetTable = createBasicTable(source,2, 3)) {
+        testDmlQuery(allocator, "MERGE INTO %s USING (select id, column_0 from (select column_0, id from %s)) as s ON (%s.id = s.id)"
+            + " WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *",
+          new Object[]{targetTable.fqn, sourceTable.fqn, targetTable.fqn}, targetTable, 5,
+          ArrayUtils.subarray(sourceTable.originalData, 0, sourceTable.originalData.length));
+    }
+  }
+
   public static void testMergeInsertWithScalar(BufferAllocator allocator, String source) throws Exception {
     try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
          Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
@@ -661,6 +672,25 @@ public class MergeTests {
         new Object[]{targetTable.originalData[0][0], sourceTable.originalData[0][1]},
         new Object[]{targetTable.originalData[1][0], sourceTable.originalData[1][1]},
         sourceTable.originalData[2]);
+    }
+  }
+
+  public static void testMergeWithStockIcebergTargetTable(BufferAllocator allocator, String source) throws Exception {
+    try (
+      Table sourceTable = createBasicTable(source, 1, 2, 0);
+      Table targetTable = createStockIcebergTable(source, 1, 2, "merge_target_table");
+      AutoCloseable ignored = setContext(allocator, source)) {
+      testDmlQuery(allocator,
+        "MERGE INTO %s.%s target\n" +
+          "USING %s.%s source\n" +
+          "ON source.id = target.id\n" +
+          "WHEN MATCHED THEN\n" +
+          "UPDATE SET %s = source.%s\n" +
+          "WHEN NOT MATCHED THEN\n" +
+          "INSERT VALUES(source.%s, source.%s)",
+        new Object[]{targetTable.paths[0], targetTable.name, sourceTable.paths[0], sourceTable.name,
+          targetTable.columns[1], sourceTable.columns[1], sourceTable.columns[0], sourceTable.columns[1]}, targetTable, 0,
+        null);
     }
   }
   // END: Contexts + Paths

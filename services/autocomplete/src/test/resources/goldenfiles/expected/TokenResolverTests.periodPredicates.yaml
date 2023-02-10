@@ -67,14 +67,14 @@
   description: "(datetime, datetime)"
   input: "SELECT (datetime, datetime)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - ","
-     - "FROM"
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "EQUALS"
+     - "OVERLAPS"
+     - "PRECEDES"
+     - "SUCCEEDS"
  -
   description: "PERIOD("
   input: "SELECT PERIOD("
@@ -127,14 +127,14 @@
   description: "PERIOD(datetime, datetime)"
   input: "SELECT PERIOD(datetime, datetime)"
   output:
-    hasIdentifier: false
+    hasIdentifier: true
     hasMoreResults: true
     tokens:
      - ","
-     - "FROM"
-     - "ORDER"
-     - ";"
-     - "EXCEPT"
+     - "EQUALS"
+     - "OVERLAPS"
+     - "PRECEDES"
+     - "SUCCEEDS"
  -
   description: "CONTAINS"
   input: "SELECT myPeriod CONTAINS"

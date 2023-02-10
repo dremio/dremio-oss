@@ -15,23 +15,11 @@
  */
 package com.dremio.service.nessie;
 
-import com.dremio.datastore.api.KVStore;
-import com.dremio.datastore.api.KVStoreCreationFunction;
-import com.dremio.datastore.api.StoreBuildingFactory;
-import com.dremio.datastore.format.Format;
-
 /**
  * Creates the KeyList KV store for Nessie.
  */
-public class NessieKeyListStoreBuilder implements KVStoreCreationFunction<String, byte[]> {
-  static final String TABLE_NAME = "key_list";
-
-  @Override
-  public KVStore<String, byte[]> build(StoreBuildingFactory factory) {
-    return factory.<String, byte[]>newStore()
-      .name(TABLE_NAME)
-      .keyFormat(Format.ofString())
-      .valueFormat(Format.ofBytes())
-      .build();
+public class NessieKeyListStoreBuilder extends AbstractNessieStoreBuilder {
+  public NessieKeyListStoreBuilder() {
+    super("key_list");
   }
 }

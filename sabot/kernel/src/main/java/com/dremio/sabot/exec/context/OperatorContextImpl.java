@@ -55,6 +55,7 @@ import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
+import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.spill.SpillService;
@@ -91,6 +92,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final Map<Integer, MajorFragmentAssignment> majorFragmentAssignments;
   private final List<MinorFragmentEndpoint> minorFragmentEndpoints;
   private final ExpressionSplitCache expressionSplitCache;
+  private final HeapLowMemController heapLowMemController;
 
   public OperatorContextImpl(
     SabotConfig sabotConfig,
@@ -116,7 +118,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
     EndpointsIndex endpointsIndex,
     List<MinorFragmentEndpoint> minorFragmentEndpoints,
-    ExpressionSplitCache expressionSplitCache) throws OutOfMemoryException {
+    ExpressionSplitCache expressionSplitCache,
+    HeapLowMemController heapLowMemController) throws OutOfMemoryException {
     this.config = sabotConfig;
     this.dremioConfig = dremioConfig;
     this.handle = handle;
@@ -147,6 +150,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
             .orElse(Collections.emptyMap());
     this.minorFragmentEndpoints = minorFragmentEndpoints;
     this.expressionSplitCache = expressionSplitCache;
+    this.heapLowMemController = heapLowMemController;
   }
 
   public OperatorContextImpl(
@@ -158,7 +162,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
 
     this(config, dremioConfig, null, null, allocator, allocator, null, null, null, null, null, null, null,
       optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null, null,
-      expressionSplitCache);
+      expressionSplitCache, null);
   }
 
   @Override
@@ -295,6 +299,11 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   @Override
   public int getTargetBatchSize() {
     return targetBatchSize;
+  }
+
+  @Override
+  public HeapLowMemController getHeapLowMemController() {
+    return heapLowMemController;
   }
 
   @Override

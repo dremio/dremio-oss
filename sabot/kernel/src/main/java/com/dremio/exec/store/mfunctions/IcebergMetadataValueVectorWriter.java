@@ -18,30 +18,30 @@ package com.dremio.exec.store.mfunctions;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.Accessor;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.io.CloseableIterator;
-import org.apache.iceberg.types.Types;
+import org.apache.iceberg.types.Types.NestedField;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 
 /**
  * A value vector write for iceberg metadata functions.
@@ -52,7 +52,8 @@ final class IcebergMetadataValueVectorWriter {
   private final CloseableIterator<FileScanTask> iterator;
   private final int targetBatchSize;
   private final List<SchemaPath> projectedColumns;
-  private final Map<String, Function<StructLike, Object>> accessors;
+  private final Schema icebergSchema;
+  private final Map<String, Accessor<StructLike>> accessorByColumn;
   private final ArrowBuf tmpBuf;
   private CloseableIterator<StructLike> recordsIterator;
 
@@ -62,17 +63,11 @@ final class IcebergMetadataValueVectorWriter {
     this.output = output;
     this.targetBatchSize = targetBatchSize;
     this.projectedColumns = columns;
+    this.icebergSchema = icebergSchema;
+    this.accessorByColumn = Maps.newHashMap();
     this.tmpBuf = tmpBuf;
     this.iterator = iterator;
     this.recordsIterator = null;
-
-    accessors = new HashMap<>();
-    int pos = 0;
-    for (Types.NestedField field : icebergSchema.asStruct().fields()) {
-      String key = lower(field.name());
-      accessors.put(key, accessor(pos, field));
-      pos++;
-    }
   }
 
   public int write() {
@@ -86,14 +81,16 @@ final class IcebergMetadataValueVectorWriter {
           StructLike structLike = recordsIterator.next();
           for (SchemaPath column : projectedColumns) {
             String rootColumn = column.getRootSegment().getPath();
-            if (output.getVector(rootColumn) instanceof ListVector) {
-              ListVector vector = (ListVector) output.getVector(rootColumn);
-              writeToListVector(vector, outIndex,  getValue(structLike, rootColumn));
-            } else if (output.getVector(rootColumn) instanceof StructVector) {
-              StructVector vector = (StructVector) output.getVector(rootColumn);
-              writeToMapVector(vector, outIndex, (Map<String, String>) getValue(structLike, rootColumn));
+            ValueVector targetVector = output.getVector(rootColumn);
+            Object valueToWrite = getValue(structLike, rootColumn);
+            if (targetVector instanceof ListVector) {
+              ListVector vector = (ListVector) targetVector;
+              writeToListVector(vector, outIndex, valueToWrite);
+            } else if (targetVector instanceof StructVector) {
+              StructVector vector = (StructVector) targetVector;
+              writeToMapVector(vector, outIndex, (Map<String, String>) valueToWrite);
             } else {
-              writeToVector(output.getVector(rootColumn), outIndex, getValue(structLike, rootColumn));
+              writeToVector(targetVector, outIndex, valueToWrite);
             }
           }
           outIndex++;
@@ -115,9 +112,6 @@ final class IcebergMetadataValueVectorWriter {
    * Use this method to update Struct/Map type of vector using Map as values.
    * This is very tightly coupled with Value as <String, String>.
    * Eg: Snapshots -> summary
-   * @param vector
-   * @param outIndex
-   * @param data
    */
   private void writeToMapVector(StructVector vector, int outIndex, Map<String, String> data) {
     BaseWriter.StructWriter structWriter = vector.getWriter();
@@ -180,9 +174,6 @@ final class IcebergMetadataValueVectorWriter {
   /**
    * Use this method to write to list vector. It reads from structLike data.
    * eg: manifests -> partition_summaries
-   * @param vector
-   * @param outIndex
-   * @param data
    */
   private void writeToListVector(ListVector vector, int outIndex, Object data) {
     UnionListWriter writer = vector.getWriter();
@@ -226,26 +217,15 @@ final class IcebergMetadataValueVectorWriter {
   }
 
   private Object getValue(StructLike structLike, String column) {
-    Function<StructLike, Object> accessor = accessors.get(lower(column));
-    return accessor.apply(structLike);
-  }
-
-  private static Function<StructLike, Object> accessor(int pos, Types.NestedField field) {
-    Class<?> javaClass;
-    if (field.type().isListType()) {
-      javaClass = List.class;
-    } else if (field.type().isMapType()) {
-      javaClass = Map.class;
-    } else if (field.type().isStructType()) {
-      javaClass = Map.class;
-    } else {
-      javaClass = field.type().typeId().javaClass();
+    Accessor<StructLike> accessor = accessorByColumn.get(column);
+    if (accessor == null) {
+      NestedField field = icebergSchema.caseInsensitiveFindField(column);
+      Preconditions.checkNotNull(field, "Field for column '%s' not found in schema:\n%s", column, icebergSchema);
+      accessor = icebergSchema.accessorForField(field.fieldId());
+      Preconditions.checkNotNull(accessor, "Field accessor for column '%s' not found in schema:\n%s", column, icebergSchema);
+      Accessor<StructLike> oldAccessor = accessorByColumn.put(column, accessor);
+      Preconditions.checkState(oldAccessor == null, "Duplicate field accessor for column '%s' in schema:\n%s", column, icebergSchema);
     }
-
-    return struct -> struct.get(pos, javaClass);
-  }
-
-  private static String lower(String name) {
-    return name.toLowerCase(Locale.ROOT); // compatible with Schema.caseInsensitiveFindField(name)
+    return accessor.get(structLike);
   }
 }

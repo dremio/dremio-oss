@@ -33,7 +33,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * CREATE [ OR REPLACE] COLUMN POLICY <policy_name>
@@ -45,14 +45,15 @@ public class SqlCreateFunction extends SqlCall {
   private final SqlIdentifier name;
   private final SqlNodeList fieldList;
   private final SqlNode expression;
-  private final SqlDataTypeSpec returnType;
+  private final SqlDataTypeSpec scalarReturnType;
+  private final SqlNodeList tabularReturnType;
   private boolean shouldReplace;
   private boolean ifNotExists;
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_FUNCTION", SqlKind.OTHER) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 6, "SqlCreateFunction.createCall() has to get 5 operands!");
+      Preconditions.checkArgument(operands.length == 7, "SqlCreateFunction.createCall() has to get 7 operands!");
       return new SqlCreateFunction(
         pos,
         (SqlLiteral) operands[0],
@@ -60,19 +61,29 @@ public class SqlCreateFunction extends SqlCall {
         (SqlNodeList) operands[2],
         (SqlDataTypeSpec) operands[3],
         operands[4],
-        (SqlLiteral) operands[5]
+        (SqlLiteral) operands[5],
+        (SqlNodeList) operands[6]
       );
     }
   };
 
-  public SqlCreateFunction(SqlParserPos pos, SqlLiteral shouldReplace, SqlIdentifier name, SqlNodeList fieldList, SqlDataTypeSpec returnType, SqlNode expression, SqlLiteral ifNotExists) {
+  public SqlCreateFunction(
+      SqlParserPos pos,
+      SqlLiteral shouldReplace,
+      SqlIdentifier name,
+      SqlNodeList fieldList,
+      SqlDataTypeSpec scalarReturnType,
+      SqlNode expression,
+      SqlLiteral ifNotExists,
+      SqlNodeList tabularReturnType) {
     super(pos);
     this.shouldReplace = shouldReplace.booleanValue();
     this.name = name;
     this.fieldList = fieldList;
-    this.returnType = returnType;
+    this.scalarReturnType = scalarReturnType;
     this.expression = expression;
     this.ifNotExists = ifNotExists.booleanValue();
+    this.tabularReturnType = tabularReturnType;
   }
 
   public SqlIdentifier getName() {
@@ -94,12 +105,16 @@ public class SqlCreateFunction extends SqlCall {
     return fieldList;
   }
 
-  public SqlNode getExpression() {
-    return expression;
+  public SqlDataTypeSpec getScalarReturnType() {
+    return scalarReturnType;
   }
 
-  public SqlDataTypeSpec getReturnType() {
-    return returnType;
+  public SqlNodeList getTabularReturnType() {
+    return tabularReturnType;
+  }
+
+  public SqlNode getExpression() {
+    return expression;
   }
 
   public boolean shouldReplace() {
@@ -117,13 +132,14 @@ public class SqlCreateFunction extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(
+    return Lists.newArrayList(
       SqlLiteral.createBoolean(shouldReplace, SqlParserPos.ZERO),
       name,
       fieldList,
-      returnType,
+      scalarReturnType,
       expression,
-      SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO));
+      SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO),
+      tabularReturnType);
   }
 
   @Override
@@ -142,11 +158,15 @@ public class SqlCreateFunction extends SqlCall {
     name.unparse(writer, leftPrec, rightPrec);
     if (fieldList.size() > 0) {
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, fieldList);
-
-      writer.keyword("RETURNS");
-      returnType.unparse(writer, leftPrec, rightPrec);
-      writer.keyword("RETURN");
-      expression.unparse(writer, leftPrec, rightPrec);
     }
+
+    writer.keyword("RETURNS");
+    if (scalarReturnType != null) {
+      scalarReturnType.unparse(writer, leftPrec, rightPrec);
+    } else if (tabularReturnType.size() > 0) {
+      SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, tabularReturnType);
+    }
+    writer.keyword("RETURN");
+    expression.unparse(writer, leftPrec, rightPrec);
   }
 }

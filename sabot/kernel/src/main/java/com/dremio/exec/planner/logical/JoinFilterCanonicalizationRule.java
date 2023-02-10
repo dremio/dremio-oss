@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.Convention;
@@ -46,8 +47,6 @@ import com.google.common.collect.Lists;
  * IS NOT DISTINCT FROM.
  */
 public class JoinFilterCanonicalizationRule extends RelOptRule {
-  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinFilterCanonicalizationRule.class);
-
   public static final RelOptRule INSTANCE = new JoinFilterCanonicalizationRule(
       RelOptHelper.any(LogicalJoin.class, Convention.NONE), DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
@@ -97,15 +96,31 @@ public class JoinFilterCanonicalizationRule extends RelOptRule {
     // Add the remaining filter condition
     final RexNode newJoinCondition = RelOptUtil.andJoinFilters(builder.getRexBuilder(), newPartialJoinCondition, remaining);
 
+    //removing nested conjunctions as they are redundant.
+    final RexNode simplifiedNewJoinCondition = simplifyNestedConjunctions(newJoinCondition,builder.getRexBuilder());
+
     // terminate if the same condition as previously
-    if (RexUtil.eq(joinCondition, newJoinCondition)) {
+    if (RexUtil.eq(joinCondition, simplifiedNewJoinCondition)) {
       return null;
     }
 
     builder.pushAll(ImmutableList.of(left, right));
-    builder.join(joinType, newJoinCondition);
+    builder.join(joinType, simplifiedNewJoinCondition);
 
     return builder.build();
+  }
+
+  /***
+   * Removes nested conjunctions from condition.
+   *
+   * @param condition
+   * @param builder
+   * @return a simplified condition without nested conjunctions
+   */
+  private RexNode simplifyNestedConjunctions(RexNode condition, RexBuilder builder){
+    List<RexNode> operandList = new ArrayList<>();
+    RelOptUtil.decomposeConjunction(condition,operandList);
+    return RexUtil.composeConjunction(builder,operandList,false);
   }
 
   /**

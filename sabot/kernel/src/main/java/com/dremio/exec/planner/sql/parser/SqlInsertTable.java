@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.parser;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlCall;
@@ -32,11 +31,9 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
@@ -112,13 +109,6 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   }
 
   @Override
-  public List<String> getPartitionColumns(DremioTable dremioTable) {
-    Preconditions.checkNotNull(dremioTable);
-    List<String> columnNames =  dremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
-    return columnNames != null ? columnNames : Lists.newArrayList();
-  }
-
-  @Override
   public List<PartitionTransform> getPartitionTransforms(DremioTable dremioTable) {
     throw new UnsupportedOperationException();
   }
@@ -131,24 +121,6 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   @Override
   public List<String> getDistributionColumns() {
     return Lists.newArrayList();
-  }
-
-  @Override
-  public PartitionDistributionStrategy getPartitionDistributionStrategy(
-    SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
-    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)) {
-      return PartitionDistributionStrategy.UNSPECIFIED;
-    }
-
-    // DX-50375: when we use VALUES clause in INSERT command, the field names end up with using expr, e.g., "EXPR%$0",
-    // which are not the real underlying field names. Keep to use 'UNSPECIFIED' for this scenario.
-    for (String partitionFieldName : partitionFieldNames) {
-      if(!fieldNames.contains(partitionFieldName)) {
-        return PartitionDistributionStrategy.UNSPECIFIED;
-      }
-    }
-
-    return PartitionDistributionStrategy.HASH;
   }
 
   @Override

@@ -20,6 +20,7 @@ import arcticPreviewImg from "./images/arctic-preview.png";
 import { ServiceCard } from "./ServiceCard";
 import { Tooltip } from "dremio-ui-lib";
 import { ExternalLink } from "dremio-ui-lib/dist-esm";
+import * as PATHS from "@app/exports/paths";
 
 type Props = {
   action: JSX.Element;
@@ -29,6 +30,7 @@ export const ArcticServiceCard = (props: Props): JSX.Element => {
   return (
     <ServiceCard
       action={props.action}
+      href={PATHS.arcticCatalogs()}
       showcaseImage={<img src={arcticPreviewImg} alt="" />}
       serviceName={intl.formatMessage({ id: "Brand.Arctic" })}
       serviceIconName="corporate/arctic"
@@ -48,28 +50,39 @@ export const ArcticServiceCard = (props: Props): JSX.Element => {
                 }}
               >
                 <p>
-                  <strong>Arctic</strong>
+                  <strong>Arctic (Preview)</strong>
                 </p>
                 <p>
-                  Arctic is a lakehouse catalog for Iceberg tables that enables
-                  data to be managed like code with Git-like capabilities such
-                  as branches and tags. Arctic works with multiple query engines
-                  (Dremio, Sonar, Spark).
+                  Arctic is an intelligent metastore for Apache Iceberg that
+                  uniquely provides users a Git-like experience for data and
+                  automatically optimizes data to ensure high performance
+                  analytics. Arctic works with multiple query engines such as
+                  Dremio Sonar, Spark, etc.
                 </p>
 
                 <div style={{ marginTop: "1em" }}>
                   <p>
                     <strong>Read more on docs…</strong>
                   </p>
-                  <ul>
+                  <ul
+                    onClick={(e: any) => {
+                      e.stopPropagation();
+                    }}
+                  >
                     <li>
-                      <ExternalLink href="#" variant="list">
-                        Git-like data management
+                      <ExternalLink
+                        href="https://docs.dremio.com/cloud/getting-started/arctic-getting-started/"
+                        variant="list"
+                      >
+                        Arctic Overview
                       </ExternalLink>
                     </li>
                     <li>
-                      <ExternalLink href="#" variant="list">
-                        Supported engines
+                      <ExternalLink
+                        href="https://docs.dremio.com/cloud/getting-started/arctic-set-up/"
+                        variant="list"
+                      >
+                        Get Started with Arctic
                       </ExternalLink>
                     </li>
                   </ul>

@@ -21,7 +21,11 @@ import PropTypes from "prop-types";
 
 import { getExploreState } from "@app/selectors/explore";
 
-import { setCurrentSql, setQueryContext } from "actions/explore/view";
+import {
+  setCurrentSql,
+  setQueryContext,
+  setUpdateSqlFromHistory,
+} from "actions/explore/view";
 
 import { constructFullPath } from "utils/pathUtils";
 import { replace } from "react-router-redux";
@@ -32,7 +36,7 @@ import { getActiveScript } from "@app/selectors/scripts";
 import SqlAutoComplete from "./SqlAutoComplete";
 import FunctionsHelpPanel from "./FunctionsHelpPanel";
 import { extractSqlErrorFromResponse } from "./utils/errorUtils";
-import { extractQueries } from "@app/utils/statements/statementParser";
+import { getLocation } from "@app/selectors/routing";
 
 const toolbarHeight = 42;
 
@@ -57,13 +61,16 @@ export class SqlEditorController extends PureComponent {
     activeScript: PropTypes.object,
     queryStatuses: PropTypes.array,
     querySelections: PropTypes.array,
+    updateSqlFromHistory: PropTypes.bool,
     isMultiQueryRunning: PropTypes.bool,
     previousMultiSql: PropTypes.string,
+    isOpenResults: PropTypes.bool,
     //---------------------------
 
     // actions
     setCurrentSql: PropTypes.func,
     setQueryContext: PropTypes.func,
+    setUpdateSqlFromHistory: PropTypes.func,
     replaceUrlAction: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
   };
@@ -141,8 +148,13 @@ export class SqlEditorController extends PureComponent {
   }
 
   receiveProps(nextProps, oldProps) {
-    const { dataset } = oldProps;
-    const nextDataset = nextProps.dataset;
+    const { dataset, setUpdateSqlFromHistory: changeUpdateSqlFromHistory } =
+      oldProps;
+    const {
+      dataset: nextDataset,
+      updateSqlFromHistory: nextUpdateSqlFromHistory,
+      isOpenResults,
+    } = nextProps;
 
     // Sql editor needs to update sql on dataset load, or new query.
     // Normally this is picked up when defaultValue changes in CodeMirror.js. However there is an edge case for
@@ -169,15 +181,18 @@ export class SqlEditorController extends PureComponent {
     }
 
     const controller = this.getMonacoEditor();
-    const currentSqlQueries =
-      controller && extractQueries(controller.getValue());
     if (
-      (dataset && dataset.get("sql")) !== nextDataset.get("sql") &&
-      nextDataset.get("sql") !== oldProps.currentSql &&
       controller &&
+      (!oldProps.currentSql || nextUpdateSqlFromHistory) &&
+      dataset?.get("sql") !== nextDataset.get("sql") &&
+      nextDataset.get("sql") !== oldProps.currentSql &&
       nextProps.queryStatuses.length < 2 &&
-      currentSqlQueries.length < 2
+      !isOpenResults
     ) {
+      if (nextUpdateSqlFromHistory) {
+        changeUpdateSqlFromHistory({ updateSql: false });
+      }
+
       controller.setValue(nextDataset.get("sql"));
     }
   }
@@ -264,15 +279,21 @@ export class SqlEditorController extends PureComponent {
       const errorMessages = [];
 
       queryStatuses.forEach((status, index) => {
-        if (status.error) {
+        const error = status.error;
+
+        if (error) {
           let errorResponse;
 
-          if (status.error.get?.("response")) {
-            errorResponse = status.error.get("response")?.payload?.response;
+          if (error.get?.("response")) {
+            errorResponse = error.get("response")?.payload?.response;
+
+            // as part of the new query flow, errors come in a different property
+          } else if (error.get?.("message")) {
+            errorResponse = { errorMessage: error.get("message") };
 
             // when a job is canceled, an error is returned in an object instead of an Immutable Map
-          } else if (status.error?.payload) {
-            errorResponse = status.error.payload?.response;
+          } else if (error?.payload) {
+            errorResponse = error.payload?.response;
 
             const errorMessage = errorResponse?.errorMessage;
 
@@ -372,6 +393,7 @@ export class SqlEditorController extends PureComponent {
 
 function mapStateToProps(state) {
   const explorePageState = getExploreState(state);
+  const location = getLocation(state);
   return {
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
@@ -380,8 +402,10 @@ function mapStateToProps(state) {
     activeScript: getActiveScript(state),
     queryStatuses: explorePageState.view.queryStatuses,
     querySelections: explorePageState.view.querySelections,
+    updateSqlFromHistory: explorePageState.view.updateSqlFromHistory,
     isMultiQueryRunning: explorePageState.view.isMultiQueryRunning,
     previousMultiSql: explorePageState.view.previousMultiSql,
+    isOpenResults: location?.query?.openResults,
   };
 }
 
@@ -391,6 +415,7 @@ export default compose(
     {
       setCurrentSql,
       setQueryContext,
+      setUpdateSqlFromHistory,
       replaceUrlAction: replace,
       showUnsavedChangesConfirmDialog,
     },

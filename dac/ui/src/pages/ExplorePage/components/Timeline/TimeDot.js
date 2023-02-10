@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 import { Component, createRef } from "react";
+import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 import { injectIntl } from "react-intl";
 
+import { setUpdateSqlFromHistory } from "@app/actions/explore/view";
 import { Tooltip } from "@app/components/Tooltip";
 import { HISTORY_ITEM_COLOR } from "uiTheme/radium/colors";
 import { TIME_DOT_DIAMETER } from "uiTheme/radium/sizes";
@@ -39,6 +41,7 @@ export class TimeDot extends Component {
     location: PropTypes.object.isRequired,
     intl: PropTypes.object.isRequired,
     removeHistoryHover: PropTypes.func,
+    setUpdateSqlFromHistory: PropTypes.func,
   };
 
   static defaultProps = {
@@ -95,9 +98,11 @@ export class TimeDot extends Component {
   };
 
   loadHistory = () => {
-    const { router } = this.props;
+    const { router, setUpdateSqlFromHistory } = this.props;
 
     this.handleMouseLeave();
+
+    setUpdateSqlFromHistory({ updateSql: true });
 
     router.push(this.getLinkLocation());
   };
@@ -200,7 +205,9 @@ export class TimeDot extends Component {
   }
 }
 
-export default withRouter(injectIntl(TimeDot));
+export default withRouter(
+  connect(null, { setUpdateSqlFromHistory })(injectIntl(TimeDot))
+);
 
 const styles = {
   textDesc: {

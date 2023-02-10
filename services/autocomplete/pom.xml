@@ -22,7 +22,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>23.1.0-202211250121140756-a79618c7</version>
+    <version>24.0.0-202302100528110223-3a169b7c</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -72,6 +72,10 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-functions</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
-
 </project>

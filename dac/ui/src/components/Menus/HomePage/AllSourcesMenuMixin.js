@@ -19,6 +19,7 @@ import MenuItemLink from "components/Menus/MenuItemLink";
 import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import { manageSourceRule } from "@app/utils/authUtils";
+import { FormattedMessage } from "react-intl";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -34,7 +35,7 @@ export default function (input) {
               {(link) => (
                 <MenuItemLink
                   href={link}
-                  text={la("Browse")}
+                  text={<FormattedMessage id="Dataset.Browse" />}
                   closeMenu={closeMenu}
                 />
               )}
@@ -52,11 +53,11 @@ export default function (input) {
                   },
                 },
               }}
-              text={la("Edit Details")}
+              text={<FormattedMessage id="Common.Settings" />}
               closeMenu={closeMenu}
             />
             <MenuItem onClick={this.handleRemoveSource}>
-              {la("Remove Source")}
+              {<FormattedMessage id="Sources.RemoveSource" />}
             </MenuItem>
           </RestrictedArea>
         </Menu>

@@ -115,6 +115,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import io.opentelemetry.extension.annotations.WithSpan;
+
 /**
  * Prune partitions based on partition values
  */
@@ -515,6 +517,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     doOnMatch(call, filterRel, projectRel, scanRel, false);
   }
 
+  @WithSpan("partition-pruning")
   public void doOnMatch(RelOptRuleCall call, Filter filterRel, Project projectRel, T scanRel, Boolean hasSampleRel) {
     Stopwatch totalPruningTime = Stopwatch.createStarted();
     boolean longRun = true;

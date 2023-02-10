@@ -27,7 +27,6 @@ import com.dremio.exec.work.foreman.UnsupportedFunctionException;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
 
 public class TestDisabledFunctionality extends BaseTestQuery{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
 
   @Test(expected = UserException.class)  // see DRILL-2054
   public void testBooleanORWhereClause() throws Exception {

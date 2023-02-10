@@ -22,7 +22,7 @@ import com.google.errorprone.annotations.FormatMethod;
  * Implementation of the FunctionErrorContext interface
  */
 public class FunctionErrorContextImpl implements FunctionErrorContext {
-  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionErrorContext.class);
+  public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionErrorContextImpl.class);
 
   private int id;  // ID by which the error context is registered within a FunctionContext. -1 == unassigned
 

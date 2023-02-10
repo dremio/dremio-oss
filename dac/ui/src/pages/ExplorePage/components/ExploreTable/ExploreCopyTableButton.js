@@ -16,7 +16,6 @@
 import { PureComponent } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
-import platform from "platform";
 import { addNotification } from "@app/actions/notification";
 import CopyButtonIcon from "@app/components/Buttons/CopyButtonIcon";
 import { getPaginationJobId } from "@app/selectors/explore";
@@ -26,9 +25,6 @@ import { copyTextToClipboard } from "@app/utils/clipboard/clipboardUtils";
 import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
 
 const MAX_ROWS_TO_CLIPBOARD = 5000;
-const isFirefox = platform.name === "Firefox";
-const isSafari = platform.name === "Safari";
-const isEdge = platform.name === "Microsoft Edge";
 
 export class ExploreCopyTableButton extends PureComponent {
   static propTypes = {
@@ -120,13 +116,7 @@ export class ExploreCopyTableButton extends PureComponent {
     if (this.textToCopy) {
       //text already prepared - this is duplicate click for the same jobId
       this.setState({ isPreparing: true });
-      if (isFirefox) {
-        // firefox requires clipboard command in click event direct handler
-        this.copyText();
-      } else {
-        // use setTimeout to allow spinner to be shown first
-        this.timeoutHandle = setTimeout(this.copyText, 1);
-      }
+      this.timeoutHandle = setTimeout(this.copyText, 1);
       return;
     }
 
@@ -150,19 +140,7 @@ export class ExploreCopyTableButton extends PureComponent {
         this.textToCopy =
           ExploreCopyTableButton.makeCopyTextFromTableData(json);
         this.isMaxReached = json.returnedRowCount > MAX_ROWS_TO_CLIPBOARD;
-        if (isFirefox || isSafari) {
-          // firefox and safari do not allow copy to clipboard here
-          this.props.addNotification(
-            la(
-              "Due to browser security settings please click copy icon again."
-            ),
-            "info",
-            MSG_CLEAR_DELAY_SEC
-          );
-          this.setState({ isPreparing: false });
-        } else {
-          this.copyText();
-        }
+        this.copyText();
       },
       (error) => {
         // handle error for both api and json parse
@@ -181,11 +159,6 @@ export class ExploreCopyTableButton extends PureComponent {
   };
 
   render() {
-    if (isEdge) {
-      // can't copy to clipboard in MS Edge using current technique.
-      return null;
-    }
-
     const { title, jobId } = this.props;
     const isDisabled = !jobId;
 

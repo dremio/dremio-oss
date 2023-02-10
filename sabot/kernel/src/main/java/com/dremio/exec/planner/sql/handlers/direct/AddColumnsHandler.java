@@ -29,8 +29,9 @@ import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
+import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
-import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -38,9 +39,6 @@ import com.dremio.service.namespace.NamespaceKey;
  * Adds columns to the table specified using {@link SqlAlterTableAddColumns}
  */
 public class AddColumnsHandler extends SimpleDirectHandler {
-
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AddColumnsHandler.class);
-
   private final Catalog catalog;
   private final SqlHandlerConfig config;
 
@@ -53,7 +51,7 @@ public class AddColumnsHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlAlterTableAddColumns sqlAddColumns = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableAddColumns.class);
 
-    NamespaceKey path = catalog.resolveSingle(sqlAddColumns.getTable());
+    NamespaceKey path = DmlUtils.getTablePath(catalog, sqlAddColumns.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     DremioTable table = catalog.getTableNoResolve(path);
@@ -62,7 +60,7 @@ public class AddColumnsHandler extends SimpleDirectHandler {
       return Collections.singletonList(validate);
     }
 
-    List<SqlColumnDeclaration> newColumns = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlAddColumns.getColumnList(), sql);
+    List<DremioSqlColumnDeclaration> newColumns = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlAddColumns.getColumnList(), sql);
 
     SqlHandlerUtil.checkForDuplicateColumns(newColumns, table.getSchema(), sql);
     final String sourceName = path.getRoot();

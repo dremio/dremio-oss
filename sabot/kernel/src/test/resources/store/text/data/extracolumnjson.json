@@ -1,0 +1,18 @@
+{
+  col2 : {
+    col3 : 106,
+    col4 : "str1",
+    col6 : 180
+  },
+  col1 : "abc",
+  col5 : [5, 6, 7]
+}
+{
+  col1 : "pqr",
+  col2 : {
+    col3 : 108,
+    col4 : "str2"
+  },
+  col5 : [8, 9, 99],
+  col7 : 89
+}

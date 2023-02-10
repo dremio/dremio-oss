@@ -23,10 +23,10 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;

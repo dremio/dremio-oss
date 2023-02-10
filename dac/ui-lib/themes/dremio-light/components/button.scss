@@ -14,62 +14,8 @@
  * limitations under the License.
  */
 
-// Base button CSS
-.dremio-button {
-  align-items: center;
-  box-sizing: border-box;
-  display: inline-flex;
-  flex-direction: row;
-  max-inline-size: 100%;
-  overflow: hidden;
-  user-select: none;
-  vertical-align: middle;
+@use "../../base/components/button";
 
-  &:disabled,
-  &[aria-disabled="true"] {
-    cursor: not-allowed;
-  }
-
-  &__content {
-    align-items: center;
-    display: inline-flex;
-    flex: 1;
-    flex-direction: row;
-    justify-content: center;
-    overflow: hidden;
-    white-space: nowrap;
-
-    > * {
-      flex-shrink: 0;
-      max-block-size: 100%;
-    }
-  }
-
-  background: var(--dremio--button--background);
-  block-size: var(--dremio--button--height);
-  border: var(--dremio--button--border-size) var(--dremio--button--border-style)
-    var(--dremio--button--border-color);
-  border-radius: var(--dremio--button--border-radius);
-  color: var(--dremio--button--color);
-  font-weight: var(--dremio--button--font-weight);
-  min-inline-size: var(--dremio--button--min-width);
-  transition: var(--dremio--button--transition);
-
-  &__content {
-    gap: var(--dremio--button--icon-gap);
-    padding-inline: var(--dremio--button--padding-inline);
-  }
-}
-
-a.dremio-button {
-  text-decoration: none !important;
-}
-
-button.dremio-button {
-  padding: 0;
-}
-
-// Theme CSS
 .dremio-button {
   --dremio--button--border-color: transparent;
   --dremio--button--border-size: 1px;
@@ -134,6 +80,35 @@ button.dremio-button {
     &:disabled,
     &[aria-disabled="true"] {
       --dremio--button--background: transparent !important;
+    }
+  }
+
+  &--primary-danger {
+    --dremio--button--background: var(
+      --dremio--color--status--error--foreground
+    );
+    --dremio--button--border-color: transparent;
+    --dremio--button--color: white;
+
+    &:hover {
+      --dremio--button--background: var(
+        --dremio--color--status--delete--background
+      );
+    }
+  }
+
+  &--secondary-danger {
+    --dremio--button--background: transparent;
+    --dremio--button--border-color: var(--dremio--color--neutral--200);
+    --dremio--button--color: var(--dremio--color--status--error--foreground);
+
+    &:hover {
+      --dremio--button--background: var(
+        --dremio--color--status--error--background
+      );
+      --dremio--button--border-color: var(
+        --dremio--color--status--error--background
+      );
     }
   }
 }

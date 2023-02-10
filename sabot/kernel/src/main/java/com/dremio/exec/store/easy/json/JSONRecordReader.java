@@ -27,10 +27,12 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.store.easy.json.reader.CountingJsonReader;
 import com.dremio.exec.vector.complex.fn.JsonReader;
+import com.dremio.exec.vector.complex.fn.TransformationException;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
@@ -49,6 +51,8 @@ public class JSONRecordReader extends AbstractRecordReader {
   private final OperatorContext context;
   private boolean enableAllTextMode;
   private boolean readNumbersAsDouble;
+  private boolean schemaImposedMode;
+  private ExtendedFormatOptions extendedFormatOptions;
 
   // Data we're consuming
   private final Path fsPath;
@@ -134,6 +138,18 @@ public class JSONRecordReader extends AbstractRecordReader {
     this.readNumbersAsDouble = embeddedContent == null && options.getOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR);
   }
 
+  public JSONRecordReader(final OperatorContext operatorContext,
+                          final String inputPath,
+                          final CompressionCodecFactory codecFactory,
+                          final FileSystem fileSystem,
+                          final List<SchemaPath> columns,
+                          final Boolean schemaImposedMode,
+                          final ExtendedFormatOptions extendedFormatOptions) {
+    this(operatorContext, inputPath, null, codecFactory, fileSystem, columns);
+    this.schemaImposedMode = schemaImposedMode;
+    this.extendedFormatOptions = extendedFormatOptions;
+  }
+
   public void resetSpecialSchemaOptions() {
     this.enableAllTextMode = false;
     this.readNumbersAsDouble = false;
@@ -162,7 +178,8 @@ public class JSONRecordReader extends AbstractRecordReader {
         final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
         final int maxLeafLimit = Math.toIntExact(this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
         this.jsonReader = new JsonReader(
-          context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, maxLeafLimit, enableAllTextMode, true, readNumbersAsDouble);
+          context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, maxLeafLimit, enableAllTextMode, true, readNumbersAsDouble,
+                schemaImposedMode, extendedFormatOptions, context, output.getContainer() != null && output.getContainer().hasSchema()? output.getContainer().getSchema() : null);
       }
       setupParser();
     } catch(final Exception e) {
@@ -186,15 +203,16 @@ public class JSONRecordReader extends AbstractRecordReader {
 
     String message = e.getMessage();
     int columnNr = -1;
-
+    int lineNr = -1;
     if (e instanceof JsonParseException) {
       final JsonParseException ex = (JsonParseException) e;
       message = ex.getOriginalMessage();
       columnNr = ex.getLocation().getColumnNr();
+      lineNr = ex.getLocation().getLineNr();
     }
-
-    UserException.Builder exceptionBuilder = UserException.dataReadError(e)
-            .message("%s - %s", suffix, message);
+    StringBuilder errorMsgBuilder = new StringBuilder();
+    errorMsgBuilder.append(String.format("%s - %s", suffix, message));
+    UserException.Builder exceptionBuilder = UserException.dataReadError(e);
     if (columnNr > 0) {
       exceptionBuilder.pushContext("Column ", columnNr);
     }
@@ -202,8 +220,14 @@ public class JSONRecordReader extends AbstractRecordReader {
     if (fsPath != null) {
       exceptionBuilder.pushContext("Record ", currentRecordNumberInFile())
           .pushContext("File ", fsPath.toURI().getPath());
+      if(e instanceof TransformationException) {
+        lineNr = ((TransformationException) e).getLineNumber();
+      }
+      errorMsgBuilder.append(String.format(" File: %s", fsPath.toURI().getPath()));
+      errorMsgBuilder.append(String.format(" Line: %s,", lineNr));
+      errorMsgBuilder.append(String.format(" Record: %s", currentRecordNumberInFile()));
     }
-
+    exceptionBuilder.message(errorMsgBuilder.toString());
     throw exceptionBuilder.build(logger);
   }
 

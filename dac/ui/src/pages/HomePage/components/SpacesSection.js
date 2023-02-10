@@ -35,7 +35,8 @@ import { spacesSourcesListSpinnerStyle } from "@app/pages/HomePage/HomePageConst
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import * as VersionUtils from "@app/utils/versionUtils";
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
-
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 const mapStateToProps = (state) => ({
   spaces: getSortedSpaces(state),
   spacesViewState: getViewState(state, ALL_SPACES_VIEW_ID),
@@ -83,11 +84,13 @@ export class SpacesSection extends PureComponent {
       <EmptyStateContainer
         title="Space.NoSpaces"
         icon="entities/empty-space"
-        linkInfo={{
-          href: addHref,
-          "data-qa": "add-spaces",
-          label: "Space.AddSpace",
-        }}
+        linkInfo={
+          addHref && {
+            href: addHref,
+            "data-qa": "add-spaces",
+            label: "Space.AddSpace",
+          }
+        }
       />
     ) : null;
   }
@@ -120,7 +123,9 @@ export class SpacesSection extends PureComponent {
             addTooltip={intl.formatMessage({ id: "Space.AddSpace" })}
             isInProgress={spacesViewState.get("isInProgress")}
             addHref={this.getAddSpaceHref()}
-            listHref="/spaces/list"
+            listHref={commonPaths.spacesList.link({
+              projectId: getSonarContext()?.getSelectedProjectId?.(),
+            })}
           >
             {this.getInitialSpacesContent()}
           </FinderNav>

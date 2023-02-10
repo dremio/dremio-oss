@@ -17,7 +17,7 @@ import { Component, createRef } from "react";
 import PropTypes from "prop-types";
 import FontIcon from "components/Icon/FontIcon";
 import Keys from "@app/constants/Keys.json";
-import classNames from "classnames";
+import classNames from "clsx";
 import { base, searchInput } from "./SearchField.less";
 
 class SearchField extends Component {
@@ -36,6 +36,7 @@ class SearchField extends Component {
     onClick: PropTypes.func,
     showIcon: PropTypes.bool,
     disabled: PropTypes.bool,
+    loading: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -86,7 +87,7 @@ class SearchField extends Component {
       >
         {this.props.showIcon && (
           <FontIcon
-            type="Search"
+            type={this.props.loading ? "Loader spinner" : "Search"}
             theme={this.props.searchIconTheme || styles.searchIcon}
           />
         )}
@@ -149,4 +150,5 @@ const styles = {
     },
   },
 };
+
 export default SearchField;

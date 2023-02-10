@@ -25,7 +25,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.proto.UserBitShared.QueryData;
@@ -35,8 +34,6 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestMergingReceiver extends PopUnitTestBase {
@@ -51,8 +48,7 @@ public class TestMergingReceiver extends PopUnitTestBase {
       bit2.run();
       client.connect();
       final List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        Files.toString(FileUtils.getResourceAsFile("/mergerecv/merging_receiver.json"),
-          Charsets.UTF_8));
+        readResourceAsString("/mergerecv/merging_receiver.json"));
       int count = 0;
       final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results
@@ -80,8 +76,7 @@ public class TestMergingReceiver extends PopUnitTestBase {
       client.connect();
       final List<QueryDataBatch> results =
           client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-              Files.toString(FileUtils.getResourceAsFile("/mergerecv/multiple_providers.json"),
-                  Charsets.UTF_8));
+            readResourceAsString("/mergerecv/multiple_providers.json"));
       int count = 0;
       final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results
@@ -128,8 +123,7 @@ public class TestMergingReceiver extends PopUnitTestBase {
       client.connect();
       final List<QueryDataBatch> results =
           client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-              Files.toString(FileUtils.getResourceAsFile("/mergerecv/empty_batch.json"),
-                  Charsets.UTF_8));
+            readResourceAsString("/mergerecv/empty_batch.json"));
       int count = 0;
       final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results

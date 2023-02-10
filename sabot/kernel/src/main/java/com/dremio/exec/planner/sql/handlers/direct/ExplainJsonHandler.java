@@ -53,7 +53,7 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
   public ExplainJsonHandler(SqlHandlerConfig config) {
     super();
     this.config = new SqlHandlerConfig(config.getContext(), config.getConverter(), config.getObserver(),
-      config.getMaterializations().orNull());
+      config.getMaterializations().orElse(null));
   }
 
   @Override

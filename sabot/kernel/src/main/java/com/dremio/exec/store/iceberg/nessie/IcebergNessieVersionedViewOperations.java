@@ -48,6 +48,7 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
   private final String dialect;
   private final ResolvedVersionContext version;
   private IcebergView icebergView;
+  private String baseContentId;
 
   public IcebergNessieVersionedViewOperations(
       FileIO fileIO,
@@ -60,11 +61,14 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
     this.viewKey = requireNonNull(viewKey);
     this.dialect = dialect;
     this.version = version;
+    this.baseContentId = null;
+
   }
 
   @Override
   public ViewVersionMetadata refresh() {
-    final String metadataLocation = nessieClient.getMetadataLocation(viewKey, version);
+    baseContentId = nessieClient.getContentId(viewKey, version, null);
+    final String metadataLocation = nessieClient.getMetadataLocation(viewKey, version, null);
 
     refreshFromMetadataLocation(metadataLocation, RETRY_IF, MAX_RETRIES, this::loadViewMetadata);
 
@@ -91,7 +95,7 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
 
     boolean isFailedOperation = true;
     try {
-      nessieClient.commitView(viewKey, newMetadataLocation, icebergView, target, dialect, version);
+      nessieClient.commitView(viewKey, newMetadataLocation, icebergView, target, dialect, version, baseContentId);
       isFailedOperation = false;
     } finally {
       if (isFailedOperation) {

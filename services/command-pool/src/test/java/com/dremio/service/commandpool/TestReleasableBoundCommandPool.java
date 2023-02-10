@@ -108,7 +108,7 @@ public class TestReleasableBoundCommandPool extends TestBoundCommandPool {
     ReleasableBoundCommandPool releasableBoundCommandPool = createReleasableCommandPool(1);
 
     ReleaseAndWaitCommand releaseAndWaitCommand = new ReleaseAndWaitCommand(releasableBoundCommandPool, new StartAndStop());
-    CompletableFuture<?> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "release-and-block", releaseAndWaitCommand, false);
+    CompletableFuture<?> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "release-and-block", "", releaseAndWaitCommand, false);
     releaseAndWaitCommand.firstUnblock();
     releaseAndWaitCommand.secondUnblock();
     try {
@@ -125,7 +125,7 @@ public class TestReleasableBoundCommandPool extends TestBoundCommandPool {
     ReleasableBoundCommandPool releasableBoundCommandPool = createReleasableCommandPool(1);
 
     ReleaseAndResubmitTask releaseAndResubmitTask = new ReleaseAndResubmitTask(releasableBoundCommandPool, new StartAndStop());
-    CompletableFuture<?> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "release-and-submit", releaseAndResubmitTask, false);
+    CompletableFuture<?> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "release-and-submit", "", releaseAndResubmitTask, false);
     releaseAndResubmitTask.firstUnblock();
     releaseAndResubmitTask.secondUnblock();
     try {
@@ -142,22 +142,22 @@ public class TestReleasableBoundCommandPool extends TestBoundCommandPool {
 
     counter.set(0);
     ReleaseAndResubmitTask releaseAndResubmitTask = new ReleaseAndResubmitTask(releasableBoundCommandPool, new StartAndStop());
-    CompletableFuture<Integer> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "release-and-submit", releaseAndResubmitTask, false);
+    CompletableFuture<Integer> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "release-and-submit", "", releaseAndResubmitTask, false);
 
     Thread.sleep(2);
 
     SimpleBlockingCommand blockingCommand1 = new SimpleBlockingCommand(releasableBoundCommandPool, new StartAndStop());
-    CompletableFuture<Integer> future1 = releasableBoundCommandPool.submit(CommandPool.Priority.MEDIUM, "simple1", blockingCommand1, false);
+    CompletableFuture<Integer> future1 = releasableBoundCommandPool.submit(CommandPool.Priority.MEDIUM, "simple1", "", blockingCommand1, false);
 
     Thread.sleep(2);
 
     SimpleBlockingCommand blockingCommand2 = new SimpleBlockingCommand(releasableBoundCommandPool, new StartAndStop());
-    CompletableFuture<Integer> future2 = releasableBoundCommandPool.submit(CommandPool.Priority.MEDIUM, "simple2", blockingCommand2, false);
+    CompletableFuture<Integer> future2 = releasableBoundCommandPool.submit(CommandPool.Priority.MEDIUM, "simple2", "", blockingCommand2, false);
 
     Thread.sleep(2);
 
     SimpleBlockingCommand blockingCommand3 = new SimpleBlockingCommand(releasableBoundCommandPool, new StartAndStop());
-    CompletableFuture<Integer> future3 = releasableBoundCommandPool.submit(CommandPool.Priority.MEDIUM, "simple3", blockingCommand3, false);
+    CompletableFuture<Integer> future3 = releasableBoundCommandPool.submit(CommandPool.Priority.MEDIUM, "simple3", "", blockingCommand3, false);
 
     // will release the slot and submit a job
     // blockingCommand1 should run now
@@ -282,7 +282,7 @@ public class TestReleasableBoundCommandPool extends TestBoundCommandPool {
     ReleasableBoundCommandPool releasableBoundCommandPool = createReleasableCommandPool(1);
     SubmitInSameThread submitInSameThread = new SubmitInSameThread(releasableBoundCommandPool);
 
-    CompletableFuture<?> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "submit-same-thread", submitInSameThread, false);
+    CompletableFuture<?> future = releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "submit-same-thread", "", submitInSameThread, false);
     Thread.sleep(2);
     submitInSameThread.firstUnblock();
     Thread.sleep(10);
@@ -306,7 +306,7 @@ public class TestReleasableBoundCommandPool extends TestBoundCommandPool {
     public void run() {
       for(CommandPool.Command<?> command : commands) {
         try {
-          commandPool.submit(CommandPool.Priority.HIGH, "thread-" + threadId, command, false).get();
+          commandPool.submit(CommandPool.Priority.HIGH, "thread-" + threadId, "", command, false).get();
         } catch (InterruptedException | ExecutionException | CancellationException e) {
           throw new RuntimeException(e);
         }
@@ -439,7 +439,7 @@ public class TestReleasableBoundCommandPool extends TestBoundCommandPool {
         startAndStop.stop();
         try(Closeable closeable = releasableBoundCommandPool.releaseAndReacquireSlot()) {
           Assert.assertFalse(releasableBoundCommandPool.getThreadsHoldingSlots().contains(threadId));
-          releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "submitted-task", commandToSubmit, false).get();
+          releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "submitted-task", "", commandToSubmit, false).get();
         }
         startAndStop.start();
         Assert.assertTrue(releasableBoundCommandPool.getThreadsHoldingSlots().contains(threadId));
@@ -473,7 +473,7 @@ public class TestReleasableBoundCommandPool extends TestBoundCommandPool {
     @Override
     public Integer get(long waitInMillis) throws Exception {
       first.acquire();
-      releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "task-same-thread", cmd, true).get();
+      releasableBoundCommandPool.submit(CommandPool.Priority.HIGH, "task-same-thread", "", cmd, true).get();
       return 0;
     }
 

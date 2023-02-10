@@ -18,18 +18,21 @@ import {
   NessieContext,
 } from "@app/pages/NessieHomePage/utils/context";
 import { NessieRootState } from "@app/types/nessie";
-import { fetchDefaultReference as fetchDefaultReferenceAction } from "@app/actions/nessie/nessie";
+import { fetchDefaultReferenceIfNeeded as fetchDefaultReferenceIfNeededAction } from "@app/actions/nessie/nessie";
 import { connect } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import FontIcon from "@app/components/Icon/FontIcon";
 import { getRootEntityLinkUrl } from "@app/selectors/home";
 import BranchPicker from "../BranchPicker/BranchPicker";
 import { getEndpointFromSourceConfig } from "@app/utils/nessieUtils";
+import { ARCTIC } from "@app/constants/sourceTypes";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 type ConnectedProps = {
   nessie: NessieRootState;
-  fetchDefaultReference: any;
+  fetchDefaultReferenceIfNeeded: any;
   redirectUrl: string;
 };
 
@@ -45,7 +48,7 @@ type SourceBranchPickerProps = {
 function SourceBranchPicker({
   source,
   nessie,
-  fetchDefaultReference,
+  fetchDefaultReferenceIfNeeded,
   getAnchorEl,
   position,
   prefix = "", //Prefix for redux state key
@@ -54,16 +57,29 @@ function SourceBranchPicker({
 }: SourceBranchPickerProps & ConnectedProps) {
   const config = source.config;
   const endpoint = getEndpointFromSourceConfig(config);
-  const context = createNessieContext(
-    { id: source.id, name: source.name, endpoint },
-    nessie,
-    prefix
+  const baseUrl =
+    source.type === ARCTIC
+      ? commonPaths.arcticSource.link({
+          sourceName: source.name,
+          projectId: getSonarContext().getSelectedProjectId?.(),
+        })
+      : undefined;
+  const context = useMemo(
+    () =>
+      createNessieContext(
+        { id: source.id, name: source.name, endpoint },
+        nessie,
+        prefix,
+        baseUrl
+      ),
+    [source.id, source.name, endpoint, prefix, nessie, baseUrl]
   );
 
   const stateKey = `${prefix}${source.name}`;
+  const apiRef = useRef(context.api);
   useEffect(() => {
-    fetchDefaultReference(stateKey, context.api);
-  }, [fetchDefaultReference, stateKey, context.api]);
+    fetchDefaultReferenceIfNeeded(stateKey, apiRef.current);
+  }, [fetchDefaultReferenceIfNeeded, stateKey]);
 
   const isLoading = isDefaultReferenceLoading(nessie[stateKey]);
   if (isLoading) {
@@ -99,6 +115,6 @@ const mapStateToProps = (
   };
 };
 const mapDispatchToProps = {
-  fetchDefaultReference: fetchDefaultReferenceAction,
+  fetchDefaultReferenceIfNeeded: fetchDefaultReferenceIfNeededAction,
 };
 export default connect(mapStateToProps, mapDispatchToProps)(SourceBranchPicker);

@@ -16,7 +16,9 @@
 package com.dremio.service.reflection;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -45,11 +47,8 @@ import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * Exposes the acceleration manager interface to the rest of the system (coordinator side)
@@ -197,13 +196,12 @@ public class AccelerationManagerImpl implements AccelerationManager {
       }
     }
 
-    Optional<ExternalReflection> er = Iterables.tryFind(administrationReflectionService.getExternalReflectionByDatasetPath(path), new Predicate<ExternalReflection>() {
-      @Override
-      public boolean apply(@Nullable ExternalReflection externalReflection) {
+    Optional<ExternalReflection> er = StreamSupport.stream(administrationReflectionService.getExternalReflectionByDatasetPath(path).spliterator(), false)
+      .filter(externalReflection -> {
         return layoutIdOrName.equalsIgnoreCase(externalReflection.getName()) ||
           layoutIdOrName.equals(externalReflection.getId());
-      }
-    });
+      })
+      .findFirst();
 
     if (er.isPresent()) {
       administrationReflectionService.dropExternalReflection(er.get().getId());

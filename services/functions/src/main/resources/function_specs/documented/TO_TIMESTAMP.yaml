@@ -1,0 +1,71 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: TO_TIMESTAMP
+signatures:
+  - returnType: TIMESTAMP
+    parameters:
+      - kind: REGULAR
+        type: NUMERIC
+        name: numeric_expression
+        description: The Unix format of the TIMESTAMP.
+    description: The value is returned in the TIMESTAMP format.
+    sampleCodes:
+      - call: SELECT TO_TIMESTAMP(52 * 365.25 * 86400)
+        result: '2022-01-01 00:00:00.000'
+      - call: SELECT TO_TIMESTAMP(1640131200)
+        result: '2021-12-22 00:00:00.000'
+  - returnType: TIMESTAMP
+    parameters:
+      - kind: REGULAR
+        type: CHARACTERS
+        name: STRING_expression
+        description: The STRING from which to extract the TIMESTAMP.
+      - kind: REGULAR
+        type: CHARACTERS
+        name: format
+        description: String to specify format of the TIMESTAMP.
+      - kind: OPTIONAL
+        type: NUMERIC
+        name: replaceWithNullHolder
+        description: sample parameter description
+    description: The value is returned in the TIMESTAMP format.
+    sampleCodes:
+      - call: >-
+          SELECT TO_TIMESTAMP('2021-07-31 01:02:03', 'YYYY-MM-DD HH:MI:SS',
+          'FILL_IN')
+        result: '2021-07-31 01:02:03.000'
+  - returnType: TIMESTAMP
+    parameters:
+      - kind: REGULAR
+        type: CHARACTERS
+        name: STRING_expression
+        description: String from which to extract the TIMESTAMP from.
+      - kind: REGULAR
+        type: CHARACTERS
+        name: format
+        description: String to specify format of the TIMESTAMP.
+    description: The value is returned in the TIMESTAMP format.
+    sampleCodes:
+      - call: 'SELECT TO_TIMESTAMP(''2021-07-31 01:02:03'', ''YYYY-MM-DD HH:MI:SS'')'
+        result: '2021-07-31 01:02:03.000'
+dremioVersion: 1.0+
+functionCategories:
+  - DATETIME
+  - CONVERSION
+description: Converts the input expressions to the corresponding TIMESTAMP.
+

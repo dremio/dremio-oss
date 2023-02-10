@@ -18,11 +18,11 @@
 
 :global {
   .sql-query-results-tabs {
-    margin: 8px 14px 0 10px;
+    margin: var(--dremio--spacing--1) 0 0;
     border-top: 1px solid @sideBar-icon-image-color;
     display: flex;
     align-items: center;
-    padding: 1rem 0 0.1rem 1.8rem;
+    padding: 1rem 0 0.1rem;
     height: 36px;
     min-width: 0;
 
@@ -69,6 +69,10 @@
           font-weight: 600;
           color: var(--dremio--color--link);
         }
+      }
+
+      .MuiButtonBase-root.MuiTabScrollButton-root.MuiTabScrollButton-horizontal {
+        width: 28px;
       }
 
       .MuiTabs-indicator {

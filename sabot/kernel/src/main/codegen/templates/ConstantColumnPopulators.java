@@ -37,7 +37,6 @@ import com.dremio.common.SuppressForbidden;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader.Populator;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
 import io.netty.util.internal.PlatformDependent;
@@ -129,7 +128,7 @@ public class ConstantColumnPopulators {
     public ${minor.class}Populator(${minor.class}NameValuePair pair){
       this.pair = pair;
       <#if minor.class == "VarChar">
-      this.value = pair.value == null ? null : pair.value.getBytes(Charsets.UTF_8);
+      this.value = pair.value == null ? null : pair.value.getBytes(StandardCharsets.UTF_8);
       <#else>
       this.value = pair.value;
     </#if>

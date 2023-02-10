@@ -33,6 +33,9 @@ import org.junit.Test;
 import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.service.users.UserNotFoundException;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+
 public class TestGenericExceptionMapper {
   private static GenericExceptionMapper gem;
 
@@ -65,5 +68,9 @@ public class TestGenericExceptionMapper {
       gem.toResponse(new UserNotFoundException("foo")).getEntity()).getErrorMessage());
     assertEquals("foo", ((GenericErrorMessage)gem.toResponse(
       new AccessControlException("foo")).getEntity()).getErrorMessage());
+    assertEquals("PERMISSION_DENIED: foo", ((GenericErrorMessage)
+      gem.toResponse(new StatusRuntimeException(Status.PERMISSION_DENIED.withDescription("foo"))).getEntity()).getErrorMessage());
+    assertEquals("NOT_FOUND: foo", ((GenericErrorMessage)
+      gem.toResponse(new StatusRuntimeException(Status.NOT_FOUND.withDescription("foo"))).getEntity()).getErrorMessage());
   }
 }

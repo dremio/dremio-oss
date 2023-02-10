@@ -25,7 +25,6 @@ import java.util.Properties;
 import org.apache.arrow.vector.ValueVector;
 import org.junit.Test;
 
-import com.dremio.common.util.FileUtils;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.record.RecordBatchLoader;
@@ -34,8 +33,6 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 public class TestReverseImplicitCast extends PopUnitTestBase {
 
@@ -52,7 +49,7 @@ public class TestReverseImplicitCast extends PopUnitTestBase {
         put("user", "anonymous");
       }});
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-          Files.toString(FileUtils.getResourceAsFile("/functions/cast/two_way_implicit_cast.json"), Charsets.UTF_8));
+        readResourceAsString("/functions/cast/two_way_implicit_cast.json"));
 
       RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
 

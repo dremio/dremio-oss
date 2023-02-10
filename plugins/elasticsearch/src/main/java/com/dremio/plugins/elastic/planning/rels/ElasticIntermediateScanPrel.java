@@ -23,6 +23,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.common.expression.SchemaPath;
@@ -55,8 +56,10 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
       TableMetadata dataset,
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
+      List<RelHint> hints,
       List<Info> runtimeFilters) {
-    super(cluster, traits(cluster, table.getRowCount(), dataset.getSplitCount(), traitSet), table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
+    super(cluster, traits(cluster, table.getRowCount(), dataset.getSplitCount(), traitSet), table,
+          dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, hints, runtimeFilters);
   }
 
   private static RelTraitSet traits(
@@ -104,7 +107,8 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ElasticIntermediateScanPrel(getCluster(), traitSet, getTable(), tableMetadata, getProjectedColumns(), observedRowcountAdjustment, getRuntimeFilters());
+    return new ElasticIntermediateScanPrel(getCluster(), traitSet, getTable(), tableMetadata, getProjectedColumns(),
+                                           observedRowcountAdjustment, hints, getRuntimeFilters());
   }
 
   @Override
@@ -114,7 +118,8 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
 
   @Override
   public ElasticIntermediateScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new ElasticIntermediateScanPrel(getCluster(), getTraitSet(), table, tableMetadata, projection, observedRowcountAdjustment, getRuntimeFilters());
+    return new ElasticIntermediateScanPrel(getCluster(), getTraitSet(), table, tableMetadata, projection,
+                                           observedRowcountAdjustment, hints, getRuntimeFilters());
   }
 
   @Override

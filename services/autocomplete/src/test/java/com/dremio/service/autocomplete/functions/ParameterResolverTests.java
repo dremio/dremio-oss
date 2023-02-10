@@ -15,24 +15,18 @@
  */
 package com.dremio.service.autocomplete.functions;
 
-import static java.util.stream.Collectors.toList;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.parser.StringAndPos;
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.junit.Test;
 
-import com.dremio.exec.catalog.DremioCatalogReader;
-import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.service.autocomplete.OperatorTableFactory;
 import com.dremio.service.autocomplete.catalog.Node;
 import com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog;
@@ -40,11 +34,10 @@ import com.dremio.service.autocomplete.catalog.mock.MockSchemas;
 import com.dremio.service.autocomplete.catalog.mock.NodeMetadata;
 import com.dremio.service.autocomplete.columns.Column;
 import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
-import com.dremio.service.autocomplete.parsing.SqlNodeParser;
-import com.dremio.service.autocomplete.parsing.ValidatingParser;
 import com.dremio.service.autocomplete.statements.grammar.FromClause;
 import com.dremio.service.autocomplete.tokens.Cursor;
 import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.dremio.service.functions.model.Function;
 import com.dremio.test.GoldenFileTestBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -72,6 +65,8 @@ public final class ParameterResolverTests {
       OptionalArgFunction.THREE_ARG_2)
     .build();
 
+  private static final SqlOperatorTable OPERATOR_TABLE = OperatorTableFactory.create(ParameterResolverTests.FUNCTIONS);
+
   private static final ImmutableSet<Column> COLUMNS = createColumns(MockSchemas.MIXED_TYPE_SCHEMA);
 
   private static final ImmutableSet<ColumnAndTableAlias> COLUMN_AND_PATHS = ImmutableSet.copyOf(
@@ -85,8 +80,8 @@ public final class ParameterResolverTests {
     .add(new DremioToken(ParserImplConstants.IDENTIFIER, "MOCK_TABLE"))
     .build());
 
-  private static final ParameterResolver PARAMETER_RESOLVER = createParameterResolver(
-    OperatorTableFactory.create(FUNCTIONS),
+  private static final ParameterResolver PARAMETER_RESOLVER = ParameterResolver.create(
+    OPERATOR_TABLE,
     new MockMetadataCatalog(
       new MockMetadataCatalog.CatalogData(
         ImmutableList.of(),
@@ -98,7 +93,8 @@ public final class ParameterResolverTests {
             new Node(
               "MOCK_TABLE",
               Node.Type.PHYSICAL_SOURCE),
-            COLUMNS)))));
+            COLUMNS)))),
+    true);
 
   @Test
   public void tests() {
@@ -159,36 +155,6 @@ public final class ParameterResolverTests {
       builder.add(Column.typedColumn(columnSchema.getName(), columnSchema.getSqlTypeName()));
     }
     return builder.build();
-  }
-
-  private static ParameterResolver createParameterResolver(
-    SqlOperatorTable operatorTable,
-    SimpleCatalog<?> catalog) {
-    DremioCatalogReader catalogReader = new DremioCatalogReader(
-      catalog,
-      JavaTypeFactoryImpl.INSTANCE);
-    SqlOperatorTable chainedOperatorTable = ChainedSqlOperatorTable.of(
-      operatorTable,
-      catalogReader);
-    SqlValidatorAndScopeFactory.Result validatorAndScope = SqlValidatorAndScopeFactory.create(
-      operatorTable,
-      catalog);
-    SqlNodeParser parser = ValidatingParser.create(
-      chainedOperatorTable,
-      catalog);
-    FunctionDictionary functionDictionary = FunctionDictionary.create(chainedOperatorTable
-      .getOperatorList()
-      .stream()
-      .filter(sqlOperator -> sqlOperator instanceof  SqlFunction)
-      .map(sqlOperator -> (SqlFunction) sqlOperator)
-      .map(sqlFunction -> FunctionFactory.create(sqlFunction))
-      .collect(toList()));
-
-    return new ParameterResolver(
-      functionDictionary,
-      new ParameterTypeExtractor(validatorAndScope.getSqlValidator(),
-      validatorAndScope.getScope(),
-      parser));
   }
 
   /**

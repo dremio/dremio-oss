@@ -35,6 +35,8 @@ import { constructFullPath, getUniqueName } from "utils/pathUtils";
 import { APIV2Call } from "@app/core/APICall";
 import { getLocationChangePredicate } from "./utils";
 
+import FileUtils from "@app/utils/FileUtils";
+
 export const DSN = "Dremio Connector";
 
 export default function* watchQlikOpen() {
@@ -49,8 +51,7 @@ export function* fetchQlikApp(dataset) {
   yield put({ type: Actions.LOAD_QLIK_APP_START });
 
   const headers = new Headers();
-  const id = dataset.get("entityId") || dataset.get("id");
-  const href = `/qlik/${id}`;
+  const href = `/qlik/${FileUtils.getDatasetPathForClientTools(dataset)}`;
 
   headers.append("Accept", "text/plain+qlik-app");
   if (localStorageUtils) {

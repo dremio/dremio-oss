@@ -15,11 +15,20 @@
  */
 
 .catalog-menu-item {
-  color: var(--dremio--color--text--main);
-  font-weight: 600;
   line-height: 20px;
   justify-content: flex-start !important;
   height: 48px !important;
+  padding: 0 !important;
+
+  & > a {
+    font-weight: 600;
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 16px;
+    color: var(--dremio--color--text--main);
+  }
 
   &__icon {
     height: 24px;

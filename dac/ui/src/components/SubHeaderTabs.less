@@ -35,6 +35,13 @@
       min-width: 4.8rem;
       cursor: pointer;
 
+      &:not(.--selected) {
+        &:hover,
+        &:focus {
+          color: var(--dremio--color--link);
+        }
+      }
+
       &.--selected {
         background-color: @PRIMARY_200;
         border-radius: 0.4rem;

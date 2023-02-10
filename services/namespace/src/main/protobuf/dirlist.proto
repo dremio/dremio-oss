@@ -29,4 +29,7 @@ message DirListInputSplit {
   required string operatingPath = 2;
   required int64 readSignature = 3;
   optional bool isFile = 4;
+  optional bool hasVersion = 5;
+  optional bool hasFiles = 6;
+  repeated string files = 7;
 }

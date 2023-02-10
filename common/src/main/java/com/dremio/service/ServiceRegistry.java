@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
  * A simple service registry to start and stop services in order.
  */
 public class ServiceRegistry implements Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingletonRegistry.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ServiceRegistry.class);
 
   private volatile boolean closed = false;
   private final List<Service> services = new ArrayList<>();

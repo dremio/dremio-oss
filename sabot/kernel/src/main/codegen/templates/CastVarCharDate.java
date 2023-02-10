@@ -46,7 +46,7 @@ import org.apache.arrow.memory.ArrowBuf;
 <#assign typeMapping = TypeMappings[type.to]!{}>
 <#assign dremioMinorType = typeMapping.minor_type!type.to?upper_case>
 @SuppressWarnings("unused")
-@FunctionTemplate(names = {"cast${dremioMinorType}", "${type.alias}"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL, 
+@FunctionTemplate(names = {"cast${dremioMinorType}", "${type.alias}"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL,
   costCategory = FunctionCostCategory.COMPLEX)
 public class Cast${type.from}To${type.to} implements SimpleFunction {
 
@@ -62,8 +62,8 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
       <#if type.to != "DateMilli">
       byte[] buf = new byte[in.end - in.start];
       in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
-      String input = new String(buf, com.google.common.base.Charsets.UTF_8);
-      </#if>  
+      String input = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
+      </#if>
 
       try {
         <#if type.to == "DateMilli">

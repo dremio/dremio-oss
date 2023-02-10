@@ -209,7 +209,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       insertTableCommitter.consumeManifestFile(m1);
       insertTableCommitter.commit();
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFile1")) {
@@ -260,7 +260,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
       // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFile2")) {
           Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
@@ -326,7 +326,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
       // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFile2")) {
           Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
@@ -378,7 +378,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // One is 'manifestFileDelete' and the other is the newly created due to delete data file. This newly created manifest
       // is due to rewriting of 'manifestFile1' file. It is expected to 1 existing file account and 4 deleted file count.
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFileDmlDelete")) {
@@ -699,7 +699,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         .hasMessageContaining("Concurrent DML operation has updated the table, please retry.");
 
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
     } finally {
       FileUtils.deleteDirectory(tableFolder);
@@ -922,7 +922,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
       // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFile2")) {
           Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
@@ -1010,7 +1010,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // One is 'manifestFileDelete' and the other is the newly created due to delete data file. This newly created manifest
       // is due to rewriting of 'manifestFile1' file. It is expected to 3 existing file account and 2 deleted file count.
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFileDmlDelete")) {
@@ -1096,11 +1096,11 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
       ManifestFile m = writeManifest(tableFolder, "manifestFileDml", dataFile1, dataFile2);
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
-      InputFile inputFile = table.io().newInputFile(m.path());
+      InputFile inputFile = table.io().newInputFile(m.path(), m.length());
       DremioFileIO dremioFileIO = Mockito.mock(DremioFileIO.class);
       Set<String> actualDeletedFiles = new HashSet<>();
 
-      when(dremioFileIO.newInputFile(m.path())).thenReturn(inputFile);
+      when(dremioFileIO.newInputFile(m.path(), m.length())).thenReturn(inputFile);
       doAnswer(new Answer<Void>() {
         public Void answer(InvocationOnMock invocation) {
           Object[] args = invocation.getArguments();
@@ -1115,13 +1115,13 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       Set<String> expectedDeletedFilesIncludeDataFiles = ImmutableSet.of(
         dataFile1Name, dataFile2Name,
         m.path(), getManifestCrcFileName(m.path()));
-      Assert.assertEquals(actualDeletedFiles, expectedDeletedFilesIncludeDataFiles);
+      Assert.assertEquals(expectedDeletedFilesIncludeDataFiles, actualDeletedFiles);
 
       // scenario 2: delete manifest file only
       actualDeletedFiles.clear();
       IcebergCommitOpHelper.deleteManifestFiles(dremioFileIO, ImmutableList.of(m), false);
       expectedDeletedFilesIncludeDataFiles = ImmutableSet.of(m.path(), getManifestCrcFileName(m.path()));
-      Assert.assertEquals(actualDeletedFiles, expectedDeletedFilesIncludeDataFiles);
+      Assert.assertEquals(expectedDeletedFilesIncludeDataFiles, actualDeletedFiles);
     } finally {
       FileUtils.deleteDirectory(tableFolder);
     }

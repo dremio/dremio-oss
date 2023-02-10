@@ -16,56 +16,54 @@
 
 import SideNav from "@app/components/SideNav/SideNav";
 import clsx from "clsx";
-import { Link } from "react-router";
+import { browserHistory } from "react-router";
 import * as PATHS from "../../paths";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import { getArcticUrlForCatalog } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
+import { TopAction } from "@app/components/SideNav/components/TopAction";
+import { isActive } from "@app/components/SideNav//SideNavUtils";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
-const headerAction = (
-  <div className="sideNav-item">
-    <Link to={PATHS.arcticCatalogs()}>
-      <div className={`sideNav-item__link`}>
-        <div className="sideNav-item__logo">
-          <dremio-icon name="corporate/arctic" alt=""></dremio-icon>
-        </div>
-      </div>
-    </Link>
-  </div>
-);
-
-export const ArcticSideNav = (props) => {
+export const ArcticSideNav = (props: any) => {
   const { className, ...rest } = props;
+  const pathname =
+    rmProjectBase(browserHistory.getCurrentLocation().pathname) || "/";
+
   return (
     <SideNav
       className={clsx(className, "sideNav--arctic")}
-      headerAction={headerAction}
+      headerAction={
+        <TopAction
+          url={PATHS.arcticCatalogs()}
+          icon="corporate/arctic"
+          alt="logo"
+          tooltip={false}
+          logo
+        />
+      }
       actions={
         <>
-          <div className="sideNav-item">
-            <LinkWithRef
-              to={PATHS.arcticCatalogBase({
-                arcticCatalogId: "1234",
-              })}
-            >
-              <div className={`sideNav-item__link`}>
-                <div className="sideNav-item__icon">
-                  <dremio-icon name="brand/arctic-catalog" alt=""></dremio-icon>
-                </div>
-              </div>
-            </LinkWithRef>
-          </div>
-          <div className="sideNav-item">
-            <LinkWithRef
-              to={PATHS.arcticCatalogSettings({
-                arcticCatalogId: "1234",
-              })}
-            >
-              <div className={`sideNav-item__link`}>
-                <div className="sideNav-item__icon">
-                  <dremio-icon name="interface/settings" alt=""></dremio-icon>
-                </div>
-              </div>
-            </LinkWithRef>
-          </div>
+          <TopAction
+            url={getArcticUrlForCatalog(pathname, "data", "")}
+            icon="brand/arctic-catalog"
+            alt="Common.Catalog"
+            active={isActive({
+              loc: pathname,
+              name: "catalog",
+              isArctic: true,
+            })}
+            tooltipProps={{ placement: "right" }}
+          />
+          <TopAction
+            url={getArcticUrlForCatalog(pathname, "settings", "")}
+            icon="interface/settings"
+            alt="Settings.Catalog"
+            active={isActive({
+              loc: pathname,
+              name: "settings",
+              isArctic: true,
+            })}
+            tooltipProps={{ placement: "right" }}
+          />
         </>
       }
       {...rest}

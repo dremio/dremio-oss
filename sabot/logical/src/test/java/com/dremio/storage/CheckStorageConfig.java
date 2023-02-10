@@ -24,11 +24,9 @@ import org.junit.Test;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.logical.LogicalPlan;
 import com.dremio.common.store.StoragePluginConfig;
-import com.dremio.common.util.FileUtils;
 import com.dremio.test.DremioTest;
 
 public class CheckStorageConfig extends DremioTest {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CheckStorageConfig.class);
 
   @Test
   public void ensureStorageEnginePickup() {
@@ -37,7 +35,7 @@ public class CheckStorageConfig extends DremioTest {
   }
 
   @Test
-  public void checkPlanParsing() throws Exception{
-    LogicalPlan plan = LogicalPlan.parse(new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT), FileUtils.getResourceAsString("/storage_engine_plan.json"));
+  public void checkPlanParsing() {
+    LogicalPlan plan = LogicalPlan.parse(new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT), readResourceAsString("/storage_engine_plan.json"));
   }
 }

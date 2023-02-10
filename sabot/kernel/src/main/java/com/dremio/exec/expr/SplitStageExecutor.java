@@ -37,6 +37,7 @@ import com.dremio.exec.record.VectorAccessibleComplexWriter;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.filter.Filterer;
+import com.dremio.sabot.op.llvm.GandivaSecondaryCacheWithStats;
 import com.dremio.sabot.op.llvm.NativeFilter;
 import com.dremio.sabot.op.llvm.NativeProjectEvaluator;
 import com.dremio.sabot.op.llvm.NativeProjectorBuilder;
@@ -109,7 +110,7 @@ class SplitStageExecutor implements AutoCloseable {
     this.hasOriginalExpression = false;
     this.nativeFilter = null;
     this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
-      context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE), context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
+      context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
     this.cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
     this.splitsForPreferredCodeGen = this.preferredEngine ==
       SupportedEngines.Engine.GANDIVA? gandivaSplits : javaSplits;
@@ -179,9 +180,9 @@ class SplitStageExecutor implements AutoCloseable {
   }
 
   // setup the code generators
-  void setupFinish(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) throws GandivaException {
+  void setupFinish(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException {
     gandivaCodeGenWatch.start();
-    nativeProjectEvaluator = nativeProjectorBuilder.build(incoming.getSchema(), context.getStats());
+    nativeProjectEvaluator = nativeProjectorBuilder.build(incoming.getSchema(), context.getStats(), secondaryCache);
     gandivaCodeGenWatch.stop();
 
     javaCodeGenWatch.start();
@@ -208,7 +209,7 @@ class SplitStageExecutor implements AutoCloseable {
   }
 
   // setup evaluation of projector for all splits
-  void setupProjector(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) throws GandivaException {
+  void setupProjector(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException {
     for(ExpressionSplit split : Iterables.concat(javaSplits, gandivaSplits)) {
       if (split.isOriginalExpression()) {
         setupSplit(split, outgoing, gandivaSplits.contains(split));
@@ -217,18 +218,18 @@ class SplitStageExecutor implements AutoCloseable {
       }
     }
 
-    setupFinish(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+    setupFinish(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
   }
 
   // setup evaluation of filter for all splits
-  void setupFilter(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) throws GandivaException,Exception {
+  void setupFilter(VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, GandivaSecondaryCacheWithStats secondaryCache) throws GandivaException,Exception {
     if (!hasOriginalExpression) {
-      setupProjector(null, javaCodeGenWatch, gandivaCodeGenWatch);
+      setupProjector(null, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
       return;
     }
 
     // create the no-op projectors
-    setupFinish(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+    setupFinish(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
 
     // This SplitStageExecutor has the final split
     // For a filter, we support only one expression
@@ -249,8 +250,7 @@ class SplitStageExecutor implements AutoCloseable {
       gandivaCodeGenWatch.start();
       nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2(),
         context.getFunctionContext(), finalSplit.getOptimize(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU),
-        context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE),
-        context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
+        secondaryCache, context.getOptions().getOption(ExecConstants.EXPR_COMPLEXITY_NO_CACHE_THRESHOLD));
       gandivaCodeGenWatch.stop();
       this.filterFunction = new NativeTimedFilter(nativeFilter);
       return;

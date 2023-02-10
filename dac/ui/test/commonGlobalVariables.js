@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import enableFatalPropTypes from "enableFatalPropTypes";
-enableFatalPropTypes();
 
 import chai, { assert, expect } from "chai";
 import chaiAsPromised from "chai-as-promised";

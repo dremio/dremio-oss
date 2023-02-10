@@ -23,6 +23,7 @@ import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.LoptJoinTree;
 import org.apache.calcite.rel.rules.LoptMultiJoin;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.physical.PrelUtil;
@@ -47,6 +48,24 @@ public class DremioJoinCommuteRule extends JoinCommuteRule {
   public boolean matches(RelOptRuleCall call) {
     Join join = call.rel(0);
     RelMetadataQuery mq = join.getCluster().getMetadataQuery();
+
+    // Check if we need to force a broadcast exchange.
+    MoreRelOptUtil.BroadcastHintCollector leftHintCollector = new MoreRelOptUtil.BroadcastHintCollector();
+    MoreRelOptUtil.BroadcastHintCollector rightHintCollector = new MoreRelOptUtil.BroadcastHintCollector();
+    join.getLeft().accept(leftHintCollector);
+    boolean leftBroadcast = leftHintCollector.shouldBroadcast();
+    join.getRight().accept(rightHintCollector);
+    boolean rightBroadcast = rightHintCollector.shouldBroadcast();
+
+    if (leftBroadcast && !rightBroadcast) {
+      // Need to swap since we want to broadcast the left.
+      return true;
+    } else if (!leftBroadcast && rightBroadcast) {
+      // Should not swap regardless of the row counts since we want to
+      // broadcast the right.
+      return false;
+    }
+
     double leftCount = mq.getRowCount(join.getLeft());
     double rightCount = mq.getRowCount(join.getRight());
     double swapFactor = PrelUtil.getSettings(join.getCluster()).getHashJoinSwapMarginFactor();

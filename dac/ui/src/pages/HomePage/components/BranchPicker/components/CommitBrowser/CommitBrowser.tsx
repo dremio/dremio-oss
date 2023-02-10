@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 import debounce from "lodash/debounce";
-import classNames from "classnames";
+import classNames from "clsx";
 import { SearchField } from "@app/components/Fields";
 import {
-  Branch,
   DefaultApi,
   FetchOption,
   LogEntry,
@@ -27,6 +26,7 @@ import { useCallback, useEffect, useMemo, useReducer } from "react";
 import InfiniteScroller from "../InfiniteScroller/InfiniteScroller";
 import CommitEntry from "./components/CommitEntry/CommitEntry";
 import { CommitBrowserReducer, formatQuery, initialState } from "./utils";
+import { Reference } from "@app/types/nessie";
 
 import "./CommitBrowser.less";
 
@@ -44,7 +44,7 @@ function CommitBrowser({
   pageSize = PAGE_SIZE,
   api,
 }: {
-  branch: Branch;
+  branch: Reference;
   path?: string[];
   hasSearch?: boolean;
   onDataChange?: (arg: LogResponse | undefined) => void;
@@ -120,7 +120,7 @@ function CommitBrowser({
                   logEntry={logEntries[index]}
                   onClick={onClick}
                   isSelected={isSelected}
-                  branch={branch.name}
+                  branch={branch}
                   disabled={disabled}
                 />
               );

@@ -16,12 +16,7 @@
 @import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 @import "~@app/uiTheme/less/reset.less";
-@import "~@app/uiTheme/fonts/fonts.less";
 @import "~@app/uiTheme/less/fields.less";
-@import "~@app/uiTheme/interFont/inter.css";
-
-@min-screen-width: 1280px;
-@min-screen-height: 700px;
 
 @body-bg: #fff;
 @font-size-base: 14px;
@@ -32,6 +27,11 @@
 @blue: var(--dremio--color--link);
 
 :global {
+  //Mantine overrides
+  .mantine-Select-dropdown {
+    margin-top: -8px;
+  }
+
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .ReactModal__Content {
@@ -63,21 +63,12 @@
     &.disable-back-on-scroll {
       overscroll-behavior-x: none;
     }
-
-    // preventing the scroll bounce
-    // but making sure can still scroll when below min width/height
-    @media (min-width: @min-screen-width) and (min-height: @min-screen-height) {
-      overflow: hidden;
-    }
   }
   body {
     .font-basic();
     height: 100%;
     overflow: auto;
     margin: 0;
-    min-width: @min-screen-width;
-    //DX-13499: min-height causing flickering with AutoSizer
-    //min-height: @min-screen-height;
     position: relative; /* so modal portal can be position: absolute relative to body */
 
     * {
@@ -85,19 +76,9 @@
     }
   }
 
-  body.new-shell {
-    height: initial;
-    min-width: initial;
-  }
-
   #root {
-    height: 100%;
-
-    > div {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
+    height: 100vh;
+    box-sizing: border-box;
 
     .item-block {
       [type="checkbox"]:not(:checked),
@@ -369,7 +350,7 @@
   keygen,
   select,
   button {
-    font-family: Inter var, Arial, sans-serif;
+    font-family: var(--dremio--font-family);
     box-sizing: border-box;
   }
   /* several small tricks to customazi calendar icons, active elements */

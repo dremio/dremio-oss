@@ -1,0 +1,152 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "OPTIMIZE"
+  input: "OPTIMIZE ^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "TABLE"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "OPTIMIZE + PARTIAL TABLE"
+  input: "OPTIMIZE TA^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "TABLE"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "OPTIMIZE + TABLE"
+  input: "OPTIMIZE TABLE ^"
+  output:
+    completions:
+     -
+      data:
+        name: "DEPT"
+        type: "Physical Dataset"
+      insertText: "DEPT"
+      kind: "CatalogEntry"
+      label: "DEPT"
+     -
+      data:
+        name: "EMP"
+        type: "Physical Dataset"
+      insertText: "EMP"
+      kind: "CatalogEntry"
+      label: "EMP"
+     -
+      data:
+        name: "physical dataset"
+        type: "Physical Dataset"
+      insertText: "\"physical dataset\""
+      kind: "CatalogEntry"
+      label: "physical dataset"
+     -
+      data:
+        name: "SALGRADE"
+        type: "Virtual Dataset"
+      insertText: "SALGRADE"
+      kind: "CatalogEntry"
+      label: "SALGRADE"
+     -
+      data:
+        name: "virtual dataset"
+        type: "Virtual Dataset"
+      insertText: "\"virtual dataset\""
+      kind: "CatalogEntry"
+      label: "virtual dataset"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "OPTIMIZE + TABLE + TABLE NAME"
+  input: "OPTIMIZE TABLE EMP ^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "."
+     -
+      kind: "Keyword"
+      label: "("
+     -
+      kind: "Keyword"
+      label: "USING"
+     -
+      kind: "Keyword"
+      label: ";"
+     -
+       kind: "Keyword"
+       label: "REWRITE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "OPTIMIZE + TABLE + TABLE NAME + PAREN"
+  input: "OPTIMIZE TABLE EMP (^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "MAX_FILE_SIZE_MB"
+     -
+      kind: "Keyword"
+      label: "MIN_FILE_SIZE_MB"
+     -
+      kind: "Keyword"
+      label: "MIN_INPUT_FILES"
+     -
+      kind: "Keyword"
+      label: "TARGET_FILE_SIZE_MB"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "OPTIMIZE + TABLE + TABLE NAME + OPTION"
+  input: "OPTIMIZE TABLE EMP (MIN_INPUT_FILES=5 ^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: ","
+     -
+      kind: "Keyword"
+      label: ")"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "OPTIMIZE + TABLE + TABLE NAME + MULTIPLE OPTIONS"
+  input: "OPTIMIZE TABLE EMP (MIN_INPUT_FILES=5 , ^"
+  output:
+    completions:
+     -
+      kind: "Keyword"
+      label: "MAX_FILE_SIZE_MB"
+     -
+      kind: "Keyword"
+      label: "MIN_FILE_SIZE_MB"
+     -
+      kind: "Keyword"
+      label: "MIN_INPUT_FILES"
+     -
+      kind: "Keyword"
+      label: "TARGET_FILE_SIZE_MB"
+    functionContext: null
+    hasMoreResults: false

@@ -16,6 +16,7 @@
 package com.dremio.exec.expr.fn.impl;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.Iterator;
 
@@ -27,7 +28,6 @@ import org.apache.arrow.vector.holders.VarCharHolder;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.vector.complex.MapUtility;
-import com.google.common.base.Charsets;
 
 public class MappifyUtility {
 
@@ -63,7 +63,7 @@ public class MappifyUtility {
 
       // write "key":"columnname" into the map
       VarCharHolder vh = new VarCharHolder();
-      byte[] b = str.getBytes(Charsets.UTF_8);
+      byte[] b = str.getBytes(UTF_8);
       buffer = buffer.reallocIfNeeded(b.length);
       buffer.setBytes(0, b);
       vh.start = 0;

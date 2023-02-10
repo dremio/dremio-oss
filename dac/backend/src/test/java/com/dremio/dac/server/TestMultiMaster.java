@@ -425,21 +425,24 @@ public class TestMultiMaster extends BaseClientUtils {
       });
 
       DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
+      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class));
       SampleDataPopulator populator = new SampleDataPopulator(
         sabotContext,
         new SourceService(
+          sabotContext,
           ns,
           datasetVersionMutator,
           sabotContext.getCatalogService(),
           mp.lookup(ReflectionServiceHelper.class),
-          new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+          collaborationService,
           ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
           dacSecurityContext
         ),
         datasetVersionMutator,
         mp.lookup(UserService.class),
         ns,
-        DEFAULT_USERNAME
+        DEFAULT_USERNAME,
+        collaborationService
       );
       populator.populateInitialData();
 
@@ -554,21 +557,24 @@ public class TestMultiMaster extends BaseClientUtils {
         return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
       });
 
+      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class));
       SampleDataPopulator populator = new SampleDataPopulator(
         sabotContext,
         new SourceService(
+          sabotContext,
           ns,
           datasetVersionMutator,
           sabotContext.getCatalogService(),
           mp.lookup(ReflectionServiceHelper.class),
-          new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+          collaborationService,
           ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
           dacSecurityContext
         ),
         datasetVersionMutator,
         mp.lookup(UserService.class),
         ns,
-        DEFAULT_USERNAME
+        DEFAULT_USERNAME,
+        collaborationService
       );
       populator.populateInitialData();
 

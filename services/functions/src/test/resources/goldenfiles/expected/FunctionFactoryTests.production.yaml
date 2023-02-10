@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+---
  -
   description: "!="
   input: "!="
@@ -793,6 +795,7 @@
      - "(FLOAT) -> BIGINT"
      - "(DOUBLE) -> BIGINT"
      - "(INT) -> BIGINT"
+     - "(TIMESTAMP) -> BIGINT"
  -
   description: "CASTBIT"
   input: "CASTBIT"
@@ -1321,6 +1324,13 @@
     name: "CONVERT_TO"
     signatures:
      - "() -> BYTES"
+ -
+  description: "CONVERT_TOBASE64"
+  input: "CONVERT_TOBASE64"
+  output:
+    name: "CONVERT_TOBASE64"
+    signatures:
+     - "(CHARACTERS) -> BYTES"
  -
   description: "CONVERT_TOBIGINT"
   input: "CONVERT_TOBIGINT"
@@ -2132,16 +2142,6 @@
      - "(DATE, NUMERIC) -> DATE"
      - "(TIME, NUMERIC) -> TIME"
      - "(TIMESTAMP, NUMERIC) -> TIMESTAMP"
- -
-  description: "FIRST_MATCHING_MAP_ENTRY_FOR_KEY"
-  input: "FIRST_MATCHING_MAP_ENTRY_FOR_KEY"
-  output:
-    name: "FIRST_MATCHING_MAP_ENTRY_FOR_KEY"
-    signatures:
-     - "(ANY, STRING) -> ANY"
-     - "(BYTES, BOOLEAN) -> ANY"
-     - "(BYTES, NUMERIC) -> ANY"
-     - "(BYTES, DATEANDTIME) -> ANY"
  -
   description: "FIRST_VALUE"
   input: "FIRST_VALUE"
@@ -2971,10 +2971,7 @@
   output:
     name: "LAST_MATCHING_MAP_ENTRY_FOR_KEY"
     signatures:
-     - "(ANY, STRING) -> ANY"
-     - "(BYTES, BOOLEAN) -> ANY"
-     - "(BYTES, NUMERIC) -> ANY"
-     - "(BYTES, DATEANDTIME) -> ANY"
+     - "(ANY, ANY) -> ANY"
  -
   description: "LAST_QUERY_ID"
   input: "LAST_QUERY_ID"
@@ -5031,4 +5028,3 @@
     name: "||"
     signatures:
      - "(BOOLEAN, BOOLEAN) -> BOOLEAN"
->>>>>>> CHANGE (4398a2 DX-52968: Implement array_contains function in Dremio)

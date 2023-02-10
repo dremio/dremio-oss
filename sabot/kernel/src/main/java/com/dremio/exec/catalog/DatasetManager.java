@@ -18,6 +18,8 @@ package com.dremio.exec.catalog;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
 import java.security.AccessControlException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
@@ -67,12 +69,15 @@ import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.EntityId;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+
+import io.opentelemetry.extension.annotations.WithSpan;
 
 /**
  * The workhorse of Catalog, responsible for retrieving datasets and interacting with sources as
@@ -186,6 +191,16 @@ class DatasetManager {
     return userNamespaceService.findDatasetByUUID(datasetId);
   }
 
+  private NamespaceKey getCanonicalKey(NamespaceKey key) {
+    Preconditions.checkArgument(isAmbiguousKey(key), "%s should be ambiguous", key.getSchemaPath());
+    List<String> pathComponents = key.getPathComponents();
+    List<String> entries = new ArrayList<>();
+    for (String component: pathComponents) {
+      entries.addAll(Arrays.asList(component.split("\\.(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")));
+    }
+    return new NamespaceKey(entries);
+  }
+
   public DremioTable getTable(
       NamespaceKey key,
       MetadataRequestOptions options,
@@ -197,6 +212,10 @@ class DatasetManager {
     if(config != null) {
       // canonicalize the path.
       key = new NamespaceKey(config.getFullPathList());
+    }
+
+    if(isAmbiguousKey(key)) {
+      key = getCanonicalKey(key);
     }
 
     String pluginName = key.getRoot();
@@ -236,12 +255,46 @@ class DatasetManager {
     final DatasetConfig config = getConfig(datasetId);
 
     if (config == null) {
-      return null;
+      //try lookup in external catalog
+      return getTableFromExternalCatalog(datasetId, options);
     }
 
     NamespaceKey key = new NamespaceKey(config.getFullPathList());
 
     return getTable(key, options, false);
+  }
+ //TODO (DX-58588) Needs to be revisited ot support snapshot id and timestamp
+  private DremioTable getTableFromExternalCatalog(String datasetId, MetadataRequestOptions options) {
+    VersionedDatasetId versionedDatasetId = null;
+    try {
+      versionedDatasetId = VersionedDatasetId.fromString(datasetId);
+    } catch (JsonProcessingException e) {
+      logger.debug("Could not parse VersionedDatasetId from string : {}", datasetId, e);
+      return null;
+    }
+
+    List<String> tableKey = versionedDatasetId.getTableKey();
+    TableVersionContext versionContext = versionedDatasetId.getVersionContext();
+
+    MetadataRequestOptions optionsWithVersion = options.cloneWith(tableKey.get(0), versionContext.asVersionContext());
+    DremioTable table = getTable(new NamespaceKey(tableKey), optionsWithVersion, false);
+    if (table != null) {
+      //check for ContentId . If someone has dropped and recreated the table with the same key
+      // in the same VersionContext , the ContentId will be different
+      VersionedDatasetId returnedVersionedDatasetId = null;
+      try {
+        returnedVersionedDatasetId = VersionedDatasetId.fromString(table.getDatasetConfig().getId().getId());
+      } catch (JsonProcessingException e) {
+        logger.debug("Could not parse VersionedDatasetId from string : {}", table.getDatasetConfig().getId().getId(), e);
+        return null;
+      }
+      if (!returnedVersionedDatasetId.getContentId().equals(versionedDatasetId.getContentId())) {
+        logger.debug("ContentId mismatch. VersionedDatasetId in : {} : VersionedDatasetId out : {}",
+          versionedDatasetId.asString(), returnedVersionedDatasetId.asString());
+        return null;
+      }
+    }
+    return table;
   }
 
   private NamespaceTable getTableFromNamespace(NamespaceKey key, DatasetConfig datasetConfig, ManagedStoragePlugin plugin,
@@ -288,7 +341,7 @@ class DatasetManager {
       final String accessUserName = options.getSchemaConfig().getUserName();
 
       final VersionedDatasetAdapter versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
-          .setVersionedTableKey(key.toString())
+          .setVersionedTableKey(key.getPathComponents())
           .setVersionContext(versionContextResolver.resolveVersionContext(
               plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot())))
         .setStoragePlugin(underlyingPlugin)
@@ -461,6 +514,7 @@ class DatasetManager {
     return accessUserName;
   }
 
+  @WithSpan("create-table-from-view")
   private ViewTable createTableFromVirtualDataset(DatasetConfig datasetConfig, MetadataRequestOptions options) {
     try {
       // 1.4.0 and earlier didn't correctly save virtual dataset schema information.

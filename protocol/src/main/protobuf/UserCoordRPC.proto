@@ -768,4 +768,6 @@ message RunQuery {
   optional int64 max_allocation = 1009;
 
   optional string description = 1010;
+  
+  optional string query_label = 1011;
 }

@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 export const organization = () => `/organization` as const;
 
@@ -26,6 +28,7 @@ export type CommitId = string;
 export type Namespace = string;
 export type BranchIdParam = { branchId: BranchId };
 export type CatalogIdParam = { arcticCatalogId: ArcticCatalogId };
+export type SettingsPageParam = { pageType?: "general" | "configuration" };
 export type CommitIdParam = { commitId: CommitId };
 export type NamespaceParam = { namespace?: Namespace };
 
@@ -67,8 +70,12 @@ export const arcticCatalogData = (
     params.namespace ? `/${params.namespace}` : ""
   }` as const;
 
-export const arcticCatalogSettings = (params: CatalogIdParam) =>
-  `${arcticCatalog(params)}/settings` as const;
+export const arcticCatalogSettings = (
+  params: CatalogIdParam & SettingsPageParam
+) =>
+  `${arcticCatalog(params)}/settings${
+    params.pageType ? `/${params.pageType}` : ""
+  }` as const;
 
 export const arcticCatalogTags = (params: CatalogIdParam) =>
   `${arcticCatalog(params)}/tags` as const;
@@ -81,14 +88,24 @@ export const arcticCatalogs = () => `${arcticBase}` as const;
 
 export type SourceId = string;
 export type SourceIdParam = { sourceId: SourceId };
+type ProjectIdParam = { projectId?: string };
 
-const sourceBase = "/sources";
+const sourceBase = (params?: ProjectIdParam) => {
+  const projectId =
+    params?.projectId || getSonarContext()?.getSelectedProjectId?.();
+  return commonPaths.sources.link({
+    projectId,
+  });
+};
 
-export const arcticSourceBase = (params: SourceIdParam) =>
-  `${sourceBase}${arcticBase}/${params.sourceId}` as const;
+export const arcticSourceBase = (params: SourceIdParam & ProjectIdParam) =>
+  `${sourceBase({ projectId: params.projectId })}${arcticBase}/${
+    params.sourceId
+  }` as const;
 
-export const arcticSourceCommitsBase = (params: SourceIdParam) =>
-  `${arcticSourceBase(params)}/commits` as const;
+export const arcticSourceCommitsBase = (
+  params: SourceIdParam & ProjectIdParam
+) => `${arcticSourceBase(params)}/commits` as const;
 
 export const arcticSourceCommitsNonBase = () => `commits` as const;
 export const arcticSourceTagsNonBase = () => `tags` as const;
@@ -110,17 +127,44 @@ export type SonarProjectId = string;
 
 export type SonarProjectIdParam = { projectId: SonarProjectId };
 
+export type SonarSourceNameParam = SonarProjectIdParam & { sourceName: string };
+
 const sonarBase = "/sonar";
 
+/**
+ * @deprecated import from sonarPaths
+ */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const datasets = (params: SonarProjectIdParam) => "/" as const;
-export const sonarProjects = () => `${sonarBase}` as const;
 
+/**
+ * @deprecated import from sonarPaths
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const sources = (params: SonarSourceNameParam) =>
+  `/source/${params.sourceName}` as const;
+
+/**
+ * @deprecated import from sonarPaths
+ */
+export const sonarProjects = () => `${sonarBase}` as const;
+/**
+ * @deprecated import from sonarPaths
+ */
 export const job = (params: { jobId: string }) =>
   `/jobs/job/${params.jobId}` as const;
 
+/**
+ * @deprecated import from sonarPaths
+ */
 export const jobsNew = () => `/jobs-new` as const;
+/**
+ * @deprecated import from sonarPaths
+ */
 export const newQuery = () => `/new_query` as const;
 
+/**
+ * @deprecated import from sonarPaths
+ */
 export const jobs = () => `/jobs` as const;
 export const login = () => `/login` as const;

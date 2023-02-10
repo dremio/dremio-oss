@@ -30,11 +30,11 @@ import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections4.map.HashedMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -60,7 +60,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.io.Resources;
 
 public final class HiveTestDataGenerator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestHiveImpersonation.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveTestDataGenerator.class);
   public static final String HIVE_TEST_PLUGIN_NAME = "hive";
   public static final String HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE = "hive plugin name with whitespace";
   private static volatile HiveTestDataGenerator instance;
@@ -127,7 +127,7 @@ public final class HiveTestDataGenerator {
       }
     }
 
-    this.config = new HashedMap<>();
+    this.config = new HashMap<>();
     this.config.put(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
   }
 
@@ -569,6 +569,7 @@ public final class HiveTestDataGenerator {
       createNullORCStructTable(hiveDriver);
       createEmptyFloatFieldORCTable(hiveDriver);
       createORCPartitionSchemaTestTable(hiveDriver);
+      createFlattenOrcHiveTable(hiveDriver);
 
       // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
       createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
@@ -2115,5 +2116,29 @@ public final class HiveTestDataGenerator {
     executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.9)");
     executeQuery(hiveDriver, "alter table orc_part_test change col1 col1 decimal(5,3)");
     executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.987)");
+  }
+
+  private void createFlattenOrcHiveTable(final Driver hiveDriver) throws Exception {
+    final File flattenOrcDir = new File(BaseTestQuery.getTempDir("parquetflatten"));
+    flattenOrcDir.mkdirs();
+    final URL flattenOrcUrl = Resources.getResource("parquetflatten.parquet");
+    if (flattenOrcUrl == null) {
+      throw new IOException(String.format("Unable to find path %s.", "parquetflatten.parquet"));
+    }
+
+    //column ooa : array<struct<in:bigint,fl:struct<f1:double,f2:double>,a:struct<aa:struct<aaa:string>>,b:struct<bb:struct<bbb:string>>,c:struct<cc:struct<ccc:string>>>>
+    //with values [{in: 1},{in: 1,fl:{f1: 1.6789,f2: 54331}},{a:{aa:{aaa: "aaa 1"}},b:{bb:{}},c:{cc:{ccc: "ccc 1"}}}]
+    final File flattenOrcFile = new File(flattenOrcDir, "parquetflatten.parquet");
+    flattenOrcFile.deleteOnExit();
+    flattenOrcDir.deleteOnExit();
+    Files.write(Paths.get(flattenOrcFile.toURI()), Resources.toByteArray(flattenOrcUrl));
+
+    final String flattenTest = "create external table flatten_parquet(" +
+      "id bigint, ooa array<struct<in_col:bigint, fl:struct<f1:double,f2:double>, a:struct<aa:struct<aaa:string>>, b:struct<bb:struct<bbb:string>>, c:struct<cc:struct<ccc:string>>>>)" +
+      " stored as parquet location '" + flattenOrcFile.getParent() + "'";
+    executeQuery(hiveDriver, flattenTest);
+
+    final String orcRegionTable = "create table flatten_orc stored as orc as SELECT * FROM flatten_parquet";
+    executeQuery(hiveDriver, orcRegionTable);
   }
 }

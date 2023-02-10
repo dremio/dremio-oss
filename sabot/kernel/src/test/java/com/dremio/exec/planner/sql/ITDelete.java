@@ -191,4 +191,9 @@ public class ITDelete extends ITDmlQueryBase {
   public void testDeleteWithSourceAsPathTableWithContextWithPathTable() throws Exception {
     DeleteTests.testDeleteWithSourceAsPathTableWithContextWithPathTable(allocator, SOURCE);
   }
+
+  @Test
+  public void testDeleteWithStockIcebergTable() throws Exception {
+    DeleteTests.testDeleteWithStockIcebergTable(allocator, SOURCE);
+  }
 }

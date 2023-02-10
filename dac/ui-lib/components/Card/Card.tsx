@@ -23,14 +23,25 @@ type CardProps = {
   children: ReactNode;
   title?: JSX.Element;
   toolbar?: JSX.Element;
-
+  disabled?: boolean;
+  hovered?: boolean;
   className?: string;
 };
 
 export const Card = forwardRef<HTMLDivElement, CardProps>((props, ref) => {
-  const { children, className, title, toolbar, ...rest } = props;
+  const { children, className, title, toolbar, disabled, hovered, ...rest } =
+    props;
   return (
-    <article ref={ref} {...rest} className={clsx("dremio-card", className)}>
+    <article
+      ref={ref}
+      {...rest}
+      className={clsx(
+        "dremio-card",
+        disabled && "disabled",
+        hovered && "hovered",
+        className
+      )}
+    >
       <header className="dremio-card__header">
         {title && <span className="dremio-card__title">{title}</span>}
         {toolbar && <div className="dremio-card__toolbar">{toolbar}</div>}

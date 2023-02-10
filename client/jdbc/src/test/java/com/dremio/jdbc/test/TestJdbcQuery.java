@@ -134,8 +134,10 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
     // Test result without changing time zone.
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
       .sql("SELECT TO_TIME('09:15', 'HH:MI', 1)," +
-        " TO_TIME('16:20', 'HH24:MI', 1), TO_TIME('16:30:59', 'HH24:MI:SS', 1), TIME '23:00:59'  FROM (VALUES(1))")
-      .returns("EXPR$0=09:15:00; EXPR$1=16:20:00; EXPR$2=16:30:59; EXPR$3=23:00:59");
+        " TO_TIME('16:20', 'HH24:MI', 1), TO_TIME('16:30:59', 'HH24:MI:SS', 1), TIME '23:00:59'," +
+        " TO_TIME('16:30:59.07', 'HH24:MI:SS.FF', 1), TIME '23:00:59.123'  FROM (VALUES(1))")
+      .returns("EXPR$0=09:15:00; EXPR$1=16:20:00; EXPR$2=16:30:59;" +
+        " EXPR$3=23:00:59; EXPR$4=16:30:59.070; EXPR$5=23:00:59.123");
   }
 
   @Test

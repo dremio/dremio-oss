@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 class SameThreadCommandPool implements CommandPool {
 
   @Override
-  public <V> CompletableFuture<V> submit(Priority priority, String descriptor, Command<V> command, boolean runInSameThread) {
+  public <V> CompletableFuture<V> submit(Priority priority, String descriptor, String spanName, Command<V> command, boolean runInSameThread) {
     CompletableFuture<V> future = new CompletableFuture<>();
     try {
       future.complete(command.get(0));

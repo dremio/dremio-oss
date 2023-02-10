@@ -20,7 +20,6 @@ import java.util.List;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.exceptions.UserException;
@@ -35,81 +34,8 @@ import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
 
 public class MapFunctions {
-  public static final String FIRST_MATCHING_ENTRY_FUNC = "first_matching_map_entry_for_key";
+
   public static final String LAST_MATCHING_ENTRY_FUNC = "last_matching_map_entry_for_key";
-
-  // Outputs the first map entry which has matching key with the given key (KeyStr) in the given map (input). Does nothing if there is no matching map entry for the key.
-  @FunctionTemplate(names = {FIRST_MATCHING_ENTRY_FUNC}, isDeterministic = false, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL, derivation = KeyValueOutputFirstMatching.class)
-  public static class GetFirstMatchingMapEntryForKey implements SimpleFunction {
-
-    @Param
-    FieldReader input;
-    @Param
-    NullableVarCharHolder keyStr; //key is a string.
-    @Output
-    BaseWriter.ComplexWriter out;
-
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter structWriter = out.rootAsStruct();
-      if (input.isSet() && keyStr.isSet == 1) {
-        org.apache.arrow.vector.complex.impl.UnionMapReader mapReader = (org.apache.arrow.vector.complex.impl.UnionMapReader) input;
-        while (mapReader.next()) {
-          NullableVarCharHolder keyHolder = new NullableVarCharHolder();
-          mapReader.key().read(keyHolder);
-          boolean isEqual = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.equalsIgnoreCase(
-            keyHolder.buffer, keyHolder.start, keyHolder.end, keyStr.buffer, keyStr.start, keyStr.end);
-          if (isEqual) {
-            org.apache.arrow.vector.complex.impl.ComplexCopier.copy(mapReader.reader(), (org.apache.arrow.vector.complex.writer.FieldWriter) structWriter);
-            return;
-          }
-        }
-      }
-    }
-  }
-
-  // Outputs the last map entry which has matching key with the given key (KeyStr) in the given map (input). Does nothing if there is no matching map entry for the key.
-  @FunctionTemplate(names = {LAST_MATCHING_ENTRY_FUNC}, isDeterministic = false, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL, derivation = KeyValueOutputLastMatching.class)
-  public static class GetLastMatchingMapEntryForKey implements SimpleFunction {
-
-    @Param
-    FieldReader input;
-    @Param
-    NullableVarCharHolder keyStr; //key is a string.
-    @Output
-    BaseWriter.ComplexWriter out;
-
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter structWriter = out.rootAsStruct();
-      if (input.isSet() && keyStr.isSet == 1) {
-        org.apache.arrow.vector.complex.impl.UnionMapReader mapReader = (org.apache.arrow.vector.complex.impl.UnionMapReader) input;
-        int iteratorIdx = 0;
-        int lastMatchedIdx = -1;
-        while (mapReader.next()) {
-          NullableVarCharHolder keyHolder = new NullableVarCharHolder();
-          mapReader.key().read(keyHolder);
-          boolean isEqual = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.equalsIgnoreCase(
-            keyHolder.buffer, keyHolder.start, keyHolder.end, keyStr.buffer, keyStr.start, keyStr.end);
-          if (isEqual) {
-            lastMatchedIdx = iteratorIdx;
-          }
-          iteratorIdx++;
-        }
-        if (lastMatchedIdx != -1) {
-          org.apache.arrow.vector.holders.UnionHolder mapEntryHolder = new org.apache.arrow.vector.holders.UnionHolder();
-          mapReader.read(lastMatchedIdx, mapEntryHolder);
-          org.apache.arrow.vector.complex.impl.ComplexCopier.copy(mapEntryHolder.reader, (org.apache.arrow.vector.complex.writer.FieldWriter) structWriter);
-        }
-      }
-    }
-  }
 
   @FunctionTemplate(names = {"map_keys"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, isDeterministic = false, derivation = ListOfKeys.class)
   public static class GetMapKeys implements SimpleFunction {
@@ -177,13 +103,6 @@ public class MapFunctions {
       }
       out.value = -1;
       out.isSet = 1;
-    }
-  }
-
-  public static class KeyValueOutputFirstMatching implements OutputDerivation {
-    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
-      Field entryStruct = getEntryStruct(args, "GetFirstMatchingMapEntryForKey");
-      return CompleteType.fromField(entryStruct);
     }
   }
 

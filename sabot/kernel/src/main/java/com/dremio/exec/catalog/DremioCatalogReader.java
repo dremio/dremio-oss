@@ -72,6 +72,9 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.extension.annotations.WithSpan;
+
 /**
  * Dremio implementation of several interfaces that are typically provided by CalciteCatalogReader.
  * Interacts directly with Dremio's Catalog object to validate and return tables.
@@ -99,9 +102,12 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     this.schemaPaths = schemaPaths.build();
   }
 
+  @WithSpan("catalog-get-table")
   @Override
   public DremioPrepareTable getTable(List<String> paramList) {
-    final DremioTable table = catalog.getTableForQuery(new NamespaceKey(paramList));
+    NamespaceKey namespaceKey = new NamespaceKey(paramList);
+    Span.current().setAttribute("dremio.table.name", namespaceKey.getSchemaPath());
+    final DremioTable table = catalog.getTableForQuery(namespaceKey);
     if(table == null) {
       return null;
     }
@@ -270,6 +276,9 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
 
   }
 
+  public boolean supportsVersioning(NamespaceKey namespaceKey) {
+    return catalog.supportsVersioning(namespaceKey);
+  }
   private Collection<Function> findFunctions(
     NamespaceKey namespaceKey,
     SqlFunctionCategory paramSqlFunctionCategory) {

@@ -32,7 +32,7 @@ export const restoreMockData = () => {
 };
 
 export const createArcticCatalogHandler = rest.post(
-  createArcticCatalogUrl.replace(`//${window.location.host}`, ""),
+  createArcticCatalogUrl().replace(`//${window.location.host}`, ""),
   async (req, res, ctx) => {
     const { name } = await req.json();
     const newRecord: ArcticCatalogResponse = {

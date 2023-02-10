@@ -44,7 +44,7 @@ import com.dremio.exec.store.sys.accesscontrol.SysTableMembershipInfo;
 import com.dremio.exec.store.sys.accesscontrol.SysTablePrivilegeInfo;
 import com.dremio.exec.store.sys.accesscontrol.SysTableRoleInfo;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
-import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManager;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionService;
 import com.dremio.exec.work.CacheManagerDatasetInfo;
 import com.dremio.exec.work.CacheManagerFilesInfo;
 import com.dremio.exec.work.CacheManagerMountPointInfo;
@@ -263,10 +263,10 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     }
   },
 
-  USER_DEFINED_FUNCTIONS(false, UserDefinedFunctionListManager.FunctionInfo.class, "user_defined_functions") {
+  USER_DEFINED_FUNCTIONS(false, UserDefinedFunctionService.FunctionInfo.class, "user_defined_functions") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return sContext.getUserDefinedFunctionListManagerProvider().get().getFunctionInfos().iterator();
+      return sContext.getUserDefinedFunctionListManagerProvider().get().functionInfos().iterator();
     }
   }
   ;

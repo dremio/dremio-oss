@@ -15,13 +15,11 @@
  */
 package com.dremio.service.autocomplete.functions;
 
-import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
 
-import java.io.IOException;
-import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,24 +31,18 @@ import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.guava.GuavaModule;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.google.common.base.Charsets;
+import com.dremio.service.functions.FunctionListDictionary;
+import com.dremio.service.functions.generator.FunctionFactory;
+import com.dremio.service.functions.generator.FunctionMerger;
+import com.dremio.service.functions.model.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
 
 /**
  * Dictionary of case insensitive function name to SqlFunction.
  */
 public final class FunctionDictionary {
-  public static final FunctionDictionary INSTANCE = createFromResourceFile("functions.yaml");
   private final ImmutableMap<String, Function> map;
 
   private FunctionDictionary(ImmutableMap<String, Function> map) {
@@ -68,26 +60,18 @@ public final class FunctionDictionary {
   public Collection<String> getKeys() { return this.map.keySet(); }
 
   public static FunctionDictionary create(List<Function> functions) {
-    Map<String, Function> mergedFunctions = functions
-      .stream()
-      .collect(
-        groupingBy(
-          function -> function.getName().toUpperCase(),
-          collectingAndThen(
-            ImmutableList.toImmutableList(),
-            FunctionMerger::merge)));
-    ImmutableMap.Builder<String, Function> builder = new ImmutableMap.Builder();
-    for (String functionName : mergedFunctions.keySet()) {
-      Function function = FunctionOverrides
-        .tryGetOverride(functionName)
-        .orElse(mergedFunctions.get(functionName));
-      builder.put(functionName, function);
+    Map<String, Function> functionMap = new HashMap<>();
+    for (Function function : functions) {
+      functionMap.put(function.getName().toUpperCase(), function);
     }
 
-    return new FunctionDictionary(builder.build());
+    return new FunctionDictionary(ImmutableMap.copyOf(functionMap));
   }
 
-  public static FunctionDictionary create(SqlOperatorTable sqlOperatorTable, SimpleCatalog<?> catalog) {
+  public static FunctionDictionary create(
+    SqlOperatorTable sqlOperatorTable,
+    SimpleCatalog<?> catalog,
+    boolean generateSignatures) {
     final DremioCatalogReader catalogReader = new DremioCatalogReader(
       catalog,
       JavaTypeFactoryImpl.INSTANCE);
@@ -95,72 +79,33 @@ public final class FunctionDictionary {
       sqlOperatorTable,
       catalogReader);
 
-    return FunctionDictionary.create(chainedOperatorTable
+    FunctionFactory functionFactory = FunctionFactory.makeFunctionFactory(chainedOperatorTable);
+
+    Map<String, List<SqlFunction>> functionsGroupedByName =  chainedOperatorTable
       .getOperatorList()
       .stream()
       .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
-      .map(function -> (SqlFunction) function)
-      .map(sqlFunction -> FunctionDictionary.INSTANCE
-          .tryGetValue(sqlFunction.getName())
-          .orElse(ImmutableFunction.builder()
-            .name(sqlFunction.getName())
-            .build()))
-      .collect(toList()));
-  }
+      .map(sqlOperator -> (SqlFunction) sqlOperator)
+      .collect(groupingBy(sqlFunction -> sqlFunction.getName().toUpperCase()));
 
-  public static FunctionDictionary createFromResourceFile(String resourcePath) {
-    Preconditions.checkNotNull(resourcePath);
+    List<Function> convertedFunctions = new ArrayList<>();
+    for (String functionName : functionsGroupedByName.keySet()) {
+      Optional<Function> optional = FunctionListDictionary.tryGetFunction(functionName);
+      Function convertedFunction = optional.orElseGet(() ->
+        generateSignatures
+          ? FunctionMerger.merge(
+          functionsGroupedByName
+            .get(functionName)
+            .stream()
+            .map(functionFactory::fromSqlFunction)
+            .collect(ImmutableList.toImmutableList()))
+          : Function.builder()
+          .name(functionName)
+          .build());
 
-    final URL url = Resources.getResource(resourcePath);
-    if (url == null) {
-      throw new RuntimeException("file not found! " + resourcePath);
+      convertedFunctions.add(convertedFunction);
     }
 
-    try {
-      String yaml = Resources.toString(url, Charsets.UTF_8);
-      List<FunctionBaseline> baselines = new ObjectMapper(new YAMLFactory())
-        .registerModule(new GuavaModule())
-        .registerModule(new Jdk8Module())
-        .readValue(
-          yaml,
-          new TypeReference<List<FunctionBaseline>>() {});
-
-      ImmutableMap.Builder<String, Function> builder = new ImmutableMap.Builder<>();
-      for (FunctionBaseline functionBaseline : baselines) {
-        builder.put(functionBaseline.input, functionBaseline.getOutput());
-      }
-
-      return new FunctionDictionary(ImmutableMap.copyOf(builder.build()));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static final class FunctionBaseline {
-    private final String description;
-    private final String input;
-    private final Function output;
-
-    @JsonCreator
-    public FunctionBaseline(
-      @JsonProperty("description") String description,
-      @JsonProperty("input") String input,
-      @JsonProperty("output") Function output) {
-      this.description = description;
-      this.input = input;
-      this.output = output;
-    }
-
-    public String getDescription() {
-      return description;
-    }
-
-    public String getInput() {
-      return input;
-    }
-
-    public Function getOutput() {
-      return output;
-    }
+    return create(convertedFunctions);
   }
 }

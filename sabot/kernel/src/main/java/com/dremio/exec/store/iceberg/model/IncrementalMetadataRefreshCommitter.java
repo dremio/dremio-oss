@@ -306,7 +306,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
               newSchema = newSchema.mergeWithUpPromotion(BatchSchema.of(oldField), this);
             }catch (NoSupportedUpPromotionOrCoercionException e) {
               e.addDatasetPath(datasetPath);
-              throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+              throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
             }
         }
       }

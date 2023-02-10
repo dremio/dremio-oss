@@ -16,7 +16,7 @@
 import { Component } from "react";
 
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 // use a PrevalidatedTextField as a buffer to that you can temporarily have invalid numbers while typing (e.g. empty-string)
 import PrevalidatedTextField from "components/Fields/PrevalidatedTextField";

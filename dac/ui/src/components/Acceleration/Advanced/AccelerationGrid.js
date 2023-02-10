@@ -17,7 +17,7 @@ import { Component } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import { FormattedMessage, injectIntl } from "react-intl";
+import { injectIntl } from "react-intl";
 
 import FontIcon from "components/Icon/FontIcon";
 import { Column, Table } from "fixed-data-table-2";
@@ -161,16 +161,34 @@ export class AccelerationGrid extends Component {
       );
     } else if (lostFields && !shouldDelete) {
       const details = [];
-      for (const fieldListName of "displayFields dimensionFields measureFields sortFields partitionFields distributionFields".split(
-        " "
-      )) {
+      /* Older version for ref : "The following {fieldListName, select, partitionFields {Partition} distributionFields {Distribution} displayFields {Display}
+      dimensionFields {Dimension} measureFields {Measure}} fields are no longer a part of the dataset and will be removed from the Reflection:", */
+      const fieldDisplayMap = {
+        displayFields: "display",
+        dimensionFields: "dimension",
+        measureFields: "measure",
+        sortFields: "sort",
+        partitionFields: "partition",
+        distributionFields: "distribution",
+      };
+      let finalFieldList = "";
+      let count = 0;
+      for (const [fieldListName, value] of Object.entries(fieldDisplayMap)) {
+        if (lostFields[fieldListName]) {
+          count++;
+          finalFieldList = `${finalFieldList} ${count > 1 ? "," : ""} ${value}`;
+        }
+      }
+      for (const [fieldListName] of Object.entries(fieldDisplayMap)) {
         if (lostFields[fieldListName]) {
           details.push(
             <div>
-              <FormattedMessage
-                id="Reflection.LostFieldsPreamble"
-                values={{ fieldListName }}
-              />
+              {this.props.intl.formatMessage(
+                {
+                  id: "Reflection.LostFieldsPreamble",
+                },
+                { fieldNames: finalFieldList }
+              )}
               <ul style={{ listStyle: "disc", margin: ".5em 0 1em 2em" }}>
                 {lostFields[fieldListName].map((field) => {
                   const { name, granularity } = field;

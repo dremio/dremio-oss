@@ -238,7 +238,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
         null,
         ImmutableList.of(),
         ImmutableList.of(),
-       null, new EndpointsIndex(), null, context.getExpressionSplitCache());
+       null, new EndpointsIndex(), null, context.getExpressionSplitCache(), null);
     return oc;
   }
 }

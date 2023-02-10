@@ -21,6 +21,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -40,18 +41,19 @@ public class SysFlightScanDrel extends ScanRelBase implements Rel {
       StoragePluginId pluginId,
       TableMetadata tableMetadata,
       List<SchemaPath> projectedColumns,
-      double observedRowcountAdjustment) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment);
+      double observedRowcountAdjustment,
+      List<RelHint> hints) {
+    super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new SysFlightScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
+    return new SysFlightScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, hints);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new SysFlightScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, projection, observedRowcountAdjustment);
+    return new SysFlightScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, projection, observedRowcountAdjustment, hints);
   }
 
 }

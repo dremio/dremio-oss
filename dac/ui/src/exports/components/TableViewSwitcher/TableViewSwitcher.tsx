@@ -18,15 +18,33 @@ import {
   SegmentedControl,
   SegmentedControlOption,
 } from "dremio-ui-lib/dist-esm";
+import { intl } from "@app/utils/intl";
 
 export const TableViewSwitcher = (props) => {
+  const { formatMessage } = intl;
   return (
     <SegmentedControl {...props}>
-      <SegmentedControlOption value="grid">
-        <dremio-icon name="interface/list-view" alt="Grid view"></dremio-icon>
+      <SegmentedControlOption
+        value="grid"
+        tooltip={formatMessage({ id: "Switcher.ListView" })}
+        tooltipPlacement="top"
+        style={{ width: 32 }}
+      >
+        <dremio-icon
+          name="interface/list-view"
+          alt={formatMessage({ id: "Switcher.ListView" })}
+        ></dremio-icon>
       </SegmentedControlOption>
-      <SegmentedControlOption value="card">
-        <dremio-icon name="interface/card-view" alt="Card view"></dremio-icon>
+      <SegmentedControlOption
+        value="card"
+        tooltip={formatMessage({ id: "Switcher.CardView" })}
+        tooltipPlacement="top"
+        style={{ width: 32 }}
+      >
+        <dremio-icon
+          name="interface/card-view"
+          alt={formatMessage({ id: "Switcher.ListView" })}
+        ></dremio-icon>
       </SegmentedControlOption>
     </SegmentedControl>
   );

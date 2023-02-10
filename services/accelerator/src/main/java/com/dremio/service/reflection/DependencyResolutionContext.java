@@ -15,11 +15,12 @@
  */
 package com.dremio.service.reflection;
 
+import java.util.Optional;
+
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshRequest;
-import com.google.common.base.Optional;
 
 /**
  * DependencyResolutionContext interfaces controls how a ReflectionManager.sync

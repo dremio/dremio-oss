@@ -15,7 +15,7 @@
  */
 import { Children, PureComponent } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 
 export default class Tabs extends PureComponent {
   static propTypes = {

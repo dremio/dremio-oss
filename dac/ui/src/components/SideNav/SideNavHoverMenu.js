@@ -17,7 +17,7 @@
 import { cloneElement, useState, useRef } from "react";
 import { useIntl } from "react-intl";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import { Tooltip } from "dremio-ui-lib";
 
 import "./SideNav.less";
@@ -42,8 +42,7 @@ const SideNavHoverMenu = (props) => {
   const hidePopupWaitTime = 250;
 
   const menuPosition = "--narrow";
-  const menuLinkMenuDisplayed =
-    popMenuExtraClass === " --show" ? " --menuDisplayed" : "";
+  const menuLinkMenuDisplayed = showPopup ? " --menuDisplayed" : "";
 
   const mouseEnter = () => {
     if (popMenuExtraClass === " -show") {

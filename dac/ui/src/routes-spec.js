@@ -16,12 +16,11 @@
 import { mount } from "enzyme";
 
 import { Router, Route, createMemoryHistory } from "react-router";
-import { getSourceRoute } from "routes";
 import { EntityLink } from "@app/pages/HomePage/components/EntityLink";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
 
 describe("routes", () => {
-  const rootType = "source";
-  const linkUrl = `/${rootType}/fake_source_id`;
+  const linkUrl = commonPaths.source.link({ resourceId: "fake_source_id" });
   const linkProps = {
     linkTo: linkUrl,
     activeClassName: "active",
@@ -36,8 +35,13 @@ describe("routes", () => {
     it("link is marked as active when a source is selected", () => {
       const wrapper = mount(
         <Router history={createMemoryHistory(linkUrl)}>
-          <Route path="/" component={({ children }) => children}>
-            {getSourceRoute(rootType, renderLink)}
+          <Route
+            path={commonPaths.projectBase.fullRoute()}
+            component={({ children }) => children}
+          >
+            <Route path={commonPaths.source.fullRoute()} component={renderLink}>
+              <Route path={commonPaths.sourceFolder.fullRoute()} />
+            </Route>
           </Route>
         </Router>
       );
@@ -50,30 +54,18 @@ describe("routes", () => {
         <Router
           history={createMemoryHistory(`${linkUrl}/folder/fake_subfolder`)}
         >
-          <Route path="/" component={({ children }) => children}>
-            {getSourceRoute(rootType, renderLink)}
+          <Route
+            path={commonPaths.projectBase.fullRoute()}
+            component={({ children }) => children}
+          >
+            <Route path={commonPaths.source.fullRoute()} component={renderLink}>
+              <Route path={commonPaths.sourceFolder.fullRoute()} />
+            </Route>
           </Route>
         </Router>
       );
 
       expect(isLinkActive(wrapper)).to.equal(true);
-    });
-
-    it("link is inactive when other path is selected", () => {
-      const otherRootName = "not_a_" + rootType;
-      const wrapper = mount(
-        <Router
-          history={createMemoryHistory(
-            `${otherRootName}/some_id/folder/fake_subfolder`
-          )}
-        >
-          <Route path="/" component={({ children }) => children}>
-            {getSourceRoute(otherRootName, renderLink)}
-          </Route>
-        </Router>
-      );
-
-      expect(isLinkActive(wrapper)).to.equal(false);
     });
   });
 });

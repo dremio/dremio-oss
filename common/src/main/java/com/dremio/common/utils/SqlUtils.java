@@ -99,7 +99,11 @@ public class SqlUtils {
   }
 
   public static String quotedCompound(List<String> strings){
-    return FluentIterable.from(strings).transform(QUOTER).join(Joiner.on('.'));
+    return quotedCompound(strings, QUOTER);
+  }
+
+  public static String quotedCompound(List<String> strings, Function<String, String> quoter){
+    return FluentIterable.from(strings).transform(quoter).join(Joiner.on('.'));
   }
 
   /**
@@ -131,7 +135,7 @@ public class SqlUtils {
     return quoteString(id);
   }
 
-  private static String quoteString(final String id) {
+  public static String quoteString(final String id) {
     StringBuilder sb = new StringBuilder();
     sb.append(QUOTE);
     sb.append(CharMatcher.is(QUOTE).replaceFrom(id, QUOTE_WITH_ESCAPE));

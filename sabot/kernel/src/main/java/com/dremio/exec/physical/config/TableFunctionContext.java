@@ -44,7 +44,8 @@ import io.protostuff.ByteString;
   @JsonSubTypes.Type(value = FooterReaderTableFunctionContext.class, name = "footer-reader"),
   @JsonSubTypes.Type(value = BoostTableFunctionContext.class, name = "boost"),
   @JsonSubTypes.Type(value = ManifestScanTableFunctionContext.class, name = "manifest-scan"),
-  @JsonSubTypes.Type(value = PartitionTransformTableFunctionContext.class, name = "partition-transform-table")}
+  @JsonSubTypes.Type(value = PartitionTransformTableFunctionContext.class, name = "partition-transform-table"),
+  @JsonSubTypes.Type(value = EasyScanTableFunctionContext.class, name = "easy-scan-table-function")}
 )
 public class TableFunctionContext {
   private final List<SchemaPath> columns;

@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import FormUtils from "utils/FormUtils/FormUtils";
 import FormElement from "components/Forms/FormElement";
 import FormSection from "components/Forms/FormSection";

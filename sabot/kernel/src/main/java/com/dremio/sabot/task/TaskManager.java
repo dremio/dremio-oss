@@ -53,6 +53,16 @@ public interface TaskManager<T extends Task> extends GroupManager<T> {
      * @return which thread the task is assigned to
      */
     int getThread();
+
+    /**
+     * Gets the current task load on the thread on which the task represented by this thread is running.
+     *
+     * <p>
+     * Omly accurate when a task given by this task handle is running.
+     * </p>
+     * @return current load on the thread. Ideally should be one.
+     */
+    int getCurrentTaskLoad();
   }
 
   /**
@@ -81,7 +91,7 @@ public interface TaskManager<T extends Task> extends GroupManager<T> {
 
     void markActive();
 
-    void migrateAllTasks(int dstThread);
+    int migrateAllTasks(int dstThread);
 
     void markFree(int threadNumber);
 
@@ -123,4 +133,8 @@ public interface TaskManager<T extends Task> extends GroupManager<T> {
   void mutexUnlock();
 
   void deleteThreadMQ(int threadId);
+
+  SchedulerStats getSchedulerStats();
+
+  void changeObserver(Observer.Type observerType);
 }

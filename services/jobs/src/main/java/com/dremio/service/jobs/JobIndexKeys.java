@@ -165,6 +165,23 @@ public final class JobIndexKeys {
     .setIncludeInSearchAllFields(true)
     .setCanContainMultipleValues(true)
     .build();
+
+  public static final IndexKey CONSIDERED_REFLECTION_IDS = IndexKey.newBuilder("cor", "CONSIDERED_REFLECTION_IDS", String.class)
+    .setIncludeInSearchAllFields(true)
+    .setCanContainMultipleValues(true)
+    .build();
+
+  public static final IndexKey MATCHED_REFLECTION_IDS = IndexKey.newBuilder("mar", "MATCHED_REFLECTION_IDS", String.class)
+    .setIncludeInSearchAllFields(true)
+    .setCanContainMultipleValues(true)
+    .build();
+
+  public static final IndexKey CHOSEN_REFLECTION_IDS = IndexKey.newBuilder("chr", "CHOSEN_REFLECTION_IDS", String.class)
+    .setIncludeInSearchAllFields(true)
+    .setCanContainMultipleValues(true)
+    .build();
+
   public static final FilterIndexMapping MAPPING = new FilterIndexMapping(JOBID, USER, SPACE, DATASET, DATASET_VERSION, START_TIME,
-    END_TIME, DURATION, PARENT_DATASET, JOB_STATE, SQL, QUERY_TYPE, QUEUE_NAME, ALL_DATASETS);
+    END_TIME, DURATION, PARENT_DATASET, JOB_STATE, SQL, QUERY_TYPE, QUEUE_NAME, ALL_DATASETS,
+    CONSIDERED_REFLECTION_IDS, MATCHED_REFLECTION_IDS, CHOSEN_REFLECTION_IDS);
 }

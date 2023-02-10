@@ -15,21 +15,13 @@
  */
 
 import { useState } from "react";
-import { connect } from "react-redux";
-import { FormattedMessage } from "react-intl";
-import { Button } from "dremio-ui-lib/dist-esm";
-import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  TextField,
-} from "@mui/material";
-
+import { useDispatch } from "react-redux";
+import { FormattedMessage, useIntl } from "react-intl";
+import { Button, ModalContainer, DialogContent } from "dremio-ui-lib/dist-esm";
+import { setReference } from "@app/actions/nessie/nessie";
+import { TextField } from "@mui/material";
 import { Reference } from "@app/types/nessie";
 import { useNessieContext } from "../../utils/context";
-import { CustomDialogTitle } from "./utils";
 
 import "./NewBranchDialog.less";
 
@@ -37,48 +29,40 @@ type NewBranchDialogProps = {
   open: boolean;
   closeDialog: () => void;
   forkFrom: Reference;
-  newRefType?: "BRANCH" | "TAG";
-  customHeader?: string;
-  customContentText?: string;
   allRefs?: Reference[];
   setAllRefs?: React.Dispatch<React.SetStateAction<Reference[]>>;
   setSuccessMessage?: React.Dispatch<React.SetStateAction<JSX.Element | null>>;
-  refetch?: () => void;
-};
-
-type ConnectedProps = {
-  setReference: typeof setReferenceAction;
+  fromType?: "TAG" | "BRANCH" | "COMMIT";
 };
 
 function NewBranchDialog({
   open,
   closeDialog,
   forkFrom,
-  newRefType = "BRANCH",
-  customHeader,
-  customContentText,
   allRefs,
   setAllRefs,
   setSuccessMessage,
-  setReference,
-  refetch,
-}: NewBranchDialogProps & ConnectedProps): JSX.Element {
+  fromType,
+}: NewBranchDialogProps): JSX.Element {
+  const intl = useIntl();
   const { api, stateKey } = useNessieContext();
   const [newBranchName, setNewBranchName] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
+  const dispatch = useDispatch();
 
   const updateInput = (event: any) => {
     setNewBranchName(event.target.value);
   };
 
   function updateBranchFromRef(ref: Reference) {
-    setReference({ reference: ref }, stateKey);
+    dispatch(setReference({ reference: ref }, stateKey));
   }
 
   const onCancel = () => {
     closeDialog();
     setNewBranchName("");
+    setErrorText(null);
   };
 
   const onAdd = async () => {
@@ -87,7 +71,7 @@ function NewBranchDialog({
       const reference = (await api.createReference({
         sourceRefName: forkFrom ? forkFrom.name : undefined,
         reference: {
-          type: newRefType,
+          type: "BRANCH",
           hash: forkFrom ? forkFrom.hash : null,
           name: newBranchName,
         } as Reference,
@@ -110,7 +94,6 @@ function NewBranchDialog({
 
       setErrorText(null);
       closeDialog();
-      refetch?.();
       setNewBranchName("");
       setIsSending(false);
     } catch (error: any) {
@@ -133,26 +116,47 @@ function NewBranchDialog({
   };
 
   return (
-    <div>
-      <Dialog open={open} onClose={closeDialog} className="new-branch-dialog">
-        <CustomDialogTitle
-          onClose={onCancel}
-          className="new-branch-dialog-header"
-        >
-          <span className="new-branch-dialog-header-title">
-            <FormattedMessage
-              id={customHeader ?? "RepoView.Dialog.CreateBranch.CreateBranch"}
-            />
-          </span>
-        </CustomDialogTitle>
-        <DialogContent className="new-branch-dialog-body">
-          <DialogContentText>
-            <FormattedMessage
-              id={
-                customContentText ?? "RepoView.Dialog.CreateBranch.BranchName"
-              }
-            />
-          </DialogContentText>
+    <ModalContainer open={() => {}} isOpen={open} close={closeDialog}>
+      <DialogContent
+        className="new-branch-dialog"
+        title={intl.formatMessage({
+          id: "RepoView.Dialog.CreateBranch.CreateBranch",
+        })}
+        actions={
+          <>
+            <Button variant="secondary" onClick={onCancel} disabled={isSending}>
+              <FormattedMessage id="Common.Cancel" />
+            </Button>
+            <Button variant="primary" onClick={onAdd} disabled={isSending}>
+              <FormattedMessage id="Common.Add" />
+            </Button>
+          </>
+        }
+      >
+        <div className="new-branch-dialog-body">
+          <div className="new-branch-dialog-body-from">
+            <span className="new-branch-dialog-body-from-label">
+              <FormattedMessage id="RepoView.Dialog.CreateBranch.CreateBranchFrom" />
+            </span>
+            <span className="new-branch-dialog-body-from-name">
+              {fromType === "COMMIT" ? (
+                <>
+                  <dremio-icon name="vcs/commit" />
+                  <span className="new-tag-dialog-body-commit-hash">
+                    {forkFrom?.hash?.substring(0, 30)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <dremio-icon
+                    name={`vcs/${fromType === "TAG" ? "tag" : "branch"}`}
+                  />
+                  {forkFrom.name}
+                </>
+              )}
+            </span>
+          </div>
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.BranchName" />
           <TextField
             onChange={updateInput}
             value={newBranchName}
@@ -167,21 +171,11 @@ function NewBranchDialog({
             variant="outlined"
             error={!!errorText}
             helperText={errorText}
-            label={errorText && <FormattedMessage id="Common.Error" />}
           ></TextField>
-        </DialogContent>
-        <DialogActions className="new-branch-dialog-actions">
-          <Button variant="secondary" onClick={onCancel} disabled={isSending}>
-            <FormattedMessage id="Common.Cancel" />
-          </Button>
-          <Button variant="primary" onClick={onAdd} disabled={isSending}>
-            <FormattedMessage id="Common.Add" />
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+        </div>
+      </DialogContent>
+    </ModalContainer>
   );
 }
 
-const mapDispatchToProps = { setReference: setReferenceAction };
-export default connect(null, mapDispatchToProps)(NewBranchDialog);
+export default NewBranchDialog;

@@ -69,6 +69,7 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Metadata provider for table functions as table_files
@@ -136,7 +137,7 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
       catalogMetadata.getStoragePluginId(),
       new TableFilesFunctionTableMetadata(catalogMetadata.getStoragePluginId(), config, user, catalogMetadata.getBatchSchema(), splitsPointer),
       null,
-      1.0d, false, false);
+      1.0d, ImmutableList.of(), false, false);
   }
 
   /**
@@ -273,6 +274,10 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
     shallowConfig.setReadDefinition(readDefinition);
 
     shallowConfig.setPhysicalDataset(underlyingTableConfig.getPhysicalDataset());
+
+    if (shallowConfig.getPhysicalDataset() != null && shallowConfig.getPhysicalDataset().getFormatSettings() != null) {
+      shallowConfig.getPhysicalDataset().getFormatSettings().setType(FileType.AVRO);
+    }
 
     if (options.getTimeTravelRequest() instanceof TimeTravelOption.TimestampRequest) {
       throw UserException.validationError()

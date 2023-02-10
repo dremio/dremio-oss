@@ -148,15 +148,20 @@ public class TableVersionSpec {
       case REFERENCE:
       case SNAPSHOT_ID:
         Preconditions.checkState(getVersionSpecifier() instanceof SqlCharStringLiteral);
-        writer.keyword(getTableVersionType().toString());
-        SqlCharStringLiteral versionCharSpecLiteral = (SqlCharStringLiteral) getVersionSpecifier();
-        writer.print(versionCharSpecLiteral.getNlsString().getValue());
+        writer.keyword(getTableVersionType().toSqlRepresentation());
+
+        final SqlCharStringLiteral versionCharSpecLiteral =
+            (SqlCharStringLiteral) getVersionSpecifier();
+        final String value = versionCharSpecLiteral.getNlsString().getValue();
+        writer.print(
+            (tableVersionType == TableVersionType.COMMIT_HASH_ONLY) ? '"' + value + '"' : value);
+
         break;
       case TIMESTAMP:
         SqlNode versionSpecifier = getVersionSpecifier();
         Preconditions.checkState(versionSpecifier instanceof SqlTimestampLiteral || versionSpecifier instanceof SqlBasicCall);
         if (versionSpecifier instanceof  SqlTimestampLiteral) {
-          writer.keyword(getTableVersionType().toString());
+          writer.keyword(getTableVersionType().toSqlRepresentation());
           SqlTimestampLiteral versionTimeSpecLiteral = (SqlTimestampLiteral) getVersionSpecifier();
           writer.print(String.valueOf(versionTimeSpecLiteral.getValue()));
         } else if (versionSpecifier instanceof SqlBasicCall) {

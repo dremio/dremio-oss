@@ -37,7 +37,6 @@ const INVISIBLES = {
   LINE_TABULATION: "\u000B",
   FORM_FEED: "\f",
   CARRIAGE_RETURN: "\r",
-  SPACE: "\u0020", // include so that we force showing initial space
   NEXT_LINE: "\u0085",
   NO_BREAK_SPACE: "\u00A0",
   OGHAM_SPACE_MARK: "\u1680",
@@ -82,7 +81,6 @@ export const INVISIBLE_CHARS = new Set(
 
   for (const char of INVISIBLE_CHARS) {
     const name = INVISIBLE_NAMES[char];
-    if (name === "SPACE") continue;
     let content = JSON.stringify(char).slice(1, -1);
     if (content.length === 1)
       content = `\\u${padStart(char.charCodeAt(0).toString(16), 4, "0")}`; // aggressive escaping

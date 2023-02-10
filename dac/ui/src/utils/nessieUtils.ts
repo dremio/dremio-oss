@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 import { COMMIT_TYPE, NESSIE_REF_PREFIX } from "@app/constants/nessie";
-import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { NessieRootState, NessieState } from "@app/types/nessie";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import { Branch } from "@app/services/nessie/client";
 import { store } from "@app/store/store";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import moize from "moize";
+import { isVersionedSource } from "./sourceUtils";
 
-export function getShortHash(hash: string) {
-  return hash.length > 6 ? hash.substring(0, 6) : hash;
+export function getShortHash(hash?: string) {
+  return hash && hash.length > 6 ? hash.substring(0, 6) : hash;
 }
 
 export function getIconByType(refType: string, hash?: string | null) {
@@ -168,7 +168,7 @@ export const getSourceByName = moize(function (
   sources?: Array<{ name: string; type: string }>
 ) {
   return (sources || []).find(
-    (cur) => [NESSIE, ARCTIC].includes(cur.type) && cur.name === name
+    (cur) => cur.name === name && isVersionedSource(cur.type)
   );
 });
 
@@ -186,8 +186,9 @@ function isArcticCatalogConfig(
 }
 
 export function getEndpointFromSourceConfig(
-  config: CatalogSourceConfig | NessieSourceConfig
+  config?: CatalogSourceConfig | NessieSourceConfig
 ) {
+  if (!config) return "";
   if (isArcticCatalogConfig(config)) {
     return getArcticProjectUrl(config.arcticCatalogId);
   } else {

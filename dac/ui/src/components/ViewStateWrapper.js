@@ -17,7 +17,7 @@ import { Component } from "react";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 
-import classNames from "classnames";
+import classNames from "clsx";
 
 import PropTypes from "prop-types";
 import ImmutablePropTypes from "react-immutable-proptypes";
@@ -156,7 +156,9 @@ export class ViewStateWrapper extends Component {
 
     const handleDismiss = () => {
       this.props.dismissViewStateError(viewState.get("viewId"));
-      onDismissError && onDismissError();
+      if (onDismissError && typeof onDismissError === "function") {
+        onDismissError();
+      }
     };
 
     if (

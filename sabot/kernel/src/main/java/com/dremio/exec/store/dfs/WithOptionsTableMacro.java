@@ -111,7 +111,7 @@ public final class WithOptionsTableMacro implements TableMacro {
           .build(logger);
       }
 
-      return new MaterializedDatasetTableProvider(null, handle, plugin, plugin.getId(), schemaConfig, options)
+      return new MaterializedDatasetTableProvider(null, handle, plugin, plugin.getId(), schemaConfig, options, schemaConfig.getOptions())
         .get();
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);

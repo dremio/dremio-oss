@@ -17,7 +17,8 @@ package com.dremio.sabot.op.join.vhash.spill.list;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.util.AutoCloseables;
+
+import com.dremio.common.AutoCloseables;
 
 
 /**

@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable, { List } from "immutable";
 import { Column, Table, Cell } from "fixed-data-table-2";
-import classNames from "classnames";
+import classNames from "clsx";
 import { AutoSizer } from "react-virtualized";
 import ImmutablePropTypes from "react-immutable-proptypes";
 import {

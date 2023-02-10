@@ -308,6 +308,14 @@ enum QueryType {
   INTERNAL_ICEBERG_METADATA_DROP = 800; // Queries related to internal iceberg metadata drop
 }
 
+enum QueryLabel {
+  NONE = 0; // Default Query Label
+  OPTIMIZATION = 101; // For Optimize, Vacuum
+  COPY = 102; // For COPY INTO
+  DML = 103; // For INSERT, UPDATE, DELETE, MERGE and TRUNCATE
+  CTAS = 104; // For CTAS
+}
+
 enum RequestType {
   INVALID_REQUEST_TYPE = 0;
   GET_CATALOGS = 1;
@@ -320,13 +328,27 @@ enum RequestType {
   GET_SERVER_META = 8;
 }
 
+message UsedReflections {
+  enum UsageType {
+    CONSIDERED = 0;
+    MATCHED = 1;
+    CHOSEN = 2;
+  }
+  UsageType usage_type = 1;
+  repeated string reflection_ids = 2;
+}
+
 message VersionedDatasetPath {
   repeated string path = 1;
   string version = 2;
 }
 
 message JobCountsRequest {
+  // Conditions are mutually exclusive.
+  // Only one condition should be specified at a time.
+  // If more than one conditions provided, only the first non-empty one will be used.
   repeated VersionedDatasetPath datasets = 1;
+  UsedReflections reflections = 2;
 }
 
 message JobCounts {
@@ -443,6 +465,7 @@ message SubmitJobRequest {
   bool runInSameThread = 7;
   bool streamResultsMode = 8;
   bool ignoreColumnLimits = 9;
+  QueryLabel queryLabel = 10;
 }
 
 message MaterializationSettings {

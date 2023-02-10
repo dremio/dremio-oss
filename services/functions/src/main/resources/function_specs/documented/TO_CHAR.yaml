@@ -1,0 +1,95 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "TO_CHAR"
+signatures:
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "TIME"
+    name: "expression"
+    description: "Expression to convert to a STRING."
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "format"
+    description: "Format to use for the conversion."
+  description: "Returns the input expression as a STRING."
+  sampleCodes:
+   -
+    call: "SELECT TO_CHAR(CAST('01:02:03' AS TIME) , 'HH:MI');"
+    result: "01:02"
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "DATE"
+    name: "expression"
+    description: "Expression to convert to a STRING."
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "format"
+    description: "Format to use for the conversion."
+  description: "Returns the input expression as a STRING."
+  sampleCodes:
+   -
+    call: "SELECT TO_CHAR(CAST('2021-02-11' AS DATE) , 'yyyy.mm.dd');"
+    result: "2021.02.11"
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "NUMERIC"
+    name: "expression"
+    description: "Expression to convert to a STRING."
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "format"
+    description: "Format to use for the conversion."
+  description: "Returns the input expression as a STRING."
+  sampleCodes:
+   -
+    call: "SELECT TO_CHAR(7.5, '#.#')"
+    result: "7.5"
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "TIMESTAMP"
+    name: "expression"
+    description: "Expression to convert to a STRING."
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "format"
+    description: "Format to use for the conversion."
+  description: "Returns the input expression as a STRING."
+  sampleCodes:
+   -
+    call: "SELECT TO_CHAR(CAST('2013-04-05 01:02:03' AS TIMESTAMP) , 'mm/dd/yyyy, hh:mi');"
+    result: "04/05/2013, 01:02"
+dremioVersion: "1.0+"
+functionCategories:
+ - "CONVERSION"
+description: "Converts the input expression to a character/STRING using the specified format."

@@ -47,7 +47,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 @NotThreadSafe
 public class BloomFilter implements AutoCloseable {
-    private static Logger logger = LoggerFactory.getLogger(BloomFilter.class);
+    private static final Logger logger = LoggerFactory.getLogger(BloomFilter.class);
     private static final double FPP = 0.01;
     private static final int META_BYTES_CNT = 32; // should always be a multiple of 8
     private static final int SEED = 0;

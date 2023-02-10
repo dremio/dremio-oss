@@ -16,16 +16,16 @@
 
 import { useState } from "react";
 import { FormattedMessage } from "react-intl";
-import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
 import { Avatar } from "dremio-ui-lib/dist-esm";
 import { Reference } from "@app/types/nessie";
 import { LogEntry, Tag } from "@app/services/nessie/client/index";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
-import { DEFAULT_FORMAT_WITH_TIME, formatDate } from "@app/utils/date";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { getLabeledTags } from "./utils";
+import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
+import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
 
 import * as classes from "./ArcticCommitDetailsBody.module.less";
 
@@ -75,9 +75,9 @@ function ArcticCommitDetailsBody({
           <span className={classes["commit-details-body__section"]}>
             <FormattedMessage id="ArcticCatalog.Commits.Details.CommitTime" />
             <div className={classes["commit-details-body__section--subtext"]}>
-              {formatDate(
-                commitMeta?.commitTime + "",
-                DEFAULT_FORMAT_WITH_TIME
+              {convertISOStringWithTooltip(
+                commitMeta?.commitTime?.toString() ?? "",
+                { isRelative: true }
               )}
             </div>
           </span>
@@ -115,12 +115,9 @@ function ArcticCommitDetailsBody({
           </span>
         </div>
       </div>
-      <NewBranchDialog
+      <NewTagDialog
         open={dialogState}
         forkFrom={{ ...reference, hash: commitId } as Reference}
-        newRefType="TAG"
-        customHeader={"ArcticCatalog.Tags.Dialog.AddTag"}
-        customContentText={"ArcticCatalog.Tags.Dialog.TagName"}
         closeDialog={closeDialog}
         refetch={() => refetch({ hash: commitId })}
       />

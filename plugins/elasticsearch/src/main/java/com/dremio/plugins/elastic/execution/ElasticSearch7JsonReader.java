@@ -50,7 +50,7 @@ public class ElasticSearch7JsonReader extends ElasticsearchJsonReader {
     final JsonToken token = seekForward(ElasticsearchConstants.SCROLL_ID);
     Preconditions.checkState(token == JsonToken.VALUE_STRING, "Invalid response");
 
-    final String scroll_id = parser.getValueAsString();
+    String scrollId = parser.getValueAsString();
 
     seekForward(ElasticsearchConstants.HITS);
     seekForward(ElasticsearchConstants.TOTAL_HITS);
@@ -64,7 +64,7 @@ public class ElasticSearch7JsonReader extends ElasticsearchJsonReader {
 
     final JsonToken hitsToken = seekForward(ElasticsearchConstants.HITS);
     Preconditions.checkState(hitsToken == JsonToken.START_ARRAY, "Invalid response");
-    return new Pair<>(scroll_id, totalSize);
+    return new Pair<>(scrollId, totalSize);
   }
 
   /**

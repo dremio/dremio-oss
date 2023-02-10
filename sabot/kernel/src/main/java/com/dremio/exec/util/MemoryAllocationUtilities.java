@@ -183,6 +183,9 @@ public final class MemoryAllocationUtilities {
           .forEach(op -> {
             long targetValue = (long) (baseWeight * op.getProps().getMemoryFactor());
             targetValue = Math.max(Math.min(targetValue, op.getProps().getMemLimit()), op.getProps().getMemReserve());
+            /* Check if op requested to force for a particular minimum limit */
+            targetValue = Math.max(targetValue, op.getProps().getForcedMemLimit());
+
             long lowLimit = op.getProps().getMemLowLimit();
             long highLimit = op.getProps().getMemLimit();
 
@@ -195,7 +198,6 @@ public final class MemoryAllocationUtilities {
             }
           });
     }
-
   }
 
   /**

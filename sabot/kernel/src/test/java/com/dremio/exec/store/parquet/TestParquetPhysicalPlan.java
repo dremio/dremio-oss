@@ -37,9 +37,7 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
-import com.google.common.io.Resources;
 
 public class TestParquetPhysicalPlan extends ExecTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestParquetPhysicalPlan.class);
@@ -53,7 +51,7 @@ public class TestParquetPhysicalPlan extends ExecTest {
          SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true); DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
       bit1.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL, Resources.toString(Resources.getResource(fileName),Charsets.UTF_8));
+      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL, readResourceAsString(fileName));
       RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
       int count = 0;
       for (QueryDataBatch b : results) {
@@ -122,7 +120,7 @@ public class TestParquetPhysicalPlan extends ExecTest {
       client.connect();
       ParquetResultsListener listener = new ParquetResultsListener();
       Stopwatch watch = Stopwatch.createStarted();
-      client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL, Resources.toString(Resources.getResource(fileName),Charsets.UTF_8), listener);
+      client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL, readResourceAsString(fileName), listener);
       System.out.println(String.format("Got %d total records in %d seconds", listener.await(), watch.elapsed(TimeUnit.SECONDS)));
       client.close();
     }

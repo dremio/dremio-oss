@@ -55,7 +55,12 @@ import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.physical.base.IcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
+import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
+import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
@@ -75,6 +80,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
 import com.dremio.exec.planner.sql.parser.DataAdditionCmdCall;
+import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -121,11 +127,11 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     return isVersionedTable;
   }
 
-  public WriterOptions.IcebergWriterOperation getIcebergWriterOperation() {
+  public TableFormatOperation getIcebergWriterOperation() {
     if (!isIcebergTable) {
-      return WriterOptions.IcebergWriterOperation.NONE;
+      return TableFormatOperation.NONE;
     }
-    return isCreate() ? WriterOptions.IcebergWriterOperation.CREATE : WriterOptions.IcebergWriterOperation.INSERT;
+    return isCreate() ? TableFormatOperation.CREATE : TableFormatOperation.INSERT;
   }
 
   public abstract boolean isCreate();
@@ -178,6 +184,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
       final List<String> partitionFieldNames = sqlCmd.getPartitionColumns(cachedDremioTable);
       final Set<String> fieldNames = validatedRowType.getFieldNames().stream().collect(Collectors.toSet());
+      TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
+        .setOperation(getIcebergWriterOperation()).build();
       final WriterOptions options = new WriterOptions(
         (int) ringCount,
         partitionFieldNames,
@@ -187,7 +195,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         sqlCmd.getLocation(),
         sqlCmd.isSingleWriter(),
         Long.MAX_VALUE,
-        getIcebergWriterOperation(),
+        tableFormatOptions,
         extendedByteString,
         version
       );
@@ -256,15 +264,11 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
   // For iceberg tables, do a refresh after the attempt completion.
   public static void refreshDataset(DatasetCatalog datasetCatalog, NamespaceKey key, boolean autopromote) {
-    DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder()
-        .setForceUpdate(true).build();
-    if (autopromote && !options.autoPromote()) {
-      options = DatasetRetrievalOptions.newBuilder()
-        .setAutoPromote(true)
-        .setForceUpdate(true)
-        .build()
-        .withFallback(options);
-    }
+    DatasetRetrievalOptions options = DatasetRetrievalOptions.newBuilder()
+      .setAutoPromote(autopromote)
+      .setForceUpdate(true)
+      .build()
+      .withFallback(DatasetRetrievalOptions.DEFAULT);
 
     UpdateStatus updateStatus = datasetCatalog.refreshDataset(key, options, false);
     logger.info("refreshed{} dataset {}, update status \"{}\"",
@@ -317,7 +321,13 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         isCreate() ? IcebergCommandType.CREATE : IcebergCommandType.INSERT,
         null, key.getName(), null, options.getVersion(), partitionSpec, icebergSchema); // TODO: DX-43311 Should we allow null version?
       icebergTableProps.setPersistedFullSchema(tableSchema);
-      options.setIcebergTableProps(icebergTableProps);
+      IcebergWriterOptions icebergOptions = new ImmutableIcebergWriterOptions.Builder()
+        .from(options.getTableFormatOptions().getIcebergSpecificOptions())
+        .setIcebergTableProps(icebergTableProps).build();
+      TableFormatWriterOptions tableFormatWriterOptions = new ImmutableTableFormatWriterOptions.Builder()
+        .from(options.getTableFormatOptions())
+        .setIcebergSpecificOptions(icebergOptions).build();
+      options.setTableFormatOptions(tableFormatWriterOptions);
     }
 
     logger.debug("Creating new table with WriterOptions : '{}' icebergTableProps : '{}' ",
@@ -343,12 +353,16 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     }
 
     // DX-54255: Don't add cast projection, if inserting values from another table
-    if (RelOptUtil.findTables(convertedRelNode).isEmpty()) {
+    if (RelOptUtil.findTables(convertedRelNode).isEmpty() && !(sqlCmd instanceof SqlCopyIntoTable)) {
       convertedRelNode = addCastProject(convertedRelNode, queryRowType);
     }
-    convertedRelNode = new WriterRel(convertedRelNode.getCluster(),
-      convertedRelNode.getCluster().traitSet().plus(Rel.LOGICAL),
-      convertedRelNode, tableEntry, queryRowType);
+
+    // skip writer and display DML results on UI only
+    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_DML_DISPLAY_RESULT_ONLY) || !(sqlCmd instanceof SqlCopyIntoTable)) {
+      convertedRelNode = new WriterRel(convertedRelNode.getCluster(),
+        convertedRelNode.getCluster().traitSet().plus(Rel.LOGICAL),
+        convertedRelNode, tableEntry, queryRowType);
+    }
 
     convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
       config.getContext(), convertedRelNode);

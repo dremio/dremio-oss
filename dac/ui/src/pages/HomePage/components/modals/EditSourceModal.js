@@ -17,6 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
 import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
+import EnginePreRequisiteHOC from "@inject/pages/HomePage/components/modals/PreviewEngineCheckHOC.tsx";
 
 import Modal from "components/Modals/Modal";
 import EditSourceView from "./EditSourceView";
@@ -41,19 +42,50 @@ export class EditSourceModal extends PureComponent {
 
   render() {
     const { isOpen, query, hide, updateFormDirtyState, intl } = this.props;
+
+    //HOC Props
+    const {
+      iconDisabled,
+      hideCancel,
+      confirmText,
+      canSubmit,
+      hasError,
+      isSubmitting,
+      showSpinnerAndText,
+      confirmButtonStyle,
+      handleSubmit,
+      setPreviewEngine,
+      onDismissError,
+    } = this.props;
+
+    const addProps = {
+      hideCancel,
+      confirmText,
+      canSubmit,
+      hasError,
+      isSubmitting,
+      showSpinnerAndText,
+      confirmButtonStyle,
+      handleSubmit,
+      setPreviewEngine,
+      onDismissError,
+    };
+
     return (
       <Modal
         size="large"
         title={intl.formatMessage({ id: "Source.EditSource" })}
         isOpen={isOpen}
-        hide={hide}
+        hide={!iconDisabled && hide}
+        iconDisabled={iconDisabled}
       >
         {query.name && (
           <EditSourceView
             updateFormDirtyState={updateFormDirtyState}
-            hide={this.hide}
+            hide={!iconDisabled && this.hide}
             sourceName={query.name}
             sourceType={query.type}
+            {...addProps}
           />
         )}
       </Modal>
@@ -61,4 +93,4 @@ export class EditSourceModal extends PureComponent {
   }
 }
 
-export default FormUnsavedWarningHOC(EditSourceModal);
+export default EnginePreRequisiteHOC(FormUnsavedWarningHOC(EditSourceModal));

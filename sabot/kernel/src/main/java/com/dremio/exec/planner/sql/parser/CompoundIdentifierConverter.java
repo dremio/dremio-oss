@@ -171,7 +171,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     */
     Map<Class<? extends SqlCall>, RewriteType[]> rules = Maps.newHashMap();
 
-    rules.put(SqlSelect.class, R(D, E, D, E, E, E, E, E, D, D));
+    rules.put(SqlSelect.class, R(D, E, D, E, E, E, E, E, E, D, D, D));
     rules.put(SqlInsertTable.class, R(D, E, D));
     rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, D, E, D, D, D, D));
     rules.put(SqlCreateEmptyTable.class, R(D, D, D, D, D, D, D, D, D, D, D));
@@ -206,6 +206,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlAlterClearPlanCache.class, R());
     rules.put(SqlAnalyzeTableStatistics.class, R(D, D, D));
     rules.put(SqlAlterDatasetReflectionRouting.class, R(D, D, D, D, D));
+    rules.put(SqlOptimize.class, R(D, D, D, D, D, D, E));
 
     REWRITE_RULES = ImmutableMap.copyOf(rules);
   }

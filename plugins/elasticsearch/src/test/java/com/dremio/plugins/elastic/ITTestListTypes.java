@@ -24,8 +24,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
@@ -35,8 +33,6 @@ import com.dremio.plugins.elastic.ElasticsearchCluster.SearchResults;
  * Tests variation in data types within the same field.
  */
 public class ITTestListTypes extends ElasticBaseTestQuery {
-
-  private static final Logger logger = LoggerFactory.getLogger(ITTestElasticsearchDataVariation.class);
 
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);

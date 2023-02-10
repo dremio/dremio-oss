@@ -219,11 +219,13 @@ public class TestProfileMerger {
     CoordExecRPC.NodePhaseStatus node1Phase0 = CoordExecRPC.NodePhaseStatus.newBuilder()
       .setMajorFragmentId(0)
       .setMaxMemoryUsed(10)
+      .setPhaseWeight(1)
       .build();
 
     CoordExecRPC.NodePhaseStatus node1Phase1 = CoordExecRPC.NodePhaseStatus.newBuilder()
       .setMajorFragmentId(1)
       .setMaxMemoryUsed(11)
+      .setPhaseWeight(2)
       .build();
 
     CoordExecRPC.FragmentStatus node1Frag0 = CoordExecRPC.FragmentStatus.newBuilder()
@@ -256,11 +258,13 @@ public class TestProfileMerger {
     CoordExecRPC.NodePhaseStatus node2Phase0 = CoordExecRPC.NodePhaseStatus.newBuilder()
       .setMajorFragmentId(0)
       .setMaxMemoryUsed(20)
+      .setPhaseWeight(1)
       .build();
 
     CoordExecRPC.NodePhaseStatus node2Phase1 = CoordExecRPC.NodePhaseStatus.newBuilder()
       .setMajorFragmentId(1)
       .setMaxMemoryUsed(21)
+      .setPhaseWeight(2)
       .build();
 
     CoordExecRPC.FragmentStatus node2Frag0 = CoordExecRPC.FragmentStatus.newBuilder()
@@ -328,6 +332,7 @@ public class TestProfileMerger {
             )
             .addMinorFragmentProfile(node1Frag0.getProfile())
             .addMinorFragmentProfile(node2Frag0.getProfile())
+            .setPhaseWeight(1)
             .build()
         )
         .addFragmentProfile(
@@ -347,6 +352,7 @@ public class TestProfileMerger {
             )
             .addMinorFragmentProfile(node1Frag1.getProfile())
             .addMinorFragmentProfile(node2Frag1.getProfile())
+            .setPhaseWeight(2)
             .build()
         )
         .setTotalFragments(4)

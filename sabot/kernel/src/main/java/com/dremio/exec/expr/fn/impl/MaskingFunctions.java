@@ -210,7 +210,7 @@ public class MaskingFunctions {
     @Override
     public void eval() {
       charSequenceWrapper.setBuffer(text.start, text.end, text.buffer);
-      byte[] b = transformer.transform(charSequenceWrapper).getBytes(java.nio.charset.Charset.forName("UTF-8"));
+      byte[] b = transformer.transform(charSequenceWrapper).getBytes(java.nio.charset.StandardCharsets.UTF_8);
       buffer = buffer.reallocIfNeeded(b.length);
       buffer.setBytes(0, b);
       out.buffer = buffer;

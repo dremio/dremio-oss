@@ -22,7 +22,6 @@ import com.dremio.proto.model.attempts.AttemptReason;
  * Re-attempt handler that doesn't support re-attempts
  */
 class NoReAttemptHandler implements ReAttemptHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReAttemptHandler.class);
 
   @Override
   public void newAttempt() {}

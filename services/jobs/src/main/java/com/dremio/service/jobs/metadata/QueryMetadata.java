@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -41,6 +42,8 @@ import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.logical.TableModifyRel;
+import com.dremio.exec.planner.logical.TableOptimizeRel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
@@ -62,7 +65,6 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -114,15 +116,15 @@ public class QueryMetadata {
   ) {
     this.rowType = rowType;
 
-    this.ancestors = Optional.fromNullable(ancestors);
-    this.fieldOrigins = Optional.fromNullable(fieldOrigins);
-    this.joins = Optional.fromNullable(joins);
-    this.parents = Optional.fromNullable(parents);
-    this.sqlNode = Optional.fromNullable(sqlNode);
-    this.grandParents = Optional.fromNullable(grandParents);
-    this.cost = Optional.fromNullable(cost);
-    this.planningSet = Optional.fromNullable(planningSet);
-    this.batchSchema = Optional.fromNullable(batchSchema);
+    this.ancestors = Optional.ofNullable(ancestors);
+    this.fieldOrigins = Optional.ofNullable(fieldOrigins);
+    this.joins = Optional.ofNullable(joins);
+    this.parents = Optional.ofNullable(parents);
+    this.sqlNode = Optional.ofNullable(sqlNode);
+    this.grandParents = Optional.ofNullable(grandParents);
+    this.cost = Optional.ofNullable(cost);
+    this.planningSet = Optional.ofNullable(planningSet);
+    this.batchSchema = Optional.ofNullable(batchSchema);
     this.scanPaths = scanPaths;
     this.querySql = querySql;
     this.queryContext = queryContext;
@@ -133,7 +135,7 @@ public class QueryMetadata {
   @VisibleForTesting
   public Optional<List<String>> getReferredTables() {
     if (!ancestors.isPresent()) {
-      return Optional.absent();
+      return Optional.empty();
     }
     Set<String> tableNames = new HashSet<>();
     for (SqlIdentifier id : ancestors.get()) {
@@ -636,14 +638,27 @@ public class QueryMetadata {
 
       @Override
       public RelNode visit(RelNode other) {
+
         if (other instanceof WriterRel) {
           final NamespaceKey namespaceKey = ((WriterRel) other).getCreateTableEntry().getDatasetPath();
-          final String sourceName = namespaceKey.getRoot();
-          if (!sourceName.equals(jobResultsSourceName)) {
-            sinkPath = namespaceKey.getPathComponents();
-          }
+          setSinkPath(namespaceKey);
+        }
+        if (other instanceof TableModifyRel) {
+          final NamespaceKey namespaceKey = ((TableModifyRel) other).getCreateTableEntry().getDatasetPath();
+          setSinkPath(namespaceKey);
+        }
+        if (other instanceof TableOptimizeRel) {
+          final NamespaceKey namespaceKey = ((TableOptimizeRel) other).getCreateTableEntry().getDatasetPath();
+          setSinkPath(namespaceKey);
         }
         return super.visit(other);
+      }
+
+      private void setSinkPath(NamespaceKey namespaceKey) {
+        final String sourceName = namespaceKey.getRoot();
+        if (!sourceName.equals(jobResultsSourceName)) {
+          sinkPath = namespaceKey.getPathComponents();
+        }
       }
     }
 

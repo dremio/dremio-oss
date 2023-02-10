@@ -93,6 +93,7 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
   /*
    * Only one of {@param request} or {@param requestWrapper} should be non-null
    */
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private void onNextHandler(JobResultsRequest request,
                              JobResultsRequestWrapper requestWrapper,
                              Pointer<String> queryId,
@@ -146,6 +147,7 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
     }
   }
 
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   private void onErrorHandler(String queryId, Throwable t, StreamObserver<JobResultsResponse> responseObserver) {
     logger.error("JobResultsService stream failed with error ", t);
     forwarder.get().resultsError(queryId, t);

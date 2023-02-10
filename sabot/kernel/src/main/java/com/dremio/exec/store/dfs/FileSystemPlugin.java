@@ -50,6 +50,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.TableOperations;
 
 import com.dremio.cache.AuthorizationCacheException;
@@ -85,9 +86,11 @@ import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
+import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFile;
 import com.dremio.exec.dotfile.DotFileType;
@@ -210,6 +213,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
    * of {@link Configuration} objects.
    */
   private static final Configuration DEFAULT_CONFIGURATION = new Configuration();
+  static {
+    DEFAULT_CONFIGURATION.set(HadoopFileSystem.HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, HadoopFileSystem.DREMIO_CREDENTIAL_PROVIDER_PATH);
+  }
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSystemPlugin.class);
 
@@ -320,7 +326,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       if (oldConfig != null) {
         e.addDatasetPath(oldConfig.getFullPathList());
       }
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+      throw UserException.unsupportedError(e).message(e.getMessage()).build(logger);
     }
   }
 
@@ -385,7 +391,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public void runRefreshQuery(String refreshQuery, String user) throws Exception {
-    context.getJobsRunner().get().runQueryAsJob(refreshQuery, user, QUERY_TYPE_METADATA_REFRESH);
+    context.getJobsRunner().get().runQueryAsJob(refreshQuery, user, QUERY_TYPE_METADATA_REFRESH, null);
   }
 
   @Override
@@ -1229,6 +1235,28 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     icebergModel.truncateTable(icebergModel.getTableIdentifier(validateAndGetPath(key, schemaConfig.getUserName()).toString()));
   }
 
+  @Override
+  public void rollbackTable(NamespaceKey tableSchemaPath,
+                            DatasetConfig datasetConfig,
+                            SchemaConfig schemaConfig,
+                            RollbackOption rollbackOption,
+                            TableMutationOptions tableMutationOptions) {
+    IcebergModel icebergModel = getIcebergModel();
+    icebergModel.rollbackTable(
+      icebergModel.getTableIdentifier(validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()), rollbackOption);
+  }
+
+  @Override
+  public void vacuumTable(NamespaceKey tableSchemaPath,
+                          DatasetConfig datasetConfig,
+                          SchemaConfig schemaConfig,
+                          VacuumOption vacuumOption,
+                          TableMutationOptions tableMutationOptions) {
+    IcebergModel icebergModel = getIcebergModel();
+    icebergModel.vacuumTable(
+      icebergModel.getTableIdentifier(validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()), vacuumOption);
+  }
+
   public void deleteIcebergTableRootPointer(String userName, Path icebergTablePath) {
 
     FileSystem fs;
@@ -1592,11 +1620,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
 
     IcebergModel icebergModel = getIcebergModel();
-
+    PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+        .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName,
             icebergModel.getTableIdentifier(path.toString()), batchSchema,
-            writerOptions.getPartitionColumns(), null,
-            writerOptions.getDeserializedPartitionSpec());
+            writerOptions.getPartitionColumns(), null, partitionSpec);
     icebergOpCommitter.commit();
   }
 

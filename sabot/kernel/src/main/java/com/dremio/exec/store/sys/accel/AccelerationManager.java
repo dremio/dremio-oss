@@ -17,14 +17,9 @@ package com.dremio.exec.store.sys.accel;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.ops.ReflectionContext;
 
 public interface AccelerationManager {
-  Logger logger = LoggerFactory.getLogger(AccelerationManager.class);
-
   void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound);
   void addLayout(List<String> path, LayoutDefinition definition, ReflectionContext reflectionContext);
   void addExternalReflection(String name, List<String> table, List<String> targetTable, ReflectionContext reflectionContext);

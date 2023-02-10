@@ -278,7 +278,7 @@ public class ParquetTypeHelper {
 
     final boolean isStructType = complexField.getOriginalType() == null || convertToStruct;
     if (isStructType) { // it is struct
-      return toComplexField(complexField, new ArrowType.Struct(), schemaHelper, convertToStruct);
+      return toComplexField(complexField, new ArrowType.Struct(), schemaHelper, convertToStruct, isNullable);
     }
 
     // Unsupported complex type
@@ -287,21 +287,16 @@ public class ParquetTypeHelper {
 
   private static boolean isEligibleForMap(SchemaDerivationHelper schemaHelper, GroupType repeatedField) {
     if (schemaHelper.isMapDataTypeEnabled()) {
-      boolean isEligible = true;
-      if (repeatedField.getType(0).getOriginalType() != OriginalType.UTF8) {
-        isEligible = false;
-        logger.debug(String.format(" Key of map Field %s is not of VarChar (String) type or is a Complex Type", repeatedField.getName()));
+      if (!repeatedField.getType(0).isPrimitive()) {
+        logger.debug(String.format(" Key of map Field %s is a Complex Type", repeatedField.getName()));
+        return false;
       }
-      if (!repeatedField.getType(1).isPrimitive()) {
-        isEligible = false;
-        logger.debug(String.format(" Value of map Field %s is a Complex Type",repeatedField.getName()));
-      }
-      return isEligible;
+      return true;
     }
     return false;
   }
 
-  private static Optional<Field> toComplexField(GroupType complexField, ArrowType arrowType, SchemaDerivationHelper schemaHelper, boolean convertToStruct) {
+  private static Optional<Field> toComplexField(GroupType complexField, ArrowType arrowType, SchemaDerivationHelper schemaHelper, boolean convertToStruct, boolean isNullable) {
     List<Field> subFields = new ArrayList<>(complexField.getFieldCount());
     for (int fieldIdx = 0; fieldIdx < complexField.getFieldCount(); fieldIdx++) {
       Optional<Field> subField = toField(complexField.getType(fieldIdx), schemaHelper);
@@ -311,7 +306,7 @@ public class ParquetTypeHelper {
         subFields.add(subField.get());
       }
     }
-    Field field = new Field(complexField.getName(), new FieldType(true, arrowType, null), subFields);
+    Field field = new Field(complexField.getName(), new FieldType(isNullable, arrowType, null), subFields);
     if (complexField.isRepetition(REPEATED)
       && !convertToStruct
       && OriginalType.MAP_KEY_VALUE != complexField.getOriginalType()

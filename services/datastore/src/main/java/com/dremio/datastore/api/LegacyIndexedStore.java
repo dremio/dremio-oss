@@ -76,6 +76,7 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
     private int limit = Integer.MAX_VALUE;
     private int offset = 0;
     private final List<SearchFieldSorting> sort = new ArrayList<>();
+    private boolean keySortRequired = true;
 
     public LegacyFindByCondition() {
     }
@@ -98,6 +99,15 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
     public LegacyFindByCondition addSorting(SearchFieldSorting sorting) {
       this.sort.add(sorting);
       return this;
+    }
+
+    public LegacyFindByCondition setKeySortRequired(boolean keySort) {
+      this.keySortRequired = keySort;
+      return this;
+    }
+
+    public boolean isKeySortRequired() {
+      return keySortRequired;
     }
 
     public LegacyFindByCondition addSortings(Collection<SearchFieldSorting> sort) {

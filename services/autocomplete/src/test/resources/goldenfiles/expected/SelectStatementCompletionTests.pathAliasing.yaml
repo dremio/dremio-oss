@@ -25,16 +25,16 @@
       label: "WHERE"
      -
       kind: "Keyword"
+      label: "."
+     -
+      kind: "Keyword"
+      label: "MATCH_RECOGNIZE"
+     -
+      kind: "Keyword"
       label: "JOIN"
      -
       kind: "Keyword"
       label: "ORDER"
-     -
-      kind: "Keyword"
-      label: ","
-     -
-      kind: "Keyword"
-      label: "NATURAL"
     functionContext: null
     hasMoreResults: true
  -
@@ -52,5 +52,8 @@
      -
       kind: "Keyword"
       label: "EXCEPT"
+     -
+      kind: "Keyword"
+      label: "EXTEND"
     functionContext: null
     hasMoreResults: false

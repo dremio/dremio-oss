@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import classNames from "classnames";
+import classNames from "clsx";
 import { Tooltip } from "dremio-ui-lib";
 import {
   title as titleInnerCls,

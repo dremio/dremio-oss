@@ -43,10 +43,10 @@ import java.util.stream.IntStream;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.types.Types;
 import org.junit.Test;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.ExecProtos.CompositeColumnFilter;
 import com.dremio.exec.proto.ExecProtos.RuntimeFilter;
 import com.dremio.exec.util.RuntimeFilterManager.RuntimeFilterManagerEntry;

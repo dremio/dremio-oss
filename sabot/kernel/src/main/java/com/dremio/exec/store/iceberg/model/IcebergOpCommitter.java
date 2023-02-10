@@ -25,16 +25,27 @@ import org.apache.iceberg.Snapshot;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
 import com.google.protobuf.ByteString;
 
 /**
  * Implementations of this interface commit an iceberg transaction
  */
 public interface IcebergOpCommitter {
-  static final String CONCURRENT_DML_OPERATION_ERROR = "Concurrent DML operation has updated the table, please retry.";
+  String CONCURRENT_DML_OPERATION_ERROR = "Concurrent DML operation has updated the table, please retry.";
 
   /**
    * Commits the Iceberg operation
+   * @Param Access to output handler, for cases when committer wants to write custom output
+   * @return new Snapshot that gets created as part of commit operation
+   */
+  default Snapshot commit(WriterCommitterOutputHandler outputHandler) {
+    return commit();
+  }
+
+  /**
+   * Commits the Iceberg operation
+   * @Param outgoing Access to outgoing container in case committer wants to write custom output
    * @return new Snapshot that gets created as part of commit operation
    */
   Snapshot commit();
@@ -58,6 +69,17 @@ public interface IcebergOpCommitter {
    * @param manifestFile ManifestFile instance to include in table
    */
   void consumeManifestFile(ManifestFile manifestFile);
+
+  /**
+   * Stores the data file instance to include during the rewrite operation.
+   * Consuming data files is not supported where consuming manifests are possible.
+   *
+   * @param addDataFile
+   * @throws UnsupportedOperationException
+   */
+  default void consumeAddDataFile(DataFile addDataFile) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Stores the new schema to use during commit operation

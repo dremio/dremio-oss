@@ -24,7 +24,8 @@ import SQL from "@app/pages/JobDetailsPageNew/components/SQLTab/SQLTab.js";
 import JobStateIcon from "@app/pages/JobPage/components/JobStateIcon";
 import Profile from "@app/pages/JobDetailsPageNew/components/Profile/Profile.js";
 import timeUtils from "./timeUtils";
-import * as PATHS from "@app/exports/paths";
+import * as jobPaths from "dremio-ui-common/paths/jobs.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 // see AttemptEvent.State
 export const JobState = {
@@ -335,39 +336,25 @@ export class JobsUtils {
   }
 
   navigationURLForJobId({ id, createFullUrl, windowLocationSearch }) {
-    const url = `${PATHS.job(encodeURIComponent(id))}${windowLocationSearch}`;
+    const projectId = getSonarContext().getSelectedProjectId?.();
+    const url = `${jobPaths.job.link({
+      jobId: id,
+      projectId,
+    })}${windowLocationSearch}`;
     return createFullUrl ? window.location.origin + url : url;
   }
 
   navigationURLForLayoutId(id, createFullUrl) {
     let url;
-
-    if (!localStorageUtils.getUserData().admin) {
-      url = `/jobs/reflection/${id}`;
+    const projectId = getSonarContext()?.getSelectedProjectId?.();
+    if (!localStorageUtils.getUserData()?.admin) {
+      url = jobPaths.reflection.link({ projectId, reflectionId: id });
     } else {
-      url = `/jobs?filters=${encodeURIComponent(
+      url = `${jobPaths.jobs.link({ projectId })}?filters=${encodeURIComponent(
         JSON.stringify({ contains: [id] })
       )}`;
     }
     return createFullUrl ? window.location.origin + url : url;
-  }
-
-  parseUrlForJobsPageVersion() {
-    // This isn't presently used but was built for the possible issue of having to rediect a url to the old or new jobs page so the user can still view an individual job
-    const parseForOldJobs = window.location.href.split("/job/");
-    const parseForNewJobs = window.location.href.split("#");
-    const isUrlForNewJobsPage = parseForNewJobs.length > parseForOldJobs.length;
-    const result = {
-      pathname: isUrlForNewJobsPage
-        ? PATHS.job({ jobId: parseForNewJobs[1] })
-        : "/jobs",
-      search: isUrlForNewJobsPage
-        ? null
-        : '?filters=%7B"qt"%3A%5B"UI"%2C"EXTERNAL"%5D%7D&order=DESCENDING&sort=st',
-      hash: isUrlForNewJobsPage ? null : `#${parseForOldJobs[1]}`,
-      isUrlForNewJobsPage,
-    };
-    return result;
   }
 
   getReflectionsByRelationship(jobDetails) {

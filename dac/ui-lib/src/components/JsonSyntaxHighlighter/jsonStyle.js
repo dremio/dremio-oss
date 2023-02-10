@@ -22,18 +22,20 @@ export default {
     lineHeight: "20px",
     background: "#white",
     color: "#202124",
-    fontFamily: "Arial",
+    fontFamily: "var(--dremio--font-family--monospace)",
     fontSize: "14px",
-    fontWeight: "300!important",
+    fontWeight: "400",
+    fontFeatureSettings: '"zero" on',
   },
   "hljs-attr": {
-    fontWeight: "300!important",
+    fontWeight: "400",
     color: "#202124",
-    fontFamily: "Arial",
+    fontFamily: "var(--dremio--font-family--monospace)",
   },
   "hljs-code": {
-    fontFamily: "Arial!important",
+    fontFamily: "var(--dremio--font-family--monospace)",
     fontStyle: "italic",
+    fontWeight: "400",
   },
   "hljs-emphasis": {
     fontStyle: "italic",
@@ -54,8 +56,8 @@ export default {
     color: "#ade5fc",
   },
   "hljs-string": {
-    color: "#43B8C9",
-    fontFamily: "Arial",
+    color: "#077d82",
+    fontFamily: "var(--dremio--font-family--monospace)",
   },
   "hljs-bullet": {
     color: "#d36363",
@@ -71,7 +73,7 @@ export default {
   },
   "hljs-attribute": {
     color: "#ffa",
-    fontFamily: "Arial!important",
+    fontFamily: "var(--dremio--font-family--monospace)",
   },
   "hljs-quote": {
     color: "#ffa",

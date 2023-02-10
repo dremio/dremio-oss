@@ -13,14 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createContext } from "react";
+import { createContext, createElement, useContext } from "react";
 
 type ContextType = {
   sourceType: string | null;
   editing: boolean;
+  change: (fieldName: string, fieldValue: any) => void;
 };
 
 export const FormContext = createContext({
   sourceType: null,
   editing: false,
+  change: () => {},
 } as ContextType);
+
+// Use to add formContext to a Class component
+export const withFormContext = (Comp: any) => (props: any) => {
+  return createElement(Comp, {
+    ...props,
+    formContext: useContext(FormContext),
+  });
+};

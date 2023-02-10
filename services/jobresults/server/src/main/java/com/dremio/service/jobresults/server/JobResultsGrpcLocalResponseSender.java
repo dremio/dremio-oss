@@ -48,6 +48,7 @@ class JobResultsGrpcLocalResponseSender implements ResponseSender {
   }
 
   @Override
+  @SuppressWarnings("DremioGRPCStreamObserverOnError")
   public void sendFailure(UserRpcException e) {
     if (sentFailure.compareAndSet(false, true)) {
       logger.error("JobResultsService stream failed with error from result forwarder for queryId {}", queryId, e);

@@ -46,6 +46,7 @@ public class OpProps {
   // this is currently mutable but should ultimately become immutable.
   private long memLimit;
   private long memReserve;
+  private long forcedMemLimit;
 
   public OpProps(
     int operatorId,
@@ -60,12 +61,31 @@ public class OpProps {
     boolean memoryBound,
     double memoryFactor,
     boolean memoryExpensive) {
+    this(operatorId, userName, memReserve, memLimit, memLowLimit, 0, cost, singleStream,
+      targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+  }
+
+  public OpProps(
+    int operatorId,
+    String userName,
+    long memReserve,
+    long memLimit,
+    long memLowLimit,
+    long forcedMemLimit,
+    double cost,
+    boolean singleStream,
+    int targetBatchSize,
+    BatchSchema schema,
+    boolean memoryBound,
+    double memoryFactor,
+    boolean memoryExpensive) {
     super();
     this.operatorId = operatorId;
     this.userName = userName;
     this.memReserve = memReserve;
     this.memLimit = memLimit;
     this.memLowLimit = memLowLimit;
+    this.forcedMemLimit = forcedMemLimit;
     this.cost = cost;
     this.singleStream = singleStream;
     this.targetBatchSize = targetBatchSize;
@@ -92,6 +112,7 @@ public class OpProps {
     this.memReserve = memReserve;
     this.memLimit = memLimit;
     this.memLowLimit = 0;
+    this.forcedMemLimit = 0;
     this.cost = cost;
     this.singleStream = singleStream;
     this.targetBatchSize = targetBatchSize;
@@ -116,6 +137,10 @@ public class OpProps {
 
   public long getMemLimit() {
     return memLimit;
+  }
+
+  public long getForcedMemLimit() {
+    return forcedMemLimit;
   }
 
   @JsonIgnore
@@ -197,27 +222,33 @@ public class OpProps {
   }
 
   public OpProps cloneWithNewReserve(long newReserve) {
-    return new OpProps(operatorId, userName, newReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(operatorId, userName, newReserve, memLimit, memLowLimit, forcedMemLimit, cost,
+      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
   }
 
   public OpProps cloneWithMemoryFactor(double memoryFactor) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
+      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
   }
 
   public OpProps cloneWithBound(boolean bounded) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, bounded, memoryFactor, memoryExpensive);
+    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
+      singleStream, targetBatchSize, schema, bounded, memoryFactor, memoryExpensive);
   }
 
   public OpProps cloneWithMemoryExpensive(boolean memExpensive) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memExpensive);
+    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
+      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memExpensive);
   }
 
   public OpProps cloneWithNewBatchSize(int targetBatchSize) {
-    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
+      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
   }
 
   public OpProps cloneWithNewIdAndSchema(int id, BatchSchema schema) {
-    return new OpProps(id, userName, memReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+    return new OpProps(id, userName, memReserve, memLimit, memLowLimit, forcedMemLimit, cost,
+      singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
   }
 
   public static OpProps prototype(int operatorId, long reserve, long limit) {

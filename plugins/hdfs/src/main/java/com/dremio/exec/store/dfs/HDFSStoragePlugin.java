@@ -17,6 +17,7 @@ package com.dremio.exec.store.dfs;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Provider;
 
@@ -24,7 +25,6 @@ import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
-import com.google.common.base.Optional;
 
 /**
  * HDFS Storage plugin
@@ -68,7 +68,7 @@ public class HDFSStoragePlugin extends FileSystemPlugin<HDFSConf> implements Sup
     case ENABLED:
       result.add(new Property(HDFS_READ_SHORTCIRCUIT_KEY, "true"));
       result.add(new Property(HDFS_DFS_DOMAIN_SOCKET_PATH_KEY,
-          Optional.fromNullable(hdfsConf.getShortCircuitSocketPath()).or("")));
+          Optional.ofNullable(hdfsConf.getShortCircuitSocketPath()).orElse("")));
       break;
     default:
       throw new AssertionError("Unknown enum value: " + hdfsConf.getShortCircuitFlag());

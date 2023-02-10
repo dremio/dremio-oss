@@ -16,17 +16,17 @@
 import { Component } from "react";
 
 import PropTypes from "prop-types";
-import Immutable from "immutable";
 
 import { ModalForm, FormBody, modalFormProps } from "components/Forms";
 import { FieldWithError, TextField } from "components/Fields";
 import { applyValidators, isRequired } from "utils/validation";
 import { getInitialResourceLocation, constructFullPath } from "utils/pathUtils";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
-import DependantDatasetsWarning from "components/Modals/components/DependantDatasetsWarning";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import Message from "components/Message";
 import { formRow, label } from "uiTheme/radium/forms";
+
+import * as classes from "./SaveAsDatasetForm.module.less";
 
 export const FIELDS = ["name", "location", "reapply"];
 
@@ -80,32 +80,6 @@ export class SaveAsDatasetForm extends Component {
     }
   };
 
-  renderWarning() {
-    const { dependentDatasets } = this.props;
-
-    if (dependentDatasets && dependentDatasets.length > 0) {
-      const messageObj = new Immutable.Map({
-        message: la(
-          `Changing the name of this dataset will disconnect ${dependentDatasets.length} dependent datasets. Make a copy to preserve these connections.`
-        ),
-        moreInfo: (
-          <DependantDatasetsWarning dependantDatasets={dependentDatasets} />
-        ),
-      });
-
-      return (
-        <Message
-          messageType="warning"
-          message={messageObj}
-          detailsStyle={{ padding: "2px 38px 0px 38px" }}
-          isDismissable={false}
-        />
-      );
-    }
-
-    return null;
-  }
-
   renderHistoryWarning() {
     const { version, tipVersion } = this.context.location.query;
     if (tipVersion && tipVersion !== version) {
@@ -145,11 +119,14 @@ export class SaveAsDatasetForm extends Component {
         {...modalFormProps(this.props)}
         {...(preventSubmit && { canSubmit: false })}
         onSubmit={handleSubmit(onFormSubmit)}
-        wrapperStyle={{ height: "auto" }}
+        wrapperStyle={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
-        {this.renderWarning()}
         {this.renderHistoryWarning()}
-        <FormBody>
+        <FormBody className={classes["form-body"]}>
           {message && <div style={formRow}>{message}</div>}
           <div style={formRow}>
             <FieldWithError label="Name" {...name}>
@@ -160,10 +137,11 @@ export class SaveAsDatasetForm extends Component {
               />
             </FieldWithError>
           </div>
-          <div style={formRow}>
+          <div className={classes["tree-container"]}>
             <label style={label}>Location</label>
             <ResourceTreeContainer
-              stopAtDatasets
+              className={classes["resource-tree"]}
+              hideDatasets
               onChange={this.handleChangeSelectedNode}
               preselectedNodeId={location.initialValue}
               fromModal

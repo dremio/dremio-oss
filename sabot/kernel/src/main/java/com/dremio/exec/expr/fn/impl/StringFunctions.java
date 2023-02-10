@@ -274,7 +274,7 @@ public class StringFunctions{
           result = matcher.find();
         } while (result);
         matcher.appendTail(sb);
-        final byte [] bytea = sb.toString().getBytes(java.nio.charset.Charset.forName("UTF-8"));
+        final byte [] bytea = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         out.buffer = buffer = buffer.reallocIfNeeded(bytea.length);
         out.buffer.setBytes(out.start, bytea);
         out.end = bytea.length;
@@ -560,7 +560,7 @@ public class StringFunctions{
       out.end = input.end - input.start;
 
       final String toLower = (com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(input.start, input.end, input.buffer)).toLowerCase();
-      final byte[] outBytea = toLower.getBytes(com.google.common.base.Charsets.UTF_8);
+      final byte[] outBytea = toLower.getBytes(java.nio.charset.StandardCharsets.UTF_8);
       out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
       out.buffer.setBytes(0, outBytea);
       out.start = 0;
@@ -589,7 +589,7 @@ public class StringFunctions{
       out.end = input.end - input.start;
 
       final String toUpper = (com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(input.start, input.end, input.buffer)).toUpperCase();
-      final byte[] outBytea = toUpper.getBytes(com.google.common.base.Charsets.UTF_8);
+      final byte[] outBytea = toUpper.getBytes(java.nio.charset.StandardCharsets.UTF_8);
       out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
       out.buffer.setBytes(0, outBytea);
       out.start = 0;
@@ -1503,7 +1503,7 @@ public class StringFunctions{
 
     @Override
     public void setup() {
-      charset = java.nio.charset.Charset.forName("UTF-8");
+      charset = java.nio.charset.StandardCharsets.UTF_8;
     }
 
     @Override
@@ -1532,7 +1532,7 @@ public class StringFunctions{
 
     @Override
     public void setup() {
-      charset = java.nio.charset.Charset.forName("UTF-8");
+      charset = java.nio.charset.StandardCharsets.UTF_8;
     }
 
     @Override
@@ -1640,7 +1640,7 @@ public class StringFunctions{
       for (int i = in.start; i < in.end; i++, index++) {
         bytea[index] = in.buffer.getByte(i);
       }
-      final byte[] outBytea = new String(bytea, inCharset).getBytes(com.google.common.base.Charsets.UTF_8);
+      final byte[] outBytea = new String(bytea, inCharset).getBytes(java.nio.charset.StandardCharsets.UTF_8);
       out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
       out.buffer.setBytes(0, outBytea);
       out.start = 0;

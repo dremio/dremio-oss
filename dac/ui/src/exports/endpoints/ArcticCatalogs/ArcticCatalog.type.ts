@@ -19,12 +19,13 @@ export type ArcticCatalogResponse = {
   id: string;
   name: string;
   createdBy: string;
-  owner: string;
+  ownerId: string;
+  ownerName: string;
   modifiedBy: string;
   createdAt: string;
   modifiedAt: string;
-  nessieEndpoint: string;
   state: "ACTIVE";
+  nessieEndpoint: string;
 };
 
 // Transformed for usage in the UI

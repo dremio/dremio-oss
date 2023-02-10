@@ -144,6 +144,26 @@ public class TestS3FileSystem {
   }
 
   @Test
+  public void testS3ForbiddenMessage() {
+    TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
+    AmazonS3Exception accessDenied = new AmazonS3Exception("Access Denied");
+    accessDenied.setErrorCode("AccessDenied");
+    accessDenied.setStatusCode(403);
+    String accessDeniedMessage = fs.translateForbiddenMessage("testBucket", accessDenied);
+    Assert.assertTrue(accessDeniedMessage.contains("Access Denied"));
+    AmazonS3Exception accountProblem = new AmazonS3Exception("There is a problem with your AWS account that prevents the operation from completing successfully");
+    accountProblem.setErrorCode("AccountProblem");
+    accountProblem.setStatusCode(403);
+    String accountProblemMessage = fs.translateForbiddenMessage("testBucket", accountProblem);
+    Assert.assertTrue(accountProblemMessage.contains("There is a problem with your AWS account"));
+    AmazonS3Exception aclError = new AmazonS3Exception("The bucket does not allow ACLs");
+    aclError.setErrorCode("AccessControlListNotSupported");
+    aclError.setStatusCode(400);
+    String aclErrorMessage = fs.translateForbiddenMessage("testBucket", aclError);
+    Assert.assertTrue(aclErrorMessage.contains("The bucket does not allow ACLs"));
+  }
+
+  @Test
   public void testVerifyCredentialsRetry() {
     StsClient mockedClient = mock(StsClient.class);
     StsClientBuilder mockedClientBuilder = mock(StsClientBuilder.class);

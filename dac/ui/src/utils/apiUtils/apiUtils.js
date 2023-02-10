@@ -86,6 +86,18 @@ class ApiUtils {
     ];
   }
 
+  getFromNewQueryResponse(response) {
+    const payload = response.payload;
+
+    return {
+      datasetPath: payload.datasetPath,
+      datasetVersion: payload.datasetVersion,
+      jobId: payload.jobId?.id,
+      paginationUrl: payload.paginationUrl,
+      sessionId: payload.sessionId?.id,
+    };
+  }
+
   parseErrorsToObject(response) {
     const errorFields = {};
     if (

@@ -16,37 +16,30 @@
 
 import { useEffect } from "react";
 import { useResourceSnapshot } from "smart-resource/react";
-import { FeaturesFlagsResource } from "../resources/FeaturesFlagsResource";
+import {
+  FeaturesFlagsResource,
+  loadFeatureFlags,
+} from "../resources/FeaturesFlagsResource";
 import { type Flag } from "../flags/Flag.type";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 export const useFeatureFlag = (
   flag: Flag
 ): [result: boolean | null, loading: boolean] => {
   const [features] = useResourceSnapshot(FeaturesFlagsResource);
-
-  const isArray = Array.isArray(flag);
+  const isOSS = !getSonarContext()?.getSelectedProjectId;
 
   useEffect(() => {
-    if (isArray) {
-      flag.forEach((feature) => {
-        FeaturesFlagsResource.fetch(feature);
-      });
-    } else {
-      FeaturesFlagsResource.fetch(flag);
-    }
-  }, [flag, isArray]);
+    loadFeatureFlags(flag);
+  }, [flag]);
 
-  if (isArray) {
-    const loading =
-      features === null || !flag.some((feature) => features.has(feature));
+  if (isOSS) return [false, false];
 
-    const result = !loading && flag.every((feature) => features.get(feature));
+  const flags = Array.isArray(flag) ? flag : [flag];
 
-    return [result, loading];
-  }
-
-  const loading = features === null || !features.has(flag);
-  const result = !loading && !!features.get(flag);
+  const loading =
+    features === null || flags.some((flag) => !features.has(flag));
+  const result = !loading && flags.every((flag) => features.get(flag));
 
   return [result, loading];
 };

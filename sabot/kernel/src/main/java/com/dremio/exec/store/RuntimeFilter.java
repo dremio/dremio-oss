@@ -47,7 +47,7 @@ import com.dremio.sabot.exec.context.OperatorStats;
  * The CompositeColumnFilter fields hold the deserialized bloom filter.
  */
 public class RuntimeFilter implements AutoCloseable {
-  private static Logger logger = LoggerFactory.getLogger(RuntimeFilter.class);
+  private static final Logger logger = LoggerFactory.getLogger(RuntimeFilter.class);
   private CompositeColumnFilter partitionColumnFilter;
   private List<CompositeColumnFilter> nonPartitionColumnFilters;
   private String senderInfo;

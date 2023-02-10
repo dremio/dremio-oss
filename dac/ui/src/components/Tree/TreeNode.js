@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import classNames from "classnames";
+import classNames from "clsx";
 import { intl } from "@app/utils/intl";
 import { DATASET_TYPES_TO_ICON_TYPES } from "@app/constants/datasetTypes";
 import { clearResourceTreeByName as clearResourceTreeByNameAction } from "@app/actions/resources/tree";

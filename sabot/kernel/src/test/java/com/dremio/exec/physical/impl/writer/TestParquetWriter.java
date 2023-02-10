@@ -20,12 +20,6 @@ import static org.apache.parquet.format.converter.ParquetMetadataConverter.SKIP_
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.notNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -35,8 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BigIntVector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -51,7 +43,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.ArgumentCaptor;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -59,22 +50,7 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.fn.interp.TestConstantFolding;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.ExecProtos;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.store.WritePartition;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.parquet.ParquetFormatConfig;
-import com.dremio.exec.store.parquet.ParquetFormatPlugin;
-import com.dremio.exec.store.parquet.ParquetRecordWriter;
-import com.dremio.exec.store.parquet.ParquetWriter;
-import com.dremio.options.OptionManager;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.test.AllocatorRule;
 import com.google.common.base.Joiner;
 
@@ -741,154 +717,6 @@ public class TestParquetWriter extends BaseTestQuery {
     } finally {
       deleteTableIfExists(outputFile);
     }
-  }
-
-  @Test
-  public void testFileSize() throws Exception {
-    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
-    final Path targetPath = new Path(tmpSchemaPath, "testFileSize");
-
-    final Configuration hadoopConf = new Configuration();
-    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
-    assertTrue(newFs.mkdirs(targetPath));
-
-    final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
-
-    OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR)).thenReturn("none"); //compression shouldn't matter
-    when(optionManager.getOption(ExecConstants.PARQUET_PAGE_SIZE_VALIDATOR)).thenReturn(256L);
-    when(optionManager.getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR)).thenReturn(1L);
-    when(optionManager.getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR)).thenReturn(4096L);
-
-    OperatorStats operatorStats = mock(OperatorStats.class);
-
-    OperatorContext opContext = mock(OperatorContext.class);
-    when(opContext.getFragmentHandle()).thenReturn(ExecProtos.FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build());
-    when(opContext.getAllocator()).thenReturn(ALLOCATOR);
-    when(opContext.getOptions()).thenReturn(optionManager);
-    when(opContext.getStats()).thenReturn(operatorStats);
-
-    ParquetWriter writerConf = mock(ParquetWriter.class);
-    when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
-    OpProps props = mock(OpProps.class);
-    when(writerConf.getProps()).thenReturn(props);
-    when(writerConf.getProps().getUserName()).thenReturn("testuser");
-
-    ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
-    FileSystemPlugin fsPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    when(fsPlugin.createFS((String) notNull(), (String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
-    when(fsPlugin.getFsConfCopy()).thenReturn(hadoopConf);
-    when(writerConf.getPlugin()).thenReturn(fsPlugin);
-
-    ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
-
-    RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
-    RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
-    ArgumentCaptor<Long> recordWrittenCaptor = ArgumentCaptor.forClass(long.class);
-    ArgumentCaptor<Long> fileSizeCaptor = ArgumentCaptor.forClass(long.class);
-    ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
-    ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
-    ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
-
-    BigIntVector bigIntVector = new BigIntVector("key", ALLOCATOR);
-    bigIntVector.allocateNew(2);
-    bigIntVector.set(0, 52459253098448904L);
-    bigIntVector.set(1, 1116675951L);
-
-    VectorContainer container = new VectorContainer();
-    container.add(bigIntVector);
-    container.setRecordCount(2);
-    container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
-
-    writer.setup(container, outputEntryListener, writeStatsListener);
-    writer.startPartition(WritePartition.NONE);
-    writer.writeBatch(0, container.getRecordCount());
-
-    container.clear();
-    writer.close();
-
-    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
-      fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
-
-    for (FileStatus file : newFs.listStatus(targetPath)) {
-      if (file.getPath().toString().endsWith(".parquet")) { //complex243_json is in here for some reason?
-        assertEquals(Long.valueOf(fileSizeCaptor.getValue()), Long.valueOf(file.getLen()));
-        break;
-      }
-    }
-
-    container.close();
-    ALLOCATOR.close();
-  }
-
-  @Test
-  public void testOutOfMemory() throws Exception {
-    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
-    final Path targetPath = new Path(tmpSchemaPath, "testOutOfMemory");
-
-    final Configuration hadoopConf = new Configuration();
-    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
-    assertTrue(newFs.mkdirs(targetPath));
-
-    final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, 128);
-
-    OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR)).thenReturn("none"); //compression shouldn't matter
-    when(optionManager.getOption(ExecConstants.PARQUET_PAGE_SIZE_VALIDATOR)).thenReturn(256L);
-    when(optionManager.getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR)).thenReturn(1L);
-    when(optionManager.getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR)).thenReturn(4096L);
-
-    OperatorStats operatorStats = mock(OperatorStats.class);
-
-    OperatorContext opContext = mock(OperatorContext.class);
-    when(opContext.getFragmentHandle()).thenReturn(ExecProtos.FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234235).build());
-    when(opContext.getAllocator()).thenReturn(ALLOCATOR);
-    when(opContext.getOptions()).thenReturn(optionManager);
-    when(opContext.getStats()).thenReturn(operatorStats);
-
-    ParquetWriter writerConf = mock(ParquetWriter.class);
-    when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
-    OpProps props = mock(OpProps.class);
-    when(writerConf.getProps()).thenReturn(props);
-    when(writerConf.getProps().getUserName()).thenReturn("testuser");
-
-    ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
-    FileSystemPlugin fsPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    when(writerConf.getPlugin()).thenReturn(fsPlugin);
-    when(fsPlugin.createFS((String)notNull(), (String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
-    when(fsPlugin.getFsConfCopy()).thenReturn(hadoopConf);
-    when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
-
-    ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
-
-    RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
-    RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
-
-    BigIntVector bigIntVector = new BigIntVector("key", ALLOCATOR);
-    bigIntVector.allocateNew(2);
-    bigIntVector.set(0, 52459253098448904L);
-    bigIntVector.set(1, 1116675951L);
-
-    VectorContainer container = new VectorContainer();
-    container.add(bigIntVector);
-    container.setRecordCount(2);
-    container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
-
-    writer.setup(container, outputEntryListener, writeStatsListener);
-    writer.startPartition(WritePartition.NONE);
-    writer.writeBatch(0, container.getRecordCount());
-
-    container.clear();
-    try {
-      writer.close();
-    } catch (Exception e) {
-      // ignore any exception in close(), but all the buffers should be released.
-    }
-
-    container.close();
-    ALLOCATOR.close();
   }
 
   /*

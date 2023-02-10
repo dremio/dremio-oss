@@ -9,22 +9,46 @@ org.hamcrest.** @ Use org.assertj package instead (for example org.assertj.core.
 org.junit.rules.ExpectedException @ Use org.assertj.core.api.Assertions.assertThatThrownBy instead
 
 # Guava copies
+org.apache.iceberg.relocated.com.google.common.** @ Use com.google.common directly instead
 org.apache.arrow.util.Preconditions @ Use com.google.common.base.Preconditions instead
 org.apache.arrow.util.VisibleForTesting @ Use com.google.common.annotations.VisibleForTesting instead
 org.apache.parquet.Preconditions @ Use com.google.common.base.Preconditions instead
 org.apache.parquet.Strings @ Use com.google.common.base.Strings instead
+org.apache.hadoop.util.Preconditions @ Use com.google.common.base.Preconditions instead
+org.glassfish.jersey.internal.guava.** @ Use com.google.common directly instead
 
 # Mockito
 org.mockito.MockitoAnnotations#initMocks(**) @ For JUnit5 use ExtendWith(MockitoExtension.class). For JUnit4 use RunWith(MockitoJUnitRunner.class), MockitoJUnit.rule() or MockitoAnnotations.openMocks
 
 # Internal helpers from other libraries
-org.glassfish.grizzly.utils.** @ Use Standard-Library or Guava instead
+com.amazonaws.util.CollectionUtils @ Use plain java or com.google.common.collect instead
+com.amazonaws.util.IOUtils @ Use com.google.common.io instead
+com.amazonaws.util.StringUtils @ Use com.google.common.base.Strings instead
+com.amazonaws.util.Throwables @ Use com.google.common.base.Throwables instead
+software.amazon.awssdk.utils.CollectionUtils @ Use Standard-Library or Guava (com.google.common) instead
+software.amazon.awssdk.utils.ImmutableMap @ Use com.google.common.collect.ImmutableMap instead
+software.amazon.awssdk.utils.Pair @ Use org.apache.commons.lang3.tuple.(Immutable)Pair instead
+software.amazon.awssdk.utils.StringUtils @ Use com.google.common.base.Strings instead
+org.glassfish.grizzly.utils.** @ Use Standard-Library or Guava (com.google.common) instead
+org.apache.commons.compress.utils.** @ Use Standard-Library or Guava (com.google.common) instead
 org.mockito.internal.** @ Use org.mockito.Mockito instead (or com.google.common for collections)
 com.google.api.client.util.** @ Use Guava (com.google.common) instead
 org.apache.logging.log4j.util.** @ Use Guava (com.google.common) instead
 org.modelmapper.internal.** @ Use org.junit.Assert or Guava (com.google.common) instead
 io.micrometer.core.instrument.util.** @ Use Guava (com.google.common) instead
 org.eclipse.jetty.util.StringUtil @ Use com.google.common.base.Strings instead
+org.apache.commons.math.exception.NullArgumentException @ Use com.google.common.base.Preconditions.checkNotNull instead
+org.apache.commons.math3.exception.NullArgumentException @ Use com.google.common.base.Preconditions.checkNotNull instead
+com.mongodb.internal.** @ Use Standard-Library or Guava (com.google.common) instead
+org.apache.arrow.util.AutoCloseables @ Use com.dremio.common.AutoCloseables instead
+de.flapdoodle.embed.mongo.util.** @ Use Guava (com.google.common) or org.apache.commons.io instead
+
+# Deprecated
+org.apache.commons.collections.map.HashedMap @ Use java.util.HashMap instead
+org.apache.commons.collections4.map.HashedMap @ Use java.util.HashMap instead
+org.apache.commons.io.Charsets @ Use java.nio.charset.StandardCharsets instead
+com.google.common.base.Charsets @ Use java.nio.charset.StandardCharsets instead
+com.google.common.base.Optional @ Use java.util.Optional instead
 
 # XML Factories
 @defaultMessage Use SafeXMLFactories methods instead

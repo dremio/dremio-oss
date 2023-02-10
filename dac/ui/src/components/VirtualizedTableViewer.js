@@ -18,7 +18,7 @@ import clsx from "clsx";
 import PropTypes from "prop-types";
 import { AutoSizer, Column, Table } from "react-virtualized";
 import Draggable from "react-draggable";
-import classNames from "classnames";
+import classNames from "clsx";
 import Immutable, { List } from "immutable";
 
 import { humanSorter, getSortValue } from "@app/utils/sort";
@@ -54,7 +54,6 @@ class VirtualizedTableViewer extends Component {
     resetScrollTop: PropTypes.bool,
     onClick: PropTypes.func,
     enableHorizontalScroll: PropTypes.bool,
-    tableWidth: PropTypes.number,
     resizableColumn: PropTypes.bool,
     loadNextRecords: PropTypes.func,
     scrollToIndex: PropTypes.number,
@@ -63,12 +62,12 @@ class VirtualizedTableViewer extends Component {
     showIconHeaders: PropTypes.object,
     defaultDescending: PropTypes.bool,
     disableZebraStripes: PropTypes.any, // for Jobs Page specific styling with no zebra stripes
+    onCellRightClick: PropTypes.func,
     // other props passed into react-virtualized Table
   };
 
   static defaultProps = {
     tableData: Immutable.List(),
-    tableWidth: window.screen.width,
     rowHeight: ROW_HEIGHT,
   };
 
@@ -76,7 +75,7 @@ class VirtualizedTableViewer extends Component {
     sortBy: this.props.defaultSortBy,
     sortDirection: this.props.defaultSortDirection,
     tableColumns: [],
-    resizedTableWidth: this.props.tableWidth || window.screen.width,
+    resizedTableWidth: 0,
   };
 
   setColumns = () => {
@@ -97,6 +96,7 @@ class VirtualizedTableViewer extends Component {
 
   componentDidMount() {
     this.setColumns();
+    this.setTableWidth();
   }
 
   componentDidUpdate(previousProps) {
@@ -339,6 +339,7 @@ class VirtualizedTableViewer extends Component {
       enableHorizontalScroll,
       resizableColumn,
       disableSort,
+      onCellRightClick,
       ...tableProps
     } = this.props;
     const { sortBy, sortDirection, tableColumns, resizedTableWidth } =
@@ -351,8 +352,6 @@ class VirtualizedTableViewer extends Component {
     const isEmpty = tableSize === 0;
     const baseStyle = isEmpty ? { height: HEADER_HEIGHT } : { height: "100%" };
     const scrollStyle = enableHorizontalScroll ? { overflowX: "auto" } : {};
-    const tableColumnsWidth =
-      resizedTableWidth > window.screen.width && !isEmpty;
 
     return (
       <div
@@ -362,6 +361,7 @@ class VirtualizedTableViewer extends Component {
           ...(style || {}),
           ...scrollStyle,
         }}
+        className="virtualized-table-viewer"
       >
         <AutoSizer className="auto-sizer">
           {({ width, height }) => {
@@ -381,7 +381,11 @@ class VirtualizedTableViewer extends Component {
                 sortDirection={sortDirection}
                 sortBy={sortBy}
                 height={tableHeight}
-                width={tableColumnsWidth ? resizedTableWidth : width}
+                width={
+                  resizedTableWidth > width && !isEmpty
+                    ? resizedTableWidth
+                    : width
+                }
                 sort={this.sort}
                 {...tableProps}
               >
@@ -423,6 +427,9 @@ class VirtualizedTableViewer extends Component {
                                 onClick &&
                                 onClick(tabIndex ? tabIndex : opts);
                             }}
+                            {...(onCellRightClick && {
+                              onContextMenu: (e) => onCellRightClick(e, opts),
+                            })}
                           >
                             {this.renderCell(opts, item.key)}
                           </div>

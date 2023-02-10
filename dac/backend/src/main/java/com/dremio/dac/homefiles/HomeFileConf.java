@@ -104,6 +104,7 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
 
   @Tag(12)
   public String sharedAccessKey = null;
+  //Tag has been deprecated please do not use.
 
   public HomeFileConf() {
 
@@ -125,10 +126,6 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
         this.clientSecret = dataCredentials.getClientAccess().getClientSecret();
         this.accountName = dataCredentials.getClientAccess().getAccountName();
         this.accountKind = dataCredentials.getClientAccess().getAccountKind();
-      } else if (dataCredentials.hasSharedAccessKey()) {
-        this.sharedAccessKey = dataCredentials.getSharedAccessKey().getAccessKey();
-        this.accountName = dataCredentials.getSharedAccessKey().getAccountName();
-        this.accountKind = dataCredentials.getSharedAccessKey().getAccountKind();
       }
     }
   }
@@ -234,10 +231,6 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
 
   public String getAccountKind() {
     return accountKind;
-  }
-
-  public String getSharedAccessKey() {
-    return sharedAccessKey;
   }
 
   @Override

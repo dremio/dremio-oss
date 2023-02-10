@@ -32,8 +32,6 @@ import com.dremio.service.namespace.NamespaceKey;
  * Turns ON or OFF Schema Learning for the table specified by {@link SqlAlterTableToggleSchemaLearning}
  */
 public class SqlAlterTableToggleSchemaLearningHandler extends SimpleDirectHandler {
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlAlterTableToggleSchemaLearningHandler.class);
-
   private final Catalog catalog;
   private final SqlHandlerConfig config;
 

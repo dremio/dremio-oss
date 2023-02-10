@@ -29,7 +29,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
 import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
 import com.dremio.exec.record.RecordBatchHolder;
-import com.dremio.service.flight.FlightRpcUtils;
+import com.dremio.service.flightcommon.FlightRpcUtils;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.SessionId;

@@ -16,7 +16,7 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import uuid from "uuid";
-import classNames from "classnames";
+import classNames from "clsx";
 import { debounce } from "lodash";
 import SimpleMDE from "simplemde";
 import "simplemde/dist/simplemde.min.css";
@@ -30,6 +30,7 @@ import {
   fitToParent as fitToParentCls,
   wikiModalHeight,
 } from "./MarkdownEditor.less";
+import "./MarkdownEditorIcons.less";
 
 // simple mde overrides ---------------------------
 
@@ -343,7 +344,7 @@ export class MarkdownEditorView extends PureComponent {
     }
 
     // not displayed on the ui, but have to add
-    buttons.push("preview", "fullscreen", "side-by-side");
+    // buttons.push("preview", "fullscreen", "side-by-side");
 
     //custom buttons, that are added to the right of the toolbar. Put buttons in reverse order, as floating is applied
     if (onCancelClick) {

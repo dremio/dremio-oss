@@ -27,6 +27,9 @@ import { RepoViewContext } from "../../RepoView";
 
 import "./RepoViewBody.less";
 
+const ONE_ROW_HEIGHT = 82;
+const HEADER_HEIGHT = 38;
+
 function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
   const { allRefs, setAllRefs, defaultRef } = useContext(RepoViewContext);
   const [search, setSearch] = useState("");
@@ -164,6 +167,7 @@ function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
         <RepoViewBranchList
           rows={[defaultReference]}
           openCreateDialog={openCreateDialog}
+          openMergeDialog={openMergeDialog}
           openTagDialog={openTagDialog}
           isDefault
           isArcticSource={hideTitle}
@@ -175,9 +179,11 @@ function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
           height:
             filteredRows.length > 0
               ? // rows vs item height + header diff
-                `${filteredRows.length * 82 + 36}px`
+                filteredRows.length * ONE_ROW_HEIGHT + HEADER_HEIGHT
               : // Empty state height
-                "207px",
+              search !== ""
+              ? ONE_ROW_HEIGHT + HEADER_HEIGHT
+              : 207,
         }}
       >
         <RepoViewBranchList
@@ -188,6 +194,7 @@ function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
           openMergeDialog={openMergeDialog}
           defaultReference={defaultReference}
           isArcticSource={hideTitle}
+          noSearchResults={search !== "" && filteredRows.length === 0}
         />
       </div>
 
@@ -208,7 +215,7 @@ function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
       <MergeBranchDialog
         open={mergeBranchState.open}
         mergeFrom={mergeBranchState.branch}
-        mergeTo={defaultReference}
+        allRefs={allRefs}
         closeDialog={closeMergeDialog}
       />
       <NewTagDialog

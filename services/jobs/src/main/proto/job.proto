@@ -166,6 +166,10 @@ message JobInfo {
   optional int64 wait_time_ns = 43; //Sum of waitNanos across all minor fragments.
   optional int64 memory_allocated = 44; // Memory allocated by WLM (sum of peakLocalMemoryAllocated per node)
   repeated string sink_path = 45;
+  repeated string considered_reflection_ids = 46;
+  repeated string matched_reflection_ids = 47;
+  repeated string chosen_reflection_ids = 48;
+  optional QueryLabel queryLabel = 49 [default = NONE];
 }
 
 message ResourceSchedulingInfo {
@@ -254,6 +258,14 @@ enum QueryType {
   FLIGHT = 15; // for queries submitted outside of dac using a FlightClient
   METADATA_REFRESH = 16; // Queries related to metadata refresh
   INTERNAL_ICEBERG_METADATA_DROP = 17; // Queries related to internal iceberg metadata drop
+}
+
+enum QueryLabel {
+  NONE = 1; // Default Query Label
+  OPTIMIZATION = 2; // For Optimize, Vacuum
+  COPY = 3; // For COPY INTO
+  DML = 4; // For INSERT, UPDATE, DELETE, MERGE and TRUNCATE
+  CTAS = 5; // For CTAS
 }
 
 message JobStats {

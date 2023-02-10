@@ -17,7 +17,9 @@ package com.dremio.exec.store.hive;
 
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.getInternalIcebergTableMetadata;
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.supportsConvertedIcebergDataset;
+import static com.dremio.exec.store.dfs.FileSystemRulesFactory.isDeltaLakeDataset;
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.isIcebergMetadata;
+import static com.dremio.exec.store.dfs.FileSystemRulesFactory.isTableFilesMetadataFunction;
 import static com.dremio.service.namespace.DatasetHelper.isConvertedIcebergDataset;
 import static com.dremio.service.namespace.DatasetHelper.supportsPruneFilter;
 
@@ -41,6 +43,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,12 +55,14 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.EmptyRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.TableModifyRel;
+import com.dremio.exec.planner.logical.TableOptimizeRel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnProject;
@@ -68,11 +73,14 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.TableModifyPruleBase;
+import com.dremio.exec.planner.physical.TableOptimizePruleBase;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.deltalake.DeltaLakeScanPrel;
+import com.dremio.exec.store.deltalake.HiveDeltaScanTableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.dfs.PruneableScan;
 import com.dremio.exec.store.hive.orc.ORCFilterPushDownRule;
@@ -82,7 +90,6 @@ import com.dremio.exec.store.iceberg.IcebergScanPlanBuilder;
 import com.dremio.exec.store.iceberg.IcebergScanPrel;
 import com.dremio.exec.store.iceberg.InternalIcebergScanTableMetadata;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
-import com.dremio.exec.store.mfunctions.TableFilesFunctionTableMetadata;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.options.TypeValidators;
@@ -123,7 +130,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     public final Rel convert(RelNode rel) {
       final ScanCrel crel = (ScanCrel) rel;
       return new HiveScanDrel(crel.getCluster(), crel.getTraitSet().plus(Rel.LOGICAL), crel.getTable(),
-        crel.getPluginId(), crel.getTableMetadata(), crel.getProjectedColumns(), crel.getObservedRowcountAdjustment(), null);
+                              crel.getPluginId(), crel.getTableMetadata(), crel.getProjectedColumns(),
+                              crel.getObservedRowcountAdjustment(), crel.getHintsAsList(), null);
     }
 
   }
@@ -137,15 +145,17 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     private final Long survivingFileCount;
 
     public HiveScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-        TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-        ScanFilter filter) {
-      this(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, filter, null, null, null, null);
+                        TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                        List<RelHint> hints, ScanFilter filter) {
+      this(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, filter,
+           null, null, null, null);
     }
 
     private HiveScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                          TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                         ScanFilter filter, HiveReaderProto.ReaderType readerType, PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
-      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+                         List<RelHint> hints, ScanFilter filter, HiveReaderProto.ReaderType readerType,
+                         PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
+      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints);
       assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
       this.filter = filter;
       this.readerType = Optional.ofNullable(readerType)
@@ -163,7 +173,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
     // Clone with partition filter
     private HiveScanDrel(HiveScanDrel that, PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
-      super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), that.getObservedRowcountAdjustment());
+      super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), that.getObservedRowcountAdjustment(), that.getHintsAsList());
       assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
       this.filter = that.getFilter();
       this.readerType = that.readerType;
@@ -232,7 +242,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public FilterableScan applyFilter(ScanFilter filter) {
       return new HiveScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType, partitionFilter, survivingRowCount, survivingFileCount);
+        observedRowcountAdjustment, getHintsAsList(), filter, readerType, partitionFilter, survivingRowCount, survivingFileCount);
     }
 
     @Override
@@ -244,13 +254,13 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new HiveScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType, partitionFilter, survivingRowCount, survivingFileCount);
+        observedRowcountAdjustment, getHintsAsList(), filter, readerType, partitionFilter, survivingRowCount, survivingFileCount);
     }
 
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new HiveScanDrel(getCluster(), traitSet, new RelOptNamespaceTable(newDatasetPointer, getCluster()),
-        pluginId, newDatasetPointer, getProjectedColumns(), observedRowcountAdjustment, filter, readerType, partitionFilter, survivingRowCount, survivingFileCount);
+        pluginId, newDatasetPointer, getProjectedColumns(), observedRowcountAdjustment, getHintsAsList(), filter, readerType, partitionFilter, survivingRowCount, survivingFileCount);
     }
 
     @Override
@@ -274,7 +284,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public HiveScanDrel cloneWithProject(List<SchemaPath> projection) {
       return new HiveScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection,
-        observedRowcountAdjustment, filter, readerType, partitionFilter == null ? null : partitionFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()), survivingRowCount, survivingFileCount);
+        observedRowcountAdjustment, getHintsAsList(), filter, readerType, partitionFilter == null ? null : partitionFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()), survivingRowCount, survivingFileCount);
     }
     @Override
     public StoragePluginId getIcebergStatisticsPluginId(OptimizerRulesContext context) {
@@ -325,8 +335,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
     public HiveScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                        ScanFilter filter, HiveReaderProto.ReaderType readerType, List<Info> runtimeFilters) {
-      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
+                        List<RelHint> hints, ScanFilter filter, HiveReaderProto.ReaderType readerType, List<Info> runtimeFilters) {
+      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, runtimeFilters);
       this.filter = filter;
       this.readerType = readerType;
     }
@@ -343,13 +353,13 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType, getRuntimeFilters());
+        observedRowcountAdjustment, getHintsAsList(), filter, readerType, getRuntimeFilters());
     }
 
     @Override
     public HiveScanPrel cloneWithProject(List<SchemaPath> projection) {
       return new HiveScanPrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType, getRuntimeFilters());
+        observedRowcountAdjustment, getHintsAsList(), filter, readerType, getRuntimeFilters());
     }
 
     @Override
@@ -385,7 +395,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType, getRuntimeFilters());
+        observedRowcountAdjustment, getHintsAsList(), filter, readerType, getRuntimeFilters());
     }
 
   }
@@ -405,14 +415,15 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     public RelNode convert(RelNode rel) {
       HiveScanDrel drel = (HiveScanDrel) rel;
       return new HiveScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(),
-        drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.getReaderType(), ImmutableList.of());
+                              drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
+                              drel.getObservedRowcountAdjustment(), drel.getHintsAsList(), drel.getFilter(),
+                              drel.getReaderType(), ImmutableList.of());
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
       HiveScanDrel drel = call.rel(0);
-      return !isIcebergMetadata(drel.getTableMetadata()) && !isHiveIcebergDataset(drel);
+      return !isTableFilesMetadataFunction(drel.getTableMetadata()) && !isIcebergMetadata(drel.getTableMetadata()) && !isHiveIcebergDataset(drel) && !isDeltaLakeDataset(drel.getTableMetadata());
     }
   }
 
@@ -430,15 +441,16 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       HiveScanDrel drel = (HiveScanDrel) relNode;
       InternalIcebergScanTableMetadata icebergTableMetadata = getInternalIcebergTableMetadata(drel.getTableMetadata(), context);
       return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
-        drel.getTable(), icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata, drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), false, /* TODO enable */
-        drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount(), drel.canUsePartitionStats());
+                                 drel.getTable(), icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata, drel.getProjectedColumns(),
+                                 drel.getObservedRowcountAdjustment(), drel.getHintsAsList(), drel.getFilter(), false, /* TODO enable */
+        drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount(),
+                                 drel.canUsePartitionStats(), ManifestScanFilters.empty());
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
       HiveScanDrel drel = call.rel(0);
-      return supportsConvertedIcebergDataset(context, drel.getTableMetadata()) && !isHiveIcebergDataset(drel);
+      return !isTableFilesMetadataFunction(drel.getTableMetadata()) && supportsConvertedIcebergDataset(context, drel.getTableMetadata()) && !isHiveIcebergDataset(drel);
     }
   }
 
@@ -464,7 +476,34 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public boolean matches(RelOptRuleCall call) {
       HiveScanDrel drel = call.rel(0);
-      return isHiveIcebergDataset(drel);
+      return !isTableFilesMetadataFunction(drel.getTableMetadata()) && isHiveIcebergDataset(drel);
+    }
+  }
+
+  private static class HiveDeltaScanPrule extends ConverterRule {
+    private final OptimizerRulesContext context;
+    private final String storagePluginName;
+
+    public HiveDeltaScanPrule(StoragePluginId pluginId, OptimizerRulesContext context) {
+      super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginId.getType().value() + "HiveDeltaScanPrule."
+        + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString());
+      this.context = context;
+      this.storagePluginName = pluginId.getName();
+    }
+
+    @Override
+    public RelNode convert(RelNode relNode) {
+      HiveScanDrel drel = (HiveScanDrel) relNode;
+      HiveDeltaScanTableMetadata deltaScanTableMetadata = new HiveDeltaScanTableMetadata(drel.getTableMetadata());
+      return new DeltaLakeScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
+                                   drel.getTable(), drel.getPluginId(), deltaScanTableMetadata, drel.getProjectedColumns(),
+                                   drel.getObservedRowcountAdjustment(), drel.getHintsAsList(), null, true, drel.getPartitionFilter());
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      HiveScanDrel drel = call.rel(0);
+      return isDeltaLakeDataset(drel.getTableMetadata());
     }
   }
 
@@ -475,8 +514,6 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     /**
      * A rule for hive/glue iceberg table metadata functions.
      * Ref: FileSystemRulesFactory.TableFilesFunctionScanPrule
-     * @param pluginId
-     * @param context
      */
     public HiveIcebergTableFileFunctionPrule(StoragePluginId pluginId, OptimizerRulesContext context) {
       super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginId.getType().value() + "HiveIcebergTableFileFunctionPrule."
@@ -493,13 +530,13 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
       return new IcebergManifestFileContentScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
         drel.getTable(), icebergScanTableMetadata, drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment());
+        drel.getObservedRowcountAdjustment(), drel.getHintsAsList());
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
       HiveScanDrel drel = call.rel(0);
-      return drel.getTableMetadata() != null && drel.getTableMetadata() instanceof TableFilesFunctionTableMetadata;
+      return drel.getTableMetadata() != null && isTableFilesMetadataFunction(drel.getTableMetadata());
     }
 
   }
@@ -525,6 +562,28 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
         new HiveIcebergScanTableMetadata(
           ((DremioPrepareTable) tableModify.getTable()).getTable().getDataset(),
           (SupportsIcebergRootPointer) tableModify.getCreateTableEntry().getPlugin()));
+    }
+  }
+
+  public static class HiveTableOptimzePrule extends TableOptimizePruleBase {
+
+    public HiveTableOptimzePrule(StoragePluginId pluginId, OptimizerRulesContext context) {
+      super(RelOptHelper.some(TableOptimizeRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
+        String.format("%sHiveTableOptimzePrule.%s.%s",
+          pluginId.getType().value(), SLUGIFY.slugify(pluginId.getName()), UUID.randomUUID()), context);
+    }
+
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+      final TableOptimizeRel optimizeRel = call.rel(0);
+      call.transformTo(getPhysicalPlan(optimizeRel,call.rel(1), new HiveIcebergScanTableMetadata(
+        ((DremioPrepareTable) optimizeRel.getTable()).getTable().getDataset(),
+        (SupportsIcebergRootPointer) optimizeRel.getCreateTableEntry().getPlugin())));
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      return call.<TableOptimizeRel>rel(0).getCreateTableEntry().getPlugin() instanceof BaseHiveStoragePlugin;
     }
   }
 
@@ -560,9 +619,11 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
         return ImmutableSet.of(
           new HiveScanPrule(pluginId, optimizerContext),
           new InternalIcebergScanPrule(pluginId, optimizerContext),
+          new HiveDeltaScanPrule(pluginId, optimizerContext),
           new HiveIcebergScanPrule(pluginId, optimizerContext),
           new HiveIcebergTableFileFunctionPrule(pluginId, optimizerContext),
-          new HiveTableModifyPrule(pluginId, optimizerContext)
+          new HiveTableModifyPrule(pluginId, optimizerContext),
+          new HiveTableOptimzePrule(pluginId, optimizerContext)
         );
 
       default:

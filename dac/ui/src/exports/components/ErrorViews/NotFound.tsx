@@ -16,29 +16,51 @@
 
 import { Link } from "react-router";
 import { Button } from "dremio-ui-lib/dist-esm/index";
+import { intl } from "@app/utils/intl";
 import { ErrorView } from "./ErrorView";
-import * as PATHS from "../../paths";
+import * as orgPaths from "dremio-ui-common/paths/organization.js";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
+//@ts-ignore
 import narwhal404 from "dremio-ui-lib/icons/dremio/narwhal/narwhal-404.svg";
 import { FeatureSwitch } from "../FeatureSwitch/FeatureSwitch";
 import { ORGANIZATION_LANDING } from "../../flags/ORGANIZATION_LANDING";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
-export const NotFound = () => {
+export const NotFound = ({
+  title,
+  action,
+}: {
+  title?: string;
+  action?: any;
+}) => {
+  const { formatMessage } = intl;
+  const projectId = getSonarContext()?.getSelectedProjectId?.();
   return (
     <ErrorView
-      title="The page you are looking for doesn’t exist."
+      title={title ?? formatMessage({ id: "404.ThePageDoesntExist" })}
       image={<img src={narwhal404} alt="" />}
       action={
         <>
           <FeatureSwitch
             flag={ORGANIZATION_LANDING}
-            renderEnabled={() => (
-              <Button as={Link} variant="primary" to={PATHS.organization()}>
-                Go to Dremio console
-              </Button>
-            )}
+            renderEnabled={() =>
+              action ?? (
+                <Button
+                  as={Link}
+                  variant="primary"
+                  to={orgPaths.organization.link()}
+                >
+                  {formatMessage({ id: "404.GoToConsole" })}
+                </Button>
+              )
+            }
             renderDisabled={() => (
-              <Button as={Link} variant="primary" to="/">
-                Go to home
+              <Button
+                as={Link}
+                variant="primary"
+                to={commonPaths.projectBase({ projectId })}
+              >
+                {formatMessage({ id: "404.GoToHome" })}
               </Button>
             )}
           />

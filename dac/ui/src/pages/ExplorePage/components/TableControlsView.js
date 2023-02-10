@@ -326,7 +326,9 @@ export class TableControlsView extends PureComponent {
                       }
                     />
                   </Tooltip>
-                  {intl.formatMessage({ id: "Dataset.AddColumn" })}
+                  <span className="noText">
+                    {intl.formatMessage({ id: "Dataset.AddColumn" })}
+                  </span>
                 </Button>
                 <Button
                   className="controls-groupBy"
@@ -348,7 +350,9 @@ export class TableControlsView extends PureComponent {
                       }
                     />
                   </Tooltip>
-                  {intl.formatMessage({ id: "Dataset.GroupBy" })}
+                  <span className="noText">
+                    {intl.formatMessage({ id: "Dataset.GroupBy" })}
+                  </span>
                 </Button>
                 <Button
                   className="controls-join"
@@ -370,7 +374,9 @@ export class TableControlsView extends PureComponent {
                       }
                     />
                   </Tooltip>
-                  {intl.formatMessage({ id: "Dataset.Join" })}
+                  <span className="noText">
+                    {intl.formatMessage({ id: "Dataset.Join" })}
+                  </span>
                 </Button>
                 <ExploreTableColumnFilter
                   dataset={dataset}

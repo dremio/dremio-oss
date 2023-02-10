@@ -51,6 +51,41 @@ function fetchEntities({
   };
 }
 
+function newFetchEntities({
+  href,
+  schema,
+  viewId,
+  datasetVersion,
+  jobId,
+  paginationUrl,
+}) {
+  const meta = { viewId, href };
+
+  const apiCall = new APIV2Call().fullpath(href);
+
+  return {
+    [RSAA]: {
+      types: [
+        { type: LOAD_EXPLORE_ENTITIES_STARTED, meta },
+        schemaUtils.newGetSuccessActionTypeWithSchema(
+          LOAD_EXPLORE_ENTITIES_SUCCESS,
+          schema,
+          meta,
+          datasetVersion,
+          jobId,
+          paginationUrl
+        ),
+        {
+          type: LOAD_EXPLORE_ENTITIES_FAILURE,
+          meta: { ...meta, noUpdate: true },
+        },
+      ],
+      method: "GET",
+      endpoint: apiCall,
+    },
+  };
+}
+
 export const loadExploreEntities =
   ({ href, schema, viewId, uiPropsForEntity, invalidateViewIds }) =>
   (dispatch) =>
@@ -61,6 +96,20 @@ export const loadExploreEntities =
         viewId,
         uiPropsForEntity,
         invalidateViewIds,
+      })
+    );
+
+export const newLoadExploreEntities =
+  ({ href, schema, viewId, datasetVersion, jobId, paginationUrl }) =>
+  (dispatch) =>
+    dispatch(
+      newFetchEntities({
+        href,
+        schema,
+        viewId,
+        datasetVersion,
+        jobId,
+        paginationUrl,
       })
     );
 

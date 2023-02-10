@@ -13,15 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { formatQuery } from "dremio-ui-common/sql/formatter/sqlFormatter.js";
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import MonacoEditor from "react-monaco-editor";
 import Immutable from "immutable";
 import * as SQLLanguage from "monaco-editor/dev/vs/basic-languages/src/sql";
+import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import { intl } from "@app/utils/intl";
+import config from "@inject/utils/config";
 
 import { RESERVED_WORDS } from "utils/pathUtils";
 import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
+import { addNotification } from "actions/notification";
 import { SQLAutoCompleteProvider } from "./SQLAutoCompleteProvider";
 import { debounce } from "lodash";
 
@@ -478,6 +483,18 @@ export class SQLEditor extends PureComponent {
     }
   };
 
+  setFormatter(language) {
+    this.monaco.languages.registerDocumentFormattingEditProvider(language, {
+      displayName: intl.formatMessage({ id: "SQL.Format" }),
+      provideDocumentFormattingEdits: (model) => [
+        {
+          range: model.getFullModelRange(),
+          text: this.onFormatQuery(model.getValue()),
+        },
+      ],
+    });
+  }
+
   editorDidMount = (editor, monaco) => {
     this.monaco = monaco;
     this.setEditorTheme();
@@ -502,6 +519,10 @@ export class SQLEditor extends PureComponent {
       monaco.languages.register({ id: language });
       monaco.languages.setMonarchTokensProvider(language, tokenProvider);
       monaco.languages.setLanguageConfiguration(language, conf);
+
+      if (config.allowFormatting) {
+        this.setFormatter(language);
+      }
 
       SnippetController = window.require(
         "vs/editor/contrib/snippet/browser/snippetController2"
@@ -529,11 +550,38 @@ export class SQLEditor extends PureComponent {
   };
 
   onKbdPreview = () => {
-    this.props.previewDatasetSql();
+    if (this.getSelectedSql() !== "") {
+      this.props.previewDatasetSql({ selectedSql: this.getSelectedSql() });
+    } else {
+      this.props.previewDatasetSql();
+    }
+  };
+
+  getMonacoEditorInstance = () => {
+    return this?.monacoEditorComponent?.editor;
+  };
+
+  getSelectedSql = () => {
+    if (this.getMonacoEditorInstance() === undefined) {
+      return "";
+    }
+
+    const selection = this.getMonacoEditorInstance().getSelection();
+    const range = {
+      endColumn: selection.endColumn,
+      endLineNumber: selection.endLineNumber,
+      startColumn: selection.startColumn,
+      startLineNumber: selection.startLineNumber,
+    };
+    return this.getMonacoEditorInstance().getModel().getValueInRange(range);
   };
 
   onKbdRun = () => {
-    this.props.runDatasetSql();
+    if (this.getSelectedSql() !== "") {
+      this.props.runDatasetSql({ selectedSql: this.getSelectedSql() });
+    } else {
+      this.props.runDatasetSql();
+    }
   };
 
   addKeyboardShortcuts = (editor) => {
@@ -556,10 +604,41 @@ export class SQLEditor extends PureComponent {
       keybindingContext: null,
       run: this.onKbdRun,
     });
+    if (config.allowFormatting) {
+      editor.addAction({
+        id: "keys-format",
+        label: intl.formatMessage({ id: "SQL.Format" }),
+        keybindings: [
+          monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KEY_F,
+        ], // eslint-disable-line no-bitwise
+        precondition: null,
+        keybindingContext: null,
+        run: () => {
+          editor.getAction("editor.action.formatDocument").run();
+        },
+      });
+    }
     // trigger autocomplete suggestWidget
     editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Space, () =>
       editor.trigger("", "editor.action.triggerSuggest")
     );
+  };
+
+  onFormatQuery = (query) => {
+    if (!query) {
+      return query;
+    }
+
+    try {
+      return formatQuery(query);
+    } catch {
+      this.props.addNotification(
+        intl.formatMessage({ id: "SQL.Format.Error" }),
+        "error",
+        MSG_CLEAR_DELAY_SEC
+      );
+      return query;
+    }
   };
 
   insertSnippet() {
@@ -587,6 +666,7 @@ export class SQLEditor extends PureComponent {
           width="100%"
           language={this.state.language}
           theme={this.state.theme}
+          className="dremio-typography-monospace"
           options={{
             wordWrap: "on",
             lineNumbersMinChars: 3,
@@ -594,6 +674,7 @@ export class SQLEditor extends PureComponent {
             scrollbar: { vertical: "visible", useShadows: false },
             automaticLayout: true,
             lineDecorationsWidth: 12,
+            fontFamily: "Consolas, Fira Code",
             fontSize: 14,
             fixedOverflowWidgets: true,
             minimap: {
@@ -618,6 +699,7 @@ export default connect(
   {
     runDatasetSql,
     previewDatasetSql,
+    addNotification,
   },
   null,
   { forwardRef: true }

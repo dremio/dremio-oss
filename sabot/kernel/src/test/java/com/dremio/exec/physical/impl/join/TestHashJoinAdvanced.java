@@ -35,8 +35,6 @@ import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 
 @Ignore("DX-3872")
 public class TestHashJoinAdvanced extends BaseTestQuery {
@@ -151,7 +149,7 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
   public void simpleEqualityJoin() throws Throwable {
     // Function checks hash join with single equality condition
 
-    final String plan = Files.toString(FileUtils.getResourceAsFile("/join/hash_join.json"), Charsets.UTF_8)
+    final String plan = readResourceAsString("/join/hash_join.json")
                     .replace("#{TEST_FILE_1}", FileUtils.getResourceAsFile("/build_side_input.json").toURI().toString())
                     .replace("#{TEST_FILE_2}", FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
 
@@ -187,8 +185,7 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
   public void multipleConditionJoin() throws Exception {
 
     // Function tests hash join with multiple join conditions
-    final String plan = Files
-        .toString(FileUtils.getResourceAsFile("/join/hj_multi_condition_join.json"), Charsets.UTF_8)
+    final String plan = readResourceAsString("/join/hj_multi_condition_join.json")
         .replace("#{TEST_FILE_1}", FileUtils.getResourceAsFile("/build_side_input.json").toURI().toString())
         .replace("#{TEST_FILE_2}", FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
 

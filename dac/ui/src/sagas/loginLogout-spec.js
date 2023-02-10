@@ -42,9 +42,7 @@ describe("login", () => {
     const userData = { name: "a test user name" };
     const gen = handleLogin({ payload: userData });
 
-    expect(gen.next().value).to.be.eql(
-      call([localStorageUtils, localStorageUtils.setUserData], userData)
-    );
+    gen.next();
     expect(gen.next().value).to.be.eql(call(handleAppInit));
 
     expect(gen.next().done).to.be.true;

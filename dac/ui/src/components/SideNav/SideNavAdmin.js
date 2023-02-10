@@ -21,6 +21,7 @@ import "@app/components/IconFont/css/DremioIcons.css";
 import "@app/components/SideNav/SideNav.less";
 import { isActive } from "@app/components/SideNav/SideNavUtils";
 import { TopAction } from "@app/components/SideNav/components/TopAction";
+import * as adminPaths from "dremio-ui-common/paths/admin.js";
 
 const SideNavAdmin = (props) => {
   const { location } = props;
@@ -29,7 +30,7 @@ const SideNavAdmin = (props) => {
   return (
     <TopAction
       active={isActive({ name: "/admin", loc, admin: true })}
-      url="/admin"
+      url={adminPaths.admin.link()}
       icon="interface/settings"
       alt="SideNav.Admin"
     />

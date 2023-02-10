@@ -16,11 +16,15 @@
 package com.dremio.service.reflection;
 
 import java.util.Iterator;
+import java.util.Optional;
+
+import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 
@@ -31,7 +35,7 @@ public interface ReflectionStatusService {
 
   ReflectionStatus getReflectionStatus(ReflectionId reflectionId);
 
-  ReflectionStatus getReflectionStatus(ReflectionGoal goal, com.google.common.base.Optional<Materialization> lastDoneMaterialization,
+  ReflectionStatus getReflectionStatus(ReflectionGoal goal, Optional<Materialization> lastDoneMaterialization,
                                        DremioTable table);
 
   ExternalReflectionStatus getExternalReflectionStatus(ReflectionId reflectionId);
@@ -39,6 +43,20 @@ public interface ReflectionStatusService {
   Iterator<AccelerationListManager.ReflectionInfo> getReflections();
 
   Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos();
+
+  /**
+   * Returns the size of all materializations in this reflection including materializations that are deprecated
+   * @param reflectionId
+   * @return
+   */
+  long getTotalReflectionSize(ReflectionId reflectionId);
+
+  /**
+   * Returns the current size of a reflection including size in bytes and total output records
+   * @param materialization
+   * @return
+   */
+  Pair<MaterializationMetrics, Long> getReflectionSize(Materialization materialization);
 
   ReflectionStatusService NOOP = new ReflectionStatusService() {
 
@@ -48,7 +66,7 @@ public interface ReflectionStatusService {
     }
 
     @Override
-    public ReflectionStatus getReflectionStatus(ReflectionGoal goal, com.google.common.base.Optional<Materialization> lastDoneMaterialization,
+    public ReflectionStatus getReflectionStatus(ReflectionGoal goal, Optional<Materialization> lastDoneMaterialization,
                                                 DremioTable table) {
       throw new UnsupportedOperationException("getReflectionStatus");
     }
@@ -66,6 +84,16 @@ public interface ReflectionStatusService {
     @Override
     public Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos() {
       throw new UnsupportedOperationException("getRefreshInfos");
+    }
+
+    @Override
+    public long getTotalReflectionSize(ReflectionId reflectionId) {
+      return 0;
+    }
+
+    @Override
+    public Pair<MaterializationMetrics, Long> getReflectionSize(Materialization materialization) {
+      throw new UnsupportedOperationException("getReflectionSize");
     }
   };
 }

@@ -77,6 +77,7 @@ public class OnReadyRunnableHandler<V> implements Runnable {
       super(requestType, underlyingExecutor, false);
     }
 
+    @SuppressWarnings("DremioGRPCStreamObserverOnError")
     @Override
     protected void runException(Runnable command, Throwable t) {
       responseObserver.onError(t);

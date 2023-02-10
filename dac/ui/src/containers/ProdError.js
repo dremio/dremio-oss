@@ -51,7 +51,6 @@ export class ProdErrorContainer extends Component {
         eventId={errorId}
         onHide={this.handleHide}
         showGoHome={showGoHome}
-        showFileABug={config.shouldEnableBugFiling}
       />
     );
   }

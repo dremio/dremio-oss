@@ -48,7 +48,7 @@ public class SimpleCastFunctions {
     public void eval() {
       byte[] buf = new byte[in.end - in.start];
       in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
-      String input = new String(buf, com.google.common.base.Charsets.UTF_8).toLowerCase().trim();
+      String input = new String(buf, java.nio.charset.StandardCharsets.UTF_8).toLowerCase().trim();
       if ("true".equals(input) || "1".equals(input)) {
         out.value = 1;
       } else if ("false".equals(input) || "0".equals(input)) {

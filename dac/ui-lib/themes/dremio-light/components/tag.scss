@@ -14,24 +14,7 @@
  * limitations under the License.
  */
 
-.dremio-tag {
-  align-items: center;
-  display: inline-flex;
-  flex-direction: row;
-  user-select: none;
-  white-space: nowrap;
-  background: var(--dremio--tag--background);
-  border: var(--dremio--tag--border);
-  border-radius: var(--dremio--tag--border-radius);
-  color: var(--dremio--tag--color);
-  font-size: var(--dremio--tag--font-size);
-  font-weight: var(--dremio--tag--font-weight);
-  gap: var(--dremio--tag--gap);
-  padding: var(--dremio--tag--padding);
-
-  // Ensure that the tag's padding doesn't increase line height
-  margin-block: calc(var(--dremio--tag--padding) * -1);
-}
+@use "../../base/components/tag";
 
 .dremio-tag {
   --dremio--tag--background: var(--dremio--color--neutral--150);

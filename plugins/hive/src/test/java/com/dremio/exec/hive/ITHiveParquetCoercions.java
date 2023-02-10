@@ -16,10 +16,13 @@
 package com.dremio.exec.hive;
 
 import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
+import static org.joda.time.DateTimeZone.UTC;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 
 import org.apache.hadoop.hive.ql.Driver;
+import org.joda.time.DateTime;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -47,6 +50,8 @@ public class ITHiveParquetCoercions extends LazyDataGeneratingHiveTestBase {
         {"string", "varchar", "90", "'90'"},
         //varchar
         {"varchar", "string", "90", "'90'"},
+        //timestamp
+        {"timestamp", "bigint", new DateTime(Timestamp.valueOf("2019-03-14 11:17:31.119021").getTime(), UTC).getMillis()},
     };
     hiveTestTypeConversions(testcases);
   }
@@ -157,6 +162,7 @@ public class ITHiveParquetCoercions extends LazyDataGeneratingHiveTestBase {
         {"varchar", "decimal", ""},
         {"varchar", "string", ""},
         //timestamp
+        {"timestamp", "bigint", ""},
         {"timestamp", "string", ""},
         {"timestamp", "varchar", "(1024)"},
         //date

@@ -29,6 +29,7 @@ import org.apache.calcite.rel.SingleRel;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
@@ -106,9 +107,14 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
+    TableFormatWriterOptions tableFormatOptions = createTableEntry.getOptions().getTableFormatOptions();
     return super.explainTerms(pw)
       .itemIf("temp", tempLocation, tempLocation != null)
-      .item("final", finalLocation);
+      .item("final", finalLocation)
+      .itemIf("iceberg_operation", tableFormatOptions.getOperation().name(), tableFormatOptions != null &&
+        !tableFormatOptions.getOperation().equals(TableFormatWriterOptions.TableFormatOperation.NONE))
+      .itemIf("min_input_files", tableFormatOptions.getMinInputFilesBeforeOptimize(),
+        tableFormatOptions != null && tableFormatOptions.getMinInputFilesBeforeOptimize() != null);
   }
 
   @Override
@@ -127,6 +133,7 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
         null,
         isPartialRefresh,
         readSignatureEnabled,
+        createTableEntry.getOptions().getTableFormatOptions(),
         sourceTablePluginId);
   }
 
