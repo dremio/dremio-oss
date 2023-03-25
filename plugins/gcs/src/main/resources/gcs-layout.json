@@ -121,15 +121,39 @@
             ]
           },
           {
+            "name": "Bucket Allowlist",
             "elements": [
               {
-                "propName": "config.bucketWhitelist[]",
-                "uiType": "value_list",
-                "emptyLabel": "No allowlisted buckets added",
-                "addLabel": "Add bucket",
-                "validate": {
-                  "isRequired": false
-                }
+                "propName": "config.allowlistedBucketsMode",
+                "uiType": "container_selection",
+                "options": [
+                  {
+                    "value": "ALLOWLISTED_BUCKETS",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.bucketWhitelist[]",
+                          "uiType": "value_list",
+                          "emptyLabel": "No allowlisted buckets added",
+                          "addLabel": "Add bucket",
+                          "validate": {
+                            "isRequired": false
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "ALLOWLISTED_BUCKETS_BY_REGEX",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.bucketWhitelistRegexFilter"
+                        }
+                      ]
+                    }
+                  }
+                ]
               }
             ]
           },

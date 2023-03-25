@@ -58,6 +58,10 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
     @Tag(2) @DisplayMetadata(label = "Automatic/Service Account") AUTO
   }
 
+  public enum AllowlistedBucketsMode {
+    @Tag(1) @DisplayMetadata(label = "List Buckets") LIST,
+    @Tag(2) @DisplayMetadata(label = "Regular Expression") REGEX,
+  }
 
   @Tag(2)
   public AuthMode authMode = AuthMode.SERVICE_ACCOUNT_KEYS;
@@ -76,51 +80,59 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   public boolean allowCreateDrop;
 
   @Tag(7)
+  public AllowlistedBucketsMode allowlistedBucketsMode = AllowlistedBucketsMode.LIST;
+
+  @Tag(8)
   @NotMetadataImpacting
-  @DisplayMetadata(label = "Allowlisted buckets")
+  @DisplayMetadata(label = "Enter the name of each bucket to be included")
   public List<String> bucketWhitelist;
 
   @Tag(9)
   @NotMetadataImpacting
+  @DisplayMetadata(label = "Enter a regular expression pattern to match bucket names. Only matching buckets will be allowed")
+  public String bucketWhitelistRegexFilter = ".*";
+
+  @Tag(10)
+  @NotMetadataImpacting
   @DisplayMetadata(label = "Enable asynchronous access when possible")
   public boolean asyncEnabled = true;
 
-  @Tag(10)
+  @Tag(11)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable local caching when possible")
   public boolean cachingEnable = true;
 
-  @Tag(11)
+  @Tag(12)
   @NotMetadataImpacting
   @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
   @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int cachePercent = 70;
 
-  @Tag(12)
+  @Tag(13)
   @DisplayMetadata(label = "Private Key ID")
   public String privateKeyId = "";
 
-  @Tag(13)
+  @Tag(14)
   @Secret
   @DisplayMetadata(label = "Private Key")
   public String privateKey = "";
 
-  @Tag(14)
+  @Tag(15)
   @DisplayMetadata(label = "Client Email")
   public String clientEmail = "";
 
-  @Tag(15)
+  @Tag(16)
   @DisplayMetadata(label = "Client ID")
   public String clientId = "";
 
 
-  @Tag(16)
+  @Tag(17)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
-  @Tag(17)
+  @Tag(18)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable partition column inference")
   public boolean isPartitionInferenceEnabled = false;
