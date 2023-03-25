@@ -111,16 +111,16 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
 
     switch (conf.allowlistedBucketsMode) {
       case LIST:
+      default:
+        properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_MODE, "true"));
         properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_BUCKETS,
           (conf.bucketWhitelist != null && !conf.bucketWhitelist.isEmpty()) ? String.join(",", conf.bucketWhitelist) : ""));
         break;
       case REGEX:
+        properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_MODE, "false"));
         properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_BUCKETS_REGEX, conf.bucketWhitelistRegexFilter));
         break;
-      default:
-        break;
     }
-
 
     if (conf.getProperties() != null) {
       properties.addAll(conf.getProperties());

@@ -205,13 +205,13 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
 
   @Override
   protected Stream<ContainerCreator> getContainerCreators() throws IOException {
-    final Stream<String> bucketNames = getBucketNames();
-    return bucketNames.map(GCSContainerCreator::new);
+    return getBucketNames().map(GCSContainerCreator::new);
   }
 
   private Stream<String> getBucketNames() {
     switch (connectionConf.allowlistedBucketsMode) {
       case LIST:
+      default:
         if (connectionConf.bucketWhitelist != null && !connectionConf.bucketWhitelist.isEmpty()) {
           return connectionConf.bucketWhitelist.stream();
         }
@@ -220,8 +220,6 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
         if (connectionConf.bucketWhitelistRegexFilter != null && !connectionConf.bucketWhitelistRegexFilter.equals("")) {
           return getStorageBucketNameStream().filter(s -> s.matches(connectionConf.bucketWhitelistRegexFilter));
         }
-        break;
-      default:
         break;
     }
     return getStorageBucketNameStream();
