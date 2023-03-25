@@ -128,7 +128,7 @@
                 "uiType": "container_selection",
                 "options": [
                   {
-                    "value": "ALLOWLISTED_BUCKETS",
+                    "value": "LIST",
                     "container": {
                       "elements": [
                         {
@@ -144,7 +144,7 @@
                     }
                   },
                   {
-                    "value": "ALLOWLISTED_BUCKETS_BY_REGEX",
+                    "value": "REGEX",
                     "container": {
                       "elements": [
                         {
